@@ -6,6 +6,7 @@ import elemental2.dom.XMLHttpRequest;
 import java.util.Map;
 import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
+import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarOpenRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
@@ -21,7 +22,8 @@ public final class J2clSearchGateway
     implements
         J2clSearchPanelController.SearchGateway,
         J2clSelectedWaveController.Gateway,
-        J2clSidecarComposeController.Gateway {
+        J2clSidecarComposeController.Gateway,
+        J2clComposeSurfaceController.Gateway {
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
   private static final String CROSS_HOST_WEBSOCKET_ERROR =
       "The J2CL sidecar requires core.http_websocket_presented_address to use the current page host when HttpOnly session cookies are enabled.";

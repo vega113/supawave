@@ -8,6 +8,12 @@ import "./elements/shell-main-region.js";
 import "./elements/shell-status-strip.js";
 import "./elements/shell-root.js";
 import "./elements/shell-root-signed-out.js";
+import "./elements/composer-submit-affordance.js";
+import "./elements/composer-inline-reply.js";
+import "./elements/composer-shell.js";
+import "./elements/toolbar-button.js";
+import "./elements/toolbar-group.js";
+import "./elements/toolbar-overflow-menu.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

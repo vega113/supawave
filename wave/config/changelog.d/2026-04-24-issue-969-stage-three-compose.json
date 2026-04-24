@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-24-issue-969-stage-three-compose",
+  "version": "Issue #969",
+  "date": "2026-04-24",
+  "title": "J2CL root shell gains practical compose and daily toolbar parity",
+  "summary": "The opt-in J2CL root shell now exposes Lit-backed compose/reply controls and daily view/edit toolbar actions on top of the current selected-wave write-session seam.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added Lit compose primitives that show create, reply, submit, disabled, error, and stale-basis states in the J2CL root shell",
+        "Added J2CL compose state management that consumes the selected-wave write-session listener without introducing a parallel bootstrap or reconnect lifecycle",
+        "Added daily view and edit toolbar primitives and controller command seams while leaving mention autocomplete, task overlays, reactions, and attachments to their follow-up issues"
+      ]
+    }
+  ]
+}

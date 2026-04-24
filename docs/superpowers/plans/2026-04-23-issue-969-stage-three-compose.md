@@ -146,6 +146,35 @@ The `#969` implementation lane must verify these assumptions against merged code
 
 If any assumption is false after `#968` merges, update this plan before implementation and add a new issue comment explaining the adjusted handoff.
 
+### 4.1 Phase 0 Revalidation Update (2026-04-24)
+
+Post-`#968` code does include `J2clRootLiveSurfaceController` and
+`J2clRootLiveSurfaceModel`, but the merged root-live seam is narrower than the
+planning assumptions above:
+
+- `J2clRootLiveSurfaceController` owns route URL/state wrapping, selected-wave id
+  status publication, return-target sync, and the `shell-status-strip` live
+  status seam.
+- `J2clSelectedWaveController` still owns bootstrap fetch, selected-wave open,
+  reconnect/backoff, viewport-fragment loading, read-state polling, and the
+  `WriteSessionListener` publication.
+- The current stable write-session handoff for `#969` is therefore
+  `J2clSelectedWaveController.WriteSessionListener` plus the projected
+  `J2clSidecarWriteSession`, not a root-live snapshot that already includes the
+  full write basis.
+
+Adjusted implementation rule for this lane:
+
+- Compose and toolbar code must consume the existing selected-wave write-session
+  listener and root-live route/status wrappers; it must not introduce another
+  bootstrap/reconnect lifecycle.
+- If daily toolbar actions need backing behavior that root-live does not expose,
+  add small `#969` command interfaces and disabled/error states instead of
+  copying GWT toolbar/editor classes or recreating folder/edit services inside
+  the compose/toolbar layer.
+- Phase 5 verification must explicitly include the existing selected-wave
+  controller/projector tests to guard the post-`#936` atomic write-basis seam.
+
 ## 5. File Ownership
 
 ### 5.1 New Lit files

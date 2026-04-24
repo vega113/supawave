@@ -106,14 +106,18 @@ public final class GhostTextReconciler {
     if (scratchContent == null) {
       throw new NullPointerException("scratchContent must not be null");
     }
-    String ghostBefore = currentOrCapturedFallback(
-        extractGhostSuffix(previousModelBaseline, capturedPrevious),
-        extractGhostSuffix(previousModelBaseline, currentPrevious),
-        previousModelBaseline, currentPrevious);
-    String ghostAfter = currentOrCapturedFallback(
-        extractGhostPrefix(nextModelBaseline, capturedNext),
-        extractGhostPrefix(nextModelBaseline, currentNext),
-        nextModelBaseline, currentNext);
+    String ghostBefore = withoutSuffixAlreadyAtScratchStart(
+        currentOrCapturedFallback(
+            extractGhostSuffix(previousModelBaseline, capturedPrevious),
+            extractGhostSuffix(previousModelBaseline, currentPrevious),
+            previousModelBaseline, currentPrevious),
+        scratchContent);
+    String ghostAfter = withoutPrefixAlreadyAtScratchEnd(
+        currentOrCapturedFallback(
+            extractGhostPrefix(nextModelBaseline, capturedNext),
+            extractGhostPrefix(nextModelBaseline, currentNext),
+            nextModelBaseline, currentNext),
+        scratchContent);
 
     if (ghostBefore.isEmpty() && ghostAfter.isEmpty()) {
       return scratchContent;
@@ -131,6 +135,26 @@ public final class GhostTextReconciler {
 
   private static boolean isAtModelBaseline(String modelBaseline, String currentText) {
     return modelBaseline != null && modelBaseline.equals(currentText);
+  }
+
+  private static String withoutSuffixAlreadyAtScratchStart(String ghost, String scratchContent) {
+    int overlap = suffixPrefixOverlap(ghost, scratchContent);
+    return ghost.substring(0, ghost.length() - overlap);
+  }
+
+  private static String withoutPrefixAlreadyAtScratchEnd(String ghost, String scratchContent) {
+    int overlap = suffixPrefixOverlap(scratchContent, ghost);
+    return ghost.substring(overlap);
+  }
+
+  private static int suffixPrefixOverlap(String left, String right) {
+    int max = Math.min(left.length(), right.length());
+    for (int length = max; length > 0; length--) {
+      if (left.regionMatches(left.length() - length, right, 0, length)) {
+        return length;
+      }
+    }
+    return 0;
   }
 
   /**

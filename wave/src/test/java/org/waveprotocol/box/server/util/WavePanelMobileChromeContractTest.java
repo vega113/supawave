@@ -63,8 +63,12 @@ public final class WavePanelMobileChromeContractTest extends TestCase {
             "body.mobile-wave-open.mobile-wave-chrome-hidden #mobileWaveChromeReveal { display: inline-flex; }"));
     assertTrue(html.contains("aria-pressed=\\\"false\\\""));
     assertTrue(html.contains("function syncMobileChromeButtons()"));
-    assertTrue(html.contains("function setToggleState(button, pressed, label, text)"));
+    assertTrue(html.contains("function setToggleState(button, pressed, label)"));
     assertTrue(html.contains("button.setAttribute('aria-pressed', pressed ? 'true' : 'false');"));
+    assertTrue(html.contains("button.setAttribute('title', label);"));
+    assertTrue(html.contains("hiddenLabel.textContent = label"));
+    assertTrue(html.contains("mobile-control-svg"));
+    assertTrue(html.contains("mobile-control-label"));
     assertTrue(html.contains("setToggleState(mobileWaveChromePin, chromePinned"));
     assertTrue(html.contains("setToggleState(mobileTagsToggle, tagsOpen"));
     assertTrue(html.contains("setToggleState(mobileTagsPin, tagsPinned"));

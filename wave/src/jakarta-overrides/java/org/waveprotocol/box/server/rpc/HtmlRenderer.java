@@ -2787,22 +2787,46 @@ public final class HtmlRenderer {
     sb.append("    position: fixed;\n");
     sb.append("    bottom: 56px;\n");
     sb.append("    z-index: 130;\n");
-    sb.append("    border: 0;\n");
-    sb.append("    border-radius: 999px;\n");
-    sb.append("    background: rgba(0, 119, 182, 0.92);\n");
+    sb.append("    width: 44px;\n");
+    sb.append("    height: 44px;\n");
+    sb.append("    min-width: 44px;\n");
+    sb.append("    min-height: 44px;\n");
+    sb.append("    padding: 0;\n");
+    sb.append("    border: 1px solid rgba(255,255,255,0.22);\n");
+    sb.append("    border-radius: 12px;\n");
+    sb.append("    background: rgba(2, 62, 107, 0.92);\n");
     sb.append("    color: #fff;\n");
-    sb.append("    min-height: 40px;\n");
-    sb.append("    padding: 0 14px;\n");
     sb.append("    box-shadow: 0 8px 18px rgba(0,0,0,0.18);\n");
     sb.append("    display: none;\n");
     sb.append("    align-items: center;\n");
     sb.append("    justify-content: center;\n");
+    sb.append("    backdrop-filter: blur(8px);\n");
+    sb.append("  }\n");
+    sb.append("  .mobile-wave-chrome-control[aria-pressed='true'] {\n");
+    sb.append("    background: rgba(0, 119, 182, 0.96);\n");
+    sb.append("    box-shadow: 0 10px 22px rgba(0,0,0,0.22);\n");
+    sb.append("  }\n");
+    sb.append("  .mobile-wave-chrome-control .mobile-control-svg {\n");
+    sb.append("    display: block;\n");
+    sb.append("    width: 20px;\n");
+    sb.append("    height: 20px;\n");
+    sb.append("  }\n");
+    sb.append("  .mobile-wave-chrome-control .mobile-control-label {\n");
+    sb.append("    position: absolute;\n");
+    sb.append("    width: 1px;\n");
+    sb.append("    height: 1px;\n");
+    sb.append("    padding: 0;\n");
+    sb.append("    margin: -1px;\n");
+    sb.append("    overflow: hidden;\n");
+    sb.append("    clip: rect(0, 0, 0, 0);\n");
+    sb.append("    white-space: nowrap;\n");
+    sb.append("    border: 0;\n");
     sb.append("  }\n");
     sb.append("  body.mobile-wave-open .mobile-wave-chrome-control { display: inline-flex; }\n");
     sb.append("  body.mobile-wave-open #mobileWaveChromeReveal { display: none; }\n");
     sb.append("  #mobileWaveChromeReveal { left: 12px; }\n");
-    sb.append("  #mobileWaveChromePin { left: 66px; }\n");
-    sb.append("  #mobileTagsToggle { right: 66px; }\n");
+    sb.append("  #mobileWaveChromePin { left: 64px; }\n");
+    sb.append("  #mobileTagsToggle { right: 64px; }\n");
     sb.append("  #mobileTagsPin { right: 12px; }\n");
     sb.append("  body.mobile-wave-open.mobile-wave-chrome-hidden #mobileWaveChromeReveal { display: inline-flex; }\n");
     sb.append("}\n");
@@ -3012,10 +3036,14 @@ public final class HtmlRenderer {
     sb.append("</div>\n");
     // Mobile backdrop overlay (for closing slide panel)
     sb.append("<div class=\"mobile-backdrop\" id=\"mobileBackdrop\" role=\"button\" tabindex=\"0\" aria-label=\"Close navigation\"></div>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromeReveal\" aria-label=\"Show wave controls\" aria-pressed=\"false\">Show</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromePin\" aria-label=\"Pin wave controls\" aria-pressed=\"false\">Pin</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsToggle\" aria-label=\"Show tags tray\" aria-pressed=\"false\">Tags</button>\n");
-    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsPin\" aria-label=\"Pin tags tray\" aria-pressed=\"false\">Tag Pin</button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromeReveal\" aria-label=\"Show wave controls\" title=\"Show wave controls\" aria-pressed=\"false\">");
+    sb.append(ICON_SLIDERS).append("<span class=\"mobile-control-label\">Show wave controls</span></button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileWaveChromePin\" aria-label=\"Pin wave controls\" title=\"Pin wave controls\" aria-pressed=\"false\">");
+    sb.append(ICON_PIN).append("<span class=\"mobile-control-label\">Pin wave controls</span></button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsToggle\" aria-label=\"Show tags tray\" title=\"Show tags tray\" aria-pressed=\"false\">");
+    sb.append(ICON_TAG).append("<span class=\"mobile-control-label\">Show tags tray</span></button>\n");
+    sb.append("<button type=\"button\" class=\"mobile-wave-chrome-control\" id=\"mobileTagsPin\" aria-label=\"Pin tags tray\" title=\"Pin tags tray\" aria-pressed=\"false\">");
+    sb.append(ICON_PIN).append("<span class=\"mobile-control-label\">Pin tags tray</span></button>\n");
     sb.append("<noscript>\n");
     sb.append("<div style=\"width:22em;position:absolute;left:50%;margin-left:-11em;");
     sb.append("color:red;background-color:white;border:1px solid red;padding:4px;font-family:sans-serif\">\n");
@@ -3064,19 +3092,21 @@ public final class HtmlRenderer {
     sb.append("  var tagsPinned = false;\n");
     sb.append("  var lastWaveScrollTop = 0;\n");
     sb.append("  var waveThread = null;\n");
-    sb.append("  function setToggleState(button, pressed, label, text) {\n");
+    sb.append("  function setToggleState(button, pressed, label) {\n");
     sb.append("    if (!button) return;\n");
     sb.append("    button.setAttribute('aria-pressed', pressed ? 'true' : 'false');\n");
     sb.append("    button.setAttribute('aria-label', label);\n");
-    sb.append("    button.textContent = text;\n");
+    sb.append("    button.setAttribute('title', label);\n");
+    sb.append("    var hiddenLabel = button.querySelector('.mobile-control-label');\n");
+    sb.append("    if (hiddenLabel) hiddenLabel.textContent = label;\n");
     sb.append("  }\n");
     sb.append("  function syncMobileChromeButtons() {\n");
     sb.append("    var chromeHidden = body.classList.contains('mobile-wave-chrome-hidden');\n");
     sb.append("    var tagsOpen = body.classList.contains('mobile-tags-open');\n");
-    sb.append("    setToggleState(mobileWaveChromeReveal, chromeHidden, chromeHidden ? 'Show wave controls' : 'Hide wave controls', chromeHidden ? 'Show' : 'Hide');\n");
-    sb.append("    setToggleState(mobileWaveChromePin, chromePinned, chromePinned ? 'Unpin wave controls' : 'Pin wave controls', chromePinned ? 'Unpin' : 'Pin');\n");
-    sb.append("    setToggleState(mobileTagsToggle, tagsOpen, tagsOpen ? 'Hide tags tray' : 'Show tags tray', tagsOpen ? 'Close Tags' : 'Tags');\n");
-    sb.append("    setToggleState(mobileTagsPin, tagsPinned, tagsPinned ? 'Unpin tags tray' : 'Pin tags tray', tagsPinned ? 'Unpin Tags' : 'Tag Pin');\n");
+    sb.append("    setToggleState(mobileWaveChromeReveal, chromeHidden, chromeHidden ? 'Show wave controls' : 'Hide wave controls');\n");
+    sb.append("    setToggleState(mobileWaveChromePin, chromePinned, chromePinned ? 'Unpin wave controls' : 'Pin wave controls');\n");
+    sb.append("    setToggleState(mobileTagsToggle, tagsOpen, tagsOpen ? 'Hide tags tray' : 'Show tags tray');\n");
+    sb.append("    setToggleState(mobileTagsPin, tagsPinned, tagsPinned ? 'Unpin tags tray' : 'Pin tags tray');\n");
     sb.append("  }\n");
     sb.append("  function openPanel() {\n");
     sb.append("    body.classList.add('mobile-panel-open');\n");
@@ -4746,6 +4776,31 @@ public final class HtmlRenderer {
       "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
       + "<path d=\"M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z\"/>"
       + "<polyline points=\"22,6 12,13 2,6\"/>"
+      + "</svg>";
+
+  /** Sliders icon for mobile wave controls. */
+  private static final String ICON_SLIDERS =
+      "<svg class=\"mobile-control-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
+      + "<line x1=\"4\" y1=\"6\" x2=\"20\" y2=\"6\"/>"
+      + "<line x1=\"4\" y1=\"12\" x2=\"20\" y2=\"12\"/>"
+      + "<line x1=\"4\" y1=\"18\" x2=\"20\" y2=\"18\"/>"
+      + "<circle cx=\"9\" cy=\"6\" r=\"2\"/>"
+      + "<circle cx=\"15\" cy=\"12\" r=\"2\"/>"
+      + "<circle cx=\"11\" cy=\"18\" r=\"2\"/>"
+      + "</svg>";
+
+  /** Pin icon for mobile control pinning. */
+  private static final String ICON_PIN =
+      "<svg class=\"mobile-control-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
+      + "<path d=\"M15 4l5 5-4 1-4 7-2-2 7-4 1-4-5-5z\"/>"
+      + "<path d=\"M9 15l-5 5\"/>"
+      + "</svg>";
+
+  /** Tag icon for the mobile tags tray. */
+  private static final String ICON_TAG =
+      "<svg class=\"mobile-control-svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
+      + "<path d=\"M20.5 13.5L13.5 20.5a2 2 0 0 1-2.8 0L3 12.8V3h9.8l7.7 7.7a2 2 0 0 1 0 2.8z\"/>"
+      + "<circle cx=\"8\" cy=\"8\" r=\"1.5\"/>"
       + "</svg>";
 
   // =========================================================================

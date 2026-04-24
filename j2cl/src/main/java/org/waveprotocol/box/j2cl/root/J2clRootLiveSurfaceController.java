@@ -38,7 +38,12 @@ public final class J2clRootLiveSurfaceController {
     model = J2clRootLiveSurfaceModel.starting();
     active = true;
     publishedDuringStart = false;
-    routeStarter.start();
+    try {
+      routeStarter.start();
+    } catch (RuntimeException e) {
+      active = false;
+      throw e;
+    }
     if (!publishedDuringStart) {
       publish();
     }

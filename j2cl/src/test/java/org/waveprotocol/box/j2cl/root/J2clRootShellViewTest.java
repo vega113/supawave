@@ -100,6 +100,20 @@ public class J2clRootShellViewTest {
         "/?view=j2cl-root&q=in%3Ainbox",
         ((HTMLElement) secondRoot.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
     Assert.assertEquals(
+        "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Din%253Ainbox",
+        ((HTMLElement) secondRoot.querySelector("[data-j2cl-root-signin='true']"))
+            .getAttribute("href"));
+    Assert.assertEquals(
+        "/auth/signout?r=/%3Fview%3Dj2cl-root%26q%3Din%253Ainbox",
+        ((HTMLElement) secondRoot.querySelector("[data-j2cl-root-signout='true']"))
+            .getAttribute("href"));
+    Assert.assertNull(
+        ((HTMLElement) firstRoot.querySelector("[data-j2cl-root-signin='true']"))
+            .getAttribute("href"));
+    Assert.assertNull(
+        ((HTMLElement) firstRoot.querySelector("[data-j2cl-root-signout='true']"))
+            .getAttribute("href"));
+    Assert.assertEquals(
         "Return target: /?view=j2cl-root&q=in%3Ainbox",
         ((HTMLElement) secondRoot.querySelector("#j2cl-root-return-target-text")).textContent);
   }

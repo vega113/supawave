@@ -84,6 +84,41 @@ public final class GhostTextReconciler {
   }
 
   /**
+   * Returns the baseline to use for a previous-sibling DOM text node when the
+   * content model's adjacent text is known.
+   *
+   * <p>If Android inserted composition text before the DOM snapshot was taken,
+   * the captured DOM text is already ahead of the model. In that case the
+   * model text is the correct baseline, otherwise the old DOM snapshot remains
+   * the safest fallback.
+   */
+  public static String modelAwarePreviousBaseline(String modelText,
+      String capturedDomText) {
+    if (capturedDomText == null) {
+      return null;
+    }
+    if (modelText == null) {
+      return capturedDomText;
+    }
+    return capturedDomText.startsWith(modelText) ? modelText : capturedDomText;
+  }
+
+  /**
+   * Returns the baseline to use for a next-sibling DOM text node when the
+   * content model's adjacent text is known.
+   */
+  public static String modelAwareNextBaseline(String modelText,
+      String capturedDomText) {
+    if (capturedDomText == null) {
+      return null;
+    }
+    if (modelText == null) {
+      return capturedDomText;
+    }
+    return capturedDomText.endsWith(modelText) ? modelText : capturedDomText;
+  }
+
+  /**
    * Returns the trailing substring of {@code current} that was added since the
    * {@code baseline} snapshot. Returns an empty string if the baseline is
    * absent, if {@code current} is not a strict extension of {@code baseline},

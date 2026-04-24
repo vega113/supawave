@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-24-android-ime-model-baseline",
+  "version": "Unreleased",
+  "date": "2026-04-24",
+  "title": "Android IME preserves first characters on real phones",
+  "summary": "Android Chrome IME composition now recovers first characters and inter-word spaces even when the browser inserts them into the editor DOM before the IME scratch baseline is captured.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Mobile Chrome editing now uses the document model to recover IME ghost text that already exists in adjacent DOM nodes when composition starts"
+      ]
+    }
+  ]
+}

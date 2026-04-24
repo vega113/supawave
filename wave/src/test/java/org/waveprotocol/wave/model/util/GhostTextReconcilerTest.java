@@ -109,6 +109,39 @@ public class GhostTextReconcilerTest extends TestCase {
         "lip", "new", "new b", null, null));
   }
 
+  public void testPreviousModelBaselineRecoversGhostPresentBeforeSnapshot() {
+    String baseline = GhostTextReconciler.modelAwarePreviousBaseline("", "n");
+
+    assertEquals("", baseline);
+    assertEquals("new", GhostTextReconciler.combine(
+        "ew", baseline, "n", null, null));
+  }
+
+  public void testPreviousModelBaselineRecoversSecondWordBeforeSnapshot() {
+    String baseline = GhostTextReconciler.modelAwarePreviousBaseline(
+        "new", "new b");
+
+    assertEquals("new", baseline);
+    assertEquals(" blip", GhostTextReconciler.combine(
+        "lip", baseline, "new b", null, null));
+  }
+
+  public void testNextModelBaselineRecoversGhostPresentBeforeSnapshot() {
+    String baseline = GhostTextReconciler.modelAwareNextBaseline(
+        "world", "wworld");
+
+    assertEquals("world", baseline);
+    assertEquals("new", GhostTextReconciler.combine(
+        "ne", null, null, baseline, "wworld"));
+  }
+
+  public void testModelBaselineFallsBackWhenCapturedDomDoesNotContainModel() {
+    assertEquals("NEW b", GhostTextReconciler.modelAwarePreviousBaseline(
+        "new", "NEW b"));
+    assertEquals("bNEW", GhostTextReconciler.modelAwareNextBaseline(
+        "new", "bNEW"));
+  }
+
   public void testNullScratchThrows() {
     try {
       GhostTextReconciler.combine(null, null, null, null, null);

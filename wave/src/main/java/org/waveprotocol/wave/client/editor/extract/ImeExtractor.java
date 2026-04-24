@@ -181,11 +181,12 @@ public class ImeExtractor {
       DocumentContext<ContentNode, ContentElement, ContentTextNode> cxt,
       Point<ContentNode> location) {
 
-    clearWrapper(cxt.annotatableContent());
+    LocalDocument<ContentNode, ContentElement, ContentTextNode> doc = cxt.annotatableContent();
+    clearWrapper(doc);
 
     Point<ContentNode> point = DocHelper.ensureNodeBoundary(
         DocHelper.transparentSlice(location, cxt),
-        cxt.annotatableContent(), cxt.textNodeOrganiser());
+        doc, cxt.textNodeOrganiser());
 
     // NOTE(danilatos): Needed as a workaround to bug 2152316
     ContentElement container = point.getContainer().asElement();
@@ -195,13 +196,16 @@ public class ImeExtractor {
     }
     ////
 
-    wrapper = cxt.annotatableContent().transparentCreate(
+    String previousModelBaseline = readModelText(previousContentSibling(doc, container, nodeAfter));
+    String nextModelBaseline = readModelText(nodeAfter);
+
+    wrapper = doc.transparentCreate(
         WRAPPER_TAGNAME, Collections.<String, String>emptyMap(),
         container, nodeAfter);
 
     wrapper.getContainerNodelet().appendChild(imeContainer);
     NativeSelectionUtil.setCaret(inContainer);
-    captureGhostBaseline();
+    captureGhostBaseline(previousModelBaseline, nextModelBaseline);
     if (ImeDebugTracer.isEnabled()) {
       Element anchor = imeContainer.getParentElement();
       ImeDebugTracer.start("ImeExtractor.activate")
@@ -221,7 +225,8 @@ public class ImeExtractor {
    * #getEffectiveContent()} can later recover any composition characters the
    * browser steered into those siblings instead of the scratch.
    */
-  private void captureGhostBaseline() {
+  private void captureGhostBaseline(String previousModelBaseline,
+      String nextModelBaseline) {
     Element scratchDomAnchor = imeContainer.getParentElement();
     if (scratchDomAnchor == null) {
       ghostPreviousSibling = null;
@@ -231,9 +236,11 @@ public class ImeExtractor {
       return;
     }
     ghostPreviousSibling = scratchDomAnchor.getPreviousSibling();
-    ghostPreviousSiblingBaseline = readText(ghostPreviousSibling);
+    ghostPreviousSiblingBaseline = GhostTextReconciler.modelAwarePreviousBaseline(
+        previousModelBaseline, readText(ghostPreviousSibling));
     ghostNextSibling = scratchDomAnchor.getNextSibling();
-    ghostNextSiblingBaseline = readText(ghostNextSibling);
+    ghostNextSiblingBaseline = GhostTextReconciler.modelAwareNextBaseline(
+        nextModelBaseline, readText(ghostNextSibling));
   }
 
   /**
@@ -307,6 +314,22 @@ public class ImeExtractor {
       return null;
     }
     return Text.as(node).getData();
+  }
+
+  private static ContentNode previousContentSibling(
+      LocalDocument<ContentNode, ContentElement, ContentTextNode> doc,
+      ContentElement container, ContentNode nodeAfter) {
+    return nodeAfter == null
+        ? doc.getLastChild(container)
+        : doc.getPreviousSibling(nodeAfter);
+  }
+
+  private static String readModelText(ContentNode node) {
+    if (node == null) {
+      return "";
+    }
+    ContentTextNode text = node.asText();
+    return text == null ? "" : text.getData();
   }
 
   /**

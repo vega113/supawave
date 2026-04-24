@@ -77,6 +77,18 @@ public final class SocialAuthServletTest {
   }
 
   @Test
+  public void startAuthorizationRespectsDisabledLoginPage() throws Exception {
+    Fixture fixture = newFixture(true, new LinkedHashMap<>(), true);
+    RequestContext request = request("/github", Map.of(), newSession(new HashMap<>()));
+    ResponseContext response = response();
+
+    fixture.servlet.doGet(request.req, response.resp);
+
+    assertEquals(HttpServletResponse.SC_FORBIDDEN, response.status);
+    verify(response.resp, never()).sendRedirect(anyString());
+  }
+
+  @Test
   public void callbackRejectsInvalidStateAndClearsPendingAuthorization() throws Exception {
     Fixture fixture = newFixture(true);
     Map<String, Object> sessionAttributes = new HashMap<>();
@@ -355,6 +367,11 @@ public final class SocialAuthServletTest {
 
   private Fixture newFixture(boolean socialAuthEnabled, Map<String, Boolean> allowedUsers)
       throws Exception {
+    return newFixture(socialAuthEnabled, allowedUsers, false);
+  }
+
+  private Fixture newFixture(boolean socialAuthEnabled, Map<String, Boolean> allowedUsers,
+      boolean disableLoginPage) throws Exception {
     MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
     featureFlagStore.save(new FeatureFlag(
         "social-auth", "Social sign-in", socialAuthEnabled, allowedUsers));
@@ -375,7 +392,7 @@ public final class SocialAuthServletTest {
             + "core.social_auth.google.redirect_uri = \"\"\n"
             + "security.enable_ssl = false\n"
             + "administration.disable_registration = false\n"
-            + "administration.disable_loginpage = false\n"
+            + "administration.disable_loginpage = " + disableLoginPage + "\n"
             + "core.password_reset_enabled = true\n"
             + "core.magic_link_enabled = false");
     SocialAuthService service = new SocialAuthService(

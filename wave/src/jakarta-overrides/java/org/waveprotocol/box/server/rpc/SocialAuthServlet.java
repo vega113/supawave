@@ -146,7 +146,7 @@ public final class SocialAuthServlet extends HttpServlet {
     ParticipantId user = sessionManager.getLoggedInUser(WebSessions.from(req, false));
     boolean enabled = featureFlagService.isGloballyEnabled(SOCIAL_AUTH_FLAG)
         || (user != null && featureFlagService.isEnabled(SOCIAL_AUTH_FLAG, user.getAddress()));
-    if (!enabled || !socialAuthConfig.isConfigured(provider)) {
+    if (loginPageDisabled || !enabled || !socialAuthConfig.isConfigured(provider)) {
       renderFailure(resp, HttpServletResponse.SC_FORBIDDEN, DEFAULT_FAILURE);
       return;
     }

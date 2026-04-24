@@ -46,8 +46,12 @@ import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwt;
 import org.waveprotocol.box.server.authentication.jwt.BrowserSessionJwtIssuer;
 import org.waveprotocol.box.server.authentication.jwt.EmailTokenIssuer;
 import org.waveprotocol.box.server.authentication.email.AuthEmailService;
+import org.waveprotocol.box.server.authentication.oauth.SocialAuthConfig;
 import org.waveprotocol.box.server.mail.MailProvider;
 import org.waveprotocol.box.server.persistence.AccountStore;
+import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.persistence.FeatureFlagStore.FeatureFlag;
+import org.waveprotocol.box.server.persistence.memory.MemoryFeatureFlagStore;
 import org.waveprotocol.box.server.persistence.memory.MemoryStore;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.escapers.PercentEscaper;
@@ -154,6 +158,60 @@ public class AuthenticationServletTest extends TestCase {
         bodyCaptor.getValue().contains("successBanner"));
     assertTrue("Success message should be present",
         bodyCaptor.getValue().contains("Account created!"));
+  }
+
+  public void testGetSocialLinksPreserveReturnTarget() throws Exception {
+    AccountStore store = new MemoryStore();
+    MemoryFeatureFlagStore featureFlagStore = new MemoryFeatureFlagStore();
+    FeatureFlagService socialFeatureFlags = new FeatureFlagService(featureFlagStore);
+    try {
+      featureFlagStore.save(new FeatureFlag(
+          SocialAuthServlet.SOCIAL_AUTH_FLAG, "Social sign-in", true, ImmutableMap.of()));
+      socialFeatureFlags.refreshCache();
+      Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put("administration.disable_registration", false)
+          .put("administration.analytics_account", "UA-someid")
+          .put("security.enable_clientauth", false)
+          .put("security.clientauth_cert_domain", "")
+          .put("administration.disable_loginpage", false)
+          .put("security.enable_ssl", false)
+          .put("core.email_confirmation_enabled", false)
+          .put("core.auth_email_send_cooldown_seconds", 300)
+          .put("core.auth_email_send_max_per_address_per_hour", 5)
+          .put("core.auth_email_send_max_per_ip_per_hour", 20)
+          .put("core.public_url", "https://wave.example.com")
+          .put("core.social_auth.github.client_id", "github-client")
+          .put("core.social_auth.github.client_secret", "github-secret")
+          .put("core.social_auth.github.redirect_uri", "")
+          .put("core.social_auth.google.client_id", "google-client")
+          .put("core.social_auth.google.client_secret", "google-secret")
+          .put("core.social_auth.google.redirect_uri", "")
+          .build());
+      AuthEmailService authEmailService = new AuthEmailService(
+          store,
+          emailTokenIssuer,
+          mailProvider,
+          Clock.fixed(Instant.parse("2026-03-28T08:00:00Z"), ZoneOffset.UTC),
+          config);
+      servlet = new AuthenticationServlet(store, AuthTestUtil.makeConfiguration(),
+          manager, "example.com", config, browserSessionJwtIssuer, authEmailService,
+          new org.waveprotocol.box.server.waveserver.AnalyticsRecorder(),
+          socialFeatureFlags, new SocialAuthConfig(config));
+      StringWriter body = new StringWriter();
+      when(req.getSession(false)).thenReturn(null);
+      when(req.getParameter("r")).thenReturn("/wave/example.com/w+abc?pane=1");
+      when(req.getLocale()).thenReturn(Locale.ENGLISH);
+      when(resp.getWriter()).thenReturn(new PrintWriter(body));
+
+      servlet.doGet(req, resp);
+
+      assertTrue(body.toString().contains(
+          "href=\"/auth/social/github?r=%2Fwave%2Fexample.com%2Fw%2Babc%3Fpane%3D1\""));
+      assertTrue(body.toString().contains(
+          "href=\"/auth/social/google?r=%2Fwave%2Fexample.com%2Fw%2Babc%3Fpane%3D1\""));
+    } finally {
+      socialFeatureFlags.shutdown();
+    }
   }
 
   public void testGetRedirects() throws IOException {

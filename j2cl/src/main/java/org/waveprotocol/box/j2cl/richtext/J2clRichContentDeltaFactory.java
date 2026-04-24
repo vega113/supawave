@@ -65,15 +65,24 @@ public final class J2clRichContentDeltaFactory {
     requirePresent(document, "Missing composer document.");
     String normalizedAddress = normalizeAddress(address);
     extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId = requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
     String replyBlipId = nextToken("b+");
     String deltaJson =
         buildDeltaJson(
-            session.getBaseVersion(),
-            session.getHistoryHash(),
+            baseVersion,
+            historyHash,
             normalizedAddress,
             buildDocumentOperation(replyBlipId, document));
     return new SidecarSubmitRequest(
-        buildWaveletName(session.getSelectedWaveId()), deltaJson, session.getChannelId());
+        buildWaveletName(selectedWaveId), deltaJson, channelId);
   }
 
   private String buildDocumentOperation(String documentId, J2clComposerDocument document) {
@@ -189,6 +198,13 @@ public final class J2clRichContentDeltaFactory {
       throw new IllegalArgumentException(message);
     }
     return value;
+  }
+
+  private static String requireNonEmpty(String value, String message) {
+    if (value == null || value.trim().isEmpty()) {
+      throw new IllegalArgumentException(message);
+    }
+    return value.trim();
   }
 
   private static String normalizeAddress(String address) {

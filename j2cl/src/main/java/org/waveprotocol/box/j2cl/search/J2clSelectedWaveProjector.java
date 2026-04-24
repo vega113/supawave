@@ -55,6 +55,8 @@ public final class J2clSelectedWaveProjector {
         hasViewportWindow
             ? viewportState.getLoadedContentEntries()
             : extractDocumentEntries(update.getDocuments());
+    // TODO(#904): keep the legacy document projection fallback for non-viewport updates until all
+    // selected-wave surfaces consume J2clSelectedWaveViewportState directly.
     if (contentEntries.isEmpty()
         && !hasViewportWindow
         && previousMatchesWave

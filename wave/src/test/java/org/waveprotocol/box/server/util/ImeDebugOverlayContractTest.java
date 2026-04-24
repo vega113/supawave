@@ -78,8 +78,10 @@ public final class ImeDebugOverlayContractTest extends TestCase {
     assertContains(source, "reserveBodyBottomSpace");
     assertContains(source, "data-ime-debug-body-padding-reserved");
     assertContains(source, "safeAreaInset = \"env(safe-area-inset-bottom, 0px)\"");
+    assertContains(source, "\" + 1px + \" + safeAreaInset");
     assertContains(source, "style.paddingBottom");
     assertContains(source, " + collapsedHeight + ");
+    assertContains(source, " + 1px + ");
     assertContains(source, " + safeAreaInset");
   }
 

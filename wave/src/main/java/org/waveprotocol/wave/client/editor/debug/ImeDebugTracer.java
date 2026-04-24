@@ -565,7 +565,7 @@ public final class ImeDebugTracer {
       log.setAttribute("role", "log");
       log.setAttribute("aria-live", "polite");
       log.style.display = "none";
-      log.style.maxHeight = "calc(45vh - " + collapsedHeight + " - " + safeAreaInset + ")";
+      log.style.maxHeight = "calc(45vh - " + collapsedHeight + " - 1px - " + safeAreaInset + ")";
       log.style.overflowY = "auto";
       log.style.padding = "0 6px 6px";
       log.style.boxSizing = "border-box";
@@ -613,16 +613,34 @@ public final class ImeDebugTracer {
         return rows.join("\n");
       }
 
-      function reserveBodyBottomSpace(d) {
-        if (!d.body || d.body.getAttribute("data-ime-debug-body-padding-reserved") === "true") {
+      function reserveBottomSpace(element, amount) {
+        if (!element || element.getAttribute("data-ime-debug-bottom-space-reserved") === "true") {
           return;
         }
-        var previous = d.body.style.paddingBottom || "";
-        d.body.setAttribute("data-ime-debug-body-padding-reserved", "true");
-        d.body.setAttribute("data-ime-debug-body-padding-previous", previous);
-        d.body.style.paddingBottom = previous
-            ? "calc(" + previous + " + " + collapsedHeight + " + " + safeAreaInset + ")"
-            : reservedHeight;
+        var previousPadding = element.style.paddingBottom || "";
+        var previousScrollPadding = element.style.scrollPaddingBottom || "";
+        element.setAttribute("data-ime-debug-bottom-space-reserved", "true");
+        element.setAttribute("data-ime-debug-padding-bottom-previous", previousPadding);
+        element.setAttribute("data-ime-debug-scroll-padding-bottom-previous", previousScrollPadding);
+        element.style.paddingBottom = previousPadding
+            ? "calc(" + previousPadding + " + " + amount + ")"
+            : amount;
+        element.style.scrollPaddingBottom = previousScrollPadding
+            ? "calc(" + previousScrollPadding + " + " + amount + ")"
+            : amount;
+      }
+
+      function reserveBottomEditingSpace(d) {
+        if (d.body) {
+          reserveBottomSpace(d.body, reservedHeight);
+        }
+        if (!d.querySelectorAll) {
+          return;
+        }
+        var scrollers = d.querySelectorAll("[data-mobile-role='wave-thread']");
+        for (var i = 0; i < scrollers.length; i++) {
+          reserveBottomSpace(scrollers[i], reservedHeight);
+        }
       }
 
       function fallbackCopy(text, done) {

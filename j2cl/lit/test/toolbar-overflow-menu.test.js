@@ -1,4 +1,5 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
+import "../src/elements/toolbar-button.js";
 import "../src/elements/toolbar-overflow-menu.js";
 
 describe("<toolbar-overflow-menu>", () => {
@@ -41,5 +42,31 @@ describe("<toolbar-overflow-menu>", () => {
     const eventPromise = oneEvent(el, "toolbar-action");
     el.querySelector("[data-action='clear-formatting']").click();
     expect((await eventPromise).detail.action).to.equal("clear-formatting");
+  });
+
+  it("closes and forwards actions from slotted toolbar-button elements", async () => {
+    const el = await fixture(html`
+      <toolbar-overflow-menu label="More toolbar actions">
+        <toolbar-button action="history" label="History"></toolbar-button>
+      </toolbar-overflow-menu>
+    `);
+
+    el.open = true;
+    await el.updateComplete;
+    const trigger = el.renderRoot.querySelector("button[aria-haspopup='true']");
+    let actionCount = 0;
+    // Count alongside oneEvent so this catches accidental duplicate redispatches.
+    el.addEventListener("toolbar-action", () => {
+      actionCount += 1;
+    });
+    const eventPromise = oneEvent(el, "toolbar-action");
+
+    el.querySelector("toolbar-button").renderRoot.querySelector("button").click();
+
+    expect((await eventPromise).detail.action).to.equal("history");
+    await el.updateComplete;
+    expect(actionCount).to.equal(1);
+    expect(el.open).to.equal(false);
+    expect(trigger).to.equal(el.shadowRoot.activeElement);
   });
 });

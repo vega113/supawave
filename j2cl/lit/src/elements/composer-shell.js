@@ -1,6 +1,10 @@
 import { LitElement, css, html } from "lit";
 
 export class ComposerShell extends LitElement {
+  static properties = {
+    _hasReplyContent: { state: true },
+  };
+
   static styles = css`
     :host {
       display: block;
@@ -21,6 +25,15 @@ export class ComposerShell extends LitElement {
     }
   `;
 
+  constructor() {
+    super();
+    this._hasReplyContent = false;
+  }
+
+  _onReplySlotChange(e) {
+    this._hasReplyContent = e.target.assignedElements({ flatten: true }).length > 0;
+  }
+
   render() {
     return html`
       <div class="shell">
@@ -28,9 +41,12 @@ export class ComposerShell extends LitElement {
           <h2 id="composer-create-title">New wave</h2>
           <slot name="create"></slot>
         </section>
-        <section aria-labelledby="composer-reply-title">
+        <section
+          aria-labelledby="composer-reply-title"
+          ?hidden=${!this._hasReplyContent}
+        >
           <h3 id="composer-reply-title">Reply</h3>
-          <slot name="reply"></slot>
+          <slot name="reply" @slotchange=${this._onReplySlotChange}></slot>
         </section>
         <slot name="status"></slot>
       </div>

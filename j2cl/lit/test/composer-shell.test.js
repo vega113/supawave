@@ -1,8 +1,8 @@
-import { fixture, expect, html } from "@open-wc/testing";
+import { fixture, expect, html, nextFrame } from "@open-wc/testing";
 import "../src/elements/composer-shell.js";
 
 describe("<composer-shell>", () => {
-  it("exposes labeled create and reply sections plus a status slot", async () => {
+  it("shows reply section when reply slot has content", async () => {
     const el = await fixture(html`
       <composer-shell>
         <p slot="create">Create form</p>
@@ -11,10 +11,29 @@ describe("<composer-shell>", () => {
       </composer-shell>
     `);
 
+    await nextFrame();
+
     const sections = el.renderRoot.querySelectorAll("section");
     expect(sections.length).to.equal(2);
     expect(el.renderRoot.querySelector("slot[name='create']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='reply']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='status']")).to.exist;
+    expect(el.renderRoot.querySelector("section[hidden]")).to.not.exist;
+  });
+
+  it("hides reply section when reply slot is empty", async () => {
+    const el = await fixture(html`
+      <composer-shell>
+        <p slot="create">Create form</p>
+      </composer-shell>
+    `);
+
+    await nextFrame();
+
+    const replySection = el.renderRoot.querySelector(
+      "section[aria-labelledby='composer-reply-title']"
+    );
+    expect(replySection).to.exist;
+    expect(replySection.hidden).to.equal(true);
   });
 });

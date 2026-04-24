@@ -95,6 +95,9 @@ public class J2clComposeSurfaceControllerTest {
 
     Assert.assertEquals("Draft", view.model.getReplyDraft());
     Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertFalse(view.model.isReplyAvailable());
+    Assert.assertEquals("", view.model.getReplyTargetLabel());
+    Assert.assertEquals("Open a wave before replying.", view.model.getReplyStatusText());
     Assert.assertEquals("Open a wave before sending a reply.", view.model.getReplyErrorText());
     Assert.assertEquals(0, gateway.fetchBootstrapCalls);
   }
@@ -112,6 +115,9 @@ public class J2clComposeSurfaceControllerTest {
 
     Assert.assertEquals("Draft", view.model.getReplyDraft());
     Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertFalse(view.model.isReplyAvailable());
+    Assert.assertEquals("", view.model.getReplyTargetLabel());
+    Assert.assertEquals("Open a wave before replying.", view.model.getReplyStatusText());
     Assert.assertEquals("Open a wave before sending a reply.", view.model.getReplyErrorText());
     Assert.assertEquals(0, gateway.fetchBootstrapCalls);
   }

@@ -190,7 +190,7 @@ public final class J2clComposeSurfaceController {
       }
     }
     writeSession = nextWriteSession;
-    if (writeSession == null && replyStatusText.isEmpty()) {
+    if (!hasSelectedWave(writeSession) && replyStatusText.isEmpty()) {
       replyStatusText = "Open a wave before replying.";
     }
     render();
@@ -357,6 +357,7 @@ public final class J2clComposeSurfaceController {
     if (!started) {
       return;
     }
+    boolean replyAvailable = !signedOut && hasSelectedWave(writeSession);
     view.render(
         new J2clComposeSurfaceModel(
             !signedOut,
@@ -364,8 +365,8 @@ public final class J2clComposeSurfaceController {
             createSubmitting,
             createStatusText,
             createErrorText,
-            !signedOut && writeSession != null,
-            writeSession == null ? "" : writeSession.getReplyTargetBlipId(),
+            replyAvailable,
+            replyAvailable ? writeSession.getReplyTargetBlipId() : "",
             replyDraft,
             replySubmitting,
             replyStaleBasis,
@@ -388,6 +389,10 @@ public final class J2clComposeSurfaceController {
     String currentWaveId = writeSession == null ? null : writeSession.getSelectedWaveId();
     String nextWaveId = nextWriteSession == null ? null : nextWriteSession.getSelectedWaveId();
     return !safeEquals(currentWaveId, nextWaveId);
+  }
+
+  private static boolean hasSelectedWave(J2clSidecarWriteSession session) {
+    return session != null && !isEmpty(session.getSelectedWaveId());
   }
 
   private static String normalizeDraft(String draft) {

@@ -63,7 +63,7 @@ export class ToolbarButton extends LitElement {
   }
 
   onClick() {
-    if (this.disabled) {
+    if (this.disabled || !this.action) {
       return;
     }
     this.dispatchEvent(

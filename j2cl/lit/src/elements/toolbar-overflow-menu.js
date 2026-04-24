@@ -44,6 +44,7 @@ export class ToolbarOverflowMenu extends LitElement {
     this.open = false;
     this.addEventListener("keydown", this.onKeyDown);
     this.addEventListener("click", this.onLightDomClick);
+    this.addEventListener("toolbar-action", this.onToolbarAction);
   }
 
   render() {
@@ -93,10 +94,12 @@ export class ToolbarOverflowMenu extends LitElement {
   };
 
   onLightDomClick = (event) => {
-    const actionEl =
-      event.target instanceof Element ? event.target.closest("[data-action]") : null;
-    const action = actionEl ? actionEl.getAttribute("data-action") : "";
+    const action = this.actionFromEvent(event);
     if (!action) {
+      return;
+    }
+    this.closeAndFocusTrigger();
+    if (this.isToolbarButtonEvent(event)) {
       return;
     }
     this.dispatchEvent(
@@ -106,9 +109,42 @@ export class ToolbarOverflowMenu extends LitElement {
         composed: true
       })
     );
+  };
+
+  onToolbarAction = (event) => {
+    if (event.target === this) {
+      return;
+    }
+    this.closeAndFocusTrigger();
+  };
+
+  closeAndFocusTrigger() {
     this.open = false;
     this.updateComplete.then(() => this.renderRoot.querySelector("button").focus());
-  };
+  }
+
+  actionFromEvent(event) {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    for (const item of path) {
+      if (!(item instanceof Element)) {
+        continue;
+      }
+      if (item.hasAttribute("data-action")) {
+        return item.getAttribute("data-action") || "";
+      }
+      if (item.localName === "toolbar-button") {
+        return item.action || item.getAttribute("action") || "";
+      }
+    }
+    const actionEl =
+      event.target instanceof Element ? event.target.closest("[data-action]") : null;
+    return actionEl ? actionEl.getAttribute("data-action") || "" : "";
+  }
+
+  isToolbarButtonEvent(event) {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    return path.some(item => item instanceof Element && item.localName === "toolbar-button");
+  }
 
   focusFirstItem() {
     const items = this.items();

@@ -28,4 +28,18 @@ describe("<toolbar-button>", () => {
 
     expect((await eventPromise).detail.action).to.equal("archive");
   });
+
+  it("does not dispatch toolbar-action without an action id", async () => {
+    const el = await fixture(html`
+      <toolbar-button label="No action"></toolbar-button>
+    `);
+    let dispatched = false;
+    el.addEventListener("toolbar-action", () => {
+      dispatched = true;
+    });
+
+    el.renderRoot.querySelector("button").click();
+
+    expect(dispatched).to.equal(false);
+  });
 });

@@ -54,4 +54,14 @@ describe("<reaction-authors-popover>", () => {
 
     expect(el.renderRoot.querySelector(".popover")).to.equal(el.shadowRoot.activeElement);
   });
+
+  it("uses a non-empty accessible label when reaction metadata is missing", async () => {
+    const el = await fixture(html`
+      <reaction-authors-popover .authors=${[]} open></reaction-authors-popover>
+    `);
+
+    expect(el.renderRoot.querySelector("[role='region']").getAttribute("aria-label")).to.equal(
+      "Authors for this reaction"
+    );
+  });
 });

@@ -40,7 +40,7 @@ export class ReactionAuthorsPopover extends LitElement {
       return "";
     }
     const authors = this.safeAuthors();
-    const label = this.reactionLabel || this.emoji;
+    const label = this.reactionLabel || this.emoji || "this reaction";
     return html`
       <section
         class="popover"

@@ -129,7 +129,12 @@ export class ReactionRow extends LitElement {
   }
 
   safeReactions() {
-    return Array.isArray(this.reactions) ? this.reactions : [];
+    if (!Array.isArray(this.reactions)) {
+      return [];
+    }
+    return this.reactions.filter(
+      reaction => reaction && typeof reaction === "object" && !Array.isArray(reaction)
+    );
   }
 
   humanizeName(value) {

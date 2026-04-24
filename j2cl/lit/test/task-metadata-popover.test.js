@@ -176,4 +176,23 @@ describe("<task-metadata-popover>", () => {
       el.renderRoot.querySelector("input[name='dueDate']").getAttribute("aria-describedby")
     ).to.equal(el.renderRoot.querySelector("[role='alert']").id);
   });
+
+  it("clears stale validation errors across close and reopen", async () => {
+    const el = await fixture(html`
+      <task-metadata-popover open task-id="task-1"></task-metadata-popover>
+    `);
+    el.renderRoot.querySelector("input[name='dueDate']").value = "tomorrow";
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await el.updateComplete;
+
+    el.open = false;
+    await el.updateComplete;
+    el.open = true;
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector("[role='alert']")).to.equal(null);
+    expect(el.renderRoot.querySelector("input[name='dueDate']").getAttribute("aria-invalid")).to.equal(
+      "false"
+    );
+  });
 });

@@ -144,4 +144,17 @@ describe("<mention-suggestion-popover>", () => {
 
     expect((await eventPromise).detail.address).to.equal("solo@example.com");
   });
+
+  it("filters malformed candidate entries before rendering", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover
+        .candidates=${[null, "bad", { address: "valid@example.com" }]}
+        open
+      ></mention-suggestion-popover>
+    `);
+
+    const options = el.renderRoot.querySelectorAll("[role='option']");
+    expect(options.length).to.equal(1);
+    expect(options[0].dataset.address).to.equal("valid@example.com");
+  });
 });

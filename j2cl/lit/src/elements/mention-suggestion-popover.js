@@ -176,7 +176,12 @@ export class MentionSuggestionPopover extends LitElement {
   }
 
   safeCandidates() {
-    return Array.isArray(this.candidates) ? this.candidates : [];
+    if (!Array.isArray(this.candidates)) {
+      return [];
+    }
+    return this.candidates.filter(
+      candidate => candidate && typeof candidate === "object" && !Array.isArray(candidate)
+    );
   }
 
   liveText(count) {

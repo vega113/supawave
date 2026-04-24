@@ -96,4 +96,17 @@ describe("<reaction-row>", () => {
       "0 reactions."
     );
   });
+
+  it("filters malformed reaction entries before rendering", async () => {
+    const el = await fixture(html`
+      <reaction-row
+        blip-id="b+bad-reactions"
+        .reactions=${[null, "bad", { emoji: "wave", count: 1 }]}
+      ></reaction-row>
+    `);
+
+    const chips = el.renderRoot.querySelectorAll("[data-reaction-chip]");
+    expect(chips.length).to.equal(1);
+    expect(chips[0].dataset.emoji).to.equal("wave");
+  });
 });

@@ -73,6 +73,12 @@ export class TaskMetadataPopover extends LitElement {
     this.addEventListener("keydown", this.onKeyDown);
   }
 
+  willUpdate(changed) {
+    if (changed.has("open") && !this.open) {
+      this.error = "";
+    }
+  }
+
   updated(changed) {
     if (changed.has("open") && this.open) {
       queueMicrotask(() => this.renderRoot.querySelector("select")?.focus());

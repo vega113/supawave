@@ -261,6 +261,22 @@ public class J2clRootShellViewTest {
   }
 
   @Test
+  public void publishLiveStatusRepublishesWhenSeparatorDisplayMutatedExternally() {
+    assumeBrowserDom();
+    J2clRootShellView view = createViewWithStatusStrip();
+    HTMLElement statusStrip = statusStrip();
+
+    view.publishLiveStatus(queryStatusModel("in:inbox"));
+    HTMLElement separator =
+        (HTMLElement) statusStrip.querySelector("#j2cl-root-live-status-separator");
+    // Simulate an external mutation of the separator display while status text is unchanged.
+    separator.style.display = "none";
+    view.publishLiveStatus(queryStatusModel("in:inbox"));
+
+    Assert.assertEquals("", separator.style.display);
+  }
+
+  @Test
   public void syncReturnTargetPreservesBasePathForQueryOnlyRoute() {
     assumeBrowserDom();
     host = (HTMLDivElement) DomGlobal.document.createElement("div");

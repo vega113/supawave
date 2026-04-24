@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-24-issue-970-overlay-models",
+  "version": "Issue #970",
+  "date": "2026-04-24",
+  "title": "Refine J2CL interaction overlay models",
+  "summary": "The opt-in J2CL selected-wave pipeline now exposes pure mention, task, reaction, and focus-target models so the next Lit overlay slices can render parity features without depending on raw transport metadata.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added pure J2CL models for mention ranges, mention candidates, task metadata, reaction summaries, and overlay focus targets",
+        "Projected selected-wave interaction blips into refined mention, task, and reaction views while preserving the existing read surface data"
+      ]
+    }
+  ]
+}

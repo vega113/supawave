@@ -973,9 +973,16 @@ public class J2clSelectedWaveProjectorTest {
                     new SidecarSelectedWaveFragment("blip:b+before", "Before text", 0, 0))),
             J2clViewportGrowthDirection.BACKWARD);
 
+    Assert.assertEquals(48L, merged.getSnapshotVersion());
+    Assert.assertEquals(36L, merged.getStartVersion());
+    Assert.assertEquals(44L, merged.getEndVersion());
     Assert.assertEquals(2, merged.getEntries().size());
     Assert.assertEquals("b+before", merged.getEntries().get(0).getBlipId());
+    Assert.assertEquals(36L, merged.getEntries().get(0).getFromVersion());
+    Assert.assertEquals(40L, merged.getEntries().get(0).getToVersion());
     Assert.assertEquals("b+root", merged.getEntries().get(1).getBlipId());
+    Assert.assertEquals(40L, merged.getEntries().get(1).getFromVersion());
+    Assert.assertEquals(44L, merged.getEntries().get(1).getToVersion());
   }
 
   @Test
@@ -1252,6 +1259,12 @@ public class J2clSelectedWaveProjectorTest {
 
   private static SidecarSelectedWaveFragments metadataOnlyFragments(
       long snapshotVersion, long fromVersion, long toVersion) {
+    if (snapshotVersion < 0) {
+      throw new IllegalArgumentException("snapshotVersion must be non-negative: " + snapshotVersion);
+    }
+    if (fromVersion > toVersion) {
+      throw new IllegalArgumentException("fromVersion must be <= toVersion: " + fromVersion + " > " + toVersion);
+    }
     return new SidecarSelectedWaveFragments(
         snapshotVersion,
         fromVersion,

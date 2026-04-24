@@ -15,6 +15,7 @@ import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveViewportState {
   static final String BLIP_SEGMENT_PREFIX = "blip:";
+  private static final String BLIP_DOCUMENT_PREFIX = "b+";
 
   private static final long UNKNOWN_VERSION = -1L;
   private static final J2clSelectedWaveViewportState EMPTY =
@@ -95,9 +96,13 @@ public final class J2clSelectedWaveViewportState {
       if (documentId == null || documentId.isEmpty()) {
         continue;
       }
-      // Documents do not carry fragment segment ids; blip documents use the
-      // same segment convention emitted by SidecarSelectedWaveFragments.
-      String segment = documentId.startsWith("b+") ? BLIP_SEGMENT_PREFIX + documentId : documentId;
+      // Documents do not carry fragment segment ids. Generated conversational blip ids use
+      // IdGenerator's "b+" token; other document ids remain non-read metadata entries until the
+      // sidecar transport can send explicit segment ids for documents too.
+      String segment =
+          documentId.startsWith(BLIP_DOCUMENT_PREFIX)
+              ? BLIP_SEGMENT_PREFIX + documentId
+              : documentId;
       long version = document.getLastModifiedVersion();
       minVersion = Math.min(minVersion, version);
       maxVersion = Math.max(maxVersion, version);
@@ -198,6 +203,9 @@ public final class J2clSelectedWaveViewportState {
         }
         long mergedToVersion =
             Math.max(existing.getToVersion(), documentEntry.getToVersion());
+        // Fragment fetches can expand the window through mergeFragments/minKnown; document-only
+        // updates refresh content inside the current viewport and must not widen a known fragment
+        // window backward just because a document has an older modified version.
         long mergedFromVersion =
             knownOrFallback(existing.getFromVersion(), documentEntry.getFromVersion());
         merged.set(
@@ -240,7 +248,12 @@ public final class J2clSelectedWaveViewportState {
     return entries.isEmpty();
   }
 
-  // Metadata-only fragment deltas are state updates, not selected-wave read windows.
+  /**
+   * Returns true only for fragment payloads that can define a selected-wave read window.
+   *
+   * <p>Metadata/index-only fragment deltas are state updates; the projector must route them to the
+   * previous viewport or document fallback path instead of replacing visible blips.
+   */
   boolean hasBlipEntries() {
     for (Entry entry : entries) {
       if (entry.isBlip()) {

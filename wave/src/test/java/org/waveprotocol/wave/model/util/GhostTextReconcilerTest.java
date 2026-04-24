@@ -236,6 +236,16 @@ public class GhostTextReconcilerTest extends TestCase {
     }
   }
 
+  public void testCombineWithCapturedGhostsNullScratchThrows() {
+    try {
+      GhostTextReconciler.combineWithCapturedGhosts(
+          null, null, null, null, null, null, null);
+      fail("Expected NullPointerException for null scratchContent");
+    } catch (NullPointerException expected) {
+      // pass
+    }
+  }
+
   public void testExtractGhostSuffixHandlesNulls() {
     assertEquals("", GhostTextReconciler.extractGhostSuffix(null, null));
     assertEquals("", GhostTextReconciler.extractGhostSuffix("", null));

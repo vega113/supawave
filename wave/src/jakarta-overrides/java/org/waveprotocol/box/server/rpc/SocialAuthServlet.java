@@ -74,6 +74,7 @@ public final class SocialAuthServlet extends HttpServlet {
   private final boolean passwordResetEnabled;
   private final boolean magicLinkEnabled;
   private final String analyticsAccount;
+  private final Object accountCreationLock = new Object();
   private final Object startRateLimitLock = new Object();
   private final Map<String, RateLimitBucket> startRateLimits = new HashMap<>();
 
@@ -303,10 +304,7 @@ public final class SocialAuthServlet extends HttpServlet {
           pending.provider, pending.subject, pending.email, pending.displayName,
           System.currentTimeMillis());
       account.addOrReplaceSocialIdentity(socialIdentity);
-      if (accountStore.getAccountCount() == 0) {
-        account.setRole(HumanAccountData.ROLE_OWNER);
-      }
-      accountStore.putAccountWithUniqueSocialIdentity(account, socialIdentity);
+      persistSocialAccountWithOwnerAssignment(account, socialIdentity);
       try {
         analyticsRecorder.incrementUsersRegistered(System.currentTimeMillis());
       } catch (RuntimeException e) {
@@ -321,6 +319,16 @@ public final class SocialAuthServlet extends HttpServlet {
     } catch (PersistenceException e) {
       LOG.warning("Failed to create social account: " + e.getClass().getName());
       renderFailure(resp, HttpServletResponse.SC_FORBIDDEN, DEFAULT_FAILURE);
+    }
+  }
+
+  private void persistSocialAccountWithOwnerAssignment(HumanAccountDataImpl account,
+      SocialIdentity socialIdentity) throws PersistenceException {
+    synchronized (accountCreationLock) {
+      if (accountStore.getAccountCount() == 0) {
+        account.setRole(HumanAccountData.ROLE_OWNER);
+      }
+      accountStore.putAccountWithUniqueSocialIdentity(account, socialIdentity);
     }
   }
 

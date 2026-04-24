@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import org.junit.After;
 import org.junit.Test;
 import org.waveprotocol.box.server.account.AccountData;
+import org.waveprotocol.box.server.account.HumanAccountData;
 import org.waveprotocol.box.server.account.HumanAccountDataImpl;
 import org.waveprotocol.box.server.account.SocialIdentity;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -124,12 +125,42 @@ public final class SocialAuthServletTest {
     assertEquals(null, account.asHuman().getPasswordDigest());
     assertTrue(account.asHuman().isEmailConfirmed());
     assertEquals("octo@example.com", account.asHuman().getEmail());
+    assertEquals(HumanAccountData.ROLE_OWNER, account.asHuman().getRole());
     assertEquals(1, account.asHuman().getSocialIdentities().size());
     assertEquals("github", account.asHuman().getSocialIdentities().get(0).getProvider());
     verify(fixture.sessionManager).setLoggedInUser(any(WebSession.class),
         eq(ParticipantId.ofUnsafe("octo@example.com")));
     verify(callback.req).changeSessionId();
     verify(complete.req).changeSessionId();
+  }
+
+  @Test
+  public void completeKeepsSocialAccountUserWhenAccountsAlreadyExist() throws Exception {
+    Fixture fixture = newFixture(true);
+    HumanAccountDataImpl existing =
+        new HumanAccountDataImpl(ParticipantId.ofUnsafe("existing@example.com"));
+    fixture.accountStore.putAccount(existing);
+    Map<String, Object> sessionAttributes = new HashMap<>();
+    HttpSession session = newSession(sessionAttributes);
+    RequestContext start = request("/github", Map.of("r", "/wave/"), session);
+    ResponseContext startResponse = response();
+    fixture.servlet.doGet(start.req, startResponse.resp);
+    String state = queryParam(startResponse.redirect, "state");
+    RequestContext callback = request("/callback/github",
+        Map.of("state", state, "code", "provider-code"), session);
+    ResponseContext callbackResponse = response();
+    fixture.servlet.doGet(callback.req, callbackResponse.resp);
+    String csrf = hiddenValue(callbackResponse.body(), "csrf");
+
+    RequestContext complete = request("/complete",
+        Map.of("csrf", csrf, "address", "octo"), session);
+    ResponseContext completeResponse = response();
+    fixture.servlet.doPost(complete.req, completeResponse.resp);
+
+    assertEquals("/wave/", completeResponse.redirect);
+    AccountData account = fixture.accountStore.getAccount(ParticipantId.ofUnsafe("octo@example.com"));
+    assertNotNull(account);
+    assertEquals(HumanAccountData.ROLE_USER, account.asHuman().getRole());
   }
 
   @Test

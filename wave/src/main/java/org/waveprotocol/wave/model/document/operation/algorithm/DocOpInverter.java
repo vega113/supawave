@@ -26,6 +26,10 @@ import org.waveprotocol.wave.model.document.operation.DocOp;
 import org.waveprotocol.wave.model.document.operation.EvaluatingDocOpCursor;
 import org.waveprotocol.wave.model.document.operation.impl.AttributesUpdateImpl;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpBuffer;
+import org.waveprotocol.wave.model.document.operation.util.ImmutableUpdateMap.AttributeUpdate;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A reverser of document operations.
@@ -87,13 +91,13 @@ public final class DocOpInverter<T> implements EvaluatingDocOpCursor<T> {
 
   @Override
   public void updateAttributes(AttributesUpdate attrUpdate) {
-    AttributesUpdate update = new AttributesUpdateImpl();
-    // TODO: This is a little silly. We should do this a better way.
-    for (int i = 0; i < attrUpdate.changeSize(); ++i) {
-      update = update.composeWith(new AttributesUpdateImpl(attrUpdate.getChangeKey(i),
+    int changeSize = attrUpdate.changeSize();
+    List<AttributeUpdate> updates = new ArrayList<AttributeUpdate>(changeSize);
+    for (int i = 0; i < changeSize; ++i) {
+      updates.add(new AttributeUpdate(attrUpdate.getChangeKey(i),
           attrUpdate.getNewValue(i), attrUpdate.getOldValue(i)));
     }
-    target.updateAttributes(update);
+    target.updateAttributes(AttributesUpdateImpl.fromUnsortedUpdates(updates));
   }
 
   @Override

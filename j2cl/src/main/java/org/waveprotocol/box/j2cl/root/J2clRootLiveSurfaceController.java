@@ -66,6 +66,9 @@ public final class J2clRootLiveSurfaceController {
   public J2clSearchPanelController.RouteStateHandler routeStateHandler(
       J2clSearchPanelController.RouteStateHandler delegate) {
     return (state, digestItem, userNavigation) -> {
+      if (!active) {
+        return;
+      }
       onRouteStateChanged(state);
       if (delegate != null) {
         delegate.onRouteStateChanged(state, digestItem, userNavigation);
@@ -76,6 +79,9 @@ public final class J2clRootLiveSurfaceController {
   public J2clSidecarRouteController.SelectedWaveController selectedWaveController(
       J2clSidecarRouteController.SelectedWaveController delegate) {
     return (waveId, digestItem) -> {
+      if (!active) {
+        return;
+      }
       onSelectedWaveChanged(waveId);
       if (delegate != null) {
         delegate.onWaveSelected(waveId, digestItem);

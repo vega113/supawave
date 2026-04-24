@@ -381,6 +381,29 @@ public class J2clRootLiveSurfaceControllerTest {
   }
 
   @Test
+  public void callbacksAfterStopDoNotForwardToDelegates() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller = startedController(shell);
+    FakeRouteStateHandler routeDelegate = new FakeRouteStateHandler();
+    FakeSelectedWaveController selectedDelegate = new FakeSelectedWaveController();
+    J2clSearchPanelController.RouteStateHandler routeStateHandler =
+        controller.routeStateHandler(routeDelegate);
+    J2clSidecarRouteController.SelectedWaveController selectedWaveController =
+        controller.selectedWaveController(selectedDelegate);
+
+    controller.stop();
+    routeStateHandler.onRouteStateChanged(
+        new J2clSidecarRouteState("in:inbox", "example.com/w+123"),
+        digest("example.com/w+123"),
+        true);
+    selectedWaveController.onWaveSelected("example.com/w+456", digest("example.com/w+456"));
+
+    Assert.assertEquals(0, routeDelegate.events.size());
+    Assert.assertEquals(0, selectedDelegate.events.size());
+    Assert.assertEquals(0, shell.models.size());
+  }
+
+  @Test
   public void constructorRejectsNullShellSurface() {
     try {
       new J2clRootLiveSurfaceController(null, () -> {});

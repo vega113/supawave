@@ -50,20 +50,21 @@ export class ComposerInlineReply extends LitElement {
   }
 
   render() {
-    const disabled = !this.available || this.submitting || this.staleBasis;
+    const textareaDisabled = !this.available || this.submitting;
+    const submitDisabled = textareaDisabled || this.staleBasis;
     return html`
       <div class="reply">
         <p class="target">Reply target: ${this.targetLabel || "No current wave"}</p>
         <textarea
           aria-label="Reply"
           .value=${this.draft}
-          ?disabled=${disabled}
+          ?disabled=${textareaDisabled}
           @input=${this.onInput}
         ></textarea>
         <composer-submit-affordance
           label="Send reply"
           ?busy=${this.submitting}
-          ?disabled=${disabled}
+          ?disabled=${submitDisabled}
           @submit-affordance=${this.onSubmit}
         ></composer-submit-affordance>
         ${this.status && !this.error

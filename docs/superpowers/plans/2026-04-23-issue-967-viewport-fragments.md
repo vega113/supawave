@@ -517,23 +517,32 @@ Expected:
 - Test:
   - `j2cl/src/test/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveControllerTest.java`
 
-- [ ] Add scroll-edge callbacks from `J2clReadSurfaceDomRenderer` / `J2clSelectedWaveView.contentList` to the selected-wave controller
-- [ ] Request growth only when the user approaches an unloaded edge; coalesce repeated scroll triggers
-- [ ] Preserve scroll anchor and focus when new windows merge in
-- [ ] Surface loading placeholders with the existing `visible-region-placeholder` visual vocabulary
-- [ ] Keep the container shape compatible with the `#966` DOM-as-view provider path
-- [ ] Define `/fragments` growth failure behavior:
+- [x] Add scroll-edge callbacks from `J2clReadSurfaceDomRenderer` / `J2clSelectedWaveView.contentList` to the selected-wave controller
+- [x] Request growth only when the user approaches an unloaded edge; coalesce repeated scroll triggers
+- [x] Preserve scroll anchor and focus when new windows merge in
+- [x] Surface loading placeholders with the existing `visible-region-placeholder` visual vocabulary
+- [x] Keep the container shape compatible with the `#966` DOM-as-view provider path
+- [x] Define `/fragments` growth failure behavior:
   - timeout/error keeps the existing window visible
   - edge placeholder switches to retry/error state without clearing loaded blips
   - duplicate requests for the same edge are coalesced while one is in flight
   - stale responses whose version/hash no longer matches the selected-wave state are dropped
   - a later scroll or retry can request the edge again
-- [ ] Add tests for timeout/error display, stale-response drop, duplicate-request suppression, and retry after failure
-- [ ] Add a direct assertion that the implementation attaches to the merged `#966` `J2clReadSurfaceDomRenderer` / `.sidecar-selected-content` container rather than introducing a second competing selected-wave surface
+- [x] Add tests for timeout/error display, stale-response drop, duplicate-request suppression, and retry after failure
+- [x] Add a direct assertion that the implementation attaches to the merged `#966` `J2clReadSurfaceDomRenderer` / `.sidecar-selected-content` container rather than introducing a second competing selected-wave surface
+
+Task 5 result:
+- Added scroll-edge callback plumbing from `J2clReadSurfaceDomRenderer` through `J2clSelectedWaveView` into `J2clSelectedWaveController`, using the existing `.sidecar-selected-content` / `#966` read-surface container instead of creating a parallel selected-wave surface.
+- Added `J2clViewportGrowthDirection` and routed renderer, controller, viewport-state, view, and gateway direction handling through the shared forward/backward normalizer.
+- Added keyed in-flight fragment-growth coalescing by `direction:anchor`; both success and error callbacks retain the in-flight key through `view.render(...)` so synchronous same-edge render re-entry is coalesced, then clear it to allow later retry/growth.
+- Merged successful `/fragments` responses into `J2clSelectedWaveViewportState`, using loaded blips only for null-anchor fallback. Stale growth responses are dropped when write-session version/hash changes; null-to-present write-session transitions remain accepted, while present-to-null is documented as stale.
+- Added scroll-anchor preservation for full `renderWindow(...)` rebuilds, one-shot edge auto-triggering when the user remains near an unloaded edge, and wave/classic transitions that clear stale viewport scroll memory while flat no-op renders preserve it.
+- Added soft failure behavior: failures keep loaded content visible, surface a non-blocking status, allow retry after render, and successful retry clears the fragment-growth banner with `"More selected-wave content loaded."`.
+- Claude Opus 4.7 review loop cleared in round 9 with no blockers or important required comments. Non-blocking notes were limited to follow-up considerations such as future copy/a11y polish and no-op-path micro-optimizations.
 
 Run:
 ```bash
-sbt -batch "testOnly org.waveprotocol.box.j2cl.search.J2clSelectedWaveControllerTest"
+sbt -batch j2clSearchBuild j2clSearchTest && git diff --check && python3 scripts/validate-changelog.py
 ```
 
 Expected:
@@ -543,6 +552,11 @@ Expected:
   - duplicate-request suppression
   - stale-response drop behavior
   - failure placeholder/retry behavior
+- renderer tests cover:
+  - forward/backward edge callbacks on unloaded placeholders
+  - flat no-op scroll-memory preservation
+  - one-shot post-render edge auto-triggering
+  - backward prepend scroll-anchor preservation
 
 ### Task 6: Remove whole-wave bootstrap when viewport mode is active
 

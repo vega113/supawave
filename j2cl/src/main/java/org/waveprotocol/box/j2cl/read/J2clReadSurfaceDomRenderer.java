@@ -10,8 +10,17 @@ import elemental2.dom.NodeList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clReadSurfaceDomRenderer {
+  // Roughly one compact blip of lead time before a viewport edge reaches the exact scroll boundary.
+  private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
+
+  @FunctionalInterface
+  public interface ViewportEdgeListener {
+    void onViewportEdge(String anchorBlipId, String direction);
+  }
+
   private final HTMLDivElement host;
   private final List<HTMLElement> renderedBlips = new ArrayList<HTMLElement>();
   private List<J2clReadWindowEntry> renderedWindowEntries =
@@ -19,14 +28,34 @@ public final class J2clReadSurfaceDomRenderer {
   private HTMLElement renderedSurface;
   private HTMLElement focusedBlip;
   private int generatedThreadIdCounter;
+  private ViewportEdgeListener viewportEdgeListener;
+  private boolean scrollListenerBound;
+  private String lastScrollDirection;
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this.host = host;
   }
 
+  /**
+   * Installs the viewport edge callback once for this renderer. Passing null
+   * disables callback delivery but intentionally keeps the cheap scroll listener bound.
+   */
+  public void setViewportEdgeListener(ViewportEdgeListener viewportEdgeListener) {
+    this.viewportEdgeListener = viewportEdgeListener;
+    if (!scrollListenerBound) {
+      host.addEventListener("scroll", this::onHostScroll);
+      scrollListenerBound = true;
+    }
+  }
+
+  public void clearViewportScrollMemory() {
+    lastScrollDirection = null;
+  }
+
   public boolean render(List<J2clReadBlip> blips, List<String> fallbackEntries) {
     List<J2clReadBlip> effectiveBlips = normalizeBlips(blips, fallbackEntries);
     if (effectiveBlips.isEmpty()) {
+      clearViewportScrollMemory();
       host.innerHTML = "";
       renderedBlips.clear();
       renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
@@ -42,6 +71,7 @@ public final class J2clReadSurfaceDomRenderer {
       return true;
     }
 
+    clearViewportScrollMemory();
     host.innerHTML = "";
     renderedBlips.clear();
     renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
@@ -82,6 +112,8 @@ public final class J2clReadSurfaceDomRenderer {
     }
 
     String focusedBlipId = currentFocusedBlipId();
+    String scrollAnchorBlipId = firstRenderedBlipId();
+    double scrollAnchorTop = renderedBlipTop(scrollAnchorBlipId);
     List<String> previouslyCollapsedThreadIds = captureCollapsedThreadIds();
     if (matchesRenderedWindowEntries(entries)) {
       restoreFocusedBlipById(focusedBlipId);
@@ -128,6 +160,12 @@ public final class J2clReadSurfaceDomRenderer {
     enhanceSurface(surface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
+    restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
+    if (lastScrollDirection != null && isNearEdge(lastScrollDirection)) {
+      String pendingDirection = lastScrollDirection;
+      lastScrollDirection = null;
+      requestEdgeIfPlaceholder(pendingDirection);
+    }
     return true;
   }
 
@@ -367,6 +405,75 @@ public final class J2clReadSurfaceDomRenderer {
       focusByIndex(renderedBlips.size() - 1);
       keyEvent.preventDefault();
     }
+  }
+
+  private void onHostScroll(Event event) {
+    if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
+      return;
+    }
+    if (host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX) {
+      lastScrollDirection = J2clViewportGrowthDirection.BACKWARD;
+      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD);
+      return;
+    }
+    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
+    if (distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX) {
+      lastScrollDirection = J2clViewportGrowthDirection.FORWARD;
+      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD);
+      return;
+    }
+    lastScrollDirection = null;
+  }
+
+  private boolean isNearEdge(String direction) {
+    if (J2clViewportGrowthDirection.isBackward(direction)) {
+      return host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+    }
+    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
+    return distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX;
+  }
+
+  private void requestEdgeIfPlaceholder(String direction) {
+    J2clReadWindowEntry placeholder = edgePlaceholder(direction);
+    if (placeholder != null) {
+      viewportEdgeListener.onViewportEdge(placeholder.getBlipId(), direction);
+    }
+  }
+
+  private J2clReadWindowEntry edgePlaceholder(String direction) {
+    if (J2clViewportGrowthDirection.isBackward(direction)) {
+      J2clReadWindowEntry first = renderedWindowEntries.get(0);
+      return first.isLoaded() ? null : first;
+    }
+    J2clReadWindowEntry last = renderedWindowEntries.get(renderedWindowEntries.size() - 1);
+    return last.isLoaded() ? null : last;
+  }
+
+  private String firstRenderedBlipId() {
+    for (HTMLElement blip : renderedBlips) {
+      String blipId = blip.getAttribute("data-blip-id");
+      if (blipId != null && !blipId.isEmpty()) {
+        return blipId;
+      }
+    }
+    return "";
+  }
+
+  private double renderedBlipTop(String blipId) {
+    HTMLElement blip = renderedBlipById(blipId);
+    return blip == null ? 0 : blip.getBoundingClientRect().top;
+  }
+
+  private void restoreScrollAnchor(String blipId, double previousTop) {
+    HTMLElement blip = renderedBlipById(blipId);
+    if (blip == null || blipId == null || blipId.isEmpty()) {
+      return;
+    }
+    double delta = blip.getBoundingClientRect().top - previousTop;
+    // Apply the layout delta to the browser's current scrollTop. This stays
+    // correct whether the browser preserved scrollTop through the rebuild or
+    // reset it while the old surface was detached.
+    host.scrollTop = Math.max(0, host.scrollTop + delta);
   }
 
   private void focusByOffset(int offset) {

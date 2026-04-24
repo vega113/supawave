@@ -11,6 +11,7 @@ import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragmentRange;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveViewportState {
   static final String BLIP_SEGMENT_PREFIX = "blip:";
@@ -117,6 +118,55 @@ public final class J2clSelectedWaveViewportState {
   J2clSelectedWaveViewportState appendMissingDocuments(
       List<SidecarSelectedWaveDocument> documents) {
     return mergeDocuments(documents, false);
+  }
+
+  J2clSelectedWaveViewportState mergeFragments(
+      SidecarSelectedWaveFragments fragments, String direction) {
+    J2clSelectedWaveViewportState fragmentState = fromFragments(fragments);
+    if (fragmentState.isEmpty()) {
+      return this;
+    }
+    if (isEmpty()) {
+      return fragmentState;
+    }
+    List<Entry> merged = new ArrayList<Entry>(entries);
+    List<Entry> missing = new ArrayList<Entry>();
+    for (Entry fragmentEntry : fragmentState.getEntries()) {
+      int existingIndex = indexOfSegment(merged, fragmentEntry.getSegment());
+      if (existingIndex >= 0) {
+        merged.set(existingIndex, fragmentEntry);
+      } else {
+        missing.add(fragmentEntry);
+      }
+    }
+    if (J2clViewportGrowthDirection.isBackward(direction)) {
+      merged.addAll(0, missing);
+    } else {
+      merged.addAll(missing);
+    }
+    return new J2clSelectedWaveViewportState(
+        Math.max(snapshotVersion, fragmentState.getSnapshotVersion()),
+        minKnown(startVersion, fragmentState.getStartVersion()),
+        Math.max(endVersion, fragmentState.getEndVersion()),
+        merged);
+  }
+
+  String edgeBlipId(String direction) {
+    if (J2clViewportGrowthDirection.isBackward(direction)) {
+      for (Entry entry : entries) {
+        if (entry.isLoaded() && entry.isBlip()) {
+          return entry.getBlipId();
+        }
+      }
+      return "";
+    }
+    for (int i = entries.size() - 1; i >= 0; i--) {
+      Entry entry = entries.get(i);
+      if (entry.isLoaded() && entry.isBlip()) {
+        return entry.getBlipId();
+      }
+    }
+    return "";
   }
 
   private J2clSelectedWaveViewportState mergeDocuments(
@@ -235,6 +285,16 @@ public final class J2clSelectedWaveViewportState {
       }
     }
     return -1;
+  }
+
+  private static long minKnown(long left, long right) {
+    if (left < 0) {
+      return right;
+    }
+    if (right < 0) {
+      return left;
+    }
+    return Math.min(left, right);
   }
 
   private static SidecarSelectedWaveFragment findFragment(

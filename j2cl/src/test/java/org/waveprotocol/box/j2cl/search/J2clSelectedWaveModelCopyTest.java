@@ -87,4 +87,62 @@ public class J2clSelectedWaveModelCopyTest {
     Assert.assertFalse(model.isRead());
     Assert.assertFalse(model.isReadStateKnown());
   }
+
+  @Test
+  public void viewportStateCopyPreservesLoadingAndErrorFlags() {
+    J2clSelectedWaveModel model =
+        new J2clSelectedWaveModel(
+            true,
+            true,
+            true,
+            "example.com/w+1",
+            "Title",
+            "",
+            "",
+            "Opening selected wave.",
+            "Waiting for content.",
+            0,
+            Collections.<String>emptyList(),
+            Collections.<String>emptyList(),
+            null,
+            J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+            false,
+            false,
+            false);
+
+    J2clSelectedWaveModel copied =
+        model.withViewportState(J2clSelectedWaveViewportState.empty());
+
+    Assert.assertTrue(copied.isLoading());
+    Assert.assertTrue(copied.isError());
+  }
+
+  @Test
+  public void softStatusCopyKeepsSelectionOutOfBlockingErrorState() {
+    J2clSelectedWaveModel model =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            true,
+            "example.com/w+1",
+            "Title",
+            "",
+            "",
+            "Selected wave stream failed.",
+            "detail",
+            0,
+            Collections.<String>emptyList(),
+            Collections.<String>emptyList(),
+            null,
+            J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+            false,
+            false,
+            false);
+
+    J2clSelectedWaveModel copied =
+        model.withStatus("Could not load more selected-wave content.", "fragment timeout");
+
+    Assert.assertFalse(copied.isError());
+    Assert.assertEquals("Could not load more selected-wave content.", copied.getStatusText());
+  }
 }

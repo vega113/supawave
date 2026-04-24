@@ -10,6 +10,7 @@ import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
   private final HTMLElement title;
@@ -27,6 +28,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private String serverFirstWaveId;
   private String serverFirstMode;
   private double serverFirstMountedAtMs;
+  private String lastRenderedWaveId = "";
 
   public J2clSelectedWaveView(HTMLElement host) {
     HTMLElement existingCard = J2clServerFirstRootShellDom.findSelectedWaveCard(host);
@@ -106,6 +108,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
   @Override
   public void render(J2clSelectedWaveModel model) {
+    String renderedWaveId = model.getSelectedWaveId() == null ? "" : model.getSelectedWaveId();
+    if (!renderedWaveId.equals(lastRenderedWaveId)) {
+      readSurface.clearViewportScrollMemory();
+      lastRenderedWaveId = renderedWaveId;
+    }
     if (shouldPreserveServerFirstCard(model)) {
       renderPreservedServerFirstState(model);
       return;
@@ -155,6 +162,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
   public HTMLElement getComposeHost() {
     return composeHost;
+  }
+
+  @Override
+  public void setViewportEdgeHandler(J2clSelectedWaveController.ViewportEdgeHandler handler) {
+    readSurface.setViewportEdgeListener(
+        handler == null ? null : handler::onViewportEdge);
   }
 
   @Override
@@ -210,7 +223,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             || serverFirstWaveId.equals(selectedWaveId))
         && anchor != null
         && !anchor.isEmpty()) {
-      return new SidecarViewportHints(anchor, "forward", null);
+      return new SidecarViewportHints(anchor, J2clViewportGrowthDirection.FORWARD, null);
     }
     return SidecarViewportHints.defaultLimit();
   }

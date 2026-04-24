@@ -6,9 +6,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragmentRange;
@@ -550,6 +552,335 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals(1, harness.readStateAttempts.size());
   }
 
+  @Test
+  public void viewportEdgeDispatchesFragmentsFetchWithCurrentVersionWindow() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    FragmentFetchAttempt attempt = harness.fragmentFetchAttempts.get(0);
+    Assert.assertEquals("example.com/w+1", attempt.waveId);
+    Assert.assertEquals("b+next", attempt.startBlipId);
+    Assert.assertEquals("forward", attempt.direction);
+    Assert.assertEquals(5, attempt.limit);
+    Assert.assertEquals(40L, attempt.startVersion);
+    Assert.assertEquals(44L, attempt.endVersion);
+  }
+
+  @Test
+  public void viewportEdgeFetchMergesGrowthWindowWithoutReopeningSocket() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertEquals(0, harness.closedCount);
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Next loaded", "Tail loaded"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void duplicateViewportEdgeRequestsAreCoalescedWhileFetchInFlight()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void oppositeViewportEdgesCanFetchConcurrently() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.requestViewportEdge(controller, "b+before", "backward");
+
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("forward", harness.fragmentFetchAttempts.get(0).direction);
+    Assert.assertEquals("backward", harness.fragmentFetchAttempts.get(1).direction);
+  }
+
+  @Test
+  public void viewportEdgeBeforeAnyViewportStateDoesNotFetchFragments() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    Assert.assertEquals(0, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void viewportEdgeCanUseTrailingAnchorFallback() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, null, "forward");
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+root", harness.fragmentFetchAttempts.get(0).startBlipId);
+  }
+
+  @Test
+  public void viewportEdgeWithoutAnchorOrLoadedBlipDoesNotFetchFragments() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithOnlyPlaceholder());
+
+    harness.requestViewportEdge(controller, null, "forward");
+
+    Assert.assertEquals(0, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void backwardViewportGrowthPrependsLoadedWindow() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+before", "backward");
+    harness.resolveFragmentFetch(
+        0, fragmentsResponseForBlips("b+before", "Before loaded", null, null));
+
+    Assert.assertEquals(
+        Arrays.asList("Before loaded", "Root already loaded"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void viewportEdgeCanFetchAgainAfterSuccessfulGrowth() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+    harness.requestViewportEdge(controller, "b+tail", "forward");
+
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void sameViewportEdgeCanFetchAgainAfterSuccessfulGrowth() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void staleViewportGrowthResponseIsDroppedAfterLiveUpdateChangesVersion()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    harness.deliverRawUpdate(
+        0,
+        update(
+            "example.com!w+1/example.com!conv+root",
+            "Live update changed base version",
+            45L,
+            "EFGH"));
+    harness.resolveFragmentFetch(0, fragmentsResponse("Stale next", "Stale tail"));
+
+    Assert.assertEquals(
+        Arrays.asList("Live update changed base version"), harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void staleViewportGrowthResponseIsDroppedAfterLiveUpdateChangesHashOnly()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    harness.deliverRawUpdate(
+        0,
+        update(
+            "example.com!w+1/example.com!conv+root",
+            "Live update changed history hash",
+            44L,
+            "EFGH"));
+    harness.resolveFragmentFetch(0, fragmentsResponse("Stale next", "Stale tail"));
+
+    Assert.assertEquals(
+        Arrays.asList("Live update changed history hash"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void viewportGrowthResponseSurvivesNullToPresentWriteSessionTransition()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholderWithoutWriteSession("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root refreshed with write session"));
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+
+    Assert.assertEquals(
+        Arrays.asList("Root refreshed with write session", "Next loaded", "Tail loaded"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void viewportGrowthFailureKeepsLoadedWindowAndAllowsRetry() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.rejectFragmentFetch(0, "fragment timeout");
+
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded"), harness.modelValue("getContentEntries"));
+    Assert.assertTrue(
+        String.valueOf(harness.modelValue("getDetailText")).contains("fragment timeout"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+    harness.resolveFragmentFetch(1, fragmentsResponse("Recovered next", "Recovered tail"));
+
+    Assert.assertEquals("More selected-wave content loaded.", harness.modelValue("getStatusText"));
+    Assert.assertEquals("", harness.modelValue("getDetailText"));
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Recovered next", "Recovered tail"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void viewportGrowthFailureCoalescesSameEdgeReentryDuringRender() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.onNextRender =
+        () -> {
+          try {
+            harness.requestViewportEdge(controller, "b+next", "forward");
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+
+    harness.rejectFragmentFetch(0, "fragment timeout");
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void viewportGrowthSuccessCoalescesSameEdgeReentryDuringRender() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.onNextRender =
+        () -> {
+          try {
+            harness.requestViewportEdge(controller, "b+next", "forward");
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        };
+
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
+  public void refreshClearsInFlightViewportEdgeTracking() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    harness.refreshSelectedWave(controller);
+    harness.resolveBootstrap(1);
+    harness.deliverRawUpdate(1, updateWithPlaceholder("Root reopened"));
+    harness.requestViewportEdge(controller, "b+next", "forward");
+
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+  }
+
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {
     return new J2clSearchDigestItem(
         "example.com/w+1", title, snippet, "user@example.com", unreadCount, 2, 1234L, false);
@@ -563,10 +894,13 @@ public class J2clSelectedWaveControllerTest {
     private final List<BootstrapAttempt> bootstrapAttempts = new ArrayList<BootstrapAttempt>();
     private final List<OpenAttempt> openAttempts = new ArrayList<OpenAttempt>();
     private final List<ReadStateFetchAttempt> readStateAttempts = new ArrayList<ReadStateFetchAttempt>();
+    private final List<FragmentFetchAttempt> fragmentFetchAttempts =
+        new ArrayList<FragmentFetchAttempt>();
     private final List<Runnable> pendingReadStateDispatches = new ArrayList<Runnable>();
     private final List<Runnable> visibilityListeners = new ArrayList<Runnable>();
     private SidecarViewportHints initialViewportHints;
     private Object lastModel;
+    private Runnable onNextRender;
     private Method onWaveSelectedMethod;
     private Method onWaveSelectedWithDigestMethod;
 
@@ -640,6 +974,24 @@ public class J2clSelectedWaveControllerTest {
                   readStateAttempts.add(new ReadStateFetchAttempt((String) args[0], success, error));
                   return null;
                 }
+                if ("fetchFragments".equals(method.getName())) {
+                  @SuppressWarnings("unchecked")
+                  J2clSearchPanelController.SuccessCallback<SidecarFragmentsResponse> success =
+                      (J2clSearchPanelController.SuccessCallback<SidecarFragmentsResponse>) args[6];
+                  J2clSearchPanelController.ErrorCallback error =
+                      (J2clSearchPanelController.ErrorCallback) args[7];
+                  fragmentFetchAttempts.add(
+                      new FragmentFetchAttempt(
+                          (String) args[0],
+                          (String) args[1],
+                          (String) args[2],
+                          ((Number) args[3]).intValue(),
+                          ((Number) args[4]).longValue(),
+                          ((Number) args[5]).longValue(),
+                          success,
+                          error));
+                  return null;
+                }
                 return null;
               });
 
@@ -650,6 +1002,11 @@ public class J2clSelectedWaveControllerTest {
               (proxy, method, args) -> {
                 if ("render".equals(method.getName())) {
                   lastModel = args[0];
+                  Runnable callback = onNextRender;
+                  onNextRender = null;
+                  if (callback != null) {
+                    callback.run();
+                  }
                 }
                 if ("initialViewportHints".equals(method.getName())) {
                   return initialViewportHints;
@@ -743,6 +1100,14 @@ public class J2clSelectedWaveControllerTest {
       refreshSelectedWaveMethod.invoke(controller);
     }
 
+    private void requestViewportEdge(Object controller, String anchorBlipId, String direction)
+        throws Exception {
+      Method requestViewportEdgeMethod =
+          controller.getClass().getDeclaredMethod("onViewportEdge", String.class, String.class);
+      requestViewportEdgeMethod.setAccessible(true);
+      requestViewportEdgeMethod.invoke(controller, anchorBlipId, direction);
+    }
+
     private void resolveBootstrap(int index) {
       bootstrapAttempts.get(index)
           .success
@@ -782,6 +1147,14 @@ public class J2clSelectedWaveControllerTest {
       readStateAttempts.get(index).error.accept(message);
     }
 
+    private void resolveFragmentFetch(int index, SidecarFragmentsResponse response) {
+      fragmentFetchAttempts.get(index).success.accept(response);
+    }
+
+    private void rejectFragmentFetch(int index, String message) {
+      fragmentFetchAttempts.get(index).error.accept(message);
+    }
+
     private void deliverUpdate(int index, String rawSnapshot) {
       deliverRawUpdate(index, update("example.com!w+1/example.com!conv+root", rawSnapshot));
     }
@@ -801,13 +1174,18 @@ public class J2clSelectedWaveControllerTest {
   }
 
   private static SidecarSelectedWaveUpdate update(String waveletName, String rawSnapshot) {
+    return update(waveletName, rawSnapshot, 44L, "ABCD");
+  }
+
+  private static SidecarSelectedWaveUpdate update(
+      String waveletName, String rawSnapshot, long resultingVersion, String historyHash) {
     return new SidecarSelectedWaveUpdate(
         1,
         waveletName,
         true,
         "chan-1",
-        44L,
-        "ABCD",
+        resultingVersion,
+        historyHash,
         Arrays.asList("user@example.com", "teammate@example.com"),
         Arrays.asList(
             new SidecarSelectedWaveDocument(
@@ -822,6 +1200,98 @@ public class J2clSelectedWaveControllerTest {
             Arrays.asList(
                 new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
                 new SidecarSelectedWaveFragment("blip:b+root", rawSnapshot, 0, 0))));
+  }
+
+  private static SidecarSelectedWaveUpdate updateWithPlaceholder(String rootSnapshot) {
+    return updateWithPlaceholder(rootSnapshot, 44L, "ABCD");
+  }
+
+  private static SidecarSelectedWaveUpdate updateWithPlaceholderWithoutWriteSession(
+      String rootSnapshot) {
+    return updateWithPlaceholder(rootSnapshot, -1L, null);
+  }
+
+  private static SidecarSelectedWaveUpdate updateWithPlaceholder(
+      String rootSnapshot, long resultingVersion, String historyHash) {
+    return new SidecarSelectedWaveUpdate(
+        1,
+        "example.com!w+1/example.com!conv+root",
+        true,
+        "chan-1",
+        resultingVersion,
+        historyHash,
+        Arrays.asList("user@example.com", "teammate@example.com"),
+        Arrays.asList(
+            new SidecarSelectedWaveDocument(
+                "b+root", "user@example.com", 33L, 44L, rootSnapshot)),
+        new SidecarSelectedWaveFragments(
+            44L,
+            40L,
+            44L,
+            Arrays.asList(
+                new SidecarSelectedWaveFragmentRange("manifest", 40L, 44L),
+                new SidecarSelectedWaveFragmentRange("blip:b+root", 41L, 44L),
+                new SidecarSelectedWaveFragmentRange("blip:b+next", 41L, 44L)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
+                new SidecarSelectedWaveFragment("blip:b+root", rootSnapshot, 0, 0))));
+  }
+
+  private static SidecarSelectedWaveUpdate updateWithOnlyPlaceholder() {
+    return new SidecarSelectedWaveUpdate(
+        1,
+        "example.com!w+1/example.com!conv+root",
+        true,
+        "chan-1",
+        44L,
+        "ABCD",
+        Arrays.asList("user@example.com", "teammate@example.com"),
+        Collections.<SidecarSelectedWaveDocument>emptyList(),
+        new SidecarSelectedWaveFragments(
+            44L,
+            40L,
+            44L,
+            Arrays.asList(
+                new SidecarSelectedWaveFragmentRange("manifest", 40L, 44L),
+                new SidecarSelectedWaveFragmentRange("blip:b+missing", 41L, 44L)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0))));
+  }
+
+  private static SidecarFragmentsResponse fragmentsResponse(
+      String nextSnapshot, String tailSnapshot) {
+    return fragmentsResponseForBlips("b+next", nextSnapshot, "b+tail", tailSnapshot);
+  }
+
+  private static SidecarFragmentsResponse fragmentsResponseForBlips(
+      String firstBlipId, String firstSnapshot, String secondBlipId, String secondSnapshot) {
+    StringBuilder json =
+        new StringBuilder(
+            "{\"status\":\"ok\",\"waveRef\":\"example.com/w+1/~/conv+root\","
+                + "\"version\":{\"snapshot\":48,\"start\":44,\"end\":48},"
+                + "\"ranges\":[{\"segment\":\"blip:");
+    json.append(firstBlipId)
+        .append("\",\"from\":44,\"to\":48}");
+    if (secondBlipId != null) {
+      json.append(",{\"segment\":\"blip:")
+          .append(secondBlipId)
+          .append("\",\"from\":44,\"to\":48}");
+    }
+    json.append("],\"fragments\":[{\"segment\":\"blip:")
+        .append(firstBlipId)
+        .append("\",\"rawSnapshot\":\"")
+        .append(firstSnapshot)
+        .append("\",\"adjust\":[],\"diff\":[]}");
+    if (secondBlipId != null) {
+      json.append(",{\"segment\":\"blip:")
+          .append(secondBlipId)
+          .append("\",\"rawSnapshot\":\"")
+          .append(secondSnapshot)
+          .append("\",\"adjust\":[],\"diff\":[]}");
+    }
+    json.append("]}");
+    return SidecarFragmentsResponse.fromJson(
+        json.toString());
   }
 
   private static SidecarSelectedWaveUpdate snapshotOnlyUpdate(String textContent) {
@@ -860,6 +1330,36 @@ public class J2clSelectedWaveControllerTest {
         J2clSearchPanelController.SuccessCallback<SidecarSelectedWaveReadState> success,
         J2clSearchPanelController.ErrorCallback error) {
       this.waveId = waveId;
+      this.success = success;
+      this.error = error;
+    }
+  }
+
+  private static final class FragmentFetchAttempt {
+    private final String waveId;
+    private final String startBlipId;
+    private final String direction;
+    private final int limit;
+    private final long startVersion;
+    private final long endVersion;
+    private final J2clSearchPanelController.SuccessCallback<SidecarFragmentsResponse> success;
+    private final J2clSearchPanelController.ErrorCallback error;
+
+    private FragmentFetchAttempt(
+        String waveId,
+        String startBlipId,
+        String direction,
+        int limit,
+        long startVersion,
+        long endVersion,
+        J2clSearchPanelController.SuccessCallback<SidecarFragmentsResponse> success,
+        J2clSearchPanelController.ErrorCallback error) {
+      this.waveId = waveId;
+      this.startBlipId = startBlipId;
+      this.direction = direction;
+      this.limit = limit;
+      this.startVersion = startVersion;
+      this.endVersion = endVersion;
       this.success = success;
       this.error = error;
     }

@@ -15,6 +15,7 @@ import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarTransportCodec;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSearchGateway
     implements
@@ -290,7 +291,11 @@ public final class J2clSearchGateway
         .append(encodeQueryComponent(defaultWaveletId(waveId)))
         .append("&client=j2cl")
         .append("&direction=")
-        .append(encodeQueryComponent(direction == null ? "forward" : direction))
+        .append(
+            encodeQueryComponent(
+                direction == null
+                    ? J2clViewportGrowthDirection.FORWARD
+                    : J2clViewportGrowthDirection.normalize(direction)))
         .append("&limit=")
         .append(limit)
         .append("&startVersion=")

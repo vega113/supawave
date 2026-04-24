@@ -349,6 +349,58 @@ public final class J2clSelectedWaveModel {
     return writeSession;
   }
 
+  J2clSelectedWaveModel withViewportState(J2clSelectedWaveViewportState nextViewportState) {
+    return new J2clSelectedWaveModel(
+        hasSelection,
+        loading,
+        error,
+        selectedWaveId,
+        titleText,
+        snippetText,
+        unreadText,
+        statusText,
+        detailText,
+        reconnectCount,
+        participantIds,
+        nextViewportState == null
+            ? contentEntries
+            : nextViewportState.getLoadedContentEntries(),
+        nextViewportState == null
+            ? readBlips
+            : nextViewportState.getLoadedReadBlips(),
+        nextViewportState == null ? viewportState : nextViewportState,
+        writeSession,
+        unreadCount,
+        read,
+        readStateKnown,
+        readStateStale);
+  }
+
+  J2clSelectedWaveModel withStatus(String nextStatusText, String nextDetailText) {
+    // Soft status updates keep the selected-wave card interactive and avoid the blocking error
+    // presentation used for bootstrap/stream failures.
+    return new J2clSelectedWaveModel(
+        hasSelection,
+        loading,
+        false,
+        selectedWaveId,
+        titleText,
+        snippetText,
+        unreadText,
+        nextStatusText,
+        nextDetailText,
+        reconnectCount,
+        participantIds,
+        contentEntries,
+        readBlips,
+        viewportState,
+        writeSession,
+        unreadCount,
+        read,
+        readStateKnown,
+        readStateStale);
+  }
+
   public int getUnreadCount() {
     return unreadCount;
   }

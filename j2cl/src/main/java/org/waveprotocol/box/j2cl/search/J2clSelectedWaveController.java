@@ -1,11 +1,14 @@
 package org.waveprotocol.box.j2cl.search;
 
 import elemental2.dom.DomGlobal;
+import java.util.HashSet;
+import java.util.Set;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveController
     implements J2clSidecarRouteController.SelectedWaveController {
@@ -13,6 +16,12 @@ public final class J2clSelectedWaveController
   // Keep retries bounded, but leave enough budget for a local WIAB restart on the same port.
   private static final int MAX_RECONNECT_DELAY_MS = 2000;
   private static final int MAX_RECONNECT_ATTEMPTS = 8;
+  // Matches the current server default viewport window until growth-size config is exposed to J2CL.
+  private static final int FRAGMENT_GROWTH_LIMIT = 5;
+  private static final String FRAGMENT_GROWTH_FAILURE_STATUS =
+      "Could not load more selected-wave content.";
+  private static final String FRAGMENT_GROWTH_RECOVERED_STATUS =
+      "More selected-wave content loaded.";
   // Trailing-edge debounce for per-update read-state fetches. Short enough to
   // feel live, long enough to coalesce server-initiated flurries without
   // amplifying HTTP pressure.
@@ -58,6 +67,14 @@ public final class J2clSelectedWaveController
     default SidecarViewportHints initialViewportHints(String selectedWaveId) {
       return SidecarViewportHints.defaultLimit();
     }
+
+    default void setViewportEdgeHandler(ViewportEdgeHandler handler) {
+    }
+  }
+
+  @FunctionalInterface
+  public interface ViewportEdgeHandler {
+    void onViewportEdge(String anchorBlipId, String direction);
   }
 
   public interface RetryScheduler {
@@ -105,6 +122,7 @@ public final class J2clSelectedWaveController
   private int readStateFetchSeq;
   private int latestReadStateApplied;
   private int pendingDebounceToken;
+  private final Set<String> fragmentFetchesInFlight = new HashSet<String>();
 
   public J2clSelectedWaveController(Gateway gateway, View view) {
     this(
@@ -180,6 +198,7 @@ public final class J2clSelectedWaveController
     this.writeSessionListener = writeSessionListener;
     this.currentModel = J2clSelectedWaveModel.empty();
     this.view.render(currentModel);
+    this.view.setViewportEdgeHandler(this::onViewportEdge);
     publishWriteSession();
     if (visibilitySource != null) {
       visibilitySource.addVisibilityListener(this::onVisible);
@@ -196,6 +215,7 @@ public final class J2clSelectedWaveController
     }
     int generation = ++requestGeneration;
     closeSubscription();
+    resetFragmentFetchTracking();
     reconnectCount = 0;
     // A refresh happens after the reply already committed on the server, so transient bootstrap or
     // open failures should recover like a reconnect instead of strand the panel on stale content.
@@ -228,6 +248,7 @@ public final class J2clSelectedWaveController
     int generation = ++requestGeneration;
     closeSubscription();
     resetReadStateFetchTracking();
+    resetFragmentFetchTracking();
 
     if (waveId == null || waveId.isEmpty()) {
       selectedWaveId = null;
@@ -368,6 +389,106 @@ public final class J2clSelectedWaveController
     return hints == null || !hints.hasHints() ? SidecarViewportHints.defaultLimit() : hints;
   }
 
+  void onViewportEdge(String anchorBlipId, String direction) {
+    if (selectedWaveId == null || selectedWaveId.isEmpty() || currentModel == null) {
+      return;
+    }
+    J2clSelectedWaveViewportState viewportState = currentModel.getViewportState();
+    if (viewportState == null || viewportState.isEmpty()) {
+      return;
+    }
+    String normalizedDirection = normalizeGrowthDirection(direction);
+    String anchor = normalizeAnchor(anchorBlipId, viewportState, normalizedDirection);
+    if (anchor.isEmpty()) {
+      return;
+    }
+    String edgeKey = normalizedDirection + ":" + anchor;
+    if (fragmentFetchesInFlight.contains(edgeKey)) {
+      return;
+    }
+    fragmentFetchesInFlight.add(edgeKey);
+    int generation = requestGeneration;
+    String waveId = selectedWaveId;
+    long startVersion = viewportState.getStartVersion();
+    long endVersion = viewportState.getEndVersion();
+    J2clSidecarWriteSession writeSession = currentModel.getWriteSession();
+    boolean hadWriteSession = writeSession != null;
+    long baseVersion = writeSession == null ? -1L : writeSession.getBaseVersion();
+    String historyHash = writeSession == null ? "" : nullToEmpty(writeSession.getHistoryHash());
+    gateway.fetchFragments(
+        waveId,
+        anchor,
+        normalizedDirection,
+        FRAGMENT_GROWTH_LIMIT,
+        startVersion,
+        endVersion,
+        response -> {
+          if (!isCurrentGeneration(generation) || !waveId.equals(selectedWaveId)) {
+            return;
+          }
+          if (isStaleFragmentResponse(hadWriteSession, baseVersion, historyHash)) {
+            fragmentFetchesInFlight.remove(edgeKey);
+            return;
+          }
+          J2clSelectedWaveViewportState mergedState =
+              currentModel
+                  .getViewportState()
+                  .mergeFragments(response.getFragments(), normalizedDirection);
+          currentModel = currentModel.withViewportState(mergedState);
+          // Only clear the soft fragment-growth banner owned by this controller.
+          // Live-update statuses are left intact because they represent fresher stream state.
+          if (FRAGMENT_GROWTH_FAILURE_STATUS.equals(currentModel.getStatusText())) {
+            currentModel = currentModel.withStatus(FRAGMENT_GROWTH_RECOVERED_STATUS, "");
+          }
+          view.render(currentModel);
+          publishWriteSession();
+          fragmentFetchesInFlight.remove(edgeKey);
+        },
+        error -> {
+          if (!isCurrentGeneration(generation) || !waveId.equals(selectedWaveId)) {
+            return;
+          }
+          // Soft failure: keep loaded blips visible while surfacing retry context.
+          currentModel =
+              currentModel.withStatus(
+                  FRAGMENT_GROWTH_FAILURE_STATUS,
+                  error == null ? "" : error);
+          view.render(currentModel);
+          publishWriteSession();
+          fragmentFetchesInFlight.remove(edgeKey);
+        });
+  }
+
+  private boolean isStaleFragmentResponse(
+      boolean hadWriteSession, long baseVersion, String historyHash) {
+    if (!hadWriteSession) {
+      return false;
+    }
+    J2clSidecarWriteSession writeSession = currentModel.getWriteSession();
+    // If a write session disappears before the fragment response returns, the controller can no
+    // longer prove the response belongs to the same live selected-wave stream, so treat it as stale.
+    long currentBaseVersion = writeSession == null ? -1L : writeSession.getBaseVersion();
+    String currentHistoryHash =
+        writeSession == null ? "" : nullToEmpty(writeSession.getHistoryHash());
+    return baseVersion != currentBaseVersion || !historyHash.equals(currentHistoryHash);
+  }
+
+  private static String normalizeGrowthDirection(String direction) {
+    return J2clViewportGrowthDirection.normalize(direction);
+  }
+
+  private static String normalizeAnchor(
+      String anchorBlipId, J2clSelectedWaveViewportState viewportState, String direction) {
+    if (anchorBlipId != null && !anchorBlipId.isEmpty()) {
+      return anchorBlipId;
+    }
+    return viewportState.edgeBlipId(direction);
+  }
+
+  private static String nullToEmpty(String value) {
+    return value == null ? "" : value;
+  }
+
   private void scheduleReconnectOrFail(int generation, int reconnectCount) {
     if (reconnectCount >= MAX_RECONNECT_ATTEMPTS) {
       currentModel =
@@ -426,6 +547,10 @@ public final class J2clSelectedWaveController
     if (writeSessionListener != null) {
       writeSessionListener.onWriteSessionChanged(currentModel.getWriteSession());
     }
+  }
+
+  private void resetFragmentFetchTracking() {
+    fragmentFetchesInFlight.clear();
   }
 
   // --- Read-state fetch orchestration ----------------------------------------

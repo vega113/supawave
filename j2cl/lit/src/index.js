@@ -14,6 +14,12 @@ import "./elements/composer-shell.js";
 import "./elements/toolbar-button.js";
 import "./elements/toolbar-group.js";
 import "./elements/toolbar-overflow-menu.js";
+import "./elements/interaction-overlay-layer.js";
+import "./elements/mention-suggestion-popover.js";
+import "./elements/task-metadata-popover.js";
+import "./elements/reaction-row.js";
+import "./elements/reaction-picker-popover.js";
+import "./elements/reaction-authors-popover.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

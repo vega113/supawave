@@ -35,6 +35,7 @@ public final class J2clRootLiveSurfaceController {
   }
 
   public void start() {
+    model = J2clRootLiveSurfaceModel.starting();
     active = true;
     publishedDuringStart = false;
     routeStarter.start();

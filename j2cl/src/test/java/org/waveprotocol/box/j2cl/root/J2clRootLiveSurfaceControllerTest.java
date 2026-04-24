@@ -158,6 +158,27 @@ public class J2clRootLiveSurfaceControllerTest {
   }
 
   @Test
+  public void restartResetsModelToLoadingState() {
+    FakeShellSurface shell = new FakeShellSurface();
+    J2clRootLiveSurfaceController controller =
+        new J2clRootLiveSurfaceController(shell, () -> {});
+    J2clSearchPanelController.RouteStateHandler handler =
+        controller.routeStateHandler(null);
+
+    controller.start();
+    handler.onRouteStateChanged(
+        new J2clSidecarRouteState("in:inbox", "example.com/w+123"), null, false);
+    controller.stop();
+    shell.models.clear();
+
+    controller.start();
+
+    Assert.assertEquals("Loading workspace.", shell.lastModel().getStatusText());
+    Assert.assertNull(shell.lastModel().getSelectedWaveId());
+    Assert.assertEquals("", shell.lastModel().getQuery());
+  }
+
+  @Test
   public void stopSuppressesFutureLiveStatusPublication() {
     FakeShellSurface shell = new FakeShellSurface();
     J2clRootLiveSurfaceController controller =

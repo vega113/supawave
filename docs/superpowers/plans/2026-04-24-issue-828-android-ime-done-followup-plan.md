@@ -32,7 +32,7 @@ The missing character therefore must be captured as an initial ghost at activati
 
 - Add pure `GhostTextReconciler` regression tests for:
   - empty model + captured previous sibling `n` + current previous sibling empty + scratch `ew` -> `new`
-  - model `new` + captured previous sibling `new b` + current previous sibling `new` + scratch `lip` -> ` blip`
+  - model `new` + captured previous sibling `new b` + current previous sibling `new` + scratch `lip` -> `<space>blip`
   - initial ghost still present at flush is not double-counted
   - old post-capture ghost growth still works
   - symmetric next-sibling captured ghosts survive Done and post-capture growth

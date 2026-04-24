@@ -76,6 +76,9 @@ public final class SocialAuthServlet extends HttpServlet {
   private final String analyticsAccount;
   private final Object accountCreationLock = new Object();
   private final Object startRateLimitLock = new Object();
+  // Per-instance in-memory rate-limit store. Effective only in single-instance deployments;
+  // clustered deployments should replace this with a centralized store (e.g. Redis) so the
+  // window is shared across all nodes.
   private final Map<String, RateLimitBucket> startRateLimits = new HashMap<>();
 
   @Inject
@@ -427,10 +430,9 @@ public final class SocialAuthServlet extends HttpServlet {
     String key = scope + ":" + address;
     long now = System.currentTimeMillis();
     synchronized (startRateLimitLock) {
-      if (startRateLimits.size() >= START_RATE_LIMIT_MAX_BUCKETS) {
-        startRateLimits.entrySet().removeIf(
-            entry -> now - entry.getValue().windowStartedAtMillis >= START_RATE_LIMIT_WINDOW_MILLIS);
-      }
+      // Always evict expired buckets so the map doesn't grow unboundedly between capacity events.
+      startRateLimits.entrySet().removeIf(
+          entry -> now - entry.getValue().windowStartedAtMillis >= START_RATE_LIMIT_WINDOW_MILLIS);
       if (!startRateLimits.containsKey(key)
           && startRateLimits.size() >= START_RATE_LIMIT_MAX_BUCKETS) {
         return false;

@@ -70,4 +70,17 @@ public class ImeCompositionTextTrackerTest extends TestCase {
   public void testSingleCharacterDiacriticReplacementKeepsScratch() {
     assertImeSequence("\u00e1", "\u00e1", "a", "\u00e1", "\u00e1");
   }
+
+  public void testNullObservedValueIsIgnored() {
+    ImeCompositionTextTracker tracker = new ImeCompositionTextTracker();
+    tracker.observe("n");
+    tracker.observe(null);
+    assertEquals("n", tracker.effectiveText("n"));
+  }
+
+  public void testNullScratchFallsBackToEmptyString() {
+    ImeCompositionTextTracker tracker = new ImeCompositionTextTracker();
+    tracker.observe("n");
+    assertEquals("", tracker.effectiveText(null));
+  }
 }

@@ -53,6 +53,8 @@ public final class SocialAuthServlet extends HttpServlet {
   private static final String PROFILE_SESSION_ATTR = "socialAuth.pendingProfile";
   private static final String DEFAULT_FAILURE =
       "Social sign-in could not be completed. Check your provider account and try again.";
+  private static final String INVALID_USERNAME_MESSAGE =
+      "Choose a username using letters, numbers, underscores, and periods.";
 
   private static final Log LOG = Log.get(SocialAuthServlet.class);
 
@@ -245,7 +247,7 @@ public final class SocialAuthServlet extends HttpServlet {
           profile.getProvider(), provider.label(), profile.getSubject(),
           normalizeEmail(profile.getEmail()), profile.getDisplayName(), csrf,
           pending.redirect, System.currentTimeMillis()));
-      writeUsernamePage(resp, provider.label(), profile.getEmail(), "", 
+      writeUsernamePage(resp, provider.label(), "",
           AuthenticationServlet.RESPONSE_STATUS_NONE, csrf);
     } catch (Exception e) {
       LOG.warning("Social sign-in failed: " + e.getClass().getName());
@@ -278,12 +280,12 @@ public final class SocialAuthServlet extends HttpServlet {
     try {
       id = RegistrationSupport.checkNewUsername(domain, req.getParameter("address"));
     } catch (InvalidParticipantAddress e) {
-      writeUsernamePage(resp, pending.providerLabel, pending.email, e.getMessage(),
+      writeUsernamePage(resp, pending.providerLabel, INVALID_USERNAME_MESSAGE,
           AuthenticationServlet.RESPONSE_STATUS_FAILED, pending.csrf);
       return;
     }
     if (RegistrationSupport.doesAccountExist(accountStore, id)) {
-      writeUsernamePage(resp, pending.providerLabel, pending.email, "Account already exists",
+      writeUsernamePage(resp, pending.providerLabel, "Account already exists",
           AuthenticationServlet.RESPONSE_STATUS_FAILED, pending.csrf);
       return;
     }
@@ -369,11 +371,11 @@ public final class SocialAuthServlet extends HttpServlet {
         normalizeEmail(profile.getEmail()), profile.getDisplayName(), System.currentTimeMillis());
   }
 
-  private void writeUsernamePage(HttpServletResponse resp, String providerLabel, String email,
+  private void writeUsernamePage(HttpServletResponse resp, String providerLabel,
       String message, String responseType, String csrf) throws IOException {
     resp.setContentType("text/html;charset=utf-8");
     resp.getWriter().write(HtmlRenderer.renderSocialUsernamePage(
-        domain, providerLabel, email, message, responseType, csrf, analyticsAccount));
+        domain, providerLabel, "", message, responseType, csrf, analyticsAccount));
   }
 
   private void renderFailure(HttpServletResponse resp, int status, String message)

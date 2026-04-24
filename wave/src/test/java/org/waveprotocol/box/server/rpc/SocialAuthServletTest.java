@@ -111,6 +111,7 @@ public final class SocialAuthServletTest {
     fixture.servlet.doGet(callback.req, callbackResponse.resp);
 
     assertTrue(callbackResponse.body().contains("Choose your SupaWave username"));
+    assertFalse(callbackResponse.body().contains("octo@example.com"));
     String csrf = hiddenValue(callbackResponse.body(), "csrf");
     RequestContext complete = request("/complete",
         Map.of("csrf", csrf, "address", "octo"), session);

@@ -2101,10 +2101,14 @@ public final class HtmlRenderer {
     sb.append("  </div>\n");
     sb.append("  <div class=\"card\">\n");
     sb.append("    <h1>Choose your SupaWave username</h1>\n");
-    sb.append("    <div class=\"subtitle\">")
-        .append(escapeHtml(providerLabel == null ? "Social" : providerLabel))
-        .append(" verified ").append(escapeHtml(email == null ? "" : email))
-        .append("</div>\n");
+    sb.append("    <div class=\"subtitle\">");
+    sb.append(escapeHtml(providerLabel == null ? "Social" : providerLabel));
+    if (email == null || email.isBlank()) {
+      sb.append(" verified your identity");
+    } else {
+      sb.append(" verified ").append(escapeHtml(email));
+    }
+    sb.append("</div>\n");
     sb.append("    <div class=\"msg\" id=\"messageLbl\"></div>\n");
     sb.append("    <form id=\"socialUserForm\" method=\"post\" action=\"/auth/social/complete\">\n");
     sb.append("      <input type=\"hidden\" name=\"csrf\" value=\"")

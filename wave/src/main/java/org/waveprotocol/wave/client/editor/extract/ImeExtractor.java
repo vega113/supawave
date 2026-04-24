@@ -153,8 +153,8 @@ public class ImeExtractor {
     if (scratchContent == null) {
       scratchContent = "";
     }
-    String currentPrev = readText(ghostPreviousSibling);
-    String currentNext = readText(ghostNextSibling);
+    String currentPrev = readCurrentPreviousText();
+    String currentNext = readCurrentNextText();
     String result = GhostTextReconciler.combineWithCapturedGhosts(scratchContent,
         ghostPreviousSiblingModelBaseline, ghostPreviousSiblingCapturedText, currentPrev,
         ghostNextSiblingModelBaseline, ghostNextSiblingCapturedText, currentNext);
@@ -262,11 +262,13 @@ public class ImeExtractor {
       ImeDebugTracer.start("ImeExtractor.deactivate")
           .add("scratch", imeContainer.getInnerText())
           .add("prevSibling", ImeDebugTracer.describe(ghostPreviousSibling))
-          .add("prevCurrent", ImeDebugTracer.readText(ghostPreviousSibling))
+          .add("prevCurrent", readCurrentPreviousText())
+          .add("prevCapturedNodeCurrent", ImeDebugTracer.readText(ghostPreviousSibling))
           .add("prevModelBaseline", ghostPreviousSiblingModelBaseline)
           .add("prevCaptured", ghostPreviousSiblingCapturedText)
           .add("nextSibling", ImeDebugTracer.describe(ghostNextSibling))
-          .add("nextCurrent", ImeDebugTracer.readText(ghostNextSibling))
+          .add("nextCurrent", readCurrentNextText())
+          .add("nextCapturedNodeCurrent", ImeDebugTracer.readText(ghostNextSibling))
           .add("nextModelBaseline", ghostNextSiblingModelBaseline)
           .add("nextCaptured", ghostNextSiblingCapturedText)
           .emit();
@@ -285,14 +287,38 @@ public class ImeExtractor {
   }
 
   private void restoreGhostBaseline() {
-    restorePreviousTextNode(ghostPreviousSibling, ghostPreviousSiblingModelBaseline);
-    restoreNextTextNode(ghostNextSibling, ghostNextSiblingModelBaseline);
+    Node currentPreviousSibling = currentAdjacentSibling(true);
+    Node currentNextSibling = currentAdjacentSibling(false);
+    restorePreviousTextNode(currentPreviousSibling, ghostPreviousSiblingModelBaseline);
+    restoreNextTextNode(currentNextSibling, ghostNextSiblingModelBaseline);
+    if (currentPreviousSibling != ghostPreviousSibling) {
+      restorePreviousTextNode(ghostPreviousSibling, ghostPreviousSiblingModelBaseline);
+    }
+    if (currentNextSibling != ghostNextSibling) {
+      restoreNextTextNode(ghostNextSibling, ghostNextSiblingModelBaseline);
+    }
     ghostPreviousSibling = null;
     ghostPreviousSiblingModelBaseline = null;
     ghostPreviousSiblingCapturedText = null;
     ghostNextSibling = null;
     ghostNextSiblingModelBaseline = null;
     ghostNextSiblingCapturedText = null;
+  }
+
+  private String readCurrentPreviousText() {
+    return readText(currentAdjacentSibling(true));
+  }
+
+  private String readCurrentNextText() {
+    return readText(currentAdjacentSibling(false));
+  }
+
+  private Node currentAdjacentSibling(boolean previous) {
+    Element scratchDomAnchor = imeContainer.getParentElement();
+    if (scratchDomAnchor == null) {
+      return null;
+    }
+    return previous ? scratchDomAnchor.getPreviousSibling() : scratchDomAnchor.getNextSibling();
   }
 
   private static void restorePreviousTextNode(Node node, String baseline) {

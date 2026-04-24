@@ -8,6 +8,7 @@
 
 **Files:**
 - `wave/src/main/java/org/waveprotocol/wave/model/util/GhostTextReconciler.java`
+- `wave/src/main/java/org/waveprotocol/wave/client/editor/extract/ImeExtractor.java`
 - `wave/src/test/java/org/waveprotocol/wave/model/util/GhostTextReconcilerTest.java`
 - `wave/src/main/java/org/waveprotocol/wave/client/editor/EditorImpl.java`
 - `wave/config/changelog.d/2026-04-24-android-ime-done-sibling-disappear.json`

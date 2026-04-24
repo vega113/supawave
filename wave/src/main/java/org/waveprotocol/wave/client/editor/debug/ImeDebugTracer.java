@@ -717,11 +717,11 @@ public final class ImeDebugTracer {
       setExpanded(false);
 
       if (d.body) {
-        reserveBodyBottomSpace(d);
+        reserveBottomEditingSpace(d);
         d.body.appendChild(ov);
       } else {
         d.addEventListener('DOMContentLoaded', function () {
-          reserveBodyBottomSpace(d);
+          reserveBottomEditingSpace(d);
           d.body.appendChild(ov);
         }, true);
       }

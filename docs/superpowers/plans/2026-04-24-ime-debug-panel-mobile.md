@@ -53,6 +53,8 @@ content and destroys any icon markup that could make the controls compact.
   a hidden log body by default, and buttons for show/hide, copy, and clear.
   Native buttons handle keyboard focus and activation; no custom focus trap is
   needed.
+- Reserve bottom space on the document body and Wave thread scroll containers so
+  absolutely positioned mobile wave content can scroll above the minimized panel.
 - Update `ImeDebugTracer.appendToOverlayJsni()` to append rows into the log body,
   not the overlay chrome.
 - Update `HtmlRenderer` mobile chrome controls to keep SVG icons in the button

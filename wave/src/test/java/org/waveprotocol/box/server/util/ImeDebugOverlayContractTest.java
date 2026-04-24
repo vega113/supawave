@@ -75,14 +75,15 @@ public final class ImeDebugOverlayContractTest extends TestCase {
   public void testMinimizedOverlayReservesBottomEditingSpace() throws Exception {
     String source = readTracerSource();
 
-    assertContains(source, "reserveBodyBottomSpace");
-    assertContains(source, "data-ime-debug-body-padding-reserved");
+    assertContains(source, "reserveBottomEditingSpace");
+    assertContains(source, "reserveBottomSpace");
+    assertContains(source, "data-ime-debug-bottom-space-reserved");
+    assertContains(source, "querySelectorAll(\"[data-mobile-role='wave-thread']\")");
     assertContains(source, "safeAreaInset = \"env(safe-area-inset-bottom, 0px)\"");
     assertContains(source, "\" + 1px + \" + safeAreaInset");
     assertContains(source, "style.paddingBottom");
-    assertContains(source, " + collapsedHeight + ");
-    assertContains(source, " + 1px + ");
-    assertContains(source, " + safeAreaInset");
+    assertContains(source, "style.scrollPaddingBottom");
+    assertContains(source, "reservedHeight = \"calc(\" + collapsedHeight + \" + 1px + \" + safeAreaInset + \")\"");
   }
 
   public void testConsoleAndRemoteLoggingCallsRemainPresent() throws Exception {

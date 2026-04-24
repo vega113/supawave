@@ -44,6 +44,32 @@ describe("<toolbar-overflow-menu>", () => {
     expect((await eventPromise).detail.action).to.equal("clear-formatting");
   });
 
+  it("includes slotted toolbar-button elements in keyboard focus order", async () => {
+    const el = await fixture(html`
+      <toolbar-overflow-menu label="More toolbar actions">
+        <toolbar-button action="history" label="History"></toolbar-button>
+        <toolbar-button action="clear-formatting" label="Clear formatting"></toolbar-button>
+      </toolbar-overflow-menu>
+    `);
+    const trigger = el.renderRoot.querySelector("button[aria-haspopup='true']");
+    const historyButton = el.querySelector("toolbar-button[action='history']");
+    const clearButton = el.querySelector("toolbar-button[action='clear-formatting']");
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await el.updateComplete;
+
+    expect(el.open).to.equal(true);
+    expect(historyButton.renderRoot.querySelector("button")).to.equal(
+      historyButton.shadowRoot.activeElement
+    );
+
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(clearButton.renderRoot.querySelector("button")).to.equal(
+      clearButton.shadowRoot.activeElement
+    );
+  });
+
   it("closes and forwards actions from slotted toolbar-button elements", async () => {
     const el = await fixture(html`
       <toolbar-overflow-menu label="More toolbar actions">

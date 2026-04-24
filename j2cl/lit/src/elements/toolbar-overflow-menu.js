@@ -149,7 +149,7 @@ export class ToolbarOverflowMenu extends LitElement {
   focusFirstItem() {
     const items = this.items();
     if (items.length > 0) {
-      items[0].focus();
+      this.focusItem(items[0]);
     }
   }
 
@@ -158,17 +158,46 @@ export class ToolbarOverflowMenu extends LitElement {
     if (items.length === 0) {
       return;
     }
-    const currentIndex = items.indexOf(document.activeElement);
+    const currentIndex = this.activeItemIndex(items);
     const nextIndex = currentIndex < 0
       ? 0
       : (currentIndex + offset + items.length) % items.length;
-    items[nextIndex].focus();
+    this.focusItem(items[nextIndex]);
   }
 
   items() {
-    return Array.from(this.querySelectorAll("button,[href],[tabindex]")).filter(
-      item => !item.disabled
+    return Array.from(this.querySelectorAll("toolbar-button,button,[href],[tabindex]")).filter(
+      item => !this.isItemDisabled(item)
     );
+  }
+
+  activeItemIndex(items) {
+    const activeElement = document.activeElement;
+    return items.findIndex(item =>
+      item === activeElement
+        || item.contains(activeElement)
+        || item.renderRoot?.activeElement === activeElement
+        || item.shadowRoot?.activeElement === activeElement
+    );
+  }
+
+  focusItem(item) {
+    if (item.localName === "toolbar-button") {
+      const button = item.renderRoot?.querySelector("button")
+        || item.shadowRoot?.querySelector("button");
+      if (button) {
+        button.focus();
+        return;
+      }
+    }
+    item.focus();
+  }
+
+  isItemDisabled(item) {
+    if (item.localName === "toolbar-button") {
+      return Boolean(item.disabled) || item.hasAttribute("disabled");
+    }
+    return Boolean(item.disabled);
   }
 }
 

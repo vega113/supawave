@@ -42,7 +42,8 @@ public class J2clRootLiveSurfaceControllerTest {
 
     Assert.assertEquals(1, shell.models.size());
     Assert.assertEquals("?view=j2cl-root&q=in%3Ainbox", shell.lastModel().getRouteUrl());
-    Assert.assertEquals("Workspace is ready.", shell.lastModel().getStatusText());
+    Assert.assertEquals("in:inbox", shell.lastModel().getQuery());
+    Assert.assertEquals("Showing search results for in:inbox.", shell.lastModel().getStatusText());
   }
 
   @Test
@@ -58,7 +59,7 @@ public class J2clRootLiveSurfaceControllerTest {
         shell.returnTargets);
     Assert.assertEquals("?view=j2cl-root&q=in%3Ainbox", shell.lastModel().getRouteUrl());
     Assert.assertEquals(
-        "Workspace is ready.",
+        "Showing search results for in:inbox.",
         shell.lastModel().getStatusText());
   }
 
@@ -165,6 +166,7 @@ public class J2clRootLiveSurfaceControllerTest {
     controller.stop();
     controller.onRouteUrlChanged("?view=j2cl-root&q=in%3Ainbox");
 
+    Assert.assertEquals(0, shell.returnTargets.size());
     Assert.assertEquals(0, shell.models.size());
   }
 
@@ -182,9 +184,9 @@ public class J2clRootLiveSurfaceControllerTest {
     controller.onRouteUrlChanged("?view=j2cl-root&q=b");
 
     Assert.assertEquals("?view=j2cl-root&q=b", shell.lastModel().getRouteUrl());
-    Assert.assertEquals("a", shell.lastModel().getQuery());
+    Assert.assertEquals("b", shell.lastModel().getQuery());
     Assert.assertNull(shell.lastModel().getSelectedWaveId());
-    Assert.assertEquals("Showing search results for a.", shell.lastModel().getStatusText());
+    Assert.assertEquals("Showing search results for b.", shell.lastModel().getStatusText());
   }
 
   @Test

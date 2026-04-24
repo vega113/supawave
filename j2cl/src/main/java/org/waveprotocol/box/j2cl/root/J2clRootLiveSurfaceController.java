@@ -48,6 +48,9 @@ public final class J2clRootLiveSurfaceController {
   }
 
   public void onRouteUrlChanged(String routeUrl) {
+    if (!active) {
+      return;
+    }
     shellSurface.syncReturnTarget(routeUrl);
     model = model.withRouteUrl(routeUrl);
     publish();

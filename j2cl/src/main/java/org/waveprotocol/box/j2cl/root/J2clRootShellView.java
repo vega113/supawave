@@ -57,17 +57,17 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
   @Override
   public void syncReturnTarget(String routeUrl) {
     String returnTarget = normalizeLocalReturnTarget(routeUrl);
-    HTMLElement shell =
-        (HTMLElement) DomGlobal.document.querySelector("[data-j2cl-root-shell='true']");
-    if (shell != null) {
-      shell.setAttribute("data-j2cl-root-return-target", returnTarget);
+    Element shell = findRootShell();
+    if (shell == null) {
+      return;
     }
-    updateHref("j2cl-root-brand-link", returnTarget);
-    updateAuthHrefs("[data-j2cl-root-signin='true']", "/auth/signin", returnTarget);
-    updateAuthHrefs("[data-j2cl-root-signout='true']", "/auth/signout", returnTarget);
+    shell.setAttribute("data-j2cl-root-return-target", returnTarget);
+    updateHref(shell, "j2cl-root-brand-link", returnTarget);
+    updateAuthHrefs(shell, "[data-j2cl-root-signin='true']", "/auth/signin", returnTarget);
+    updateAuthHrefs(shell, "[data-j2cl-root-signout='true']", "/auth/signout", returnTarget);
 
     HTMLElement returnTargetLabel =
-        (HTMLElement) DomGlobal.document.getElementById("j2cl-root-return-target-text");
+        (HTMLElement) shell.querySelector("#j2cl-root-return-target-text");
     if (returnTargetLabel != null) {
       returnTargetLabel.textContent = "Return target: " + returnTarget;
     }
@@ -106,38 +106,41 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     }
     liveStatus = (HTMLElement) DomGlobal.document.createElement("span");
     liveStatus.id = LIVE_STATUS_ID;
-    liveStatus.setAttribute("role", "status");
-    liveStatus.setAttribute("aria-live", "polite");
     statusStrip.appendChild(liveStatus);
     return liveStatus;
   }
 
-  private HTMLElement findStatusStrip() {
+  private Element findRootShell() {
     Element rootShell = workflowHost;
     // Bind to the nearest owning root shell so nested or parallel shells cannot cross-write status.
     while (rootShell != null) {
       if ("true".equals(rootShell.getAttribute("data-j2cl-root-shell"))) {
-        // shell-status-strip renders a default slot; appended light-DOM children stay visible.
-        HTMLElement scopedStatusStrip =
-            (HTMLElement) rootShell.querySelector("shell-status-strip[slot='status']");
-        if (scopedStatusStrip != null) {
-          return scopedStatusStrip;
-        }
+        return rootShell;
       }
       rootShell = rootShell.parentElement;
     }
     return null;
   }
 
-  private static void updateHref(String elementId, String href) {
-    HTMLElement element = (HTMLElement) DomGlobal.document.getElementById(elementId);
+  private HTMLElement findStatusStrip() {
+    Element rootShell = findRootShell();
+    if (rootShell == null) {
+      return null;
+    }
+    // shell-status-strip renders a default slot; appended light-DOM children stay visible.
+    return (HTMLElement) rootShell.querySelector("shell-status-strip[slot='status']");
+  }
+
+  private static void updateHref(Element scope, String elementId, String href) {
+    HTMLElement element = (HTMLElement) scope.querySelector("#" + elementId);
     if (element != null) {
       element.setAttribute("href", href);
     }
   }
 
-  private static void updateAuthHrefs(String selector, String authPath, String returnTarget) {
-    NodeList<elemental2.dom.Element> elements = DomGlobal.document.querySelectorAll(selector);
+  private static void updateAuthHrefs(
+      Element scope, String selector, String authPath, String returnTarget) {
+    NodeList<elemental2.dom.Element> elements = scope.querySelectorAll(selector);
     for (int index = 0; index < elements.length; index++) {
       HTMLElement element = (HTMLElement) elements.item(index);
       if (element != null) {

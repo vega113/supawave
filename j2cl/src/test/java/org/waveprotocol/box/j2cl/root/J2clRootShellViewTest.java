@@ -39,8 +39,8 @@ public class J2clRootShellViewTest {
     HTMLElement liveStatus = (HTMLElement) host.querySelector("#j2cl-root-live-status-text");
     Assert.assertTrue(statusStrip.contains(separator));
     Assert.assertTrue(statusStrip.contains(liveStatus));
-    Assert.assertEquals("status", liveStatus.getAttribute("role"));
-    Assert.assertEquals("polite", liveStatus.getAttribute("aria-live"));
+    Assert.assertNull(liveStatus.getAttribute("role"));
+    Assert.assertNull(liveStatus.getAttribute("aria-live"));
     Assert.assertEquals(liveStatus, separator.nextSibling);
     Assert.assertEquals("Selected wave is active.", liveStatus.textContent);
   }
@@ -76,6 +76,32 @@ public class J2clRootShellViewTest {
 
     Assert.assertNull(firstStatusStrip.querySelector("#j2cl-root-live-status-text"));
     Assert.assertNotNull(secondStatusStrip.querySelector("#j2cl-root-live-status-text"));
+  }
+
+  @Test
+  public void syncReturnTargetScopesUpdatesToOwningRootShell() {
+    assumeBrowserDom();
+    host = (HTMLDivElement) DomGlobal.document.createElement("div");
+    DomGlobal.document.body.appendChild(host);
+    HTMLElement firstRoot = createRootShell();
+    appendReturnTargetNodes(firstRoot);
+    HTMLElement secondRoot = createRootShell();
+    appendReturnTargetNodes(secondRoot);
+    HTMLElement secondWorkflowHost = appendWorkflowHost(secondRoot);
+    J2clRootShellView view = new J2clRootShellView(secondWorkflowHost);
+
+    view.syncReturnTarget("?view=j2cl-root&q=in%3Ainbox");
+
+    Assert.assertNull(firstRoot.getAttribute("data-j2cl-root-return-target"));
+    Assert.assertEquals(
+        "/?view=j2cl-root&q=in%3Ainbox",
+        secondRoot.getAttribute("data-j2cl-root-return-target"));
+    Assert.assertEquals(
+        "/?view=j2cl-root&q=in%3Ainbox",
+        ((HTMLElement) secondRoot.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
+    Assert.assertEquals(
+        "Return target: /?view=j2cl-root&q=in%3Ainbox",
+        ((HTMLElement) secondRoot.querySelector("#j2cl-root-return-target-text")).textContent);
   }
 
   @Test
@@ -204,6 +230,21 @@ public class J2clRootShellViewTest {
     HTMLElement workflowHost = (HTMLElement) DomGlobal.document.createElement("div");
     rootShell.appendChild(workflowHost);
     return workflowHost;
+  }
+
+  private static void appendReturnTargetNodes(HTMLElement rootShell) {
+    HTMLElement brandLink = (HTMLElement) DomGlobal.document.createElement("a");
+    brandLink.id = "j2cl-root-brand-link";
+    rootShell.appendChild(brandLink);
+    HTMLElement signIn = (HTMLElement) DomGlobal.document.createElement("a");
+    signIn.setAttribute("data-j2cl-root-signin", "true");
+    rootShell.appendChild(signIn);
+    HTMLElement signOut = (HTMLElement) DomGlobal.document.createElement("a");
+    signOut.setAttribute("data-j2cl-root-signout", "true");
+    rootShell.appendChild(signOut);
+    HTMLElement returnTargetText = (HTMLElement) DomGlobal.document.createElement("span");
+    returnTargetText.id = "j2cl-root-return-target-text";
+    rootShell.appendChild(returnTargetText);
   }
 
   private HTMLElement statusStrip() {

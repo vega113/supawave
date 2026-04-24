@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.root;
 
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteState;
+import org.waveprotocol.box.j2cl.search.J2clSidecarRouteCodec;
 
 public final class J2clRootLiveSurfaceModel {
   private static final String ROUTE_READY_STATUS = "Workspace is ready.";
@@ -26,11 +27,15 @@ public final class J2clRootLiveSurfaceModel {
 
   public J2clRootLiveSurfaceModel withRouteUrl(String nextRouteUrl) {
     String normalizedRouteUrl = nullToEmpty(nextRouteUrl);
+    if (normalizedRouteUrl.isEmpty()) {
+      return new J2clRootLiveSurfaceModel("", "", null, STARTING_STATUS);
+    }
+    J2clSidecarRouteState routeState = parseRouteUrl(normalizedRouteUrl);
     return new J2clRootLiveSurfaceModel(
         normalizedRouteUrl,
-        query,
-        selectedWaveId,
-        statusFor(normalizedRouteUrl, query, selectedWaveId));
+        routeState.getQuery(),
+        routeState.getSelectedWaveId(),
+        statusFor(normalizedRouteUrl, routeState.getQuery(), routeState.getSelectedWaveId()));
   }
 
   public J2clRootLiveSurfaceModel withRouteState(J2clSidecarRouteState routeState) {
@@ -88,6 +93,21 @@ public final class J2clRootLiveSurfaceModel {
 
   private static String statusFor(String routeUrl, String query, String selectedWaveId) {
     return selectedWaveId == null ? routeStatus(routeUrl, query) : selectedWaveStatus();
+  }
+
+  private static J2clSidecarRouteState parseRouteUrl(String routeUrl) {
+    String search = routeUrl;
+    String hash = "";
+    int queryStart = search.indexOf('?');
+    if (queryStart >= 0) {
+      search = search.substring(queryStart);
+    }
+    int hashStart = search.indexOf('#');
+    if (hashStart >= 0) {
+      hash = search.substring(hashStart);
+      search = search.substring(0, hashStart);
+    }
+    return J2clSidecarRouteCodec.parse(search, hash);
   }
 
   private static String nullToEmpty(String value) {

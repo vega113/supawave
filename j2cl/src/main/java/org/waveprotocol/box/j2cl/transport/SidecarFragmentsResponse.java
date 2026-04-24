@@ -54,7 +54,7 @@ public final class SidecarFragmentsResponse {
         entries.add(
             new SidecarSelectedWaveFragment(
                 getString(fragment, "segment"),
-                getString(fragment, "rawSnapshot"),
+                getNullableString(fragment, "rawSnapshot"),
                 // TODO(#967 Task 5): decode operation bodies when growth windows apply deltas.
                 getArrayLength(fragment.get("adjust")),
                 getArrayLength(fragment.get("diff"))));
@@ -105,6 +105,14 @@ public final class SidecarFragmentsResponse {
   private static String getString(Map<String, Object> object, String key) {
     Object value = object.get(key);
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private static String getNullableString(Map<String, Object> object, String key) {
+    if (!object.containsKey(key)) {
+      return null;
+    }
+    Object value = object.get(key);
+    return value == null ? null : String.valueOf(value);
   }
 
   private static long getLong(Map<String, Object> object, String key) {

@@ -249,7 +249,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (!serverFirstActive) {
       return null;
     }
-    HTMLElement firstBlip = (HTMLElement) contentList.querySelector("[data-blip-id]");
+    HTMLElement firstBlip =
+        (HTMLElement) contentList.querySelector("[data-j2cl-read-blip='true'][tabindex='0']");
+    if (firstBlip == null) {
+      firstBlip = (HTMLElement) contentList.querySelector("[data-j2cl-read-blip='true']");
+    }
     if (firstBlip == null) {
       return null;
     }

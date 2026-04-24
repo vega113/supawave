@@ -185,11 +185,13 @@ public final class J2clSelectedWaveViewportState {
         }
         long mergedToVersion =
             Math.max(existing.getToVersion(), documentEntry.getToVersion());
+        long mergedFromVersion =
+            minKnown(existing.getFromVersion(), documentEntry.getFromVersion());
         merged.set(
             existingIndex,
             Entry.loaded(
                 existing.getSegment(),
-                existing.getFromVersion(),
+                mergedFromVersion,
                 mergedToVersion,
                 documentEntry.getRawSnapshot(),
                 existing.getAdjustOperationCount(),
@@ -200,7 +202,7 @@ public final class J2clSelectedWaveViewportState {
     }
     return new J2clSelectedWaveViewportState(
         Math.max(snapshotVersion, documentState.getSnapshotVersion()),
-        startVersion,
+        minKnown(startVersion, documentState.getStartVersion()),
         Math.max(endVersion, documentState.getEndVersion()),
         merged);
   }

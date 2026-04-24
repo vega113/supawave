@@ -34,7 +34,7 @@ public final class ViewportLimitPolicy {
       return defaultLimit;
     }
     try {
-      return resolveLimit(Integer.parseInt(rawLimit));
+      return resolveLimit(Integer.parseInt(rawLimit.trim()));
     } catch (NumberFormatException e) {
       return defaultLimit;
     }

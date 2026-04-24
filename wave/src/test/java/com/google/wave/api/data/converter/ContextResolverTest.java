@@ -155,7 +155,9 @@ public class ContextResolverTest extends TestCase {
 
   private ConversationBlip getSecondRootBlip() {
     Iterator<? extends ConversationBlip> blips = conversation.getRootThread().getBlips().iterator();
+    assertTrue("Expected at least one root blip", blips.hasNext());
     blips.next();
+    assertTrue("Expected at least two root blips", blips.hasNext());
     return blips.next();
   }
 

@@ -76,13 +76,13 @@ public class ContextResolver {
       Conversation conversation, Wavelet wavelet, EventDataConverter eventDataConverter,
       Map.Entry<String, Set<Context>> entry) {
     Set<Context> contextSet = entry.getValue();
-    ConversationBlip requiredBlip = conversation.getBlip(entry.getKey());
     if (contextSet.contains(Context.ALL)) {
       ContextResolver.addAllBlipsToEventMessages(
           eventMessageBundle, conversation, wavelet, eventDataConverter);
       return true;
     }
 
+    ConversationBlip requiredBlip = conversation.getBlip(entry.getKey());
     addRootBlipToEventMessages(
         eventMessageBundle, conversation, requiredBlip, wavelet, eventDataConverter, contextSet);
 

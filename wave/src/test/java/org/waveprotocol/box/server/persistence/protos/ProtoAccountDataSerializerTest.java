@@ -189,7 +189,7 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     assertEquals("Human User",
         deserialized.asHuman().getSocialIdentities().get(0).getDisplayName());
     assertEquals(1234L,
-        deserialized.asHuman().getSocialIdentities().get(0).getTimestamp());
+        deserialized.asHuman().getSocialIdentities().get(0).getLinkedAtMillis());
   }
 
   public final void testRobotAccountWithCapabilities() {

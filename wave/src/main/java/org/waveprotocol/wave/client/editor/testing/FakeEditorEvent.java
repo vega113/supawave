@@ -45,6 +45,15 @@ public class FakeEditorEvent extends FakeSignalEvent implements EditorEvent {
     return FakeSignalEvent.createEvent(ED_FACTORY, type);
   }
 
+  /**
+   * @param type
+   * @param data text payload reported by the event.
+   * @return a fake event of the given type and data.
+   */
+  public static FakeEditorEvent createWithData(String type, String data) {
+    return FakeSignalEvent.createEventWithData(ED_FACTORY, type, data);
+  }
+
 
   /**
    * Construct from a KeySignalType and a key code

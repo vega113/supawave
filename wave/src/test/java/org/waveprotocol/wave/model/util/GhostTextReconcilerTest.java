@@ -242,6 +242,26 @@ public class GhostTextReconcilerTest extends TestCase {
         "lip", "new", "NEW b", "NEW b", null, null, null));
   }
 
+  public void testRecoveredScratchSuppressesUnrelatedEmptyBaselinePreviousGhost() {
+    assertTrue(GhostTextReconciler.shouldSuppressPreviousGhostForRecoveredScratch(
+        "lip", "blip", "", "ew ", "ew "));
+  }
+
+  public void testRecoveredScratchKeepsOverlappingPreviousGhost() {
+    assertFalse(GhostTextReconciler.shouldSuppressPreviousGhostForRecoveredScratch(
+        "ew", "new", "", "n", "n"));
+  }
+
+  public void testRecoveredScratchKeepsNonEmptyBaselinePreviousGhost() {
+    assertFalse(GhostTextReconciler.shouldSuppressPreviousGhostForRecoveredScratch(
+        "lip", "blip", "new", "new b", "new b"));
+  }
+
+  public void testUnrecoveredScratchKeepsPreviousGhost() {
+    assertFalse(GhostTextReconciler.shouldSuppressPreviousGhostForRecoveredScratch(
+        "lip", "lip", "", "ew ", "ew "));
+  }
+
   public void testNullScratchThrows() {
     try {
       GhostTextReconciler.combine(null, null, null, null, null);

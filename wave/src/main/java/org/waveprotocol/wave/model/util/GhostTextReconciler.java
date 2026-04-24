@@ -126,6 +126,40 @@ public final class GhostTextReconciler {
     return ghostBefore + scratchContent + ghostAfter;
   }
 
+  /**
+   * Returns true when Android's composition event history has already recovered
+   * the full current word and an empty-baseline previous sibling looks like old
+   * committed text, not a prefix for this word.
+   *
+   * <p>The real Galaxy/Chrome trace that motivated this shows the second word
+   * of "new blip" activating with {@code previousModelBaseline=""} and
+   * {@code currentPrevious="ew "}. Treating that whole previous sibling as
+   * ghost text makes the current composition look like {@code "ew blip"} and
+   * the restore step can blank the displayed text by restoring that sibling to
+   * the empty baseline. If the recovered scratch is already ahead of the raw
+   * scratch and the previous sibling has no suffix/prefix overlap with the
+   * recovered word, it belongs to earlier committed text and must be ignored by
+   * the ghost combiner/restorer.
+   */
+  public static boolean shouldSuppressPreviousGhostForRecoveredScratch(String rawScratchContent,
+      String recoveredScratchContent, String previousModelBaseline, String capturedPrevious,
+      String currentPrevious) {
+    if (rawScratchContent == null || recoveredScratchContent == null) {
+      return false;
+    }
+    if (rawScratchContent.equals(recoveredScratchContent)) {
+      return false;
+    }
+    if (previousModelBaseline == null || !previousModelBaseline.isEmpty()) {
+      return false;
+    }
+    String candidatePrevious = !isNullOrEmpty(currentPrevious) ? currentPrevious : capturedPrevious;
+    if (isNullOrEmpty(candidatePrevious)) {
+      return false;
+    }
+    return suffixPrefixOverlap(candidatePrevious, recoveredScratchContent) == 0;
+  }
+
   private static String currentOrCapturedFallback(String capturedGhost, String currentGhost,
       String modelBaseline, String currentText) {
     if (!currentGhost.isEmpty()) {
@@ -146,6 +180,10 @@ public final class GhostTextReconciler {
   private static boolean didSiblingDisappearAfterCapturingGhost(String modelBaseline,
       String currentText) {
     return modelBaseline != null && currentText == null;
+  }
+
+  private static boolean isNullOrEmpty(String value) {
+    return value == null || value.isEmpty();
   }
 
   private static String withoutSuffixAlreadyAtScratchStart(String ghost, String scratchContent) {

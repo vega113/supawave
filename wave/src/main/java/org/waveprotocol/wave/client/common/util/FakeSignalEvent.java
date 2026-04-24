@@ -41,6 +41,7 @@ public class FakeSignalEvent extends SignalEventImpl {
     private final boolean altKey, ctrlKey, metaKey, shiftKey;
     private final String type;
     private final String key;
+    private final String data;
     private final int mouseButton;
 
     boolean defaultPrevented = false;
@@ -53,8 +54,14 @@ public class FakeSignalEvent extends SignalEventImpl {
 
     public FakeNativeEvent(String type, String key,
         int mouseButton, EnumSet<KeyModifier> modifiers) {
+      this(type, key, null, mouseButton, modifiers);
+    }
+
+    public FakeNativeEvent(String type, String key, String data,
+        int mouseButton, EnumSet<KeyModifier> modifiers) {
       this.type = type;
       this.key = key;
+      this.data = data;
       this.mouseButton = mouseButton;
       this.altKey = modifiers != null && modifiers.contains(KeyModifier.ALT);
       this.ctrlKey = modifiers != null && modifiers.contains(KeyModifier.CTRL);
@@ -98,6 +105,11 @@ public class FakeSignalEvent extends SignalEventImpl {
     }
 
     @Override
+    public String getData() {
+      return data == null ? "" : data;
+    }
+
+    @Override
     public void preventDefault() {
       defaultPrevented = true;
     }
@@ -127,6 +139,11 @@ public class FakeSignalEvent extends SignalEventImpl {
   public static <T extends FakeSignalEvent> T createEvent(
       SignalEventFactory<T> factory, String type, String key) {
     return createInner(factory.create(), new FakeNativeEvent(type, key, 0, null), null);
+  }
+
+  public static <T extends FakeSignalEvent> T createEventWithData(
+      SignalEventFactory<T> factory, String type, String data) {
+    return createInner(factory.create(), new FakeNativeEvent(type, null, data, 0, null), null);
   }
 
   public static <T extends FakeSignalEvent> T createKeyPress(SignalEventFactory<T> factory,

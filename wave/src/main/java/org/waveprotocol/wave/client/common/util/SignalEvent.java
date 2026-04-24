@@ -176,6 +176,11 @@ public interface SignalEvent {
   String getKey();
 
   /**
+   * @return The text payload reported by text/composition input events, if any.
+   */
+  String getData();
+
+  /**
    * @return The target element of the event
    */
   Element getTarget();

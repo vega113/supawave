@@ -28,6 +28,7 @@ import com.google.gwt.dom.client.Text;
 
 import org.waveprotocol.wave.client.common.util.DomHelper;
 import org.waveprotocol.wave.client.common.util.QuirksConstants;
+import org.waveprotocol.wave.client.common.util.UserAgent;
 import org.waveprotocol.wave.client.editor.ElementHandlerRegistry;
 import org.waveprotocol.wave.client.editor.content.ContentElement;
 import org.waveprotocol.wave.client.editor.content.ContentNode;
@@ -43,6 +44,7 @@ import org.waveprotocol.wave.model.document.util.FilteredView.Skip;
 import org.waveprotocol.wave.model.document.util.LocalDocument;
 import org.waveprotocol.wave.model.document.util.Point;
 import org.waveprotocol.wave.model.util.GhostTextReconciler;
+import org.waveprotocol.wave.model.util.ImeCompositionTextTracker;
 
 import java.util.Collections;
 
@@ -80,6 +82,9 @@ public class ImeExtractor {
   private Node ghostNextSibling;
   private String ghostNextSiblingModelBaseline;
   private String ghostNextSiblingCapturedText;
+  private final ImeCompositionTextTracker compositionTextTracker =
+      new ImeCompositionTextTracker();
+  private boolean suppressPreviousGhostForCurrentComposition;
 
   private static final String WRAPPER_TAGNAME = "l:ime";
 
@@ -155,12 +160,23 @@ public class ImeExtractor {
     }
     String currentPrev = readCurrentPreviousText();
     String currentNext = readCurrentNextText();
-    String result = GhostTextReconciler.combineWithCapturedGhosts(scratchContent,
-        ghostPreviousSiblingModelBaseline, ghostPreviousSiblingCapturedText, currentPrev,
+    String effectiveScratchContent = UserAgent.isAndroid()
+        ? compositionTextTracker.effectiveText(scratchContent)
+        : scratchContent;
+    suppressPreviousGhostForCurrentComposition = UserAgent.isAndroid()
+        && GhostTextReconciler.shouldSuppressPreviousGhostForRecoveredScratch(
+            scratchContent, effectiveScratchContent, ghostPreviousSiblingModelBaseline,
+            ghostPreviousSiblingCapturedText, currentPrev);
+    String result = GhostTextReconciler.combineWithCapturedGhosts(effectiveScratchContent,
+        suppressPreviousGhostForCurrentComposition ? null : ghostPreviousSiblingModelBaseline,
+        suppressPreviousGhostForCurrentComposition ? null : ghostPreviousSiblingCapturedText,
+        suppressPreviousGhostForCurrentComposition ? null : currentPrev,
         ghostNextSiblingModelBaseline, ghostNextSiblingCapturedText, currentNext);
     if (ImeDebugTracer.isEnabled()) {
       ImeDebugTracer.start("ImeExtractor.getEffectiveContent")
           .add("scratch", scratchContent)
+          .add("effectiveScratch", effectiveScratchContent)
+          .add("suppressPrevGhost", suppressPreviousGhostForCurrentComposition)
           .add("prevModelBaseline", ghostPreviousSiblingModelBaseline)
           .add("prevCaptured", ghostPreviousSiblingCapturedText)
           .add("currentPrev", currentPrev)
@@ -210,6 +226,8 @@ public class ImeExtractor {
     wrapper.getContainerNodelet().appendChild(imeContainer);
     NativeSelectionUtil.setCaret(inContainer);
     captureGhostBaseline(previousModelBaseline, nextModelBaseline);
+    compositionTextTracker.reset();
+    suppressPreviousGhostForCurrentComposition = false;
     if (ImeDebugTracer.isEnabled()) {
       Element anchor = imeContainer.getParentElement();
       ImeDebugTracer.start("ImeExtractor.activate")
@@ -221,6 +239,20 @@ public class ImeExtractor {
           .add("nextCaptured", ghostNextSiblingCapturedText)
           .add("anchorParent", ImeDebugTracer.describe(anchor == null ? null : anchor.getParentElement()))
           .add("anchorInnerText", ImeDebugTracer.innerText(anchor == null ? null : anchor.getParentElement()))
+          .emit();
+    }
+  }
+
+  /** Records composition event text for browsers that rewrite the scratch span. */
+  public void compositionUpdate(String compositionText) {
+    if (!isActive()) {
+      return;
+    }
+    compositionTextTracker.observe(compositionText);
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("ImeExtractor.compositionUpdate")
+          .add("data", compositionText)
+          .add("scratch", imeContainer.getInnerText())
           .emit();
     }
   }
@@ -289,9 +321,12 @@ public class ImeExtractor {
   private void restoreGhostBaseline() {
     Node currentPreviousSibling = currentAdjacentSibling(true);
     Node currentNextSibling = currentAdjacentSibling(false);
-    restorePreviousTextNode(currentPreviousSibling, ghostPreviousSiblingModelBaseline);
+    if (!suppressPreviousGhostForCurrentComposition) {
+      restorePreviousTextNode(currentPreviousSibling, ghostPreviousSiblingModelBaseline);
+    }
     restoreNextTextNode(currentNextSibling, ghostNextSiblingModelBaseline);
-    if (currentPreviousSibling != ghostPreviousSibling) {
+    if (!suppressPreviousGhostForCurrentComposition
+        && currentPreviousSibling != ghostPreviousSibling) {
       restorePreviousTextNode(ghostPreviousSibling, ghostPreviousSiblingModelBaseline);
     }
     if (currentNextSibling != ghostNextSibling) {
@@ -303,6 +338,8 @@ public class ImeExtractor {
     ghostNextSibling = null;
     ghostNextSiblingModelBaseline = null;
     ghostNextSiblingCapturedText = null;
+    suppressPreviousGhostForCurrentComposition = false;
+    compositionTextTracker.reset();
   }
 
   private String readCurrentPreviousText() {

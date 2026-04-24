@@ -74,7 +74,7 @@ public class CompositionEventHandlerTest extends TestCase {
     nothingElseUpToNow();
   }
   private void verifyUpdate() {
-    verify(listener, times(1)).compositionUpdate();
+    verify(listener, times(1)).compositionUpdate(eventToken);
     nothingElseUpToNow();
   }
   private void verifyEnd() {

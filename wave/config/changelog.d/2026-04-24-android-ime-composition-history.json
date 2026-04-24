@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-24-android-ime-composition-history",
+  "version": "Unreleased",
+  "date": "2026-04-24",
+  "title": "Recover Android IME text from composition history",
+  "summary": "Android Chrome can replace the active IME scratch span with shortened composition text, dropping the first character before commit. The editor now reconstructs the composed word from composition event data and commits standalone Android textInput separators directly.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Typing text such as \"new blip\" into a blip from Android Chrome now preserves leading letters and spaces when the keyboard rewrites the composition scratch text."
+      ]
+    }
+  ]
+}

@@ -38,7 +38,7 @@ public class CompositionEventHandler<V> {
 
   public interface CompositionListener<V> {
     void compositionStart(V event);
-    void compositionUpdate();
+    void compositionUpdate(V event);
     void compositionEnd();
   }
 
@@ -126,7 +126,7 @@ public class CompositionEventHandler<V> {
     } else if (
         BrowserEvents.TEXT.equals(typeName) ||
         BrowserEvents.COMPOSITIONUPDATE.equals(typeName)) {
-      compositionUpdate();
+      compositionUpdate(event);
     } else if (BrowserEvents.COMPOSITIONEND.equals(typeName)){
       compositionEnd();
     } else if (BrowserEvents.TEXTINPUT.equals(typeName)) {
@@ -194,11 +194,11 @@ public class CompositionEventHandler<V> {
     listener.compositionStart(event);
   }
 
-  private void compositionUpdate() {
+  private void compositionUpdate(V event) {
     checkAppComposing();
 
     assert appComposing == true;
-    listener.compositionUpdate();
+    listener.compositionUpdate(event);
   }
 
   private void compositionEnd() {

@@ -97,8 +97,8 @@ public final class EditorEventHandler {
         }
 
         @Override
-        public void compositionUpdate() {
-          EditorEventHandler.this.compositionUpdate();
+        public void compositionUpdate(EditorEvent event) {
+          EditorEventHandler.this.compositionUpdate(event);
         }
 
         @Override
@@ -290,6 +290,9 @@ public final class EditorEventHandler {
       return handleKeyEvent(event);
     } else if (event.isCompositionEvent()) {
       if (useCompositionEvents) {
+        if (shouldHandleStandaloneAndroidTextInput(event)) {
+          return handleStandaloneAndroidTextInput(event);
+        }
         return handleCompositionEvent(event);
       } else {
         return false;
@@ -534,11 +537,52 @@ public final class EditorEventHandler {
   }
 
 
-  private void compositionUpdate() {
+  private void compositionUpdate(EditorEvent event) {
     if (ImeDebugTracer.isEnabled()) {
-      ImeDebugTracer.trace("EEH.compositionUpdate");
+      ImeDebugTracer.start("EEH.compositionUpdate")
+          .add("data", event.getData())
+          .emit();
     }
-    editorInteractor.compositionUpdate();
+    editorInteractor.compositionUpdate(event.getData());
+  }
+
+  private boolean shouldHandleStandaloneAndroidTextInput(EditorEvent event) {
+    return state == State.NORMAL
+        && UserAgent.isAndroid()
+        && BrowserEvents.TEXTINPUT.equals(event.getType())
+        && event.getData() != null
+        && !event.getData().isEmpty();
+  }
+
+  private boolean handleStandaloneAndroidTextInput(EditorEvent event)
+      throws SelectionLostException {
+    if (cachedSelection == null) {
+      refreshEditorWithCaret(event);
+    }
+    if (cachedSelection == null) {
+      return false;
+    }
+
+    Point<ContentNode> caret;
+    boolean isReplace = false;
+    if (cachedSelection.isCollapsed()) {
+      caret = cachedSelection.getFocus();
+    } else {
+      caret = deleteCachedSelectionRangeAndInvalidate(true);
+      isReplace = true;
+    }
+
+    caret = editorInteractor.insertText(caret, event.getData(), isReplace);
+    caret = editorInteractor.normalizePoint(caret);
+    setCaret(caret);
+    editorInteractor.rebiasSelection(CursorDirection.FROM_LEFT);
+    event.preventDefault();
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("EEH.androidTextInput.insert")
+          .add("data", event.getData())
+          .emit();
+    }
+    return true;
   }
 
 

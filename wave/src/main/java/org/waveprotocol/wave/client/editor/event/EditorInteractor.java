@@ -173,7 +173,7 @@ public interface EditorInteractor {
   /**
    * Composition state updated
    */
-  void compositionUpdate();
+  void compositionUpdate(String compositionText);
 
   /**
    * IME composition completed

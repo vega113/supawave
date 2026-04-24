@@ -1249,9 +1249,8 @@ public class EditorImpl extends LogicalPanel.Impl implements
     }
 
     @Override
-    public void compositionUpdate() {
-      // TODO(danilatos): Some event or other, so e.g. we can show other users
-      // the composition state.
+    public void compositionUpdate(String compositionText) {
+      imeExtractor.compositionUpdate(compositionText);
     }
 
     @Override

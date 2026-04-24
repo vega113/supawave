@@ -75,6 +75,7 @@ public class SignalEventImpl implements SignalEvent {
   interface NativeEvent {
     String getType();
     String getKey();
+    String getData();
     int getButton();
     boolean getCtrlKey();
     boolean getMetaKey();
@@ -202,6 +203,10 @@ public class SignalEventImpl implements SignalEvent {
 
     public final native String getKey() /*-{
       return this.key || '';
+    }-*/;
+
+    public final native String getData() /*-{
+      return this.data || '';
     }-*/;
   }
 
@@ -347,6 +352,11 @@ public class SignalEventImpl implements SignalEvent {
   @Override
   public final String getKey() {
     return nativeEvent.getKey();
+  }
+
+  @Override
+  public final String getData() {
+    return nativeEvent.getData();
   }
 
   /**

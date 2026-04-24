@@ -1286,8 +1286,8 @@ public class EditorEventHandlerGwtTest
     }
 
     @Override
-    public void compositionUpdate() {
-      methodCalledHelper(COMPOSITION_UPDATE);
+    public void compositionUpdate(String compositionText) {
+      methodCalledHelper(COMPOSITION_UPDATE, compositionText);
     }
 
     @Override

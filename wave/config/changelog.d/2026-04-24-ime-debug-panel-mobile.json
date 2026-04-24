@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-24-ime-debug-panel-mobile",
+  "version": "Unreleased",
+  "date": "2026-04-24",
+  "title": "IME debug log no longer covers mobile editing",
+  "summary": "The IME debug overlay now starts compact on mobile, reserves space for editing, and provides explicit log controls.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "IME debug tracing now starts in a compact bottom control with show, copy, and clear actions instead of covering editable mobile blips by default",
+        "The hidden Escape and double-tap clear gestures were replaced with an explicit Clear action; Escape now minimizes the debug log",
+        "Mobile wave and tags controls now render as compact icon buttons with accessible labels instead of visible text pills"
+      ]
+    }
+  ]
+}

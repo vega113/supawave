@@ -484,45 +484,247 @@ public final class ImeDebugTracer {
   private static native void ensureOverlayJsni() /*-{
     try {
       var d = $doc;
+      var w = $wnd;
       var id = "ime-debug-overlay";
       if (d.getElementById(id)) return;
       var ov = d.createElement("div");
       ov.id = id;
+      ov.className = "ime-debug-overlay ime-debug-overlay-minimized";
       ov.tabIndex = 0;
-      ov.setAttribute("role", "log");
-      ov.setAttribute("aria-label",
-          "IME debug overlay. Double-tap or press Escape while focused to clear.");
+      ov.setAttribute("role", "region");
+      ov.setAttribute("aria-label", "IME debug overlay");
+      ov.setAttribute("aria-expanded", "false");
+      var collapsedHeight = "44px";
+      var safeAreaInset = "env(safe-area-inset-bottom, 0px)";
+      var reservedHeight = "calc(" + collapsedHeight + " + 1px + " + safeAreaInset + ")";
       ov.style.cssText =
-          "position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow-y:auto;"
-          + "background:rgba(0,0,0,0.85);color:#b2ff59;font:10px/1.25 monospace;"
-          + "padding:4px 6px;z-index:2147483646;white-space:pre-wrap;"
-          + "word-break:break-all;pointer-events:auto;border-top:2px solid #555;";
-      if (d.body) {
-        d.body.appendChild(ov);
-      } else {
-        d.addEventListener('DOMContentLoaded', function () { d.body.appendChild(ov); }, true);
+          "position:fixed;left:0;right:0;bottom:0;z-index:2147483646;"
+          + "height:" + reservedHeight + ";max-height:" + reservedHeight + ";overflow:hidden;"
+          + "background:rgba(8,18,27,0.94);color:#c8ff6a;font:11px/1.25 monospace;"
+          + "border-top:1px solid rgba(178,255,89,0.45);"
+          + "box-shadow:0 -6px 18px rgba(0,0,0,0.25);pointer-events:auto;"
+          + "box-sizing:border-box;padding-bottom:" + safeAreaInset + ";";
+
+      var toolbar = d.createElement("div");
+      toolbar.style.height = collapsedHeight;
+      toolbar.style.minHeight = collapsedHeight;
+      toolbar.style.display = "flex";
+      toolbar.style.alignItems = "center";
+      toolbar.style.gap = "6px";
+      toolbar.style.padding = "0 6px";
+      toolbar.style.boxSizing = "border-box";
+
+      var title = d.createElement("span");
+      title.textContent = "IME";
+      title.style.flex = "1 1 auto";
+      title.style.fontWeight = "700";
+      title.style.minWidth = "0";
+
+      function styleButton(button) {
+        button.style.minHeight = collapsedHeight;
+        button.style.minWidth = collapsedHeight;
+        button.style.border = "1px solid rgba(178,255,89,0.35)";
+        button.style.borderRadius = "6px";
+        button.style.background = "rgba(255,255,255,0.08)";
+        button.style.color = "#e1ff9c";
+        button.style.font = "12px/1 sans-serif";
+        button.style.padding = "0 10px";
+        button.style.cursor = "pointer";
       }
-      // Double-tap the overlay to clear it.
-      var lastTap = 0;
-      ov.addEventListener('click', function (ev) {
-        var now = Date.now();
-        if (now - lastTap < 400) {
-          ov.innerHTML = "";
+
+      var toggle = d.createElement("button");
+      toggle.type = "button";
+      toggle.textContent = "Show IME log";
+      styleButton(toggle);
+
+      var copy = d.createElement("button");
+      copy.type = "button";
+      copy.textContent = "Copy";
+      copy.setAttribute("aria-label", "Copy IME debug log");
+      styleButton(copy);
+
+      var clear = d.createElement("button");
+      clear.type = "button";
+      clear.textContent = "Clear";
+      clear.setAttribute("aria-label", "Clear IME debug log");
+      styleButton(clear);
+
+      var status = d.createElement("span");
+      status.setAttribute("aria-live", "polite");
+      status.style.flex = "0 1 auto";
+      status.style.minWidth = "0";
+      status.style.maxWidth = "28vw";
+      status.style.overflow = "hidden";
+      status.style.textOverflow = "ellipsis";
+      status.style.whiteSpace = "nowrap";
+      status.style.color = "#e1ff9c";
+      status.style.font = "11px/1 sans-serif";
+
+      var log = d.createElement("div");
+      log.id = "ime-debug-log";
+      log.setAttribute("role", "log");
+      log.setAttribute("aria-live", "polite");
+      log.style.display = "none";
+      log.style.maxHeight = "calc(45vh - " + collapsedHeight + " - 1px - " + safeAreaInset + ")";
+      log.style.overflowY = "auto";
+      log.style.padding = "0 6px 6px";
+      log.style.boxSizing = "border-box";
+      log.style.whiteSpace = "pre-wrap";
+      log.style.wordBreak = "break-all";
+
+      var statusTimer = null;
+      function setStatus(message) {
+        status.textContent = message || "";
+        if (statusTimer) {
+          w.clearTimeout(statusTimer);
+          statusTimer = null;
         }
-        lastTap = now;
+        if (message) {
+          statusTimer = w.setTimeout(function () {
+            status.textContent = "";
+            statusTimer = null;
+          }, 1600);
+        }
+      }
+
+      function setExpanded(expanded) {
+        ov.className = expanded
+            ? "ime-debug-overlay ime-debug-overlay-expanded"
+            : "ime-debug-overlay ime-debug-overlay-minimized";
+        ov.setAttribute("aria-expanded", expanded ? "true" : "false");
+        toggle.textContent = expanded ? "Hide IME log" : "Show IME log";
+        toggle.setAttribute("aria-label", expanded ? "Hide IME debug log" : "Show IME debug log");
+        log.style.display = expanded ? "block" : "none";
+        if (expanded) {
+          ov.style.height = "auto";
+          ov.style.maxHeight = "45vh";
+          log.scrollTop = log.scrollHeight;
+        } else {
+          ov.style.height = reservedHeight;
+          ov.style.maxHeight = reservedHeight;
+        }
+      }
+
+      function copyLogText(log) {
+        var rows = [];
+        for (var i = 0; i < log.children.length; i++) {
+          rows.push(log.children[i].textContent || "");
+        }
+        return rows.join("\n");
+      }
+
+      function reserveBottomSpace(element, amount) {
+        if (!element || element.getAttribute("data-ime-debug-bottom-space-reserved") === "true") {
+          return;
+        }
+        var previousPadding = element.style.paddingBottom || "";
+        var previousScrollPadding = element.style.scrollPaddingBottom || "";
+        element.setAttribute("data-ime-debug-bottom-space-reserved", "true");
+        element.setAttribute("data-ime-debug-padding-bottom-previous", previousPadding);
+        element.setAttribute("data-ime-debug-scroll-padding-bottom-previous", previousScrollPadding);
+        element.style.paddingBottom = previousPadding
+            ? "calc(" + previousPadding + " + " + amount + ")"
+            : amount;
+        element.style.scrollPaddingBottom = previousScrollPadding
+            ? "calc(" + previousScrollPadding + " + " + amount + ")"
+            : amount;
+      }
+
+      function reserveBottomEditingSpace(d) {
+        if (d.body) {
+          reserveBottomSpace(d.body, reservedHeight);
+        }
+        if (!d.querySelectorAll) {
+          return;
+        }
+        var scrollers = d.querySelectorAll("[data-mobile-role='wave-thread']");
+        for (var i = 0; i < scrollers.length; i++) {
+          reserveBottomSpace(scrollers[i], reservedHeight);
+        }
+      }
+
+      function fallbackCopy(text, done) {
+        var textarea = d.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.top = "-1000px";
+        textarea.style.left = "-1000px";
+        d.body.appendChild(textarea);
+        textarea.select();
+        var copied = false;
+        try {
+          copied = d.execCommand('copy');
+        } catch (e) {
+          copied = false;
+        }
+        d.body.removeChild(textarea);
+        done(copied);
+      }
+
+      toggle.addEventListener('click', function (ev) {
+        setExpanded(log.style.display === "none");
+        ev.stopPropagation();
       }, false);
-      // Keyboard-accessible clear: focus the overlay (Tab until the log
-      // element is reached) and press Escape. Also Ctrl+Shift+C on the
-      // overlay clears without relying on focus order.
+      copy.addEventListener('click', function (ev) {
+        var text = copyLogText(log);
+        if (!text) {
+          setStatus("No IME log lines yet");
+          ev.stopPropagation();
+          return;
+        }
+        if (w.navigator && w.navigator.clipboard && w.navigator.clipboard.writeText) {
+          w.navigator.clipboard.writeText(text).then(function () {
+            setStatus("IME log copied");
+          }, function () {
+            fallbackCopy(text, function (copied) {
+              setStatus(copied ? "IME log copied" : "Copy failed");
+            });
+          });
+        } else {
+          fallbackCopy(text, function (copied) {
+            setStatus(copied ? "IME log copied" : "Copy failed");
+          });
+        }
+        ev.stopPropagation();
+      }, false);
+      clear.addEventListener('click', function (ev) {
+        log.textContent = "";
+        setStatus("IME log cleared");
+        ev.stopPropagation();
+      }, false);
       ov.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape'
-            || (ev.key === 'c' && ev.ctrlKey && ev.shiftKey)
+        if (ev.key === 'Escape') {
+          setExpanded(false);
+          ev.stopPropagation();
+          ev.preventDefault();
+        } else if ((ev.key === 'c' && ev.ctrlKey && ev.shiftKey)
             || (ev.key === 'C' && ev.ctrlKey && ev.shiftKey)) {
-          ov.innerHTML = "";
+          log.textContent = "";
+          setStatus("IME log cleared");
           ev.stopPropagation();
           ev.preventDefault();
         }
       }, false);
+
+      toolbar.appendChild(title);
+      toolbar.appendChild(toggle);
+      toolbar.appendChild(copy);
+      toolbar.appendChild(clear);
+      toolbar.appendChild(status);
+      ov.appendChild(toolbar);
+      ov.appendChild(log);
+      setExpanded(false);
+
+      if (d.body) {
+        reserveBottomEditingSpace(d);
+        d.body.appendChild(ov);
+      } else {
+        d.addEventListener('DOMContentLoaded', function () {
+          reserveBottomEditingSpace(d);
+          d.body.appendChild(ov);
+        }, true);
+      }
     } catch (e) {
       // swallow
     }
@@ -531,15 +733,18 @@ public final class ImeDebugTracer {
   private static native void appendToOverlayJsni(String line) /*-{
     try {
       var d = $doc;
-      var ov = d.getElementById("ime-debug-overlay");
-      if (!ov) { return; }
+      function getLogBody(d) {
+        return d.getElementById("ime-debug-log");
+      }
+      var log = getLogBody(d);
+      if (!log) { return; }
       var row = d.createElement("div");
       row.textContent = line;
-      ov.appendChild(row);
-      while (ov.children.length > @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::MAX_OVERLAY_LINES) {
-        ov.removeChild(ov.firstChild);
+      log.appendChild(row);
+      while (log.children.length > @org.waveprotocol.wave.client.editor.debug.ImeDebugTracer::MAX_OVERLAY_LINES) {
+        log.removeChild(log.firstChild);
       }
-      ov.scrollTop = ov.scrollHeight;
+      log.scrollTop = log.scrollHeight;
     } catch (e) {
       // swallow
     }

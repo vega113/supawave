@@ -26,14 +26,15 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A {@code SuccessFailCallback} which supports blocking for a response.  Note that neither
- * {@link #onSuccess} not {@link #onFailure} will accept a null argument.
- *
- * TODO: the behaviour for unexpected conditions is a bit harsh, should log not crash (but it
- * requires more work, currently unwarranted).
+ * {@link #onSuccess} nor {@link #onFailure} will accept a null argument.
+ * This helper is intended for tests and blocking bridge code that must fail fast when a callback is
+ * used incorrectly: duplicate callbacks, mixed success/failure callbacks, and null callback values
+ * are programmer errors and are rejected immediately.
  */
 public class BlockingSuccessFailCallback<S, F> implements SuccessFailCallback<S, F> {
 
@@ -41,6 +42,7 @@ public class BlockingSuccessFailCallback<S, F> implements SuccessFailCallback<S,
 
   private final AtomicReference<S> successResult = new AtomicReference<S>(null);
   private final AtomicReference<F> failureResult = new AtomicReference<F>(null);
+  private final AtomicBoolean completed = new AtomicBoolean(false);
   private final CountDownLatch awaitLatch = new CountDownLatch(1);
   private final String description;
 
@@ -84,19 +86,23 @@ public class BlockingSuccessFailCallback<S, F> implements SuccessFailCallback<S,
 
   @Override
   public void onFailure(F failureValue) {
+    Preconditions.checkArgument(failureValue != null,
+        description + ": onFailure requires a non-null failure value");
+    Preconditions.checkState(completed.compareAndSet(false, true),
+        description + ": callback already completed before onFailure");
+    failureResult.set(failureValue);
     LOG.warning(description + ": onFailure(" + failureValue + ")");
-    Preconditions.checkArgument(failureValue != null);
-    Preconditions.checkState(failureResult.getAndSet(failureValue) == null);
-    Preconditions.checkState(successResult.get() == null);
     awaitLatch.countDown();
   }
 
   @Override
   public void onSuccess(S successValue) {
+    Preconditions.checkArgument(successValue != null,
+        description + ": onSuccess requires a non-null success value");
+    Preconditions.checkState(completed.compareAndSet(false, true),
+        description + ": callback already completed before onSuccess");
     LOG.fine(description + ": onSuccess(" + successValue + ")");
-    Preconditions.checkArgument(successResult != null);
-    Preconditions.checkState(successResult.getAndSet(successValue) == null);
-    Preconditions.checkState(failureResult.get() == null);
+    successResult.set(successValue);
     awaitLatch.countDown();
   }
 }

@@ -39,7 +39,7 @@ public final class SidecarFragmentsResponse {
         Map<String, Object> range = getObject(rawRange);
         ranges.add(
             new SidecarSelectedWaveFragmentRange(
-                getString(range, "segment"),
+                getRequiredString(range, "segment"),
                 getLong(range, "from"),
                 getLong(range, "to")));
       }
@@ -53,7 +53,7 @@ public final class SidecarFragmentsResponse {
         Map<String, Object> fragment = getObject(rawFragment);
         entries.add(
             new SidecarSelectedWaveFragment(
-                getString(fragment, "segment"),
+                getRequiredString(fragment, "segment"),
                 getNullableString(fragment, "rawSnapshot"),
                 // TODO(#967 Task 5): decode operation bodies when growth windows apply deltas.
                 getArrayLength(fragment.get("adjust")),
@@ -105,6 +105,14 @@ public final class SidecarFragmentsResponse {
   private static String getString(Map<String, Object> object, String key) {
     Object value = object.get(key);
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private static String getRequiredString(Map<String, Object> object, String key) {
+    Object value = object.get(key);
+    if (value == null) {
+      throw new IllegalArgumentException("Missing required field: " + key);
+    }
+    return String.valueOf(value);
   }
 
   private static String getNullableString(Map<String, Object> object, String key) {

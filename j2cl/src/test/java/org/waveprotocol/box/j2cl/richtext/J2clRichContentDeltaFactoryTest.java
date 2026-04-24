@@ -74,6 +74,18 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void replyRequestAllowsVersionZeroWriteSession() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 0L, "ZERO", "b+root");
+    J2clComposerDocument document = J2clComposerDocument.builder().text("First reply").build();
+
+    SidecarSubmitRequest request = factory.createReplyRequest("user@example.com", session, document);
+
+    assertContains(request.getDeltaJson(), "\"1\":{\"1\":0,\"2\":\"ZERO\"}", "\"1\":\"b+seedA\"");
+  }
+
+  @Test
   public void replyRequestSerializesAttachmentElements() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =
@@ -158,6 +170,30 @@ public class J2clRichContentDeltaFactoryTest {
     assertThrows(() -> factory.createReplyRequest("user@example.com", session, null));
     assertThrows(
         () ->
+            factory.createReplyRequest(
+                "user@example.com",
+                new J2clSidecarWriteSession(null, "chan-7", 44L, "ABCD", "b+root"),
+                document));
+    assertThrows(
+        () ->
+            factory.createReplyRequest(
+                "user@example.com",
+                new J2clSidecarWriteSession("example.com/w+reply", "", 44L, "ABCD", "b+root"),
+                document));
+    assertThrows(
+        () ->
+            factory.createReplyRequest(
+                "user@example.com",
+                new J2clSidecarWriteSession("example.com/w+reply", "chan-7", -1L, "ABCD", "b+root"),
+                document));
+    assertThrows(
+        () ->
+            factory.createReplyRequest(
+                "user@example.com",
+                new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, null, "b+root"),
+                document));
+    assertThrows(
+        () ->
             factory.createWaveRequest(
                 "missing-domain", document));
     assertThrows(() -> factory.createReplyRequest("missing-domain", session, document));
@@ -178,6 +214,30 @@ public class J2clRichContentDeltaFactoryTest {
 
     assertContains(first.getDeltaJson(), "\"1\":\"b+seedA\"");
     assertContains(second.getDeltaJson(), "\"1\":\"b+seedB\"");
+  }
+
+  @Test
+  public void invalidReplySessionDoesNotAdvanceReplyBlipCounter() {
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession(null, "chan-7", 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("", "chan-7", 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("   ", "chan-7", 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", null, 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "", 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "   ", 44L, "ABCD", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, null, "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, "", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, "   ", "b+root"));
+    assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+        new J2clSidecarWriteSession("example.com/w+reply", "chan-7", -1L, "ABCD", "b+root"));
   }
 
   @Test
@@ -288,6 +348,21 @@ public class J2clRichContentDeltaFactoryTest {
       Assert.assertTrue(
           "Missing fragment: " + fragment + "\nJSON: " + value, value.contains(fragment));
     }
+  }
+
+  private static void assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
+      J2clSidecarWriteSession invalidSession) {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clComposerDocument document = J2clComposerDocument.builder().text("Reply").build();
+    assertThrows(() -> factory.createReplyRequest("user@example.com", invalidSession, document));
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest(
+            "user@example.com",
+            new J2clSidecarWriteSession("example.com/w+reply", "chan-7", 44L, "ABCD", "b+root"),
+            document);
+
+    assertContains(request.getDeltaJson(), "\"1\":\"b+seedA\"");
   }
 
   private static void assertThrows(ThrowingRunnable runnable) {

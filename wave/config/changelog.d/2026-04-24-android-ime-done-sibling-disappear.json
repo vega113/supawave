@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-24-android-ime-done-sibling-disappear",
+  "version": "Unreleased",
+  "date": "2026-04-24",
+  "title": "Recover Android IME text when Done removes temporary siblings",
+  "summary": "Android Chrome can remove the adjacent DOM text node that temporarily carries leading IME characters before the editor flushes the composition. The editor now keeps the captured ghost text across that teardown and reports the same recovered composition state that it commits.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Typing text such as \"new blip\" into a blip from Android Chrome now preserves the leading characters when the keyboard Done action removes the browser's temporary sibling text before commit."
+      ]
+    }
+  ]
+}

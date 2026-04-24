@@ -95,8 +95,9 @@ public final class GhostTextReconciler {
    * then compares that captured ghost with the final DOM state. If the final
    * DOM still has a model-relative ghost, the final DOM wins because it may
    * contain IME rewrites made after activation. If the final DOM has returned
-   * exactly to the model baseline, the captured ghost is kept so Android's
-   * Done path cannot drop the first character by deleting the temporary
+   * exactly to the model baseline, or if Android removed the sibling text node
+   * entirely while tearing down the composition, the captured ghost is kept so
+   * the Done path cannot drop the first character by deleting the temporary
    * sibling text. If the final DOM no longer matches the model baseline, the
    * captured ghost is not trusted.
    */
@@ -130,11 +131,21 @@ public final class GhostTextReconciler {
     if (!currentGhost.isEmpty()) {
       return currentGhost;
     }
-    return isAtModelBaseline(modelBaseline, currentText) ? capturedGhost : "";
+    if (capturedGhost.isEmpty()) {
+      return "";
+    }
+    return isAtModelBaseline(modelBaseline, currentText)
+        || didSiblingDisappearAfterCapturingGhost(modelBaseline, currentText)
+        ? capturedGhost : "";
   }
 
   private static boolean isAtModelBaseline(String modelBaseline, String currentText) {
     return modelBaseline != null && modelBaseline.equals(currentText);
+  }
+
+  private static boolean didSiblingDisappearAfterCapturingGhost(String modelBaseline,
+      String currentText) {
+    return modelBaseline != null && currentText == null;
   }
 
   private static String withoutSuffixAlreadyAtScratchStart(String ghost, String scratchContent) {

@@ -2746,7 +2746,7 @@ public class EditorImpl extends LogicalPanel.Impl implements
   ////// Editor context methods
   @Override
   public String getImeCompositionState() {
-    return imeExtractor.getContent();
+    return imeExtractor.getEffectiveContent();
   }
 
   @Override

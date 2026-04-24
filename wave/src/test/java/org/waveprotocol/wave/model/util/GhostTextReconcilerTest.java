@@ -147,6 +147,11 @@ public class GhostTextReconcilerTest extends TestCase {
         "ew", "", "n", "", null, null, null));
   }
 
+  public void testCapturedPreviousGhostSurvivesDoneWhenSiblingDisappears() {
+    assertEquals("new", GhostTextReconciler.combineWithCapturedGhosts(
+        "ew", "", "n", null, null, null, null));
+  }
+
   public void testCapturedPreviousGhostDoesNotDuplicateWhenMovedIntoScratch() {
     assertEquals("new", GhostTextReconciler.combineWithCapturedGhosts(
         "new", "", "n", "", null, null, null));
@@ -182,6 +187,11 @@ public class GhostTextReconcilerTest extends TestCase {
         "lip", "new", "new b", "new", null, null, null));
   }
 
+  public void testCapturedSecondWordGhostSurvivesDoneWhenSiblingDisappears() {
+    assertEquals(" blip", GhostTextReconciler.combineWithCapturedGhosts(
+        "lip", "new", "new b", null, null, null, null));
+  }
+
   public void testCapturedGhostKeepsPostCaptureGrowthSupport() {
     assertEquals(" blip", GhostTextReconciler.combineWithCapturedGhosts(
         "lip", "new", "new", "new b", null, null, null));
@@ -190,6 +200,11 @@ public class GhostTextReconcilerTest extends TestCase {
   public void testCapturedNextGhostSurvivesDoneWhenDomNoLongerHasIt() {
     assertEquals("new", GhostTextReconciler.combineWithCapturedGhosts(
         "ne", null, null, null, "world", "wworld", "world"));
+  }
+
+  public void testCapturedNextGhostSurvivesDoneWhenSiblingDisappears() {
+    assertEquals("new", GhostTextReconciler.combineWithCapturedGhosts(
+        "ne", null, null, null, "world", "wworld", null));
   }
 
   public void testCapturedNextGhostDoesNotDuplicateWhenMovedIntoScratch() {

@@ -223,15 +223,17 @@ recorded here so it is not silently dropped:
   gate closes or via a dedicated addendum packet linked from this section
 - #971 daily attachment/rich-edit closeout defers the GWT toolbar affordances
   that were not part of the inspected daily command packet: superscript,
-  subscript, font size, font family, font color, highlight color / `backColor`,
+  subscript, font size, font family, font color, highlight color (browser `backColor` exec-command),
   and block quote. The block quote affordance was not present in the inspected
   GWT `EditToolbar.java` action set. Evidence:
   `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:319-362`
   enumerates toolbar groups,
   `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:364-522`
   covers bold/italic/underline/strikethrough, superscript/subscript, font
-  size/family, text color (`createFontColorButton`), highlight / `backColor`
-  (`createFontBackColorButton`), and clear formatting
+  size/family, text color (`createFontColorButton`), highlight
+  (`createFontBackColorButton`, applies `backgroundColor` style key via
+  `ColorHelper.onSetBackColor` — `backColor` is the underlying browser
+  exec-command, not a Java symbol), and clear formatting
   (`createClearFormattingButton`), and
   `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:647-737`
   covers link/unlink, `createClearHeadingsListener`, heading, indent/outdent,

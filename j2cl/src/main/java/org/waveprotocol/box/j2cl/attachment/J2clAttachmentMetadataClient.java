@@ -39,6 +39,16 @@ public final class J2clAttachmentMetadataClient {
     this(new BrowserMetadataTransport(), DEFAULT_ATTACHMENTS_INFO_URL);
   }
 
+  /**
+   * Creates the browser-backed metadata client.
+   *
+   * @param metadataTimeoutMillis metadata XHR timeout in milliseconds; use {@code 0} to disable
+   *     the per-request timeout and leave browser defaults in effect.
+   */
+  public J2clAttachmentMetadataClient(int metadataTimeoutMillis) {
+    this(new BrowserMetadataTransport(metadataTimeoutMillis), DEFAULT_ATTACHMENTS_INFO_URL);
+  }
+
   public J2clAttachmentMetadataClient(MetadataTransport transport) {
     this(transport, DEFAULT_ATTACHMENTS_INFO_URL);
   }
@@ -424,10 +434,27 @@ public final class J2clAttachmentMetadataClient {
   }
 
   private static final class BrowserMetadataTransport implements MetadataTransport {
+    private static final int DEFAULT_TIMEOUT_MILLIS = 60000;
+    private final int timeoutMillis;
+
+    private BrowserMetadataTransport() {
+      this(DEFAULT_TIMEOUT_MILLIS);
+    }
+
+    private BrowserMetadataTransport(int timeoutMillis) {
+      if (timeoutMillis < 0) {
+        throw new IllegalArgumentException("Metadata timeout must not be negative.");
+      }
+      this.timeoutMillis = timeoutMillis;
+    }
+
     @Override
     public void get(String url, ResponseHandler handler) {
       XMLHttpRequest xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
+      if (timeoutMillis > 0) {
+        xhr.timeout = timeoutMillis;
+      }
       xhr.onload =
           event ->
               handler.onResponse(

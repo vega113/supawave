@@ -83,6 +83,25 @@ public class J2clAttachmentUploadClientTest {
   }
 
   @Test
+  public void filePickerUploadRejectsHttpStatusBoundaryResponses() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentUploadClient client = new J2clAttachmentUploadClient(transport);
+    RecordingUploadCallback callback = new RecordingUploadCallback();
+
+    client.uploadFile("a+1", "wave/ref", new Object(), "doc.txt", callback);
+    transport.complete(new J2clAttachmentUploadClient.HttpResponse(199, "OK", null));
+    Assert.assertFalse(callback.result.isSuccess());
+    Assert.assertEquals(
+        J2clAttachmentUploadClient.ErrorType.HTTP_STATUS, callback.result.getErrorType());
+
+    client.uploadFile("a+2", "wave/ref", new Object(), "doc.txt", callback);
+    transport.complete(new J2clAttachmentUploadClient.HttpResponse(300, "OK", null));
+    Assert.assertFalse(callback.result.isSuccess());
+    Assert.assertEquals(
+        J2clAttachmentUploadClient.ErrorType.HTTP_STATUS, callback.result.getErrorType());
+  }
+
+  @Test
   public void pastedImageUploadAcceptsOnlyHttpOkOrCreatedWithoutOkSentinel() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentUploadClient client = new J2clAttachmentUploadClient(transport);

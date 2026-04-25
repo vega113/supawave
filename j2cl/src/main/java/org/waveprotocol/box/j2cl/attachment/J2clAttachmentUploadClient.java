@@ -147,8 +147,7 @@ public final class J2clAttachmentUploadClient {
     }
     if (source == UploadSource.FILE_PICKER) {
       // Preserve the legacy GWT file-picker contract: any 2xx response containing "OK" succeeds.
-      if (statusCode >= 200
-          && response.getResponseText() != null
+      if (response.getResponseText() != null
           && response.getResponseText().contains("OK")) {
         return UploadResult.success();
       }

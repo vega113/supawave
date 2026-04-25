@@ -207,6 +207,21 @@ public class J2clAttachmentMetadataClientTest {
   }
 
   @Test
+  public void negativeBrowserMetadataTimeoutIsRejected() {
+    try {
+      new J2clAttachmentMetadataClient(-1);
+      Assert.fail("Expected negative metadata timeout to be rejected.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertEquals("Metadata timeout must not be negative.", expected.getMessage());
+    }
+  }
+
+  @Test
+  public void zeroBrowserMetadataTimeoutIsAcceptedAsDisabled() {
+    new J2clAttachmentMetadataClient(0);
+  }
+
+  @Test
   public void httpFailureReturnsTypedErrorWithoutThrowing() {
     FakeMetadataTransport transport = new FakeMetadataTransport();
     J2clAttachmentMetadataClient client = new J2clAttachmentMetadataClient(transport);

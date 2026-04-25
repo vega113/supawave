@@ -392,7 +392,10 @@ public final class J2clReadSurfaceDomRenderer {
   private void emitAttachmentClick(String eventName, String displaySize) {
     try {
       telemetrySink.record(
-          J2clClientTelemetry.event(eventName).field("displaySize", displaySize).build());
+          J2clClientTelemetry.event(eventName)
+              .field("source", "read-surface")
+              .field("displaySize", displaySize)
+              .build());
     } catch (Throwable ignored) {
       // Link telemetry is observational; clicks must keep their default browser behavior.
     }

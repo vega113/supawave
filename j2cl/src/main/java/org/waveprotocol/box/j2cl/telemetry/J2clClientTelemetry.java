@@ -156,7 +156,9 @@ public final class J2clClientTelemetry {
         || "subsystem".equals(normalized)
         || "evtgroup".equals(normalized)
         || "millis".equals(normalized)
-        || "type".equals(normalized)) {
+        || "type".equals(normalized)
+        || "surface".equals(normalized)
+        || "category".equals(normalized)) {
       throw new IllegalArgumentException("Telemetry field is sensitive or reserved: " + fieldName);
     }
   }

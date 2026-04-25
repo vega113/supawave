@@ -36,7 +36,7 @@ public class J2clClientTelemetryTest {
     String[] sensitiveFields = {
         "fileName", "filename", "caption", "waveId", "waveRef", "address",
         "attachmentId", "url", "href", "payload", "content", "token", "ToKeN",
-        "moduleName", "subSystem", "evtGroup", "millis", "type"};
+        "moduleName", "subSystem", "evtGroup", "millis", "type", "surface", "category"};
     for (String fieldName : sensitiveFields) {
       try {
         J2clClientTelemetry.event("attachment.upload.started")

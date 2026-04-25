@@ -383,11 +383,13 @@ public class J2clReadSurfaceDomRendererTest {
     ((HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']")).click();
     J2clClientTelemetry.Event openEvent = telemetry.lastEvent();
     Assert.assertEquals("attachment.open.clicked", openEvent.getName());
+    Assert.assertEquals("read-surface", openEvent.getFields().get("source"));
     Assert.assertEquals("large", openEvent.getFields().get("displaySize"));
 
     ((HTMLElement) host.querySelector("[data-j2cl-attachment-download='true']")).click();
     J2clClientTelemetry.Event downloadEvent = telemetry.lastEvent();
     Assert.assertEquals("attachment.download.clicked", downloadEvent.getName());
+    Assert.assertEquals("read-surface", downloadEvent.getFields().get("source"));
     Assert.assertEquals("large", downloadEvent.getFields().get("displaySize"));
     Assert.assertEquals(2, telemetry.events().size());
   }

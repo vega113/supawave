@@ -39,6 +39,7 @@ public class J2clSelectedWaveViewTelemetryTest {
 
     J2clClientTelemetry.Event event = telemetry.lastEvent();
     Assert.assertEquals("attachment.open.clicked", event.getName());
+    Assert.assertEquals("read-surface", event.getFields().get("source"));
     Assert.assertEquals("medium", event.getFields().get("displaySize"));
   }
 

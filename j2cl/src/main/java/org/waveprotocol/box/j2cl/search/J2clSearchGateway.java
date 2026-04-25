@@ -29,6 +29,18 @@ public final class J2clSearchGateway
   private static final String DEFAULT_WAVELET_PREFIX = "conv+root";
   private static final String CROSS_HOST_WEBSOCKET_ERROR =
       "The J2CL sidecar requires core.http_websocket_presented_address to use the current page host when HttpOnly session cookies are enabled.";
+  private final J2clAttachmentMetadataClient attachmentMetadataClient;
+
+  public J2clSearchGateway() {
+    this(new J2clAttachmentMetadataClient());
+  }
+
+  J2clSearchGateway(J2clAttachmentMetadataClient attachmentMetadataClient) {
+    this.attachmentMetadataClient =
+        attachmentMetadataClient == null
+            ? new J2clAttachmentMetadataClient()
+            : attachmentMetadataClient;
+  }
 
   @Override
   public void fetchRootSessionBootstrap(
@@ -172,9 +184,8 @@ public final class J2clSearchGateway
   @Override
   public void fetchAttachmentMetadata(
       List<String> attachmentIds,
-      J2clSearchPanelController.SuccessCallback<J2clAttachmentMetadataClient.MetadataResult>
-          onComplete) {
-    new J2clAttachmentMetadataClient().fetchMetadata(attachmentIds, result -> onComplete.accept(result));
+      J2clAttachmentMetadataClient.MetadataCallback callback) {
+    attachmentMetadataClient.fetchMetadata(attachmentIds, callback);
   }
 
   @Override

@@ -408,13 +408,15 @@ public final class J2clAttachmentMetadataClient {
       this.message = message == null ? "" : message;
     }
 
-    static MetadataResult success(
+    // Public so controller tests outside this package can exercise metadata callback paths without
+    // routing through browser XHR transport.
+    public static MetadataResult success(
         List<J2clAttachmentMetadata> attachments,
         List<String> missingAttachmentIds) {
       return new MetadataResult(true, attachments, missingAttachmentIds, null, "");
     }
 
-    static MetadataResult failure(ErrorType errorType, String message) {
+    public static MetadataResult failure(ErrorType errorType, String message) {
       return new MetadataResult(
           false,
           Collections.<J2clAttachmentMetadata>emptyList(),

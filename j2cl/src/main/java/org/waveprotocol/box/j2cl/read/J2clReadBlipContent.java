@@ -8,6 +8,7 @@ import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 
 /** Parsed text and attachment placeholders extracted from a selected-wave blip snapshot. */
 public final class J2clReadBlipContent {
+  private static final String IMAGE_CLOSE_TAG = "</image>";
   private final String text;
   private final List<J2clAttachmentRenderModel> attachments;
 
@@ -46,8 +47,9 @@ public final class J2clReadBlipContent {
         continue;
       }
       visibleText.append(raw.substring(cursor, imageStart));
-      int imageClose = raw.indexOf("</image>", imageTagEnd + 1);
-      String inner = imageClose < 0 ? "" : raw.substring(imageTagEnd + 1, imageClose);
+      boolean selfClosing = isSelfClosingTag(startTag);
+      int imageClose = selfClosing ? imageTagEnd : raw.indexOf(IMAGE_CLOSE_TAG, imageTagEnd + 1);
+      String inner = selfClosing || imageClose < 0 ? "" : raw.substring(imageTagEnd + 1, imageClose);
       String displaySize = attributeValue(startTag, "display-size");
       String caption = firstNonEmpty(captionText(inner), attachmentId);
       attachments.add(
@@ -55,7 +57,11 @@ public final class J2clReadBlipContent {
               decodeEntities(attachmentId),
               decodeEntities(caption),
               decodeEntities(displaySize)));
-      cursor = imageClose < 0 ? imageTagEnd + 1 : imageClose + "</image>".length();
+      if (selfClosing || imageClose < 0) {
+        cursor = imageTagEnd + 1;
+      } else {
+        cursor = imageClose + IMAGE_CLOSE_TAG.length();
+      }
     }
     return new J2clReadBlipContent(
         decodeEntities(stripTags(visibleText.toString())), attachments);
@@ -120,6 +126,17 @@ public final class J2clReadBlipContent {
       cursor++;
     }
     return cursor;
+  }
+
+  private static boolean isSelfClosingTag(String tag) {
+    if (tag.length() < 2) {
+      return false;
+    }
+    int cursor = tag.length() - 2; // Skip the closing '>'.
+    while (cursor >= 0 && Character.isWhitespace(tag.charAt(cursor))) {
+      cursor--;
+    }
+    return cursor >= 0 && tag.charAt(cursor) == '/';
   }
 
   private static String captionText(String innerXml) {

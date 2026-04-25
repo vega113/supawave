@@ -2,9 +2,14 @@ package org.waveprotocol.box.j2cl.search;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
+import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.read.J2clReadBlipContent;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
@@ -151,9 +156,11 @@ public final class J2clSelectedWaveViewportState {
                   existing.getRawSnapshot(),
                   existing.getAdjustOperationCount(),
                   existing.getDiffOperationCount(),
-                  existing.shouldParseAttachmentElements()));
+                  existing.shouldParseAttachmentElements(),
+                  existing.attachmentOverrides,
+                  existing.parsedContent));
         } else {
-          merged.set(existingIndex, fragmentEntry);
+          merged.set(existingIndex, fragmentEntry.withCachedParsedContentFrom(existing));
         }
       } else {
         missing.add(fragmentEntry);
@@ -281,6 +288,54 @@ public final class J2clSelectedWaveViewportState {
     return contentEntries.isEmpty() ? fallbackEntries : contentEntries;
   }
 
+  List<String> getPendingAttachmentIds() {
+    Set<String> pendingIds = new LinkedHashSet<String>();
+    for (Entry entry : entries) {
+      if (!entry.isLoaded() || !entry.shouldParseAttachmentElements()) {
+        continue;
+      }
+      J2clReadBlipContent content = entry.getParsedContent();
+      for (J2clAttachmentRenderModel attachment : resolveAttachments(entry, content)) {
+        if (attachment.isMetadataPending() && !attachment.getAttachmentId().isEmpty()) {
+          pendingIds.add(attachment.getAttachmentId());
+        }
+      }
+    }
+    return new ArrayList<String>(pendingIds);
+  }
+
+  J2clSelectedWaveViewportState withAttachmentMetadata(
+      List<J2clAttachmentMetadata> metadata,
+      List<String> missingAttachmentIds) {
+    Map<String, J2clAttachmentMetadata> metadataById =
+        new HashMap<String, J2clAttachmentMetadata>();
+    if (metadata != null) {
+      for (J2clAttachmentMetadata item : metadata) {
+        if (item != null && item.getAttachmentId() != null && !item.getAttachmentId().isEmpty()) {
+          metadataById.put(item.getAttachmentId(), item);
+        }
+      }
+    }
+    Set<String> missingIds = new HashSet<String>();
+    if (missingAttachmentIds != null) {
+      missingIds.addAll(missingAttachmentIds);
+    }
+    return withAttachmentResolution(metadataById, missingIds, Collections.<String>emptySet(), "");
+  }
+
+  J2clSelectedWaveViewportState withAttachmentMetadataFailure(
+      List<String> attachmentIds, String reason) {
+    Set<String> failedIds = new HashSet<String>();
+    if (attachmentIds != null) {
+      failedIds.addAll(attachmentIds);
+    }
+    return withAttachmentResolution(
+        Collections.<String, J2clAttachmentMetadata>emptyMap(),
+        Collections.<String>emptySet(),
+        failedIds,
+        reason);
+  }
+
   public List<J2clReadBlip> getLoadedReadBlips() {
     List<J2clReadBlip> readBlips = new ArrayList<J2clReadBlip>();
     for (Entry entry : entries) {
@@ -290,10 +345,12 @@ public final class J2clSelectedWaveViewportState {
       // parseAttachmentElements is true only for fragment entries (fromFragments); document
       // entries (fromDocuments) leave it false, so plain text like "2 < 3" is never mangled.
       if (entry.shouldParseAttachmentElements()) {
-        J2clReadBlipContent content =
-            J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
+        J2clReadBlipContent content = entry.getParsedContent();
         readBlips.add(
-            new J2clReadBlip(entry.getBlipId(), content.getText(), content.getAttachments()));
+            new J2clReadBlip(
+                entry.getBlipId(),
+                content.getText(),
+                resolveAttachments(entry, content)));
       } else {
         readBlips.add(new J2clReadBlip(entry.getBlipId(), entry.getRawSnapshot()));
       }
@@ -309,8 +366,7 @@ public final class J2clSelectedWaveViewportState {
       }
       if (entry.isLoaded()) {
         if (entry.shouldParseAttachmentElements()) {
-          J2clReadBlipContent content =
-              J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
+          J2clReadBlipContent content = entry.getParsedContent();
           windowEntries.add(
               J2clReadWindowEntry.loaded(
                   entry.getSegment(),
@@ -318,7 +374,7 @@ public final class J2clSelectedWaveViewportState {
                   entry.getToVersion(),
                   entry.getBlipId(),
                   content.getText(),
-                  content.getAttachments()));
+                  resolveAttachments(entry, content)));
         } else {
           windowEntries.add(
               J2clReadWindowEntry.loaded(
@@ -338,6 +394,38 @@ public final class J2clSelectedWaveViewportState {
       }
     }
     return windowEntries;
+  }
+
+  private J2clSelectedWaveViewportState withAttachmentResolution(
+      Map<String, J2clAttachmentMetadata> metadataById,
+      Set<String> missingIds,
+      Set<String> failedIds,
+      String failureReason) {
+    if ((metadataById == null || metadataById.isEmpty())
+        && (missingIds == null || missingIds.isEmpty())
+        && (failedIds == null || failedIds.isEmpty())) {
+      return this;
+    }
+    List<Entry> resolved = new ArrayList<Entry>();
+    boolean changed = false;
+    for (Entry entry : entries) {
+      Entry next =
+          entry.withAttachmentResolution(metadataById, missingIds, failedIds, failureReason);
+      resolved.add(next);
+      changed = changed || next != entry;
+    }
+    if (!changed) {
+      return this;
+    }
+    return new J2clSelectedWaveViewportState(
+        snapshotVersion, startVersion, endVersion, resolved);
+  }
+
+  private static List<J2clAttachmentRenderModel> resolveAttachments(
+      Entry entry, J2clReadBlipContent content) {
+    return entry.getAttachmentOverrides().isEmpty()
+        ? content.getAttachments()
+        : entry.getAttachmentOverrides();
   }
 
   private static int indexOfSegment(List<Entry> entries, String segment) {
@@ -397,6 +485,11 @@ public final class J2clSelectedWaveViewportState {
     private final int diffOperationCount;
     private final boolean loaded;
     private final boolean parseAttachmentElements;
+    private final List<J2clAttachmentRenderModel> attachmentOverrides;
+    // Cache only: never include this mutable field in equality/hash semantics if Entry later gains
+    // value-style comparison. A loaded fragment can be projected into content, read blips, and
+    // attachment metadata overrides during the same viewport lifetime.
+    private J2clReadBlipContent parsedContent;
 
     private Entry(
         String segment,
@@ -406,7 +499,9 @@ public final class J2clSelectedWaveViewportState {
         int adjustOperationCount,
         int diffOperationCount,
         boolean loaded,
-        boolean parseAttachmentElements) {
+        boolean parseAttachmentElements,
+        List<J2clAttachmentRenderModel> attachmentOverrides,
+        J2clReadBlipContent parsedContent) {
       this.segment = segment == null ? "" : segment;
       this.fromVersion = fromVersion;
       this.toVersion = toVersion;
@@ -415,6 +510,12 @@ public final class J2clSelectedWaveViewportState {
       this.diffOperationCount = diffOperationCount;
       this.loaded = loaded;
       this.parseAttachmentElements = parseAttachmentElements;
+      this.attachmentOverrides =
+          attachmentOverrides == null
+              ? Collections.<J2clAttachmentRenderModel>emptyList()
+              : Collections.unmodifiableList(
+                  new ArrayList<J2clAttachmentRenderModel>(attachmentOverrides));
+      this.parsedContent = parsedContent;
     }
 
     static Entry fromRange(
@@ -430,7 +531,9 @@ public final class J2clSelectedWaveViewportState {
           fragment.getAdjustOperationCount(),
           fragment.getDiffOperationCount(),
           true,
-          true);
+          true,
+          Collections.<J2clAttachmentRenderModel>emptyList(),
+          null);
     }
 
     static Entry fromFragment(SidecarSelectedWaveFragment fragment) {
@@ -445,7 +548,9 @@ public final class J2clSelectedWaveViewportState {
           fragment.getAdjustOperationCount(),
           fragment.getDiffOperationCount(),
           true,
-          true);
+          true,
+          Collections.<J2clAttachmentRenderModel>emptyList(),
+          null);
     }
 
     static Entry loaded(
@@ -474,6 +579,48 @@ public final class J2clSelectedWaveViewportState {
         int adjustOperationCount,
         int diffOperationCount,
         boolean parseAttachmentElements) {
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          parseAttachmentElements,
+          Collections.<J2clAttachmentRenderModel>emptyList());
+    }
+
+    static Entry loaded(
+        String segment,
+        long fromVersion,
+        long toVersion,
+        String rawSnapshot,
+        int adjustOperationCount,
+        int diffOperationCount,
+        boolean parseAttachmentElements,
+        List<J2clAttachmentRenderModel> attachmentOverrides) {
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          parseAttachmentElements,
+          attachmentOverrides,
+          null);
+    }
+
+    static Entry loaded(
+        String segment,
+        long fromVersion,
+        long toVersion,
+        String rawSnapshot,
+        int adjustOperationCount,
+        int diffOperationCount,
+        boolean parseAttachmentElements,
+        List<J2clAttachmentRenderModel> attachmentOverrides,
+        J2clReadBlipContent parsedContent) {
       return new Entry(
           segment,
           fromVersion,
@@ -482,11 +629,111 @@ public final class J2clSelectedWaveViewportState {
           adjustOperationCount,
           diffOperationCount,
           true,
-          parseAttachmentElements);
+          parseAttachmentElements,
+          attachmentOverrides,
+          parsedContent);
     }
 
     static Entry placeholder(String segment, long fromVersion, long toVersion) {
-      return new Entry(segment, fromVersion, toVersion, "", 0, 0, false, false);
+      return new Entry(
+          segment,
+          fromVersion,
+          toVersion,
+          "",
+          0,
+          0,
+          false,
+          false,
+          Collections.<J2clAttachmentRenderModel>emptyList(),
+          null);
+    }
+
+    private Entry withAttachmentResolution(
+        Map<String, J2clAttachmentMetadata> metadataById,
+        Set<String> missingIds,
+        Set<String> failedIds,
+        String failureReason) {
+      if (!loaded || !parseAttachmentElements) {
+        return this;
+      }
+      J2clReadBlipContent content = getParsedContent();
+      if (content.getAttachments().isEmpty()) {
+        return attachmentOverrides.isEmpty()
+            ? this
+            : loaded(
+                segment,
+                fromVersion,
+                toVersion,
+                rawSnapshot,
+                adjustOperationCount,
+                diffOperationCount,
+                parseAttachmentElements,
+                Collections.<J2clAttachmentRenderModel>emptyList(),
+                content);
+      }
+      Map<String, J2clAttachmentRenderModel> currentById =
+          new HashMap<String, J2clAttachmentRenderModel>();
+      for (J2clAttachmentRenderModel current : attachmentOverrides) {
+        if (!current.getAttachmentId().isEmpty()) {
+          currentById.put(current.getAttachmentId(), current);
+        }
+      }
+      List<J2clAttachmentRenderModel> nextAttachments =
+          new ArrayList<J2clAttachmentRenderModel>();
+      for (J2clAttachmentRenderModel parsed : content.getAttachments()) {
+        String attachmentId = parsed.getAttachmentId();
+        J2clAttachmentMetadata metadata = metadataById.get(attachmentId);
+        if (metadata != null) {
+          nextAttachments.add(
+              J2clAttachmentRenderModel.fromMetadata(
+                  attachmentId, parsed.getCaption(), parsed.getDisplaySize(), metadata));
+        } else if (missingIds.contains(attachmentId)) {
+          nextAttachments.add(
+              J2clAttachmentRenderModel.metadataFailure(
+                  attachmentId,
+                  parsed.getCaption(),
+                  parsed.getDisplaySize(),
+                  "Attachment metadata unavailable."));
+        } else if (failedIds.contains(attachmentId)) {
+          nextAttachments.add(
+              J2clAttachmentRenderModel.metadataFailure(
+                  attachmentId, parsed.getCaption(), parsed.getDisplaySize(), failureReason));
+        } else {
+          J2clAttachmentRenderModel current = currentById.get(attachmentId);
+          nextAttachments.add(current == null ? parsed : current);
+        }
+      }
+      if (nextAttachments.equals(attachmentOverrides)) {
+        return this;
+      }
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          parseAttachmentElements,
+          nextAttachments,
+          content);
+    }
+
+    private Entry withCachedParsedContentFrom(Entry existing) {
+      if (existing == null || !rawSnapshot.equals(existing.rawSnapshot)) {
+        return this;
+      }
+      // J2clReadBlipContent is a pure parse of rawSnapshot, so exact raw equality is the only
+      // safe cache/override reuse key across fragment replacements.
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          parseAttachmentElements,
+          existing.attachmentOverrides,
+          existing.parsedContent);
     }
 
     public String getSegment() {
@@ -519,6 +766,17 @@ public final class J2clSelectedWaveViewportState {
 
     public boolean shouldParseAttachmentElements() {
       return parseAttachmentElements;
+    }
+
+    List<J2clAttachmentRenderModel> getAttachmentOverrides() {
+      return attachmentOverrides;
+    }
+
+    J2clReadBlipContent getParsedContent() {
+      if (parsedContent == null) {
+        parsedContent = J2clReadBlipContent.parseRawSnapshot(rawSnapshot);
+      }
+      return parsedContent;
     }
 
     public boolean isBlip() {

@@ -6,12 +6,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
+import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.read.J2clReadBlipContent;
 import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
@@ -30,6 +32,9 @@ public class J2clSelectedWaveProjectorTest {
   private static final String CHANNEL_ID = "chan-1";
   private static final String INDEX_SEGMENT = "index";
   private static final String MANIFEST_SEGMENT = "manifest";
+  private static final String ATTACHMENT_RAW_SNAPSHOT =
+      "Intro <image attachment=\"example.com/att+hero\" display-size=\"medium\">"
+          + "<caption>Hero diagram</caption></image> outro";
 
   // -- Read-state projection (issue #931) -------------------------------------
 
@@ -219,6 +224,203 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertTrue(attachment.isMetadataPending());
     Assert.assertEquals(
         1, projected.getViewportState().getReadWindowEntries().get(0).getAttachments().size());
+  }
+
+  @Test
+  public void viewportHydratesPendingFragmentAttachmentMetadata() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+
+    J2clAttachmentRenderModel attachment =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+    Assert.assertFalse(attachment.isMetadataPending());
+    Assert.assertTrue(attachment.canOpen());
+    Assert.assertTrue(attachment.canDownload());
+    Assert.assertEquals("/attachments/hero.png", attachment.getOpenUrl());
+    Assert.assertEquals("/attachments/hero.png", attachment.getSourceUrl());
+    Assert.assertEquals(
+        attachment, state.getReadWindowEntries().get(0).getAttachments().get(0));
+  }
+
+  @Test
+  public void viewportMarksMissingAttachmentMetadataAsFailure() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+
+    state =
+        state.withAttachmentMetadata(
+            Collections.<J2clAttachmentMetadata>emptyList(),
+            Arrays.asList("example.com/att+hero"));
+
+    J2clAttachmentRenderModel attachment =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+    Assert.assertFalse(attachment.isMetadataPending());
+    Assert.assertTrue(attachment.isMetadataFailure());
+    Assert.assertFalse(attachment.canOpen());
+    Assert.assertEquals("Hero diagram", attachment.getCaption());
+    Assert.assertEquals(
+        attachment, state.getReadWindowEntries().get(0).getAttachments().get(0));
+  }
+
+  @Test
+  public void viewportPreservesResolvedAttachmentWhenResolvingAnotherBatch() {
+    J2clSelectedWaveViewportState state = viewportWithTwoAttachments();
+
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+    J2clAttachmentRenderModel resolvedHero =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+
+    state =
+        state.withAttachmentMetadata(
+            Collections.<J2clAttachmentMetadata>emptyList(),
+            Arrays.asList("example.com/att+diagram"));
+
+    J2clAttachmentRenderModel hero =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+    J2clAttachmentRenderModel diagram =
+        state.getLoadedReadBlips().get(0).getAttachments().get(1);
+    Assert.assertEquals(resolvedHero, hero);
+    Assert.assertFalse(hero.isMetadataPending());
+    Assert.assertTrue(hero.canOpen());
+    Assert.assertTrue(diagram.isMetadataFailure());
+    Assert.assertFalse(diagram.isMetadataPending());
+  }
+
+  @Test
+  public void viewportReusesParsedContentAcrossAttachmentResolution() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+    J2clReadBlipContent parsed = state.getEntries().get(0).getParsedContent();
+
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+
+    Assert.assertSame(parsed, state.getEntries().get(0).getParsedContent());
+  }
+
+  @Test
+  public void viewportPreservesResolvedAttachmentAcrossSameRawFragmentMerge() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+    J2clReadBlipContent parsed = state.getEntries().get(0).getParsedContent();
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+    J2clAttachmentRenderModel resolved =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+
+    state =
+        state.mergeFragments(
+            attachmentFragments(10L, 0L, 10L),
+            J2clViewportGrowthDirection.FORWARD);
+
+    Assert.assertSame(parsed, state.getEntries().get(0).getParsedContent());
+    Assert.assertEquals(resolved, state.getLoadedReadBlips().get(0).getAttachments().get(0));
+    Assert.assertFalse(state.getPendingAttachmentIds().contains("example.com/att+hero"));
+  }
+
+  @Test
+  public void viewportPreservesResolvedAttachmentAcrossPlaceholderFragmentMerge() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+    J2clReadBlipContent parsed = state.getEntries().get(0).getParsedContent();
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+    J2clAttachmentRenderModel resolved =
+        state.getLoadedReadBlips().get(0).getAttachments().get(0);
+
+    state =
+        state.mergeFragments(
+            new SidecarSelectedWaveFragments(
+                10L,
+                0L,
+                10L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 10L)),
+                Collections.<SidecarSelectedWaveFragment>emptyList()),
+            J2clViewportGrowthDirection.FORWARD);
+
+    Assert.assertSame(parsed, state.getEntries().get(0).getParsedContent());
+    Assert.assertEquals(resolved, state.getLoadedReadBlips().get(0).getAttachments().get(0));
+    Assert.assertFalse(state.getPendingAttachmentIds().contains("example.com/att+hero"));
+  }
+
+  @Test
+  public void viewportDropsParsedCacheAndOverridesWhenRawFragmentChanges() {
+    J2clSelectedWaveViewportState state = viewportWithAttachment();
+    J2clReadBlipContent parsed = state.getEntries().get(0).getParsedContent();
+    state =
+        state.withAttachmentMetadata(
+            Arrays.asList(
+                attachmentMetadata(
+                    "example.com/att+hero",
+                    "hero.png",
+                    "image/png",
+                    "/attachments/hero.png",
+                    "/thumbnails/hero.png",
+                    false)),
+            Collections.<String>emptyList());
+
+    state =
+        state.mergeFragments(
+            new SidecarSelectedWaveFragments(
+                10L,
+                0L,
+                10L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 10L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment(
+                        "blip:b+root",
+                        "Changed <image attachment=\"example.com/att+hero\" display-size=\"medium\">"
+                            + "<caption>Changed hero</caption></image>",
+                        0,
+                        0))),
+            J2clViewportGrowthDirection.FORWARD);
+
+    Assert.assertNotSame(parsed, state.getEntries().get(0).getParsedContent());
+    Assert.assertTrue(state.getLoadedReadBlips().get(0).getAttachments().get(0).isMetadataPending());
   }
 
   @Test
@@ -2068,6 +2270,61 @@ public class J2clSelectedWaveProjectorTest {
         Arrays.asList(
             new SidecarSelectedWaveFragment(INDEX_SEGMENT, "index", 0, 0),
             new SidecarSelectedWaveFragment(MANIFEST_SEGMENT, "metadata", 0, 0)));
+  }
+
+  private static J2clSelectedWaveViewportState viewportWithAttachment() {
+    return J2clSelectedWaveViewportState.fromFragments(attachmentFragments(9L, 0L, 9L));
+  }
+
+  private static SidecarSelectedWaveFragments attachmentFragments(
+      long snapshotVersion, long fromVersion, long toVersion) {
+    return new SidecarSelectedWaveFragments(
+        snapshotVersion,
+        fromVersion,
+        toVersion,
+        Arrays.asList(
+            new SidecarSelectedWaveFragmentRange("blip:b+root", fromVersion, toVersion)),
+        Arrays.asList(
+            new SidecarSelectedWaveFragment("blip:b+root", ATTACHMENT_RAW_SNAPSHOT, 0, 0)));
+  }
+
+  private static J2clSelectedWaveViewportState viewportWithTwoAttachments() {
+    return J2clSelectedWaveViewportState.fromFragments(
+        new SidecarSelectedWaveFragments(
+            9L,
+            0L,
+            9L,
+            Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment(
+                    "blip:b+root",
+                    "Intro <image attachment=\"example.com/att+hero\" display-size=\"medium\">"
+                        + "<caption>Hero diagram</caption></image>"
+                        + " and <image attachment=\"example.com/att+diagram\" "
+                        + "display-size=\"small\"><caption>Diagram</caption></image>",
+                    0,
+                    0))));
+  }
+
+  private static J2clAttachmentMetadata attachmentMetadata(
+      String attachmentId,
+      String fileName,
+      String mimeType,
+      String attachmentUrl,
+      String thumbnailUrl,
+      boolean malware) {
+    return new J2clAttachmentMetadata(
+        attachmentId,
+        "example.com/w+1/~/conv+root",
+        fileName,
+        mimeType,
+        4096L,
+        "user@example.com",
+        attachmentUrl,
+        thumbnailUrl,
+        new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+        new J2clAttachmentMetadata.ImageMetadata(320, 200),
+        malware);
   }
 
   private static J2clSelectedWaveViewportState.Entry entryBySegment(

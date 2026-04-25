@@ -188,6 +188,23 @@ public class J2clReadBlipContentTest {
   }
 
   @Test
+  public void selfClosingImageDoesNotConsumeLaterClosedImage() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "Before <image attachment=\"example.com/att+self\" /> between "
+                + "<image attachment=\"example.com/att+closed\" display-size=\"large\">"
+                + "<caption>Closed caption</caption></image> after");
+
+    Assert.assertEquals("Before  between  after", parsed.getText());
+    Assert.assertEquals(2, parsed.getAttachments().size());
+    Assert.assertEquals("example.com/att+self", parsed.getAttachments().get(0).getAttachmentId());
+    Assert.assertEquals("example.com/att+self", parsed.getAttachments().get(0).getCaption());
+    Assert.assertEquals("example.com/att+closed", parsed.getAttachments().get(1).getAttachmentId());
+    Assert.assertEquals("Closed caption", parsed.getAttachments().get(1).getCaption());
+    Assert.assertEquals("large", parsed.getAttachments().get(1).getDisplaySize());
+  }
+
+  @Test
   public void literalGreaterThanInPlainTextIsPreserved() {
     J2clReadBlipContent parsed = J2clReadBlipContent.parseRawSnapshot("a > b");
     Assert.assertEquals("a > b", parsed.getText());

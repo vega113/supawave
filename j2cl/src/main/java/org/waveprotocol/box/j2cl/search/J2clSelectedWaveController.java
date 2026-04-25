@@ -203,6 +203,21 @@ public final class J2clSelectedWaveController
   public J2clSelectedWaveController(
       Gateway gateway,
       View view,
+      WriteSessionListener writeSessionListener,
+      J2clClientTelemetry.Sink telemetrySink) {
+    this(
+        gateway,
+        view,
+        defaultRetryScheduler(),
+        defaultReadStateFetchScheduler(),
+        writeSessionListener,
+        defaultVisibilitySource(),
+        telemetrySink);
+  }
+
+  public J2clSelectedWaveController(
+      Gateway gateway,
+      View view,
       RetryScheduler retryScheduler,
       WriteSessionListener writeSessionListener) {
     this(

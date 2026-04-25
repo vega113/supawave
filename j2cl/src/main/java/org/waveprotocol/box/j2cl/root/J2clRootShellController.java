@@ -9,6 +9,7 @@ import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceController;
 import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceView;
 
@@ -27,6 +28,7 @@ public final class J2clRootShellController {
     started = true;
     J2clRootShellView shellView = new J2clRootShellView(host);
     J2clSearchGateway gateway = new J2clSearchGateway();
+    J2clClientTelemetry.Sink telemetrySink = J2clClientTelemetry.browserStatsSink();
     final J2clSidecarRouteController[] routeControllerRef = new J2clSidecarRouteController[1];
     final J2clSelectedWaveController[] selectedWaveControllerRef =
         new J2clSelectedWaveController[1];
@@ -39,7 +41,7 @@ public final class J2clRootShellController {
         new J2clSearchPanelView(
             shellView.getWorkflowHost(), J2clSearchPanelView.ShellPresentation.ROOT_SHELL);
     J2clSelectedWaveView selectedWaveView =
-        new J2clSelectedWaveView(searchView.getSelectedWaveHost());
+        new J2clSelectedWaveView(searchView.getSelectedWaveHost(), telemetrySink);
     HTMLElement selectedWaveComposeHost = selectedWaveView.getComposeHost();
     HTMLElement selectedToolbarHost =
         createChildHost(selectedWaveComposeHost, "j2cl-root-toolbar-host");
@@ -57,7 +59,8 @@ public final class J2clRootShellController {
               if (selectedWaveControllerRef[0] != null) {
                 selectedWaveControllerRef[0].refreshSelectedWave();
               }
-            });
+            },
+            telemetrySink);
     J2clToolbarSurfaceController toolbarController =
         new J2clToolbarSurfaceController(
             new J2clToolbarSurfaceView(selectedToolbarHost),
@@ -77,7 +80,8 @@ public final class J2clRootShellController {
               toolbarController.onWriteSessionChanged(writeSession);
               toolbarController.onEditStateChanged(
                   new J2clToolbarSurfaceController.EditState(writeSession != null));
-            });
+            },
+            telemetrySink);
     selectedWaveControllerRef[0] = selectedWaveController;
     J2clSearchPanelController controller =
         new J2clSearchPanelController(

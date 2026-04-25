@@ -9,6 +9,7 @@ import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
@@ -31,6 +32,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private String lastRenderedWaveId = "";
 
   public J2clSelectedWaveView(HTMLElement host) {
+    this(host, J2clClientTelemetry.noop());
+  }
+
+  public J2clSelectedWaveView(HTMLElement host, J2clClientTelemetry.Sink telemetrySink) {
+    J2clClientTelemetry.Sink effectiveTelemetrySink =
+        telemetrySink == null ? J2clClientTelemetry.noop() : telemetrySink;
     HTMLElement existingCard = J2clServerFirstRootShellDom.findSelectedWaveCard(host);
     if (existingCard != null) {
       title = queryRequired(existingCard, ".sidecar-selected-title");
@@ -42,7 +49,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
       contentList = queryRequired(existingCard, ".sidecar-selected-content");
       configureContentList(contentList);
-      readSurface = new J2clReadSurfaceDomRenderer(contentList);
+      readSurface = new J2clReadSurfaceDomRenderer(contentList, effectiveTelemetrySink);
       readSurface.enhanceExistingSurface();
       emptyState = queryOrCreate(existingCard, ".sidecar-empty-state", "div", "sidecar-empty-state");
       serverFirstActive = true;
@@ -95,7 +102,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     contentList.className = "sidecar-selected-content";
     configureContentList(contentList);
     card.appendChild(contentList);
-    readSurface = new J2clReadSurfaceDomRenderer(contentList);
+    readSurface = new J2clReadSurfaceDomRenderer(contentList, effectiveTelemetrySink);
 
     emptyState = (HTMLElement) DomGlobal.document.createElement("div");
     emptyState.className = "sidecar-empty-state";

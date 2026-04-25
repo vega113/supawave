@@ -65,6 +65,7 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -107,6 +108,9 @@ public class ServerMain {
     }
   }
 
+  /**
+   * Starts the Jakarta server and blocks until the registered shutdown path stops it.
+   */
   public static void run(Module coreSettings) throws PersistenceException, WaveServerException {
     Injector injector = Guice.createInjector(coreSettings);
     Config config = injector.getInstance(Config.class);
@@ -149,6 +153,17 @@ public class ServerMain {
 
     LOG.info("Starting server");
     server.startWebSocketServer(injector);
+    try {
+      server.joinServer();
+    } catch (InterruptedException e) {
+      LOG.warning("Jakarta server join interrupted; stopping server", e);
+      try {
+        server.stopServer();
+      } catch (IOException stopError) {
+        LOG.warning("Error stopping Jakarta server after interrupted main thread", stopError);
+      }
+      Thread.currentThread().interrupt();
+    }
   }
 
   static Config loadCoreConfig() {

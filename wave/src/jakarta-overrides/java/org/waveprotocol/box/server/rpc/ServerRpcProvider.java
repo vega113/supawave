@@ -982,6 +982,21 @@ public class ServerRpcProvider {
     }
 
     /**
+     * Blocks the launcher thread until the Jakarta HTTP server is stopped.
+     *
+     * <p>The staged native-packager launcher expects the main Java process to
+     * stay alive after Jetty readiness. Without an explicit join, lifecycle
+     * ownership depends on Jetty thread details rather than the launcher
+     * contract used by worktree smoke and browser verification flows.</p>
+     */
+    public void joinServer() throws InterruptedException {
+        if (httpServer == null) {
+            throw new IllegalStateException("Jakarta server not started; cannot join");
+        }
+        httpServer.join();
+    }
+
+    /**
      * Returns bound ws addresses for testing/logging.
      */
     public java.util.List<java.net.InetSocketAddress> getBoundAddresses() {

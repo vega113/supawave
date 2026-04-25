@@ -128,14 +128,26 @@ start() {
     exit 1
   fi
   ensure_port_free || exit 1
-  (cd "$INSTALL_DIR" && nohup ./bin/wave > wave_server.out 2>&1 & echo $! > wave_server.pid)
+  (
+    cd "$INSTALL_DIR"
+    nohup ./bin/wave > wave_server.out 2>&1 < /dev/null &
+    wrapper_pid=$!
+    echo "$wrapper_pid" > wave_server.pid
+    # Prefer disowning by PID, then fall back to the current background job.
+    disown "$wrapper_pid" 2>/dev/null || disown 2>/dev/null || true
+  )
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
   wait_ready
 
   # Re-capture the real Java PID via port detection. The sbt-native-packager
   # wrapper script may fork+exec the JVM, making the original $! stale.
-  local real_pid
-  real_pid=$(find_port_pids | head -1)
+  local real_pid="" candidate_pid
+  for candidate_pid in $(find_port_pids | sort -u); do
+    if is_wave_process "$candidate_pid"; then
+      real_pid="$candidate_pid"
+      break
+    fi
+  done
   if [[ -n "${real_pid:-}" ]]; then
     echo "$real_pid" > "$PID_FILE"
     echo "Resolved server PID=$real_pid (via port $PORT)"

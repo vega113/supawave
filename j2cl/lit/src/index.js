@@ -14,6 +14,8 @@ import "./elements/composer-shell.js";
 import "./elements/toolbar-button.js";
 import "./elements/toolbar-group.js";
 import "./elements/toolbar-overflow-menu.js";
+import "./elements/compose-attachment-picker.js";
+import "./elements/compose-attachment-card.js";
 import "./elements/interaction-overlay-layer.js";
 import "./elements/mention-suggestion-popover.js";
 import "./elements/task-metadata-popover.js";

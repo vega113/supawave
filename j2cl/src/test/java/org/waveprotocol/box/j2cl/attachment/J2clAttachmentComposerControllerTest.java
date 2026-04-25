@@ -834,9 +834,7 @@ public class J2clAttachmentComposerControllerTest {
         newControllerWithStateCallback(
             transport,
             insertionCallback,
-            () -> {
-              throw new RuntimeException("observer failed");
-            });
+            throwingStateCallback());
 
     controller.selectFiles(
         Arrays.asList(
@@ -864,9 +862,7 @@ public class J2clAttachmentComposerControllerTest {
         newControllerWithStateCallback(
             transport,
             insertionCallback,
-            () -> {
-              throw new RuntimeException("observer failed");
-            });
+            throwingStateCallback());
 
     controller.selectFiles(
         Arrays.asList(
@@ -887,6 +883,76 @@ public class J2clAttachmentComposerControllerTest {
     Assert.assertEquals(
         J2clAttachmentComposerController.UploadStatus.UPLOADING,
         controller.getQueueSnapshot().get(1).getStatus());
+  }
+
+  @Test
+  public void stateChangeCallbackFailureDuringProgressDoesNotBlockStateUpdate() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newControllerWithStateCallback(
+            transport,
+            new RecordingInsertionCallback(),
+            throwingStateCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "progress.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    transport.requests.get(0).getProgressCallback().onProgress(64);
+
+    Assert.assertEquals(64, controller.getQueueSnapshot().get(0).getProgressPercent());
+  }
+
+  @Test
+  public void stateChangeCallbackErrorIsNotSwallowed() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newControllerWithStateCallback(
+            transport,
+            new RecordingInsertionCallback(),
+            () -> {
+              throw new FatalObserverError("fatal observer failure");
+            });
+
+    try {
+      controller.selectFiles(
+          Arrays.asList(
+              J2clAttachmentComposerController.AttachmentSelection.file(
+                  new Object(),
+                  "fatal.png",
+                  "",
+                  J2clAttachmentComposerController.DisplaySize.SMALL)));
+      Assert.fail("Expected fatal observer failure to propagate.");
+    } catch (FatalObserverError expected) {
+      Assert.assertEquals("fatal observer failure", expected.getMessage());
+    }
+
+    Assert.assertTrue(transport.requests.isEmpty());
+  }
+
+  @Test
+  public void stateChangeCallbackFailureDoesNotPreventCancelReset() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newControllerWithStateCallback(
+            transport,
+            new RecordingInsertionCallback(),
+            throwingStateCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "cancel.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    controller.cancelAndReset();
+
+    Assert.assertTrue(controller.getQueueSnapshot().isEmpty());
   }
 
   @Test
@@ -1515,6 +1581,12 @@ public class J2clAttachmentComposerControllerTest {
         stateChangeCallback);
   }
 
+  private static J2clAttachmentComposerController.StateChangeCallback throwingStateCallback() {
+    return () -> {
+      throw new RuntimeException("observer failed");
+    };
+  }
+
   private static void assertDocumentContainsAttachment(
       J2clComposerDocument document, String attachmentId, String caption, String displaySize) {
     String deltaJson =
@@ -1611,6 +1683,12 @@ public class J2clAttachmentComposerControllerTest {
         J2clAttachmentComposerController.AttachmentInsertion insertion) {
       documents.add(document);
       insertions.add(insertion);
+    }
+  }
+
+  private static final class FatalObserverError extends Error {
+    private FatalObserverError(String message) {
+      super(message);
     }
   }
 

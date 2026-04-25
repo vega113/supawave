@@ -1163,6 +1163,39 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void richToolbarAnnotationSurvivesAttachmentUploadErrorStatus() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.BOLD));
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection(
+                new Object(), "failed-attachment.png")));
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(500, "failed", null));
+    Assert.assertTrue(view.model.getCommandErrorText().contains("failed-attachment.png"));
+    controller.onReplySubmitted("Bold without failed file");
+
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "{\"1\":{\"3\":[{\"1\":\"fontWeight\",\"3\":\"bold\"}]}}",
+        "\"2\":\"Bold without failed file\"");
+    Assert.assertFalse(gateway.lastSubmitRequest.getDeltaJson().contains("\"1\":\"attachment\""));
+  }
+
+  @Test
   public void replySubmitWaitsForInFlightAttachmentUploadBeforeBuildingRequest() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

@@ -150,6 +150,8 @@ public final class J2clComposeSurfaceController {
   private boolean signedOut;
   private boolean started;
   private String activeCommandId = "";
+  // Tracks rich-text formatting only. Attachment actions reuse activeCommandId for status live
+  // regions, so formatting stays separate from upload progress and error state.
   private String annotationCommandId = "";
   private String commandStatusText = "";
   private String commandErrorText = "";
@@ -869,7 +871,8 @@ public final class J2clComposeSurfaceController {
       J2clAttachmentComposerController.AttachmentInsertion insertion) {
     insertedAttachments.add(insertion);
     activeCommandId = J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE.id();
-    commandStatusText = "Attached " + insertion.getCaption() + ".";
+    String label = insertion.getCaption().isEmpty() ? "image" : insertion.getCaption();
+    commandStatusText = "Attached " + label + ".";
     commandErrorText = "";
     render();
   }
@@ -919,7 +922,8 @@ public final class J2clComposeSurfaceController {
       J2clAttachmentComposerController.AttachmentInsertion insertion =
           insertedAttachments.get(insertedAttachments.size() - 1);
       activeCommandId = J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE.id();
-      commandStatusText = "Attached " + insertion.getCaption() + ".";
+      String insertedLabel = insertion.getCaption().isEmpty() ? "image" : insertion.getCaption();
+      commandStatusText = "Attached " + insertedLabel + ".";
       commandErrorText = "";
     }
   }

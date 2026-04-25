@@ -105,6 +105,33 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void nullSelectionListDoesNotQueueStartUploadOrConsumeIds() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    try {
+      controller.selectFiles(null);
+      Assert.fail("Expected null selection list to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("selections"));
+    }
+
+    Assert.assertTrue(controller.getQueueSnapshot().isEmpty());
+    Assert.assertTrue(transport.requests.isEmpty());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "next.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals("/attachment/example.com/seedA", transport.requests.get(0).getUrl());
+  }
+
+  @Test
   public void invalidFileSelectionFactoryDoesNotQueueStartUploadOrConsumeIds() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentComposerController controller =
@@ -160,6 +187,20 @@ public class J2clAttachmentComposerControllerTest {
 
     Assert.assertEquals(WAVE_REF, transport.requests.get(0).getPart(1).getStringValue());
     Assert.assertEquals("spaced.png", transport.requests.get(0).getPart(2).getFileName());
+  }
+
+  @Test
+  public void blankWaveRefIsRejected() {
+    try {
+      new J2clAttachmentComposerController(
+          "   ",
+          new J2clAttachmentUploadClient(new FakeUploadTransport()),
+          new J2clAttachmentIdGenerator("example.com", "seed"),
+          new RecordingInsertionCallback());
+      Assert.fail("Expected blank wave ref to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("Wave ref"));
+    }
   }
 
   @Test
@@ -278,6 +319,30 @@ public class J2clAttachmentComposerControllerTest {
         J2clAttachmentComposerController.UploadStatus.FAILED,
         controller.getQueueSnapshot().get(0).getStatus());
     Assert.assertEquals(0, controller.getQueueSnapshot().get(0).getProgressPercent());
+  }
+
+  @Test
+  public void fileUploadUnexpectedResponseMarksItemFailedAndDoesNotInsertDocument() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "unexpected.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.MEDIUM)));
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "stored", null));
+
+    Assert.assertTrue(insertionCallback.insertions.isEmpty());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.FAILED,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentUploadClient.ErrorType.UNEXPECTED_RESPONSE.name(),
+        controller.getQueueSnapshot().get(0).getErrorCode());
   }
 
   @Test
@@ -407,6 +472,41 @@ public class J2clAttachmentComposerControllerTest {
         controller.getQueueSnapshot().get(0).getStatus());
 
     transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(1, insertionCallback.insertions.size());
+    Assert.assertEquals("example.com/seedB", insertionCallback.insertions.get(0).getAttachmentId());
+  }
+
+  @Test
+  public void cancelResetAllowsImmediatePasteReuseAndIgnoresLateFileCompletion() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "stale.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    controller.cancelAndReset();
+    Object pastedPayload = new Object();
+    controller.pasteImage(
+        pastedPayload,
+        "paste caption",
+        J2clAttachmentComposerController.DisplaySize.MEDIUM);
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertTrue(insertionCallback.insertions.isEmpty());
+    Assert.assertEquals(1, controller.getQueueSnapshot().size());
+    Assert.assertSame(pastedPayload, transport.requests.get(1).getPart(2).getPayload());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.UPLOADING,
+        controller.getQueueSnapshot().get(0).getStatus());
+
+    transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(201, "stored", null));
 
     Assert.assertEquals(1, insertionCallback.insertions.size());
     Assert.assertEquals("example.com/seedB", insertionCallback.insertions.get(0).getAttachmentId());
@@ -591,6 +691,60 @@ public class J2clAttachmentComposerControllerTest {
         controller.getQueueSnapshot().get(0).getErrorCode());
     Assert.assertTrue(
         controller.getQueueSnapshot().get(0).getErrorMessage().contains("selections"));
+    Assert.assertEquals(1, transport.requests.size());
+  }
+
+  @Test
+  public void reentrantSelectionThenThrowMarksCurrentItemAndKeepsNextUploadRunning() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    ReentrantSelectingThenThrowingInsertionCallback insertionCallback =
+        new ReentrantSelectingThenThrowingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+    insertionCallback.setController(controller);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.INSERT_FAILED,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.UPLOADING,
+        controller.getQueueSnapshot().get(1).getStatus());
+  }
+
+  @Test
+  public void resetThenRuntimeFailureFromInsertionCallbackDropsStaleItemMutation() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    ResettingThrowingInsertionCallback insertionCallback =
+        new ResettingThrowingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+    insertionCallback.setController(controller);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL),
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertTrue(controller.getQueueSnapshot().isEmpty());
     Assert.assertEquals(1, transport.requests.size());
   }
 
@@ -1022,6 +1176,46 @@ public class J2clAttachmentComposerControllerTest {
         J2clComposerDocument document,
         J2clAttachmentComposerController.AttachmentInsertion insertion) {
       controller.selectFiles(null);
+    }
+  }
+
+  private static final class ReentrantSelectingThenThrowingInsertionCallback
+      implements J2clAttachmentComposerController.DocumentInsertionCallback {
+    private J2clAttachmentComposerController controller;
+
+    private void setController(J2clAttachmentComposerController controller) {
+      this.controller = controller;
+    }
+
+    @Override
+    public void onInsert(
+        J2clComposerDocument document,
+        J2clAttachmentComposerController.AttachmentInsertion insertion) {
+      controller.selectFiles(
+          Arrays.asList(
+              J2clAttachmentComposerController.AttachmentSelection.file(
+                  new Object(),
+                  "reentrant.png",
+                  "",
+                  J2clAttachmentComposerController.DisplaySize.SMALL)));
+      throw new IllegalStateException("boom");
+    }
+  }
+
+  private static final class ResettingThrowingInsertionCallback
+      implements J2clAttachmentComposerController.DocumentInsertionCallback {
+    private J2clAttachmentComposerController controller;
+
+    private void setController(J2clAttachmentComposerController controller) {
+      this.controller = controller;
+    }
+
+    @Override
+    public void onInsert(
+        J2clComposerDocument document,
+        J2clAttachmentComposerController.AttachmentInsertion insertion) {
+      controller.cancelAndReset();
+      throw new IllegalStateException("boom");
     }
   }
 

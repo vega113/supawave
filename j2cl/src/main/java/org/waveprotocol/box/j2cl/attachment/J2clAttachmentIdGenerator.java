@@ -4,7 +4,8 @@ package org.waveprotocol.box.j2cl.attachment;
  * Deterministic attachment id generator for J2CL composer uploads.
  *
  * <p>Callers should pass the same unpredictable per-session seed used by the legacy
- * {@code IdGeneratorImpl} path.
+ * {@code IdGeneratorImpl} path. The domain is expected to be the server-provided normalized wave
+ * domain; this generator rejects the attachment path separator to preserve legacy id shape.
  */
 public final class J2clAttachmentIdGenerator {
   private static final String DEFAULT_SEED = "j2cl";

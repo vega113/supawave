@@ -14,7 +14,8 @@ public final class J2clAttachmentComposerController {
     /**
      * Runtime exceptions escaping the callback, including from re-entrant controller calls, are
      * contained as {@link UploadStatus#INSERT_FAILED}. VM errors are not contained; completion
-     * cleanup still runs, so a queued upload can start before the error reaches the caller.
+     * cleanup still runs, so a queued upload can start before the error reaches the caller. If
+     * the callback resets the controller before throwing, stale item mutations are dropped.
      */
     void onInsert(J2clComposerDocument document, AttachmentInsertion insertion);
   }
@@ -201,6 +202,8 @@ public final class J2clAttachmentComposerController {
   private final J2clAttachmentUploadClient uploadClient;
   private final J2clAttachmentIdGenerator idGenerator;
   private final DocumentInsertionCallback insertionCallback;
+  // Terminal items stay visible until the composer lifecycle calls cancelAndReset or a future
+  // explicit clear; this keeps status/error reporting available to the Lit wiring task.
   private final List<QueueItem> queue = new ArrayList<QueueItem>();
   private boolean uploadInProgress;
   private int resetGeneration;
@@ -320,10 +323,12 @@ public final class J2clAttachmentComposerController {
         try {
           insertAttachment(item);
         } catch (RuntimeException e) {
-          item.status = UploadStatus.INSERT_FAILED;
-          item.errorCode = INSERT_FAILED_ERROR_CODE;
-          item.errorMessage =
-              e.getMessage() == null ? "Attachment insertion failed." : e.getMessage();
+          if (generation == resetGeneration) {
+            item.status = UploadStatus.INSERT_FAILED;
+            item.errorCode = INSERT_FAILED_ERROR_CODE;
+            item.errorMessage =
+                e.getMessage() == null ? "Attachment insertion failed." : e.getMessage();
+          }
         }
       } else {
         item.status = UploadStatus.FAILED;

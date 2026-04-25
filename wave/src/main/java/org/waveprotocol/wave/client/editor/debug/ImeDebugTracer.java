@@ -843,7 +843,13 @@ public final class ImeDebugTracer {
           return;
         }
         if (!shareLog(text, filename)) {
-          setStatus(triggerDownload(text, filename) ? "IME log downloaded" : "Share unavailable");
+          if (triggerDownload(text, filename)) {
+            setStatus("IME log downloaded");
+          } else {
+            fallbackCopy(text, function (copied) {
+              setStatus(copied ? "IME log copied" : "Share unavailable; download and copy failed");
+            });
+          }
         }
         ev.stopPropagation();
       }, false);

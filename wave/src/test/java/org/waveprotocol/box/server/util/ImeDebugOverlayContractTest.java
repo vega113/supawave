@@ -76,7 +76,7 @@ public final class ImeDebugOverlayContractTest extends TestCase {
     assertContains(source, "IME log downloaded");
     assertContains(source, "IME log shared");
     assertContains(source, "Share failed; IME log downloaded");
-    assertContains(source, "Share unavailable");
+    assertContains(source, "Share unavailable; download and copy failed");
   }
 
   public void testLogRowsAppendInsideScrollableLogBody() throws Exception {

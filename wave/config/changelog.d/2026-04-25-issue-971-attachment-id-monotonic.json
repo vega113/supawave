@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-issue-971-attachment-id-monotonic",
+  "version": "Unreleased",
+  "date": "2026-04-25",
+  "title": "J2CL attachment uploads keep unique IDs",
+  "summary": "The J2CL composer now keeps attachment IDs monotonic across wave changes in one browser session.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Attachment uploads from the J2CL composer no longer reuse the first generated ID after switching waves, preventing duplicate upload IDs in the same session."
+      ]
+    }
+  ]
+}

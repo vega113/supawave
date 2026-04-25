@@ -1,7 +1,9 @@
 package org.waveprotocol.box.j2cl.compose;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentComposerController;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentIdGenerator;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentUploadClient;
@@ -79,6 +81,10 @@ public final class J2clComposeSurfaceController {
         String domain,
         J2clAttachmentComposerController.DocumentInsertionCallback insertionCallback,
         J2clAttachmentComposerController.StateChangeCallback stateChangeCallback);
+  }
+
+  interface AttachmentUploadClientFactory {
+    J2clAttachmentUploadClient create();
   }
 
   public static final class AttachmentFileSelection {
@@ -743,13 +749,45 @@ public final class J2clComposeSurfaceController {
   }
 
   public static AttachmentControllerFactory attachmentControllerFactory(String sessionSeed) {
-    return (waveRef, domain, insertionCallback, stateChangeCallback) ->
-        new J2clAttachmentComposerController(
-            waveRef,
-            new J2clAttachmentUploadClient(),
-            new J2clAttachmentIdGenerator(domain, sessionSeed),
-            insertionCallback,
-            stateChangeCallback);
+    return attachmentControllerFactory(sessionSeed, () -> new J2clAttachmentUploadClient());
+  }
+
+  static AttachmentControllerFactory attachmentControllerFactory(
+      String sessionSeed, J2clAttachmentUploadClient uploadClient) {
+    // Test seam: reuse one injected client so tests can observe all generated upload requests.
+    J2clAttachmentUploadClient client =
+        requirePresent(uploadClient, "Attachment upload client is required.");
+    return attachmentControllerFactory(sessionSeed, () -> client);
+  }
+
+  static AttachmentControllerFactory attachmentControllerFactory(
+      String sessionSeed, AttachmentUploadClientFactory uploadClientFactory) {
+    AttachmentUploadClientFactory clientFactory =
+        requirePresent(uploadClientFactory, "Attachment upload client factory is required.");
+    Map<String, J2clAttachmentIdGenerator> idGeneratorsByDomain =
+        new HashMap<String, J2clAttachmentIdGenerator>();
+    return (waveRef, domain, insertionCallback, stateChangeCallback) -> {
+      J2clAttachmentIdGenerator idGenerator =
+          attachmentIdGeneratorForDomain(idGeneratorsByDomain, domain, sessionSeed);
+      J2clAttachmentUploadClient uploadClient =
+          requirePresent(clientFactory.create(), "Attachment upload client is required.");
+      return new J2clAttachmentComposerController(
+          waveRef, uploadClient, idGenerator, insertionCallback, stateChangeCallback);
+    };
+  }
+
+  private static J2clAttachmentIdGenerator attachmentIdGeneratorForDomain(
+      Map<String, J2clAttachmentIdGenerator> idGeneratorsByDomain,
+      String domain,
+      String sessionSeed) {
+    // Cache by the same trimmed domain that the generator uses for legacy id shape.
+    String normalizedDomain = domain == null ? "" : domain.trim();
+    J2clAttachmentIdGenerator idGenerator = idGeneratorsByDomain.get(normalizedDomain);
+    if (idGenerator == null) {
+      idGenerator = new J2clAttachmentIdGenerator(normalizedDomain, sessionSeed);
+      idGeneratorsByDomain.put(normalizedDomain, idGenerator);
+    }
+    return idGenerator;
   }
 
   public static DeltaFactory richContentDeltaFactory(J2clRichContentDeltaFactory factory) {

@@ -520,7 +520,7 @@ public final class J2clComposeSurfaceController {
           try {
             request =
                 deltaFactory.createWaveRequest(
-                    bootstrap.getAddress(), submittedDraft, buildDocument(submittedDraft, false));
+                    bootstrap.getAddress(), submittedDraft, buildDocument(submittedDraft, false, false));
           } catch (RuntimeException e) {
             handleCreateFailure(generation, messageOrDefault(e, "Unable to build the create request."));
             return;
@@ -615,7 +615,7 @@ public final class J2clComposeSurfaceController {
                     bootstrap.getAddress(),
                     submitSession,
                     submittedDraft,
-                    buildDocument(submittedDraft, true));
+                    buildDocument(submittedDraft, true, true));
           } catch (RuntimeException e) {
             handleReplyFailure(generation, messageOrDefault(e, "Unable to build the reply request."));
             return;
@@ -707,11 +707,13 @@ public final class J2clComposeSurfaceController {
             commandErrorText));
   }
 
-  private J2clComposerDocument buildDocument(String draftText, boolean includeAttachments) {
+  private J2clComposerDocument buildDocument(
+      String draftText, boolean includeAttachments, boolean includeAnnotation) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
     // Only apply the reply-toolbar annotation on the reply path; create-wave submits must not
     // inherit a Bold/Italic toggle the user set in the reply editor.
-    J2clDailyToolbarAction action = includeAttachments ? J2clDailyToolbarAction.fromId(annotationCommandId) : null;
+    J2clDailyToolbarAction action =
+        includeAnnotation ? J2clDailyToolbarAction.fromId(annotationCommandId) : null;
     String annotationKey = annotationKey(action);
     String annotationValue = annotationValue(action);
     if (annotationKey != null

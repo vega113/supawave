@@ -512,6 +512,31 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void replyToolbarFormattingDoesNotAffectCreateWaveSubmit() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    List<String> created = new ArrayList<String>();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            created::add,
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.BOLD));
+    controller.onCreateSubmitted("New wave");
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    Assert.assertEquals(Arrays.asList("example.com/w+seedA"), created);
+    Assert.assertFalse(gateway.lastSubmitRequest.getDeltaJson().contains("fontWeight"));
+    assertContains(gateway.lastSubmitRequest.getDeltaJson(), "\"2\":\"New wave\"");
+  }
+
+  @Test
   public void toolbarRichCommandTogglesOffBeforeSubmit() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

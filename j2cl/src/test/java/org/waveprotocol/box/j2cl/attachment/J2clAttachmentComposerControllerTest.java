@@ -483,6 +483,40 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void laterSynchronousUploadStartFailureDoesNotRecurseOrStopDrainCleanup() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    transport.completePostsInline(new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    transport.failPostNumber(2, new IllegalStateException("second unavailable"));
+    RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL),
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals(1, transport.requests.size());
+    Assert.assertEquals(1, insertionCallback.insertions.size());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.COMPLETE,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.FAILED,
+        controller.getQueueSnapshot().get(1).getStatus());
+    Assert.assertEquals(
+        "second unavailable", controller.getQueueSnapshot().get(1).getErrorMessage());
+    Assert.assertEquals(1, transport.maxPostDepth);
+  }
+
+  @Test
   public void failedUploadStartsNextQueuedItem() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentComposerController controller =
@@ -720,6 +754,38 @@ public class J2clAttachmentComposerControllerTest {
     Assert.assertEquals(
         J2clAttachmentComposerController.UploadStatus.COMPLETE,
         controller.getQueueSnapshot().get(1).getStatus());
+  }
+
+  @Test
+  public void insertionCallbackFailureDuringSynchronousDrainMarksItemAndContinues() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    transport.completePostsInline(new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    OneShotThrowingInsertionCallback insertionCallback =
+        new OneShotThrowingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL),
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals(1, insertionCallback.insertions.size());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.INSERT_FAILED,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.COMPLETE,
+        controller.getQueueSnapshot().get(1).getStatus());
+    Assert.assertEquals(1, transport.maxPostDepth);
   }
 
   @Test
@@ -1388,8 +1454,11 @@ public class J2clAttachmentComposerControllerTest {
     private final List<J2clAttachmentUploadClient.ResponseHandler> handlers =
         new ArrayList<J2clAttachmentUploadClient.ResponseHandler>();
     // When set, post() completes uploads before returning to simulate browser/client fakes.
-    private J2clAttachmentUploadClient.HttpResponse inlineResponse;
+    private J2clAttachmentUploadClient.HttpResponse inlinePostResponse;
     private RuntimeException nextPostFailure;
+    private RuntimeException numberedPostFailure;
+    private int failingPostNumber;
+    private int postCount;
     private int postDepth;
     private int maxPostDepth;
 
@@ -1399,16 +1468,23 @@ public class J2clAttachmentComposerControllerTest {
         J2clAttachmentUploadClient.ResponseHandler handler) {
       postDepth++;
       maxPostDepth = Math.max(maxPostDepth, postDepth);
+      postCount++;
       try {
         if (nextPostFailure != null) {
           RuntimeException failure = nextPostFailure;
           nextPostFailure = null;
           throw failure;
         }
+        if (numberedPostFailure != null && postCount == failingPostNumber) {
+          RuntimeException failure = numberedPostFailure;
+          numberedPostFailure = null;
+          failingPostNumber = 0;
+          throw failure;
+        }
         requests.add(request);
         handlers.add(handler);
-        if (inlineResponse != null) {
-          handler.onResponse(inlineResponse);
+        if (inlinePostResponse != null) {
+          handler.onResponse(inlinePostResponse);
         }
       } finally {
         postDepth--;
@@ -1419,8 +1495,13 @@ public class J2clAttachmentComposerControllerTest {
       nextPostFailure = failure;
     }
 
+    void failPostNumber(int postNumber, RuntimeException failure) {
+      failingPostNumber = postNumber;
+      numberedPostFailure = failure;
+    }
+
     void completePostsInline(J2clAttachmentUploadClient.HttpResponse response) {
-      inlineResponse = response;
+      inlinePostResponse = response;
     }
 
     void complete(int index, J2clAttachmentUploadClient.HttpResponse response) {

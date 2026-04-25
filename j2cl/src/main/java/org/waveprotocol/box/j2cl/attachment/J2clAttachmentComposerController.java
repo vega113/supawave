@@ -63,6 +63,32 @@ public final class J2clAttachmentComposerController {
         Object payload, String fileName, String caption, DisplaySize displaySize) {
       return new AttachmentSelection(payload, fileName, caption, displaySize, false);
     }
+
+    public static AttachmentSelection pastedImage(
+        Object payload, String caption, DisplaySize displaySize) {
+      return new AttachmentSelection(
+          payload, PASTED_IMAGE_FILENAME, caption, displaySize, true);
+    }
+
+    public Object getPayload() {
+      return payload;
+    }
+
+    public String getFileName() {
+      return fileName;
+    }
+
+    public String getCaption() {
+      return caption;
+    }
+
+    public DisplaySize getDisplaySize() {
+      return displaySize;
+    }
+
+    public boolean isPastedImage() {
+      return pastedImage;
+    }
   }
 
   public static final class AttachmentInsertion {
@@ -198,11 +224,10 @@ public final class J2clAttachmentComposerController {
   }
 
   public void pasteImage(Object imagePayload, String caption, DisplaySize displaySize) {
+    AttachmentSelection selection =
+        AttachmentSelection.pastedImage(imagePayload, caption, displaySize);
     queue.add(
-        new QueueItem(
-            idGenerator.nextAttachmentId(),
-            new AttachmentSelection(
-                imagePayload, PASTED_IMAGE_FILENAME, caption, displaySize, true)));
+        new QueueItem(idGenerator.nextAttachmentId(), selection));
     startNextUpload();
   }
 

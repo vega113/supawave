@@ -36,7 +36,7 @@ public class J2clAttachmentComposerControllerTest {
 
     Assert.assertEquals(1, transport.requests.size());
     Assert.assertEquals(
-        "/attachment/example.com/attachment+seedA", transport.requests.get(0).getUrl());
+        "/attachment/example.com/seedA", transport.requests.get(0).getUrl());
     Assert.assertSame(firstPayload, transport.requests.get(0).getPart(2).getPayload());
     Assert.assertEquals("first.png", transport.requests.get(0).getPart(2).getFileName());
     Assert.assertEquals(2, controller.getQueueSnapshot().size());
@@ -51,7 +51,7 @@ public class J2clAttachmentComposerControllerTest {
 
     Assert.assertEquals(2, transport.requests.size());
     Assert.assertEquals(
-        "/attachment/example.com/attachment+seedB", transport.requests.get(1).getUrl());
+        "/attachment/example.com/seedB", transport.requests.get(1).getUrl());
     Assert.assertSame(secondPayload, transport.requests.get(1).getPart(2).getPayload());
     Assert.assertEquals("second.png", transport.requests.get(1).getPart(2).getFileName());
     Assert.assertEquals(1, insertionCallback.insertions.size());
@@ -89,7 +89,7 @@ public class J2clAttachmentComposerControllerTest {
                 J2clAttachmentComposerController.DisplaySize.SMALL)));
 
     Assert.assertEquals(
-        "/attachment/example.com/attachment+seedA", transport.requests.get(0).getUrl());
+        "/attachment/example.com/seedA", transport.requests.get(0).getUrl());
   }
 
   @Test
@@ -136,6 +136,37 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void failedUploadStartsNextQueuedItem() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "broken.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.MEDIUM),
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "next.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(500, "nope", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.FAILED,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.UPLOADING,
+        controller.getQueueSnapshot().get(1).getStatus());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+  }
+
+  @Test
   public void cancelResetClearsQueueAndIgnoresLateUploadCompletion() {
     FakeUploadTransport transport = new FakeUploadTransport();
     RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
@@ -162,6 +193,33 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void cancelResetAllowsReuseWithNextId() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "cancel.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    controller.cancelAndReset();
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "next.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertEquals(1, controller.getQueueSnapshot().size());
+  }
+
+  @Test
   public void successfulFileUploadInvokesInsertionWithCaptionFallbackAndDisplaySize() {
     FakeUploadTransport transport = new FakeUploadTransport();
     RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
@@ -181,15 +239,66 @@ public class J2clAttachmentComposerControllerTest {
     Assert.assertEquals(1, insertionCallback.insertions.size());
     J2clAttachmentComposerController.AttachmentInsertion insertion =
         insertionCallback.insertions.get(0);
-    Assert.assertEquals("example.com/attachment+seedA", insertion.getAttachmentId());
+    Assert.assertEquals("example.com/seedA", insertion.getAttachmentId());
     Assert.assertEquals("fallback.png", insertion.getCaption());
     Assert.assertEquals(
         J2clAttachmentComposerController.DisplaySize.LARGE, insertion.getDisplaySize());
     assertDocumentContainsAttachment(
         insertionCallback.documents.get(0),
-        "example.com/attachment+seedA",
+        "example.com/seedA",
         "fallback.png",
         "large");
+  }
+
+  @Test
+  public void additionalSelectionsWaitBehindActiveUpload() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.MEDIUM)));
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.MEDIUM)));
+
+    Assert.assertEquals(1, transport.requests.size());
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+  }
+
+  @Test
+  public void queueSnapshotIsReadOnly() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "snapshot.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    try {
+      controller.getQueueSnapshot().add(null);
+      Assert.fail("Expected snapshot to be immutable.");
+    } catch (UnsupportedOperationException expected) {
+      // Expected.
+    }
   }
 
   @Test
@@ -215,9 +324,65 @@ public class J2clAttachmentComposerControllerTest {
     Assert.assertEquals("paste caption", insertionCallback.insertions.get(0).getCaption());
     assertDocumentContainsAttachment(
         insertionCallback.documents.get(0),
-        "example.com/attachment+seedA",
+        "example.com/seedA",
         "paste caption",
         "medium");
+  }
+
+  @Test
+  public void invalidPastedImageDoesNotQueueStartUploadOrConsumeIds() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    try {
+      controller.pasteImage(
+          null,
+          "paste caption",
+          J2clAttachmentComposerController.DisplaySize.MEDIUM);
+      Assert.fail("Expected invalid pasted image to fail.");
+    } catch (IllegalArgumentException expected) {
+      // Expected.
+    }
+
+    Assert.assertTrue(controller.getQueueSnapshot().isEmpty());
+    Assert.assertTrue(transport.requests.isEmpty());
+
+    controller.pasteImage(
+        new Object(),
+        "valid paste",
+        J2clAttachmentComposerController.DisplaySize.MEDIUM);
+
+    Assert.assertEquals("/attachment/example.com/seedA", transport.requests.get(0).getUrl());
+  }
+
+  @Test
+  public void pastedImageWaitsBehindActiveFileUpload() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new RecordingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    Object pastedPayload = new Object();
+    controller.pasteImage(
+        pastedPayload,
+        "paste caption",
+        J2clAttachmentComposerController.DisplaySize.MEDIUM);
+
+    Assert.assertEquals(1, transport.requests.size());
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertSame(pastedPayload, transport.requests.get(1).getPart(2).getPayload());
+    Assert.assertEquals("pasted-image.png", transport.requests.get(1).getPart(2).getFileName());
   }
 
   @Test

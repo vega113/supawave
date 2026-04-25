@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.attachment;
 
 /** Deterministic attachment id generator for J2CL composer uploads. */
 public final class J2clAttachmentIdGenerator {
+  private static final String DEFAULT_SEED = "j2cl";
   private static final char[] WEB64_ALPHABET =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
 
@@ -15,7 +16,7 @@ public final class J2clAttachmentIdGenerator {
   }
 
   public String nextAttachmentId() {
-    return domain + "/attachment+" + seed + base64Encode(counter++);
+    return domain + "/" + seed + base64Encode(counter++);
   }
 
   private static String requireNonEmpty(String value, String message) {
@@ -28,7 +29,7 @@ public final class J2clAttachmentIdGenerator {
 
   private static String sanitizeSeed(String rawSeed) {
     if (rawSeed == null || rawSeed.isEmpty()) {
-      return "j2cl";
+      return DEFAULT_SEED;
     }
     StringBuilder sanitized = new StringBuilder(rawSeed.length());
     for (int i = 0; i < rawSeed.length(); i++) {
@@ -41,10 +42,11 @@ public final class J2clAttachmentIdGenerator {
         sanitized.append(c);
       }
     }
-    return sanitized.length() == 0 ? "j2cl" : sanitized.toString();
+    return sanitized.length() == 0 ? DEFAULT_SEED : sanitized.toString();
   }
 
   private static String base64Encode(int intValue) {
+    assert intValue >= 0;
     if (intValue == 0) {
       return "A";
     }

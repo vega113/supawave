@@ -214,6 +214,8 @@ public final class J2clAttachmentComposerController {
   // explicit clear; this keeps status/error reporting available to the Lit wiring task.
   private final List<QueueItem> queue = new ArrayList<QueueItem>();
   private boolean uploadInProgress;
+  // Cursor avoids rescanning terminal items retained for status/error display.
+  private int nextQueueIndex;
   private int resetGeneration;
 
   public J2clAttachmentComposerController(
@@ -232,14 +234,11 @@ public final class J2clAttachmentComposerController {
     if (selections == null) {
       throw new IllegalArgumentException("Attachment selections are required.");
     }
-    // Field validity is enforced by AttachmentSelection factories; this pass keeps batch enqueue
-    // atomic by rejecting null entries before consuming any attachment ids.
-    List<AttachmentSelection> validatedSelections =
-        new ArrayList<AttachmentSelection>(selections.size());
+    // Factories enforce field validity; this preflight only rejects null entries before id use.
     for (AttachmentSelection selection : selections) {
-      validatedSelections.add(requirePresent(selection, "Attachment selection is required."));
+      requirePresent(selection, "Attachment selection is required.");
     }
-    for (AttachmentSelection selection : validatedSelections) {
+    for (AttachmentSelection selection : selections) {
       enqueue(selection);
     }
     startNextUpload();
@@ -275,6 +274,7 @@ public final class J2clAttachmentComposerController {
   public void cancelAndReset() {
     resetGeneration++;
     uploadInProgress = false;
+    nextQueueIndex = 0;
     queue.clear();
   }
 
@@ -312,7 +312,8 @@ public final class J2clAttachmentComposerController {
   }
 
   private QueueItem firstQueuedItem() {
-    for (QueueItem item : queue) {
+    while (nextQueueIndex < queue.size()) {
+      QueueItem item = queue.get(nextQueueIndex++);
       if (item.status == UploadStatus.QUEUED) {
         return item;
       }

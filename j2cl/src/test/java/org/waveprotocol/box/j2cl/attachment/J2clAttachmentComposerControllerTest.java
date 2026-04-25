@@ -651,6 +651,39 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void consecutiveInsertionFailuresRemainIndependent() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    J2clAttachmentComposerController controller =
+        newController(transport, new AlwaysThrowingInsertionCallback());
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL),
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.INSERT_FAILED,
+        controller.getQueueSnapshot().get(0).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.INSERT_FAILED,
+        controller.getQueueSnapshot().get(1).getStatus());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.INSERT_FAILED_ERROR_CODE,
+        controller.getQueueSnapshot().get(1).getErrorCode());
+  }
+
+  @Test
   public void cancelResetFromInsertionCallbackClearsQueueAndDoesNotStartNextUpload() {
     FakeUploadTransport transport = new FakeUploadTransport();
     CancelingInsertionCallback insertionCallback = new CancelingInsertionCallback();
@@ -815,6 +848,32 @@ public class J2clAttachmentComposerControllerTest {
 
     Assert.assertTrue(controller.getQueueSnapshot().isEmpty());
     Assert.assertEquals(1, transport.requests.size());
+  }
+
+  @Test
+  public void resetThenReentrantSelectionFromInsertionCallbackStartsFreshGeneration() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    ResettingSelectingInsertionCallback insertionCallback =
+        new ResettingSelectingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+    insertionCallback.setController(controller);
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals(1, controller.getQueueSnapshot().size());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.UPLOADING,
+        controller.getQueueSnapshot().get(0).getStatus());
   }
 
   @Test
@@ -1311,6 +1370,33 @@ public class J2clAttachmentComposerControllerTest {
         J2clAttachmentComposerController.AttachmentInsertion insertion) {
       controller.cancelAndReset();
       throw new IllegalStateException("boom");
+    }
+  }
+
+  private static final class ResettingSelectingInsertionCallback
+      implements J2clAttachmentComposerController.DocumentInsertionCallback {
+    private J2clAttachmentComposerController controller;
+    private boolean resetAndSelected;
+
+    private void setController(J2clAttachmentComposerController controller) {
+      this.controller = controller;
+    }
+
+    @Override
+    public void onInsert(
+        J2clComposerDocument document,
+        J2clAttachmentComposerController.AttachmentInsertion insertion) {
+      if (!resetAndSelected) {
+        resetAndSelected = true;
+        controller.cancelAndReset();
+        controller.selectFiles(
+            Arrays.asList(
+                J2clAttachmentComposerController.AttachmentSelection.file(
+                    new Object(),
+                    "fresh.png",
+                    "",
+                    J2clAttachmentComposerController.DisplaySize.SMALL)));
+      }
     }
   }
 

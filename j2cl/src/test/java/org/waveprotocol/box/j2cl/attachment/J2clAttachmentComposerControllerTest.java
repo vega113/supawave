@@ -204,6 +204,48 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void constructorRejectsNullUploadClient() {
+    try {
+      new J2clAttachmentComposerController(
+          WAVE_REF,
+          null,
+          new J2clAttachmentIdGenerator("example.com", "seed"),
+          new RecordingInsertionCallback());
+      Assert.fail("Expected null upload client to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("upload client"));
+    }
+  }
+
+  @Test
+  public void constructorRejectsNullIdGenerator() {
+    try {
+      new J2clAttachmentComposerController(
+          WAVE_REF,
+          new J2clAttachmentUploadClient(new FakeUploadTransport()),
+          null,
+          new RecordingInsertionCallback());
+      Assert.fail("Expected null id generator to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("id generator"));
+    }
+  }
+
+  @Test
+  public void constructorRejectsNullInsertionCallback() {
+    try {
+      new J2clAttachmentComposerController(
+          WAVE_REF,
+          new J2clAttachmentUploadClient(new FakeUploadTransport()),
+          new J2clAttachmentIdGenerator("example.com", "seed"),
+          null);
+      Assert.fail("Expected null insertion callback to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("insertion callback"));
+    }
+  }
+
+  @Test
   public void progressUpdatesActiveItemState() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentComposerController controller =
@@ -403,7 +445,7 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
-  public void cancelResetAllowsReuseWithNextId() {
+  public void cancelAndResetDoesNotResetIdGenerator() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentComposerController controller =
         newController(transport, new RecordingInsertionCallback());
@@ -660,6 +702,33 @@ public class J2clAttachmentComposerControllerTest {
         controller.getQueueSnapshot().get(1).getStatus());
 
     transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+
+    Assert.assertEquals(2, insertionCallback.insertions.size());
+    Assert.assertEquals(2, transport.requests.size());
+  }
+
+  @Test
+  public void reentrantPasteFromInsertionCallbackStartsSingleNextUpload() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    ReentrantPastingInsertionCallback insertionCallback = new ReentrantPastingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+    insertionCallback.setController(controller);
+
+    controller.pasteImage(
+        new Object(),
+        "first",
+        J2clAttachmentComposerController.DisplaySize.SMALL);
+
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(201, "stored", null));
+
+    Assert.assertEquals(2, transport.requests.size());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertEquals("pasted-image.png", transport.requests.get(1).getPart(2).getFileName());
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.UPLOADING,
+        controller.getQueueSnapshot().get(1).getStatus());
+
+    transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(201, "stored", null));
 
     Assert.assertEquals(2, insertionCallback.insertions.size());
     Assert.assertEquals(2, transport.requests.size());
@@ -1159,6 +1228,32 @@ public class J2clAttachmentComposerControllerTest {
                     "reentrant.png",
                     "",
                     J2clAttachmentComposerController.DisplaySize.SMALL)));
+      }
+    }
+  }
+
+  private static final class ReentrantPastingInsertionCallback
+      implements J2clAttachmentComposerController.DocumentInsertionCallback {
+    private final List<J2clAttachmentComposerController.AttachmentInsertion> insertions =
+        new ArrayList<J2clAttachmentComposerController.AttachmentInsertion>();
+    private J2clAttachmentComposerController controller;
+    private boolean pastedReentrantImage;
+
+    private void setController(J2clAttachmentComposerController controller) {
+      this.controller = controller;
+    }
+
+    @Override
+    public void onInsert(
+        J2clComposerDocument document,
+        J2clAttachmentComposerController.AttachmentInsertion insertion) {
+      insertions.add(insertion);
+      if (!pastedReentrantImage) {
+        pastedReentrantImage = true;
+        controller.pasteImage(
+            new Object(),
+            "reentrant paste",
+            J2clAttachmentComposerController.DisplaySize.SMALL);
       }
     }
   }

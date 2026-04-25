@@ -7,7 +7,7 @@ import org.waveprotocol.box.j2cl.richtext.J2clComposerDocument;
 
 /** Controller-domain layer for composer attachment selection, upload, and insertion callbacks. */
 public final class J2clAttachmentComposerController {
-  /** Error code used when upload succeeds but composer document insertion fails. */
+  /** Error code value used when upload succeeds but composer document insertion fails. */
   public static final String INSERT_FAILED_ERROR_CODE = "INSERT_FAILED";
 
   public interface DocumentInsertionCallback {
@@ -132,9 +132,9 @@ public final class J2clAttachmentComposerController {
 
     private UploadItem(QueueItem item) {
       this.attachmentId = item.attachmentId;
-      this.fileName = item.selection.fileName;
+      this.fileName = item.fileName;
       this.caption = item.caption();
-      this.displaySize = item.selection.displaySize;
+      this.displaySize = item.displaySize;
       this.status = item.status;
       this.progressPercent = item.progressPercent;
       this.errorCode = item.errorCode;
@@ -181,7 +181,11 @@ public final class J2clAttachmentComposerController {
 
   private static final class QueueItem {
     private final String attachmentId;
-    private final AttachmentSelection selection;
+    private final String fileName;
+    private final String caption;
+    private final DisplaySize displaySize;
+    private final boolean pastedImage;
+    private Object payload;
     private UploadStatus status = UploadStatus.QUEUED;
     private int progressPercent;
     private String errorCode = "";
@@ -189,12 +193,16 @@ public final class J2clAttachmentComposerController {
 
     private QueueItem(String attachmentId, AttachmentSelection selection) {
       this.attachmentId = attachmentId;
-      this.selection = selection;
+      this.fileName = selection.fileName;
+      this.caption = selection.caption;
+      this.displaySize = selection.displaySize;
+      this.pastedImage = selection.pastedImage;
+      this.payload = selection.payload;
     }
 
     private String caption() {
-      String trimmed = selection.caption.trim();
-      return trimmed.isEmpty() ? selection.fileName : trimmed;
+      String trimmed = caption.trim();
+      return trimmed.isEmpty() ? fileName : trimmed;
     }
   }
 
@@ -224,6 +232,8 @@ public final class J2clAttachmentComposerController {
     if (selections == null) {
       throw new IllegalArgumentException("Attachment selections are required.");
     }
+    // Field validity is enforced by AttachmentSelection factories; this pass keeps batch enqueue
+    // atomic by rejecting null entries before consuming any attachment ids.
     List<AttachmentSelection> validatedSelections =
         new ArrayList<AttachmentSelection>(selections.size());
     for (AttachmentSelection selection : selections) {
@@ -287,15 +297,15 @@ public final class J2clAttachmentComposerController {
         };
     J2clAttachmentUploadClient.UploadCallback uploadCallback =
         result -> handleUploadComplete(generation, item, result);
-    if (item.selection.pastedImage) {
+    if (item.pastedImage) {
       uploadClient.uploadPastedImage(
-          item.attachmentId, waveRef, item.selection.payload, progressCallback, uploadCallback);
+          item.attachmentId, waveRef, item.payload, progressCallback, uploadCallback);
     } else {
       uploadClient.uploadFile(
           item.attachmentId,
           waveRef,
-          item.selection.payload,
-          item.selection.fileName,
+          item.payload,
+          item.fileName,
           progressCallback,
           uploadCallback);
     }
@@ -313,8 +323,10 @@ public final class J2clAttachmentComposerController {
   private void handleUploadComplete(
       int generation, QueueItem item, J2clAttachmentUploadClient.UploadResult result) {
     if (generation != resetGeneration) {
+      item.payload = null;
       return;
     }
+    // This must be false before insertAttachment so re-entrant selectFiles/pasteImage can start.
     uploadInProgress = false;
     try {
       if (result != null && result.isSuccess()) {
@@ -339,6 +351,7 @@ public final class J2clAttachmentComposerController {
             result == null ? "Attachment upload failed without a result." : result.getMessage();
       }
     } finally {
+      item.payload = null;
       // onInsert can enqueue or cancel; startNextUpload is idempotent for those re-entrant paths.
       startNextUpload();
     }
@@ -346,7 +359,7 @@ public final class J2clAttachmentComposerController {
 
   private void insertAttachment(QueueItem item) {
     AttachmentInsertion insertion =
-        new AttachmentInsertion(item.attachmentId, item.caption(), item.selection.displaySize);
+        new AttachmentInsertion(item.attachmentId, item.caption(), item.displaySize);
     J2clComposerDocument document =
         J2clComposerDocument.builder()
             .imageAttachment(

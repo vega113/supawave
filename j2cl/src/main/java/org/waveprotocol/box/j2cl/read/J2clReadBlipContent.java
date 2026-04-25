@@ -69,8 +69,9 @@ public final class J2clReadBlipContent {
   }
 
   private static String attributeValue(String tag, String name) {
-    int cursor = tag.indexOf(' ');
-    if (cursor < 0) {
+    // Start after the tag name; indexOf(' ') would miss tabs or newlines as the first separator.
+    int cursor = "<image".length();
+    if (cursor >= tag.length()) {
       return "";
     }
     while (cursor < tag.length()) {

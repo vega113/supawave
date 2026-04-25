@@ -294,6 +294,7 @@ public final class J2clReadSurfaceDomRenderer {
         preview.setAttribute("src", model.getSourceUrl());
         preview.setAttribute("alt", model.getCaption());
         preview.setAttribute("loading", "lazy");
+        preview.setAttribute("referrerpolicy", "no-referrer");
       } else {
         preview.setAttribute("aria-hidden", "true");
         preview.textContent = "Attachment";

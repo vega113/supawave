@@ -102,6 +102,10 @@ def port_accepts_connection(port: int) -> bool:
         return False
 
 
+def has_pid_discovery_tool() -> bool:
+    return any(shutil.which(tool) for tool in ("lsof", "ss", "fuser"))
+
+
 def listener_pids(port: int) -> list[int]:
     if shutil.which("lsof"):
         completed = subprocess.run(
@@ -132,9 +136,12 @@ def listener_pids(port: int) -> list[int]:
             timeout=5,
             check=False,
         )
-        return sorted(
-            {int(pid) for pid in re.findall(r"\b\d+\b", completed.stdout + completed.stderr)}
-        )
+        pids = {int(pid) for pid in re.findall(r"\b\d+\b", completed.stdout)}
+        if not pids:
+            for line in completed.stderr.splitlines():
+                rhs = line.split(":", 1)[1] if ":" in line else line
+                pids.update(int(pid) for pid in re.findall(r"\b\d+\b", rhs))
+        return sorted(pids)
     return []
 
 
@@ -231,6 +238,9 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
         assert_pid_alive(recorded_pid)
         assert_listener_pid(port, recorded_pid)
 
+        if not has_pid_discovery_tool():
+            return
+
         duplicate_start = run_smoke(install, port, "start")
         assert duplicate_start.returncode == 0, duplicate_start.stdout + duplicate_start.stderr
         assert "READY" in duplicate_start.stdout
@@ -256,7 +266,7 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
 
 
 def test_start_refuses_non_wave_process_on_port(tmp_path: Path) -> None:
-    if not any(shutil.which(tool) for tool in ("lsof", "ss", "fuser")):
+    if not has_pid_discovery_tool():
         pytest.skip("port PID detection tool unavailable")
 
     port = free_port()

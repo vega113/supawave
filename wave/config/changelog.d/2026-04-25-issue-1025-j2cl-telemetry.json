@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-issue-1025-j2cl-telemetry",
+  "version": "Unreleased",
+  "date": "2026-04-25",
+  "title": "J2CL parity interactions emit telemetry",
+  "summary": "The opt-in J2CL root shell now reports attachment and rich-edit parity interactions through the shared client stats channel.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "J2CL attachment uploads, attachment metadata failures, attachment open or download clicks, and rich-edit toolbar actions now emit structured telemetry without leaking wave IDs, attachment IDs, file names, or URLs."
+      ]
+    }
+  ]
+}

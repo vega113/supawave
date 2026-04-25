@@ -1,9 +1,9 @@
 # J2CL GWT Parity Matrix
 
-Status: Proposed  
-Owner: Project Maintainers  
-Updated: 2026-04-22  
-Review cadence: on-change  
+Status: Proposed\
+Owner: Project Maintainers\
+Updated: 2026-04-25\
+Review cadence: on-change
 
 Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)
 Task issue: [#961](https://github.com/vega113/supawave/issues/961)
@@ -134,7 +134,7 @@ Current J2CL compose is a narrow write pilot. Downstream coverage:
 | R-5.4 | Tasks and related metadata overlays | Task toggle, completion state, and associated metadata overlays preserved; state persists through live updates | Overlay visuals may change | Keyboard toggling preserved | Overlays announce state changes | Labels translate | Harness covers task-toggle fixture | Task state-change counts emitted | smoke + browser + harness | `#970` |
 | R-5.5 | Reactions and comparable interaction overlays | Reaction add/remove and counts preserved; overlays remain reachable and do not trap focus | Reaction set, chip styling, and placement may change | Keyboard add/remove preserved | Reaction counts announced | Counts localize | Harness covers at least one reaction fixture | Reaction add/remove counts emitted | smoke + browser + harness | `#970` |
 | R-5.6 | Attachment workflow | Daily attachment upload/download/open paths preserved; failure modes surface user-visible errors; attachments round-trip through the model | Attachment tile styling may change | Attachment affordances are keyboard-reachable | Attachment regions labeled; errors announced | Error text translates | Harness covers one upload and one download fixture | Attachment upload/download counts with outcomes | smoke + browser + harness | `#971` |
-| R-5.7 | Remaining rich-edit daily affordances | Daily-path rich-edit behaviors identified by the packet for `#971` (for example: lists, block quotes, inline links) preserved | Visuals may change per the design packet | Keyboard semantics for the affordances preserved | Affordances labeled | n/a | Harness covers at least one fixture per affordance | Action counts emitted | smoke + browser + harness | `#971` |
+| R-5.7 | Remaining rich-edit daily affordances | Daily-path rich-edit behaviors identified by the packet for `#971` (for example: lists and inline links) preserved | Visuals may change per the design packet | Keyboard semantics for the affordances preserved | Affordances labeled | n/a | Harness covers at least one fixture per affordance | Action counts emitted | smoke + browser + harness | `#971` |
 
 Non-daily editor edge cases that do not ship in `#971` are captured in
 Section 10 rather than silently dropped.
@@ -221,6 +221,19 @@ recorded here so it is not silently dropped:
   example: rare legacy formatting paths, one-off keyboard shortcuts that do
   not appear in the `#969`/`#971` packet) — to be revisited only after the
   gate closes or via a dedicated addendum packet linked from this section
+- #971 daily attachment/rich-edit closeout defers the GWT toolbar affordances
+  that were not part of the inspected daily command packet: superscript,
+  subscript, font size, font family, font color, highlight color / `backColor`,
+  and block quote. The block quote affordance was not present in the inspected
+  GWT `EditToolbar.java` action set, so it is not counted as a #971 daily
+  parity requirement unless a later packet adds it explicitly. This finding is
+  the reason R-5.7 no longer lists block quote as a daily-path example.
+- #971 also defers drag-and-drop attachment insertion, client-side image
+  compression, and mobile/touch-specific toolbar gestures beyond the file
+  picker and paste-image flows. These remain follow-up candidates after the
+  daily parity gate, not blockers for one-file upload, pasted-image upload,
+  caption/display-size preservation, read-surface rendering, or keyboard
+  open/download.
 - browser-harness descendants whose GWT-only assumptions are incompatible with
   the Lit/J2CL surface — accounted for in the GWT retirement issue
   (future `#5.3` per the issue map), not in the parity-acquisition chain

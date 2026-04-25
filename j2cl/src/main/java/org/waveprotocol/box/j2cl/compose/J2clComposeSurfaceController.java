@@ -144,6 +144,7 @@ public final class J2clComposeSurfaceController {
   private String createStatusText = "Create a self-owned wave inside the root shell.";
   private String createErrorText = "";
   private J2clSidecarWriteSession writeSession;
+  private String lastSelectedWaveId;
   private String replyDraft = "";
   private boolean replySubmitting;
   private boolean replyStaleBasis;
@@ -259,6 +260,7 @@ public final class J2clComposeSurfaceController {
     createSubmitting = false;
     replySubmitting = false;
     writeSession = null;
+    lastSelectedWaveId = null;
     replyStaleBasis = false;
     replyStaleWaveId = null;
     replyErrorText = "";
@@ -480,14 +482,13 @@ public final class J2clComposeSurfaceController {
       }
     }
     if (waveChanged) {
-      String nextWaveId = nextWriteSession == null ? null : nextWriteSession.getSelectedWaveId();
-      // Only reset attachments when transitioning to a real, different wave.
-      // A null nextWriteSession is a transient disconnect — preserve in-flight attachments.
-      if (nextWaveId != null) {
-        resetAttachmentState();
-      }
+      // selectedWaveChanged ignores transient null disconnects; this is a real wave transition.
+      resetAttachmentState();
     }
     writeSession = nextWriteSession;
+    if (hasSelectedWave(nextWriteSession)) {
+      lastSelectedWaveId = nextWriteSession.getSelectedWaveId();
+    }
     if (!hasSelectedWave(writeSession) && replyStatusText.isEmpty()) {
       replyStatusText = "Open a wave before replying.";
     }
@@ -649,10 +650,9 @@ public final class J2clComposeSurfaceController {
     annotationCommandId = "";
     commandStatusText = "";
     commandErrorText = "";
-    J2clAttachmentComposerController completedAttachmentController = attachmentController;
-    attachmentController = null;
-    if (completedAttachmentController != null) {
-      completedAttachmentController.cancelAndReset();
+    if (attachmentController != null) {
+      // Keep the controller so its id generator counter continues across reply batches.
+      attachmentController.cancelAndReset();
     }
     replyStatusText = "Reply submitted. Waiting for the opened wave to update.";
     replyErrorText = "";
@@ -1059,8 +1059,12 @@ public final class J2clComposeSurfaceController {
   }
 
   private boolean selectedWaveChanged(J2clSidecarWriteSession nextWriteSession) {
-    String currentWaveId = writeSession == null ? null : writeSession.getSelectedWaveId();
+    String currentWaveId =
+        writeSession == null ? lastSelectedWaveId : writeSession.getSelectedWaveId();
     String nextWaveId = nextWriteSession == null ? null : nextWriteSession.getSelectedWaveId();
+    if (nextWriteSession == null) {
+      return false;
+    }
     return !safeEquals(currentWaveId, nextWaveId);
   }
 

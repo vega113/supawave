@@ -222,6 +222,24 @@ public class J2clAttachmentMetadataClientTest {
   }
 
   @Test
+  public void publicSuccessFactoryRejectsNullLists() {
+    try {
+      J2clAttachmentMetadataClient.MetadataResult.success(null, Arrays.asList("missing+1"));
+      Assert.fail("Expected null attachment list to be rejected.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertEquals("Metadata result lists are required.", expected.getMessage());
+    }
+
+    try {
+      J2clAttachmentMetadataClient.MetadataResult.success(
+          Arrays.<J2clAttachmentMetadata>asList(), null);
+      Assert.fail("Expected null missing-id list to be rejected.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertEquals("Metadata result lists are required.", expected.getMessage());
+    }
+  }
+
+  @Test
   public void httpFailureReturnsTypedErrorWithoutThrowing() {
     FakeMetadataTransport transport = new FakeMetadataTransport();
     J2clAttachmentMetadataClient client = new J2clAttachmentMetadataClient(transport);

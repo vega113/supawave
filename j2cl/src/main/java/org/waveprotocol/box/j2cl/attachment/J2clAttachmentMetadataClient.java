@@ -413,6 +413,9 @@ public final class J2clAttachmentMetadataClient {
     public static MetadataResult success(
         List<J2clAttachmentMetadata> attachments,
         List<String> missingAttachmentIds) {
+      if (attachments == null || missingAttachmentIds == null) {
+        throw new IllegalArgumentException("Metadata result lists are required.");
+      }
       return new MetadataResult(true, attachments, missingAttachmentIds, null, "");
     }
 

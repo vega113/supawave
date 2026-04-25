@@ -326,8 +326,11 @@ public final class J2clAttachmentComposerController {
     J2clAttachmentUploadClient.UploadProgressCallback progressCallback =
         percent -> {
           if (generation == resetGeneration && item.status == UploadStatus.UPLOADING) {
-            item.progressPercent = clampPercent(percent);
-            notifyStateChanged();
+            int progressPercent = clampPercent(percent);
+            if (item.progressPercent != progressPercent) {
+              item.progressPercent = progressPercent;
+              notifyStateChanged();
+            }
           }
         };
     J2clAttachmentUploadClient.UploadCallback uploadCallback =

@@ -679,7 +679,7 @@ public final class J2clComposeSurfaceController {
     if (annotationKey != null
         && annotationValue != null
         && draftText != null
-        && !draftText.isEmpty()) {
+        && !draftText.trim().isEmpty()) {
       builder.annotatedText(annotationKey, annotationValue, draftText);
     } else {
       builder.text(draftText);
@@ -814,6 +814,9 @@ public final class J2clComposeSurfaceController {
       return;
     }
     if (action == J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE) {
+      activeCommandId = J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE.id();
+      commandStatusText = "";
+      commandErrorText = "";
       refreshAttachmentCommandState();
       if (commandStatusText.isEmpty() && commandErrorText.isEmpty()) {
         commandStatusText = "No attachment uploads are queued.";

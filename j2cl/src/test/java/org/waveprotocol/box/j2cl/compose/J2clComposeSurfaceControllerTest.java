@@ -2495,6 +2495,9 @@ public class J2clComposeSurfaceControllerTest {
     }
   }
 
+  // Reflection is intentionally used here to avoid adding a test-only getter to the production API.
+  // This helper depends on the exact private field name "uploadClient" in
+  // J2clAttachmentComposerController — update it if the field is ever renamed.
   private static J2clAttachmentUploadClient uploadClient(
       J2clAttachmentComposerController controller) throws Exception {
     Field field = J2clAttachmentComposerController.class.getDeclaredField("uploadClient");

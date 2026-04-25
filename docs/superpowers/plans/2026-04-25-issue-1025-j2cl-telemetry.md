@@ -217,8 +217,8 @@ Implementation details:
 - Add common fields `surface=j2cl-root` and `category=parity` during build.
 - Reject field names `fileName`, `filename`, `caption`, `waveId`, `waveRef`, `address`, `attachmentId`, `url`, `href`, `payload`, `content`, and `token` case-insensitively.
 - Also reject reserved stats-shape keys `moduleName`, `subSystem`, `evtGroup`,
-  `millis`, and `type` case-insensitively so sanitized fields cannot overwrite
-  the browser event envelope.
+  `millis`, `type`, `surface`, and `category` case-insensitively so sanitized
+  fields cannot overwrite the browser event envelope or common parity fields.
 - `Sink.record` failures are contained by callers, not by the sink itself.
 - Test code uses `RecordingTelemetrySink` from `j2cl/src/test/java/...`; do not ship a recording helper in main J2CL code.
 

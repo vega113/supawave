@@ -18,3 +18,6 @@ Branch: `codex/issue-1025-j2cl-telemetry`
 
 - Verification uses SBT entry points only. The SBT task owns any internal J2CL wrapper execution.
 - Claude Opus review round 1 returned `pass-with-followups`; required fix was to add and assert `source=read-surface` on `attachment.open.clicked` and `attachment.download.clicked`.
+- Claude Opus review round 2 returned `pass-with-followups`; the browser listener concern is already covered by `J2clClientTelemetryTest.browserStatsSinkSwallowsListenerException`, which installs a throwing `window.__stats_listener`, records through `J2clClientTelemetry.browserStatsSink()`, and asserts `window.__stats` still receives the event.
+- The reserved-key plan text was updated after round 2 to explicitly include `surface` and `category`, matching the implemented sanitizer and test coverage.
+- Failure-reason coverage is implemented in `J2clAttachmentComposerControllerTest` and `J2clSelectedWaveControllerTest`: upload covers `network`, `forbidden`, `server`, `unsupported-file`, `cancelled`, `validation`, and `client-error`; metadata covers `network`, `forbidden`, `server`, `metadata`, `validation`, and `client-error`.

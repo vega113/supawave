@@ -8,8 +8,9 @@ import java.util.List;
 import jsinterop.base.Js;
 
 public final class J2clAttachmentUploadClient {
+  public static final String PASTED_IMAGE_FILENAME = "pasted-image.png";
+
   private static final String ATTACHMENT_URL_PREFIX = "/attachment/";
-  private static final String PASTED_IMAGE_FILENAME = "pasted-image.png";
   private static final int NO_TIMEOUT_MILLIS = 0;
   private static final int PASTED_IMAGE_TIMEOUT_MILLIS = 60000;
   private static final UploadProgressCallback NO_UPLOAD_PROGRESS_CALLBACK =

@@ -7,7 +7,11 @@ import org.waveprotocol.box.j2cl.richtext.J2clComposerDocument;
 
 /** Controller-domain layer for composer attachment selection, upload, and insertion callbacks. */
 public final class J2clAttachmentComposerController {
+  /** Error code used when upload succeeds but composer document insertion fails. */
+  public static final String INSERT_FAILED_ERROR_CODE = "INSERTION";
+
   public interface DocumentInsertionCallback {
+    /** Runtime exceptions are contained as {@link UploadStatus#INSERT_FAILED}; VM errors are not. */
     void onInsert(J2clComposerDocument document, AttachmentInsertion insertion);
   }
 
@@ -48,14 +52,11 @@ public final class J2clAttachmentComposerController {
         String caption,
         DisplaySize displaySize,
         boolean pastedImage) {
-      this.payload = payload;
+      this.payload = requirePresent(payload, "Attachment payload is required.");
       this.fileName = requireNonEmpty(fileName, "Attachment file name is required.");
       this.caption = caption == null ? "" : caption;
       this.displaySize = requirePresent(displaySize, "Attachment display size is required.");
       this.pastedImage = pastedImage;
-      if (payload == null) {
-        throw new IllegalArgumentException("Attachment payload is required.");
-      }
     }
 
     public static AttachmentSelection file(
@@ -159,10 +160,15 @@ public final class J2clAttachmentComposerController {
       return progressPercent;
     }
 
+    /**
+     * Returns an empty string when there is no error, an upload {@code ErrorType.name()}, or
+     * {@link #INSERT_FAILED_ERROR_CODE} when document insertion fails after upload success.
+     */
     public String getErrorCode() {
       return errorCode;
     }
 
+    /** Returns an empty string when there is no error. */
     public String getErrorMessage() {
       return errorMessage;
     }
@@ -246,6 +252,8 @@ public final class J2clAttachmentComposerController {
    *
    * <p>This does not abort the underlying browser transport request; the current upload may
    * continue on the network, but its eventual progress or completion callback will be ignored.
+   * The attachment id generator is intentionally not reset so later selections keep globally
+   * unique ids.
    */
   public void cancelAndReset() {
     resetGeneration++;
@@ -309,7 +317,7 @@ public final class J2clAttachmentComposerController {
           insertAttachment(item);
         } catch (RuntimeException e) {
           item.status = UploadStatus.INSERT_FAILED;
-          item.errorCode = "INSERTION";
+          item.errorCode = INSERT_FAILED_ERROR_CODE;
           item.errorMessage =
               e.getMessage() == null ? "Attachment insertion failed." : e.getMessage();
         }
@@ -322,6 +330,7 @@ public final class J2clAttachmentComposerController {
             result == null ? "Attachment upload failed without a result." : result.getMessage();
       }
     } finally {
+      // onInsert can enqueue or cancel; startNextUpload is idempotent for those re-entrant paths.
       startNextUpload();
     }
   }

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-ime-debug-panel-share-download",
+  "version": "Unreleased",
+  "date": "2026-04-25",
+  "title": "IME debug logs are easier to export on Android",
+  "summary": "The IME debug overlay now offers direct download and Android share-sheet actions for the current log.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "IME debug tracing now includes Download and Share controls so Android users can save the log as a text file or send it through apps such as Telegram from the system share sheet."
+      ]
+    }
+  ]
+}

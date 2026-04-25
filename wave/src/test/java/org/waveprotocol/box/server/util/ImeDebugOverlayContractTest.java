@@ -42,6 +42,8 @@ public final class ImeDebugOverlayContractTest extends TestCase {
     assertContains(source, "collapsedHeight = \"44px\"");
     assertContains(source, "toolbar.style.height = collapsedHeight");
     assertContains(source, "toolbar.style.padding = \"0 6px\"");
+    assertContains(source, "toolbar.style.overflowX = \"auto\"");
+    assertContains(source, "button.style.flex = \"0 0 auto\"");
     assertFalse("Overlay must not start with the previous expanded 45% height",
         source.contains("max-height:45%"));
   }
@@ -58,6 +60,23 @@ public final class ImeDebugOverlayContractTest extends TestCase {
     assertContains(source, "copyLogText");
     assertContains(source, "No IME log lines yet");
     assertContains(source, "IME log copied");
+  }
+
+  public void testOverlayProvidesDownloadAndShareButtons() throws Exception {
+    String source = readTracerSource();
+
+    assertContains(source, "Download IME debug log");
+    assertContains(source, "Share IME debug log");
+    assertContains(source, "ime-debug-log-");
+    assertContains(source, "text/plain;charset=utf-8");
+    assertContains(source, "createElement(\"a\")");
+    assertContains(source, "URL.createObjectURL");
+    assertContains(source, "navigator.canShare");
+    assertContains(source, "navigator.share");
+    assertContains(source, "IME log downloaded");
+    assertContains(source, "IME log shared");
+    assertContains(source, "Share failed; IME log downloaded");
+    assertContains(source, "Share unavailable; download and copy failed");
   }
 
   public void testLogRowsAppendInsideScrollableLogBody() throws Exception {

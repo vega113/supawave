@@ -513,10 +513,13 @@ public final class ImeDebugTracer {
       toolbar.style.gap = "6px";
       toolbar.style.padding = "0 6px";
       toolbar.style.boxSizing = "border-box";
+      toolbar.style.overflowX = "auto";
+      toolbar.style.overflowY = "hidden";
+      toolbar.style.webkitOverflowScrolling = "touch";
 
       var title = d.createElement("span");
       title.textContent = "IME";
-      title.style.flex = "1 1 auto";
+      title.style.flex = "0 0 auto";
       title.style.fontWeight = "700";
       title.style.minWidth = "0";
 
@@ -530,30 +533,49 @@ public final class ImeDebugTracer {
         button.style.font = "12px/1 sans-serif";
         button.style.padding = "0 10px";
         button.style.cursor = "pointer";
+        button.style.flex = "0 0 auto";
+        button.style.whiteSpace = "nowrap";
       }
 
       var toggle = d.createElement("button");
       toggle.type = "button";
-      toggle.textContent = "Show IME log";
+      toggle.textContent = "Show";
+      toggle.setAttribute("title", "Show IME log");
       styleButton(toggle);
 
       var copy = d.createElement("button");
       copy.type = "button";
       copy.textContent = "Copy";
       copy.setAttribute("aria-label", "Copy IME debug log");
+      copy.setAttribute("title", "Copy IME debug log");
       styleButton(copy);
+
+      var download = d.createElement("button");
+      download.type = "button";
+      download.textContent = "Download";
+      download.setAttribute("aria-label", "Download IME debug log");
+      download.setAttribute("title", "Download IME debug log");
+      styleButton(download);
+
+      var share = d.createElement("button");
+      share.type = "button";
+      share.textContent = "Share";
+      share.setAttribute("aria-label", "Share IME debug log");
+      share.setAttribute("title", "Share IME debug log");
+      styleButton(share);
 
       var clear = d.createElement("button");
       clear.type = "button";
       clear.textContent = "Clear";
       clear.setAttribute("aria-label", "Clear IME debug log");
+      clear.setAttribute("title", "Clear IME debug log");
       styleButton(clear);
 
       var status = d.createElement("span");
       status.setAttribute("aria-live", "polite");
-      status.style.flex = "0 1 auto";
+      status.style.flex = "1 1 56px";
       status.style.minWidth = "0";
-      status.style.maxWidth = "28vw";
+      status.style.maxWidth = "34vw";
       status.style.overflow = "hidden";
       status.style.textOverflow = "ellipsis";
       status.style.whiteSpace = "nowrap";
@@ -592,8 +614,9 @@ public final class ImeDebugTracer {
             ? "ime-debug-overlay ime-debug-overlay-expanded"
             : "ime-debug-overlay ime-debug-overlay-minimized";
         ov.setAttribute("aria-expanded", expanded ? "true" : "false");
-        toggle.textContent = expanded ? "Hide IME log" : "Show IME log";
+        toggle.textContent = expanded ? "Hide" : "Show";
         toggle.setAttribute("aria-label", expanded ? "Hide IME debug log" : "Show IME debug log");
+        toggle.setAttribute("title", expanded ? "Hide IME log" : "Show IME log");
         log.style.display = expanded ? "block" : "none";
         if (expanded) {
           ov.style.height = "auto";
@@ -611,6 +634,119 @@ public final class ImeDebugTracer {
           rows.push(log.children[i].textContent || "");
         }
         return rows.join("\n");
+      }
+
+      function logFilename() {
+        var stamp;
+        try {
+          stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        } catch (e) {
+          stamp = String(new Date().getTime());
+        }
+        return "ime-debug-log-" + stamp + ".txt";
+      }
+
+      function createLogBlob(text) {
+        if (!w.Blob) {
+          return null;
+        }
+        try {
+          return new w.Blob([text], {type: "text/plain;charset=utf-8"});
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function triggerDownload(text, filename) {
+        var anchor = d.createElement("a");
+        var blob = createLogBlob(text);
+        var url = null;
+        if (blob && w.URL && w.URL.createObjectURL) {
+          url = w.URL.createObjectURL(blob);
+          anchor.href = url;
+        } else {
+          anchor.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+        }
+        anchor.download = filename;
+        anchor.setAttribute("aria-hidden", "true");
+        anchor.style.display = "none";
+        d.body.appendChild(anchor);
+        try {
+          anchor.click();
+          return true;
+        } catch (e) {
+          return false;
+        } finally {
+          d.body.removeChild(anchor);
+          if (url && w.URL && w.URL.revokeObjectURL) {
+            w.setTimeout(function () {
+              w.URL.revokeObjectURL(url);
+            }, 1000);
+          }
+        }
+      }
+
+      function createShareFile(text, filename) {
+        if (!w.File) {
+          return null;
+        }
+        try {
+          return new w.File([text], filename, {type: "text/plain;charset=utf-8"});
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function shareLog(text, filename) {
+        var navigator = w.navigator;
+        if (!navigator || !navigator.share) {
+          return false;
+        }
+        var file = createShareFile(text, filename);
+        var payload = {
+          title: "SupaWave IME debug log",
+          text: text
+        };
+        try {
+          if (file && navigator.canShare && navigator.canShare({files: [file]})) {
+            payload = {
+              title: "SupaWave IME debug log",
+              text: "SupaWave IME debug log attached.",
+              files: [file]
+            };
+          }
+        } catch (e) {
+          payload = {
+            title: "SupaWave IME debug log",
+            text: text
+          };
+        }
+        try {
+          navigator.share(payload).then(function () {
+            setStatus("IME log shared");
+          }, function (err) {
+            if (err && err.name === "AbortError") {
+              setStatus("Share canceled");
+              return;
+            }
+            if (triggerDownload(text, filename)) {
+              setStatus("Share failed; IME log downloaded");
+            } else {
+              fallbackCopy(text, function (copied) {
+                setStatus(copied ? "Share failed; IME log copied" : "Share failed");
+              });
+            }
+          });
+        } catch (e) {
+          if (triggerDownload(text, filename)) {
+            setStatus("Share failed; IME log downloaded");
+          } else {
+            fallbackCopy(text, function (copied) {
+              setStatus(copied ? "Share failed; IME log copied" : "Share failed");
+            });
+          }
+        }
+        return true;
       }
 
       function reserveBottomSpace(element, amount) {
@@ -688,6 +824,35 @@ public final class ImeDebugTracer {
         }
         ev.stopPropagation();
       }, false);
+      download.addEventListener('click', function (ev) {
+        var text = copyLogText(log);
+        if (!text) {
+          setStatus("No IME log lines yet");
+          ev.stopPropagation();
+          return;
+        }
+        setStatus(triggerDownload(text, logFilename()) ? "IME log downloaded" : "Download failed");
+        ev.stopPropagation();
+      }, false);
+      share.addEventListener('click', function (ev) {
+        var text = copyLogText(log);
+        var filename = logFilename();
+        if (!text) {
+          setStatus("No IME log lines yet");
+          ev.stopPropagation();
+          return;
+        }
+        if (!shareLog(text, filename)) {
+          if (triggerDownload(text, filename)) {
+            setStatus("IME log downloaded");
+          } else {
+            fallbackCopy(text, function (copied) {
+              setStatus(copied ? "IME log copied" : "Share unavailable; download and copy failed");
+            });
+          }
+        }
+        ev.stopPropagation();
+      }, false);
       clear.addEventListener('click', function (ev) {
         log.textContent = "";
         setStatus("IME log cleared");
@@ -710,6 +875,8 @@ public final class ImeDebugTracer {
       toolbar.appendChild(title);
       toolbar.appendChild(toggle);
       toolbar.appendChild(copy);
+      toolbar.appendChild(download);
+      toolbar.appendChild(share);
       toolbar.appendChild(clear);
       toolbar.appendChild(status);
       ov.appendChild(toolbar);
@@ -726,10 +893,9 @@ public final class ImeDebugTracer {
         }, true);
       }
     } catch (e) {
-      // swallow
+      // Diagnostic overlay must never break editor initialization.
     }
   }-*/;
-
   private static native void appendToOverlayJsni(String line) /*-{
     try {
       var d = $doc;

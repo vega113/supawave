@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clReadSurfaceDomRenderer {
@@ -24,6 +25,7 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private final HTMLDivElement host;
+  private final J2clClientTelemetry.Sink telemetrySink;
   private final List<HTMLElement> renderedBlips = new ArrayList<HTMLElement>();
   private List<J2clReadBlip> renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
   private List<J2clReadWindowEntry> renderedWindowEntries =
@@ -36,7 +38,13 @@ public final class J2clReadSurfaceDomRenderer {
   private String lastScrollDirection;
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
+    this(host, J2clClientTelemetry.noop());
+  }
+
+  public J2clReadSurfaceDomRenderer(
+      HTMLDivElement host, J2clClientTelemetry.Sink telemetrySink) {
     this.host = host;
+    this.telemetrySink = requirePresent(telemetrySink, "Read-surface telemetry sink is required.");
   }
 
   /**
@@ -326,7 +334,9 @@ public final class J2clReadSurfaceDomRenderer {
                 model.getOpenLabel(),
                 "data-j2cl-attachment-open",
                 false,
-                model.getFileName()));
+                model.getFileName(),
+                "attachment.open.clicked",
+                model.getDisplaySize()));
       }
       if (model.canDownload()) {
         actions.appendChild(
@@ -336,7 +346,9 @@ public final class J2clReadSurfaceDomRenderer {
                 model.getDownloadLabel(),
                 "data-j2cl-attachment-download",
                 true,
-                model.getDownloadFileName()));
+                model.getDownloadFileName(),
+                "attachment.download.clicked",
+                model.getDisplaySize()));
       }
       attachment.appendChild(actions);
     }
@@ -349,7 +361,9 @@ public final class J2clReadSurfaceDomRenderer {
       String ariaLabel,
       String dataAttribute,
       boolean download,
-      String fileName) {
+      String fileName,
+      String telemetryEventName,
+      String displaySize) {
     HTMLElement link = (HTMLElement) DomGlobal.document.createElement("a");
     link.className = "j2cl-read-attachment-link";
     link.textContent = text;
@@ -371,7 +385,17 @@ public final class J2clReadSurfaceDomRenderer {
       link.setAttribute("referrerpolicy", "no-referrer");
       link.setAttribute("target", "_blank");
     }
+    link.addEventListener("click", event -> emitAttachmentClick(telemetryEventName, displaySize));
     return link;
+  }
+
+  private void emitAttachmentClick(String eventName, String displaySize) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event(eventName).field("displaySize", displaySize).build());
+    } catch (Throwable ignored) {
+      // Link telemetry is observational; clicks must keep their default browser behavior.
+    }
   }
 
   private static boolean isExternalHttpsUrl(String href) {
@@ -987,5 +1011,12 @@ public final class J2clReadSurfaceDomRenderer {
 
   private static List<J2clReadBlip> immutableBlipCopy(List<J2clReadBlip> blips) {
     return Collections.unmodifiableList(new ArrayList<J2clReadBlip>(blips));
+  }
+
+  private static <T> T requirePresent(T value, String message) {
+    if (value == null) {
+      throw new IllegalArgumentException(message);
+    }
+    return value;
   }
 }

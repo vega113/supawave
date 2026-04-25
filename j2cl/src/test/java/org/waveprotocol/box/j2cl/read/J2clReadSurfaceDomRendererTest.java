@@ -18,6 +18,8 @@ import org.junit.Assume;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 @J2clTestInput(J2clReadSurfaceDomRendererTest.class)
@@ -351,6 +353,75 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("Open attachment hero.png (image/png)", open.getAttribute("aria-label"));
     Assert.assertEquals(
         "Download attachment hero.png (image/png)", download.getAttribute("aria-label"));
+  }
+
+  @Test
+  public void openAndDownloadLinksEmitClickTelemetry() {
+    assumeBrowserDom();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    HTMLDivElement host = createHost();
+    J2clAttachmentRenderModel attachment =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "large",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host, telemetry)
+            .render(
+                Arrays.asList(new J2clReadBlip("b+root", "Root text", Arrays.asList(attachment))),
+                Collections.<String>emptyList()));
+
+    ((HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']")).click();
+    J2clClientTelemetry.Event openEvent = telemetry.lastEvent();
+    Assert.assertEquals("attachment.open.clicked", openEvent.getName());
+    Assert.assertEquals("large", openEvent.getFields().get("displaySize"));
+
+    ((HTMLElement) host.querySelector("[data-j2cl-attachment-download='true']")).click();
+    J2clClientTelemetry.Event downloadEvent = telemetry.lastEvent();
+    Assert.assertEquals("attachment.download.clicked", downloadEvent.getName());
+    Assert.assertEquals("large", downloadEvent.getFields().get("displaySize"));
+    Assert.assertEquals(2, telemetry.events().size());
+  }
+
+  @Test
+  public void throwingTelemetrySinkDoesNotPreventAttachmentLinkClick() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clAttachmentRenderModel attachment =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(
+                host,
+                event -> {
+                  throw new RuntimeException("telemetry boom");
+                })
+            .render(
+                Arrays.asList(new J2clReadBlip("b+root", "Root text", Arrays.asList(attachment))),
+                Collections.<String>emptyList()));
+
+    ((HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']")).click();
+    ((HTMLElement) host.querySelector("[data-j2cl-attachment-download='true']")).click();
   }
 
   @Test

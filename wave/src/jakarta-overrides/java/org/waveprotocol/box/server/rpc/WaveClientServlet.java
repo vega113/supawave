@@ -212,11 +212,13 @@ public class WaveClientServlet extends HttpServlet {
     response.setCharacterEncoding("UTF-8");
     response.setStatus(HttpServletResponse.SC_OK);
     try (var w = response.getWriter()) {
-      String topBarHtml = "";
+      String username = null;
+      String userDomain = null;
+      String userRole = null;
       if (id != null) {
-        String username = id.getAddress().split("@")[0];
-        String userDomain = id.getDomain();
-        String userRole = HumanAccountData.ROLE_USER;
+        username = id.getAddress().split("@")[0];
+        userDomain = id.getDomain();
+        userRole = HumanAccountData.ROLE_USER;
         try {
           AccountData acctData = accountStore.getAccount(id);
           if (acctData != null && acctData.isHuman()) {
@@ -225,8 +227,9 @@ public class WaveClientServlet extends HttpServlet {
         } catch (Exception e) {
           LOG.warning("Failed to look up role for " + id.getAddress(), e);
         }
-        topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
       }
+      // renderTopBar accepts a null username and emits the signed-out auth shell.
+      String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
 
       // Keep the legacy rollback path on the existing skeleton load until the
       // server-side pre-rendered fragment has an explicit sanitization boundary.

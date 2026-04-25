@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-android-gwt-topbarless-startup",
+  "version": "Issue #1019",
+  "date": "2026-04-25",
+  "title": "Fix Android wave loading when the topbar is absent",
+  "summary": "The legacy GWT wave client now finishes booting when server-rendered topbar controls such as the language selector are not present.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Opening SupaWave on Android no longer gets stuck on the wave-list skeleton because the GWT client skips optional topbar wiring when those controls are absent."
+      ]
+    }
+  ]
+}

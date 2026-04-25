@@ -115,6 +115,28 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
+  public void signedOutLegacyRootStillRendersTopbarShell() throws Exception {
+    WaveClientServlet servlet = createServlet(null, false);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getContextPath()).thenReturn("");
+    when(request.getSession(false)).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("<div class=\"topbar\">"));
+    assertTrue(html.contains("id=\"banner\""));
+    assertTrue(html.contains("href=\"/auth/register\""));
+    assertTrue(html.contains("href=\"/auth/signin?r=/\""));
+    assertFalse(html.contains("id=\"lang\""));
+    assertFalse(html.contains("id=\"signout\""));
+  }
+
+  @Test
   public void signedOutPlainRootBootsIntoJ2clShellWhenBootstrapFlagIsOn() throws Exception {
     WaveClientServlet servlet = createServlet(null, true);
     HttpServletRequest request = mock(HttpServletRequest.class);

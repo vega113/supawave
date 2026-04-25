@@ -450,7 +450,8 @@ public class WebClient implements EntryPoint {
     currentWebSocket = websocket;
     websocket.connect();
 
-    if (Session.get().isLoggedIn()) {
+    boolean loggedIn = Session.get().isLoggedIn();
+    if (loggedIn) {
       loggedInUser = new ParticipantId(Session.get().getAddress());
       idGenerator = ClientIdGenerator.create();
       loginToServer();
@@ -462,8 +463,10 @@ public class WebClient implements EntryPoint {
     setupUi();
     setupStatistics();
 
-    restoreLastWaveFromStorage();
-    History.fireCurrentHistoryState();
+    if (loggedIn) {
+      restoreLastWaveFromStorage();
+      History.fireCurrentHistoryState();
+    }
     LOG.info("SimpleWebClient.onModuleLoad() done");
 
     // Export JSNI function for creating direct waves from profile card popup
@@ -611,7 +614,10 @@ public class WebClient implements EntryPoint {
     // Hide the frame until waves start getting opened.
     UIObject.setVisible(waveFrame.getElement(), false);
 
-    Document.get().getElementById("signout").setInnerText(messages.signout());
+    Element signout = Document.get().getElementById("signout");
+    if (signout != null) {
+      signout.setInnerText(messages.signout());
+    }
 
     // Handles opening waves.
     ClientEvents.get().addWaveSelectionEventHandler(new WaveSelectionEventHandler() {
@@ -624,6 +630,9 @@ public class WebClient implements EntryPoint {
 
   private void setupLocaleSelect() {
     final SelectElement select = (SelectElement) Document.get().getElementById("lang");
+    if (select == null) {
+      return;
+    }
     final com.google.gwt.dom.client.Element langCodeBadge =
         Document.get().getElementById("langCode");
     String currentLocale = LocaleInfo.getCurrentLocale().getLocaleName();
@@ -835,6 +844,10 @@ public class WebClient implements EntryPoint {
    */
   private void openWave(WaveRef waveRef, boolean isNewWave, boolean isDirectMessage,
       Set<ParticipantId> participants) {
+    if (channel == null || idGenerator == null) {
+      LOG.info("Ignoring wave open request before login is complete");
+      return;
+    }
     final org.waveprotocol.box.stat.Timer timer = Timing.startRequest("Open Wave");
     LOG.info("WebClient.openWave()");
     String selectedToken = GwtWaverefEncoder.encodeToUriPathSegment(waveRef);

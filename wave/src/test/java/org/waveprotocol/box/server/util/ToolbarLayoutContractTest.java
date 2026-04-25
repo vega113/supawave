@@ -265,6 +265,35 @@ public final class ToolbarLayoutContractTest extends TestCase {
         "<path d=\\\"M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z\\\"></path>"));
   }
 
+  public void testWebClientLocaleSelectorDoesNotBlockTopbarlessStartup() throws Exception {
+    String javaSource = read(
+        "wave/src/main/java/org/waveprotocol/box/webclient/client/WebClient.java");
+
+    assertTrue(javaSource.contains("boolean loggedIn = Session.get().isLoggedIn();"));
+    assertTrue(javaSource.contains("if (loggedIn) {"));
+    assertTrue(javaSource.indexOf("if (loggedIn) {", javaSource.indexOf("setupStatistics();"))
+        < javaSource.indexOf("restoreLastWaveFromStorage();"));
+    assertTrue(javaSource.indexOf("restoreLastWaveFromStorage();")
+        < javaSource.indexOf("History.fireCurrentHistoryState();"));
+    assertTrue(javaSource.contains("if (channel == null || idGenerator == null) {"));
+    assertTrue(javaSource.contains("LOG.info(\"Ignoring wave open request before login is complete\")"));
+    assertTrue(javaSource.indexOf("if (channel == null || idGenerator == null) {")
+        < javaSource.indexOf("Timing.startRequest(\"Open Wave\")"));
+    assertTrue(javaSource.contains("final SelectElement select = (SelectElement)"));
+    int selectNullGuardIndex = javaSource.indexOf("if (select == null) {");
+    int selectNullReturnIndex = javaSource.indexOf("return;", selectNullGuardIndex);
+    int selectAddIndex = javaSource.indexOf("select.add(option, null);");
+    assertTrue(selectNullGuardIndex != -1);
+    assertTrue(selectNullReturnIndex != -1);
+    assertTrue(selectAddIndex != -1);
+    assertTrue(selectNullGuardIndex < selectNullReturnIndex);
+    assertTrue(selectNullReturnIndex < selectAddIndex);
+    assertTrue(javaSource.contains("Element signout = Document.get().getElementById(\"signout\");"));
+    assertTrue(javaSource.contains("if (signout != null) {"));
+    assertTrue(javaSource.indexOf("if (signout != null) {")
+        < javaSource.indexOf("signout.setInnerText(messages.signout());"));
+  }
+
   private static String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
   }

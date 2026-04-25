@@ -65,7 +65,6 @@ import org.waveprotocol.wave.util.logging.Log;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -157,11 +156,7 @@ public class ServerMain {
       server.joinServer();
     } catch (InterruptedException e) {
       LOG.warning("Jakarta server join interrupted; stopping server", e);
-      try {
-        server.stopServer();
-      } catch (IOException stopError) {
-        LOG.warning("Error stopping Jakarta server after interrupted main thread", stopError);
-      }
+      server.stopServer();
       Thread.currentThread().interrupt();
     }
   }

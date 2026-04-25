@@ -973,7 +973,7 @@ public class ServerRpcProvider {
         throw new IllegalStateException("No connectors bound; WebSocket address unavailable");
     }
 
-    public void stopServer() throws IOException {
+    public void stopServer() {
         try {
             if (httpServer != null) httpServer.stop();
         } catch (Exception e) {

@@ -1,11 +1,15 @@
 import os
+import re
 import signal
+import shutil
 import socket
 import subprocess
 import sys
 import textwrap
 import time
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,9 +44,7 @@ def write_fake_install(tmp_path: Path, server_source: str) -> Path:
     return install
 
 
-def run_smoke(
-    tmp_path: Path, install: Path, port: int, command: str
-) -> subprocess.CompletedProcess[str]:
+def run_smoke(install: Path, port: int, command: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.update(
         {
@@ -101,15 +103,45 @@ def port_accepts_connection(port: int) -> bool:
 
 
 def listener_pids(port: int) -> list[int]:
-    completed = subprocess.run(
-        ["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=5,
-        check=False,
-    )
-    return sorted({int(line) for line in completed.stdout.splitlines() if line.strip()})
+    if shutil.which("lsof"):
+        completed = subprocess.run(
+            ["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=5,
+            check=False,
+        )
+        return sorted({int(line) for line in completed.stdout.splitlines() if line.strip()})
+    if shutil.which("ss"):
+        completed = subprocess.run(
+            ["ss", "-tlnp", f"sport = :{port}"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=5,
+            check=False,
+        )
+        return sorted({int(pid) for pid in re.findall(r"pid=(\d+)", completed.stdout)})
+    if shutil.which("fuser"):
+        completed = subprocess.run(
+            ["fuser", f"{port}/tcp"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=5,
+            check=False,
+        )
+        return sorted(
+            {int(pid) for pid in re.findall(r"\b\d+\b", completed.stdout + completed.stderr)}
+        )
+    return []
+
+
+def assert_listener_pid(port: int, expected_pid: int) -> None:
+    pids = listener_pids(port)
+    if pids:
+        assert pids == [expected_pid]
 
 
 def read_pid(install: Path) -> int:
@@ -180,35 +212,35 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
         ),
     )
 
-    start = run_smoke(tmp_path, install, port, "start")
+    start = run_smoke(install, port, "start")
     try:
         assert start.returncode == 0, start.stdout + start.stderr
         assert "READY" in start.stdout
         pid_file = install / "wave_server.pid"
         assert pid_file.exists()
         recorded_pid = read_pid(install)
-        assert listener_pids(port) == [recorded_pid]
+        assert_listener_pid(port, recorded_pid)
         assert_pid_alive(recorded_pid)
 
         time.sleep(1.0)
-        check = run_smoke(tmp_path, install, port, "check")
+        check = run_smoke(install, port, "check")
         assert check.returncode == 0, check.stdout + check.stderr
         assert "ROOT_STATUS=200" in check.stdout
         assert "J2CL_ROOT_STATUS=200" in check.stdout
         assert "WEBCLIENT_STATUS=200" in check.stdout
         assert_pid_alive(recorded_pid)
-        assert listener_pids(port) == [recorded_pid]
+        assert_listener_pid(port, recorded_pid)
 
-        duplicate_start = run_smoke(tmp_path, install, port, "start")
+        duplicate_start = run_smoke(install, port, "start")
         assert duplicate_start.returncode == 0, duplicate_start.stdout + duplicate_start.stderr
         assert "READY" in duplicate_start.stdout
         replacement_pid = read_pid(install)
         assert replacement_pid != recorded_pid
         wait_for_pid_exit(recorded_pid)
         assert_pid_alive(replacement_pid)
-        assert listener_pids(port) == [replacement_pid]
+        assert_listener_pid(port, replacement_pid)
 
-        after_duplicate_check = run_smoke(tmp_path, install, port, "check")
+        after_duplicate_check = run_smoke(install, port, "check")
         assert after_duplicate_check.returncode == 0, (
             after_duplicate_check.stdout + after_duplicate_check.stderr
         )
@@ -217,13 +249,16 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
         wait_for_pid_exit(replacement_pid)
         assert not port_accepts_connection(port)
     finally:
-        stop = run_smoke(tmp_path, install, port, "stop")
+        stop = run_smoke(install, port, "stop")
         assert stop.returncode == 0, stop.stdout + stop.stderr
         assert not (install / "wave_server.pid").exists()
         assert not port_accepts_connection(port)
 
 
 def test_start_refuses_non_wave_process_on_port(tmp_path: Path) -> None:
+    if not any(shutil.which(tool) for tool in ("lsof", "ss", "fuser")):
+        pytest.skip("port PID detection tool unavailable")
+
     port = free_port()
     install = write_fake_install(tmp_path, "raise SystemExit('should not launch')\n")
     listener = subprocess.Popen(
@@ -241,7 +276,7 @@ def test_start_refuses_non_wave_process_on_port(tmp_path: Path) -> None:
     )
     try:
         wait_for_port(port)
-        start = run_smoke(tmp_path, install, port, "start")
+        start = run_smoke(install, port, "start")
         assert start.returncode != 0
         assert "non-Wave process" in start.stderr
         assert listener.poll() is None

@@ -133,8 +133,9 @@ start() {
     nohup ./bin/wave > wave_server.out 2>&1 < /dev/null &
     wrapper_pid=$!
     echo "$wrapper_pid" > wave_server.pid
-    # Prefer disowning by PID, then fall back to the current background job.
-    disown "$wrapper_pid" 2>/dev/null || disown 2>/dev/null || true
+    # Best-effort disown of the current background job; nohup + redirected
+    # stdio already prevents the server from receiving SIGHUP.
+    disown 2>/dev/null || true
   )
   echo "Started. Wrapper PID=$(cat "$PID_FILE" 2>/dev/null || echo unknown)"
   wait_ready

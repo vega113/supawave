@@ -480,7 +480,12 @@ public final class J2clComposeSurfaceController {
       }
     }
     if (waveChanged) {
-      resetAttachmentState();
+      String nextWaveId = nextWriteSession == null ? null : nextWriteSession.getSelectedWaveId();
+      // Only reset attachments when transitioning to a real, different wave.
+      // A null nextWriteSession is a transient disconnect — preserve in-flight attachments.
+      if (nextWaveId != null) {
+        resetAttachmentState();
+      }
     }
     writeSession = nextWriteSession;
     if (!hasSelectedWave(writeSession) && replyStatusText.isEmpty()) {
@@ -704,7 +709,9 @@ public final class J2clComposeSurfaceController {
 
   private J2clComposerDocument buildDocument(String draftText, boolean includeAttachments) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
-    J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(annotationCommandId);
+    // Only apply the reply-toolbar annotation on the reply path; create-wave submits must not
+    // inherit a Bold/Italic toggle the user set in the reply editor.
+    J2clDailyToolbarAction action = includeAttachments ? J2clDailyToolbarAction.fromId(annotationCommandId) : null;
     String annotationKey = annotationKey(action);
     String annotationValue = annotationValue(action);
     if (annotationKey != null

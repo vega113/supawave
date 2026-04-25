@@ -87,7 +87,7 @@ public class J2clClientTelemetryTest {
   @Test
   public void statsEventShapeMatchesGwtStatsChannelKeys() {
     Map<String, Object> stats =
-        J2clClientTelemetry.statsEventForTesting(
+        J2clClientTelemetry.buildStatsEvent(
             J2clClientTelemetry.event("attachment.upload.started")
                 .field("source", "file-picker")
                 .build());
@@ -136,7 +136,7 @@ public class J2clClientTelemetryTest {
 
   private static int statsArrayLengthForTesting(Object stats) {
     Object length = Js.asPropertyMap(stats).get("length");
-    return length == null ? 0 : (int) Double.parseDouble(String.valueOf(length));
+    return length == null ? 0 : ((Number) length).intValue();
   }
 
   private static void restoreWindowProperty(String propertyName, Object previousValue) {

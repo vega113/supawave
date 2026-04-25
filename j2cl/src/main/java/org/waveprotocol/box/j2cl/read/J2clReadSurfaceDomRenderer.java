@@ -18,6 +18,7 @@ import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 public final class J2clReadSurfaceDomRenderer {
   // Roughly one compact blip of lead time before a viewport edge reaches the exact scroll boundary.
   private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
+  private static final String ATTACHMENT_TELEMETRY_BOUND = "data-attachment-telemetry-bound";
 
   @FunctionalInterface
   public interface ViewportEdgeListener {
@@ -385,8 +386,40 @@ public final class J2clReadSurfaceDomRenderer {
       link.setAttribute("referrerpolicy", "no-referrer");
       link.setAttribute("target", "_blank");
     }
+    link.setAttribute(ATTACHMENT_TELEMETRY_BOUND, "true");
     link.addEventListener("click", event -> emitAttachmentClick(telemetryEventName, displaySize));
     return link;
+  }
+
+  private void bindAttachmentTelemetry(HTMLElement surface) {
+    bindAttachmentTelemetry(
+        surface, "[data-j2cl-attachment-open='true']", "attachment.open.clicked");
+    bindAttachmentTelemetry(
+        surface, "[data-j2cl-attachment-download='true']", "attachment.download.clicked");
+  }
+
+  private void bindAttachmentTelemetry(HTMLElement surface, String selector, String eventName) {
+    NodeList<Element> links = surface.querySelectorAll(selector);
+    for (int i = 0; i < links.length; i++) {
+      HTMLElement link = (HTMLElement) links.item(i);
+      if (link == null || link.hasAttribute(ATTACHMENT_TELEMETRY_BOUND)) {
+        continue;
+      }
+      String displaySize = attachmentDisplaySize(link);
+      link.setAttribute(ATTACHMENT_TELEMETRY_BOUND, "true");
+      link.addEventListener("click", event -> emitAttachmentClick(eventName, displaySize));
+    }
+  }
+
+  private static String attachmentDisplaySize(HTMLElement link) {
+    Element current = link;
+    while (current != null) {
+      if (current.hasAttribute("data-display-size")) {
+        return current.getAttribute("data-display-size");
+      }
+      current = current.parentElement;
+    }
+    return "";
   }
 
   private void emitAttachmentClick(String eventName, String displaySize) {
@@ -456,6 +489,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     enhanceThreads(surface);
     enhanceBlips(surface);
+    bindAttachmentTelemetry(surface);
   }
 
   private void enhanceThreads(HTMLElement surface) {

@@ -35,12 +35,50 @@ public class J2clSelectedWaveViewTelemetryTest {
     J2clSelectedWaveView view = new J2clSelectedWaveView(host, telemetry);
 
     view.render(selectedWaveModelWithAttachment());
-    ((HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']")).click();
+    HTMLElement openLink = (HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']");
+    Assert.assertNotNull("Expected attachment open link to be rendered", openLink);
+    openLink.click();
 
     J2clClientTelemetry.Event event = telemetry.lastEvent();
     Assert.assertEquals("attachment.open.clicked", event.getName());
     Assert.assertEquals("read-surface", event.getFields().get("source"));
     Assert.assertEquals("medium", event.getFields().get("displaySize"));
+  }
+
+  @Test
+  public void telemetrySinkReachesServerRenderedAttachmentLinks() {
+    assumeBrowserDom();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    HTMLElement host = createHost();
+    host.innerHTML =
+        "<section data-j2cl-upgrade-placeholder=\"selected-wave\""
+            + " data-j2cl-server-first-selected-wave=\"example.com/w+1\""
+            + " data-j2cl-server-first-mode=\"selected\">"
+            + "<h2 class=\"sidecar-selected-title\">Selected wave</h2>"
+            + "<p class=\"sidecar-selected-unread\"></p>"
+            + "<p class=\"sidecar-selected-status\"></p>"
+            + "<p class=\"sidecar-selected-detail\"></p>"
+            + "<p class=\"sidecar-selected-participants\"></p>"
+            + "<p class=\"sidecar-selected-snippet\"></p>"
+            + "<div class=\"sidecar-selected-compose\"></div>"
+            + "<div class=\"sidecar-selected-content\">"
+            + "<div class=\"wave-content\" data-j2cl-read-surface=\"true\">"
+            + "<div class=\"thread\" data-thread-id=\"root\">"
+            + "<div class=\"blip\" data-blip-id=\"b+root\">"
+            + "<div data-j2cl-read-attachment=\"true\" data-display-size=\"large\">"
+            + "<a href=\"/attachment/example.com/att+hero\""
+            + " data-j2cl-attachment-open=\"true\">Open</a>"
+            + "</div></div></div></div></div></section>";
+    new J2clSelectedWaveView(host, telemetry);
+
+    HTMLElement openLink = (HTMLElement) host.querySelector("[data-j2cl-attachment-open='true']");
+    Assert.assertNotNull("Expected server-rendered attachment open link", openLink);
+    openLink.click();
+
+    J2clClientTelemetry.Event event = telemetry.lastEvent();
+    Assert.assertEquals("attachment.open.clicked", event.getName());
+    Assert.assertEquals("read-surface", event.getFields().get("source"));
+    Assert.assertEquals("large", event.getFields().get("displaySize"));
   }
 
   private HTMLElement createHost() {

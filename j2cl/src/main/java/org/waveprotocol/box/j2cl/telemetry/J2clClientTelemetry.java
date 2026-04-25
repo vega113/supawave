@@ -37,7 +37,7 @@ public final class J2clClientTelemetry {
     return BrowserStatsSink::dispatch;
   }
 
-  static Map<String, Object> statsEventForTesting(Event event) {
+  static Map<String, Object> buildStatsEvent(Event event) {
     Map<String, Object> stats = new LinkedHashMap<String, Object>();
     stats.put("moduleName", MODULE_NAME);
     stats.put("subSystem", SUBSYSTEM);
@@ -102,7 +102,7 @@ public final class J2clClientTelemetry {
     private static void dispatch(Event event) {
       try {
         JsPropertyMap<Object> statsEvent = JsPropertyMap.of();
-        for (Map.Entry<String, Object> entry : statsEventForTesting(event).entrySet()) {
+        for (Map.Entry<String, Object> entry : buildStatsEvent(event).entrySet()) {
           statsEvent.set(entry.getKey(), entry.getValue());
         }
         JsPropertyMap<Object> window = Js.asPropertyMap(DomGlobal.window);

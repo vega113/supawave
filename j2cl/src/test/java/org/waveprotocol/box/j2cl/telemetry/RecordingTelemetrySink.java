@@ -18,6 +18,9 @@ public final class RecordingTelemetrySink implements J2clClientTelemetry.Sink {
   }
 
   public J2clClientTelemetry.Event lastEvent() {
+    if (events.isEmpty()) {
+      throw new IllegalStateException("No telemetry events recorded");
+    }
     return events.get(events.size() - 1);
   }
 }

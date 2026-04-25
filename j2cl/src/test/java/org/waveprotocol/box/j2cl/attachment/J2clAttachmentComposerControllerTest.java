@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.attachment;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -390,8 +391,14 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
-  public void uploadTelemetryMapsEveryAllowedUploadReason() {
-    assertUploadReason(J2clAttachmentUploadClient.HttpResponse.networkError("offline"), "network", "other");
+  public void uploadTelemetryMapsEveryAllowedUploadReason() throws Exception {
+    assertUploadResultReason(
+        J2clAttachmentUploadClient.UploadResult.failure(
+            J2clAttachmentUploadClient.ErrorType.INVALID_REQUEST, "bad request"),
+        "validation",
+        "other");
+    assertUploadReason(
+        J2clAttachmentUploadClient.HttpResponse.networkError("offline"), "network", "other");
     assertUploadReason(
         new J2clAttachmentUploadClient.HttpResponse(403, "forbidden", null), "forbidden", "4xx");
     assertUploadReason(
@@ -1759,6 +1766,22 @@ public class J2clAttachmentComposerControllerTest {
     Assert.assertEquals("attachment.upload.failed", event.getName());
     Assert.assertEquals(reason, event.getFields().get("reason"));
     Assert.assertEquals(statusBucket, event.getFields().get("statusBucket"));
+  }
+
+  private static void assertUploadResultReason(
+      J2clAttachmentUploadClient.UploadResult result, String reason, String statusBucket)
+      throws Exception {
+    Method reasonMethod =
+        J2clAttachmentComposerController.class.getDeclaredMethod(
+            "uploadFailureReason", J2clAttachmentUploadClient.UploadResult.class);
+    reasonMethod.setAccessible(true);
+    Method statusBucketMethod =
+        J2clAttachmentComposerController.class.getDeclaredMethod(
+            "statusBucket", J2clAttachmentUploadClient.UploadResult.class);
+    statusBucketMethod.setAccessible(true);
+
+    Assert.assertEquals(reason, reasonMethod.invoke(null, result));
+    Assert.assertEquals(statusBucket, statusBucketMethod.invoke(null, result));
   }
 
   private static void assertInsertionFailureReason(String reason) {

@@ -216,6 +216,7 @@ public final class J2clAttachmentComposerController {
   // explicit clear; this keeps status/error reporting available to the Lit wiring task.
   private final List<QueueItem> queue = new ArrayList<QueueItem>();
   private boolean uploadInProgress;
+  private boolean drainingQueue;
   // Cursor avoids rescanning terminal items retained for status/error display.
   private int nextQueueIndex;
   private int resetGeneration;
@@ -281,13 +282,24 @@ public final class J2clAttachmentComposerController {
   }
 
   private void startNextUpload() {
-    if (uploadInProgress) {
+    if (uploadInProgress || drainingQueue) {
       return;
     }
-    QueueItem item = firstQueuedItem();
-    if (item == null) {
-      return;
+    drainingQueue = true;
+    try {
+      while (!uploadInProgress) {
+        QueueItem item = firstQueuedItem();
+        if (item == null) {
+          return;
+        }
+        startUpload(item);
+      }
+    } finally {
+      drainingQueue = false;
     }
+  }
+
+  private void startUpload(QueueItem item) {
     uploadInProgress = true;
     item.status = UploadStatus.UPLOADING;
     int generation = resetGeneration;
@@ -367,8 +379,10 @@ public final class J2clAttachmentComposerController {
       }
     } finally {
       item.payload = null;
-      // onInsert can enqueue or cancel; startNextUpload is idempotent for those re-entrant paths.
-      startNextUpload();
+      // Synchronous upload completions are drained by the active loop to avoid recursive dispatch.
+      if (!drainingQueue) {
+        startNextUpload();
+      }
     }
   }
 

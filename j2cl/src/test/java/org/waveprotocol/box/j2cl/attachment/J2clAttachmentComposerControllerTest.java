@@ -424,6 +424,33 @@ public class J2clAttachmentComposerControllerTest {
   }
 
   @Test
+  public void synchronousUploadCompletionsDrainQueueWithoutNestedDispatch() {
+    FakeUploadTransport transport = new FakeUploadTransport();
+    transport.completePostsInline(new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    RecordingInsertionCallback insertionCallback = new RecordingInsertionCallback();
+    J2clAttachmentComposerController controller = newController(transport, insertionCallback);
+    List<J2clAttachmentComposerController.AttachmentSelection> selections =
+        new ArrayList<J2clAttachmentComposerController.AttachmentSelection>();
+    for (int i = 0; i < 50; i++) {
+      selections.add(
+          J2clAttachmentComposerController.AttachmentSelection.file(
+              new Object(),
+              "inline-" + i + ".png",
+              "",
+              J2clAttachmentComposerController.DisplaySize.SMALL));
+    }
+
+    controller.selectFiles(selections);
+
+    Assert.assertEquals(50, transport.requests.size());
+    Assert.assertEquals(50, insertionCallback.insertions.size());
+    Assert.assertEquals(1, transport.maxPostDepth);
+    Assert.assertEquals(
+        J2clAttachmentComposerController.UploadStatus.COMPLETE,
+        controller.getQueueSnapshot().get(49).getStatus());
+  }
+
+  @Test
   public void failedUploadStartsNextQueuedItem() {
     FakeUploadTransport transport = new FakeUploadTransport();
     J2clAttachmentComposerController controller =
@@ -1276,23 +1303,39 @@ public class J2clAttachmentComposerControllerTest {
         new ArrayList<J2clAttachmentUploadClient.MultipartUploadRequest>();
     private final List<J2clAttachmentUploadClient.ResponseHandler> handlers =
         new ArrayList<J2clAttachmentUploadClient.ResponseHandler>();
+    private J2clAttachmentUploadClient.HttpResponse inlineResponse;
     private RuntimeException nextPostFailure;
+    private int postDepth;
+    private int maxPostDepth;
 
     @Override
     public void post(
         J2clAttachmentUploadClient.MultipartUploadRequest request,
         J2clAttachmentUploadClient.ResponseHandler handler) {
-      if (nextPostFailure != null) {
-        RuntimeException failure = nextPostFailure;
-        nextPostFailure = null;
-        throw failure;
+      postDepth++;
+      maxPostDepth = Math.max(maxPostDepth, postDepth);
+      try {
+        if (nextPostFailure != null) {
+          RuntimeException failure = nextPostFailure;
+          nextPostFailure = null;
+          throw failure;
+        }
+        requests.add(request);
+        handlers.add(handler);
+        if (inlineResponse != null) {
+          handler.onResponse(inlineResponse);
+        }
+      } finally {
+        postDepth--;
       }
-      requests.add(request);
-      handlers.add(handler);
     }
 
     void failNextPost(RuntimeException failure) {
       nextPostFailure = failure;
+    }
+
+    void completePostsInline(J2clAttachmentUploadClient.HttpResponse response) {
+      inlineResponse = response;
     }
 
     void complete(int index, J2clAttachmentUploadClient.HttpResponse response) {

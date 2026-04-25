@@ -192,7 +192,7 @@ export class ComposeAttachmentCard extends LitElement {
         detail: {
           attachmentId: this.attachmentId,
           filename: this.filename,
-          url: url || ""
+          url
         },
         bubbles: true,
         composed: true

@@ -79,6 +79,8 @@ class PrMonitorTest(unittest.TestCase):
         self.assertIn("wait-for-actionable", script)
         self.assertIn("PROMPT=\"$(cat \"$PROMPT_PATH\")\"", script)
         self.assertIn("Rechecking GitHub state before any restart", script)
+        self.assertIn("Codex failed; waiting", script)
+        self.assertIn('if [ "$exit_code" -ne 0 ]; then', script)
         self.assertIn("sleep \"$RESTART_DELAY_SECONDS\"", script)
         self.assertLess(
             script.index("wait_for_actionable_or_done"),
@@ -131,6 +133,31 @@ class PrMonitorTest(unittest.TestCase):
 
         self.assertEqual("idle", decision.state)
         self.assertIn("review gate", decision.reason)
+
+    def test_classify_pr_snapshot_treats_non_waiting_review_gate_failure_as_actionable(self) -> None:
+        decision = classify_pr_snapshot(
+            {
+                "state": "OPEN",
+                "mergedAt": "",
+                "isDraft": False,
+                "mergeable": "MERGEABLE",
+                "mergeStateStatus": "BLOCKED",
+                "autoMergeRequest": {"enabledAt": "2026-04-25T00:00:00Z"},
+            },
+            [
+                {
+                    "name": "PR Review Gate",
+                    "bucket": "fail",
+                    "description": "Unable to determine last commit time",
+                    "workflow": "Codex Review Gate",
+                },
+                {"name": "Server Build", "bucket": "pending", "description": ""},
+            ],
+            unresolved_review_threads=0,
+        )
+
+        self.assertEqual("actionable", decision.state)
+        self.assertIn("review gate failed", decision.reason)
 
     def test_classify_pr_snapshot_treats_unresolved_threads_as_actionable(self) -> None:
         decision = classify_pr_snapshot(

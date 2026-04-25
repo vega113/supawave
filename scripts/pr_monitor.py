@@ -203,16 +203,6 @@ def classify_pr_snapshot(
     if review_gate_failures:
         if any(_is_waiting_review_gate_check(check) for check in review_gate_failures):
             return MonitorDecision("idle", "waiting for review gate window")
-        if pending_checks:
-            return MonitorDecision(
-                "idle",
-                f"waiting for checks and review gate: {_summarize_checks(pending_checks)}",
-            )
-        if pr.get("autoMergeRequest"):
-            return MonitorDecision(
-                "idle",
-                "auto-merge is armed; waiting for GitHub review gate",
-            )
         return MonitorDecision("actionable", "review gate failed")
 
     if pending_checks:
@@ -481,6 +471,10 @@ while true; do
   set -e
 
   printf '[%s] Codex exited with code %s. Rechecking GitHub state before any restart.\\n' "$(print_timestamp)" "$exit_code"
+  if [ "$exit_code" -ne 0 ]; then
+    printf '[%s] Codex failed; waiting %ss before retrying.\\n' "$(print_timestamp)" "$RESTART_DELAY_SECONDS"
+    sleep "$RESTART_DELAY_SECONDS"
+  fi
 done
 """
 

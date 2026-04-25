@@ -79,7 +79,6 @@ public final class J2clReadSurfaceDomRenderer {
     }
 
     clearViewportScrollMemory();
-    // Preserve scroll-growth direction across window rebuilds; placeholders may still need it.
     host.innerHTML = "";
     renderedBlips.clear();
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
@@ -359,6 +358,7 @@ public final class J2clReadSurfaceDomRenderer {
     link.setAttribute("aria-label", ariaLabel);
     link.setAttribute("tabindex", "0");
     link.setAttribute(dataAttribute, "true");
+    link.setAttribute("title", fileName);
     if (download) {
       link.setAttribute("download", fileName);
       if (isExternalHttpsUrl(href)) {

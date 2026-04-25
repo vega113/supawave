@@ -278,7 +278,7 @@ public final class J2clAttachmentRenderModel {
 
   private static String safeUrl(String value) {
     String normalized = normalize(value);
-    if (containsControlCharacter(normalized)) {
+    if (containsControlCharacterOrSpace(normalized)) {
       return "";
     }
     // Root-relative paths are same-origin attachment endpoints, not executable URL schemes.
@@ -292,7 +292,7 @@ public final class J2clAttachmentRenderModel {
     return "";
   }
 
-  private static boolean containsControlCharacter(String value) {
+  private static boolean containsControlCharacterOrSpace(String value) {
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
       if (c <= ' ' || c == 0x7F) {

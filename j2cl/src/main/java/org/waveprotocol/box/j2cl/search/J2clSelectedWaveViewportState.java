@@ -150,7 +150,8 @@ public final class J2clSelectedWaveViewportState {
                   Math.max(existing.getToVersion(), fragmentEntry.getToVersion()),
                   existing.getRawSnapshot(),
                   existing.getAdjustOperationCount(),
-                  existing.getDiffOperationCount()));
+                  existing.getDiffOperationCount(),
+                  existing.shouldParseAttachmentElements()));
         } else {
           merged.set(existingIndex, fragmentEntry);
         }
@@ -286,9 +287,16 @@ public final class J2clSelectedWaveViewportState {
       if (!entry.isLoaded() || !entry.isBlip()) {
         continue;
       }
-      J2clReadBlipContent content = J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
-      readBlips.add(
-          new J2clReadBlip(entry.getBlipId(), content.getText(), content.getAttachments()));
+      // parseAttachmentElements is true only for fragment entries (fromFragments); document
+      // entries (fromDocuments) leave it false, so plain text like "2 < 3" is never mangled.
+      if (entry.shouldParseAttachmentElements()) {
+        J2clReadBlipContent content =
+            J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
+        readBlips.add(
+            new J2clReadBlip(entry.getBlipId(), content.getText(), content.getAttachments()));
+      } else {
+        readBlips.add(new J2clReadBlip(entry.getBlipId(), entry.getRawSnapshot()));
+      }
     }
     return readBlips;
   }
@@ -300,16 +308,26 @@ public final class J2clSelectedWaveViewportState {
         continue;
       }
       if (entry.isLoaded()) {
-        J2clReadBlipContent content =
-            J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
-        windowEntries.add(
-            J2clReadWindowEntry.loaded(
-                entry.getSegment(),
-                entry.getFromVersion(),
-                entry.getToVersion(),
-                entry.getBlipId(),
-                content.getText(),
-                content.getAttachments()));
+        if (entry.shouldParseAttachmentElements()) {
+          J2clReadBlipContent content =
+              J2clReadBlipContent.parseRawSnapshot(entry.getRawSnapshot());
+          windowEntries.add(
+              J2clReadWindowEntry.loaded(
+                  entry.getSegment(),
+                  entry.getFromVersion(),
+                  entry.getToVersion(),
+                  entry.getBlipId(),
+                  content.getText(),
+                  content.getAttachments()));
+        } else {
+          windowEntries.add(
+              J2clReadWindowEntry.loaded(
+                  entry.getSegment(),
+                  entry.getFromVersion(),
+                  entry.getToVersion(),
+                  entry.getBlipId(),
+                  entry.getRawSnapshot()));
+        }
       } else {
         windowEntries.add(
             J2clReadWindowEntry.placeholder(
@@ -378,6 +396,7 @@ public final class J2clSelectedWaveViewportState {
     private final int adjustOperationCount;
     private final int diffOperationCount;
     private final boolean loaded;
+    private final boolean parseAttachmentElements;
 
     private Entry(
         String segment,
@@ -386,7 +405,8 @@ public final class J2clSelectedWaveViewportState {
         String rawSnapshot,
         int adjustOperationCount,
         int diffOperationCount,
-        boolean loaded) {
+        boolean loaded,
+        boolean parseAttachmentElements) {
       this.segment = segment == null ? "" : segment;
       this.fromVersion = fromVersion;
       this.toVersion = toVersion;
@@ -394,6 +414,7 @@ public final class J2clSelectedWaveViewportState {
       this.adjustOperationCount = adjustOperationCount;
       this.diffOperationCount = diffOperationCount;
       this.loaded = loaded;
+      this.parseAttachmentElements = parseAttachmentElements;
     }
 
     static Entry fromRange(
@@ -408,6 +429,7 @@ public final class J2clSelectedWaveViewportState {
           fragment.getRawSnapshot(),
           fragment.getAdjustOperationCount(),
           fragment.getDiffOperationCount(),
+          true,
           true);
     }
 
@@ -422,6 +444,7 @@ public final class J2clSelectedWaveViewportState {
           fragment.getRawSnapshot(),
           fragment.getAdjustOperationCount(),
           fragment.getDiffOperationCount(),
+          true,
           true);
     }
 
@@ -432,6 +455,24 @@ public final class J2clSelectedWaveViewportState {
         String rawSnapshot,
         int adjustOperationCount,
         int diffOperationCount) {
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          false);
+    }
+
+    static Entry loaded(
+        String segment,
+        long fromVersion,
+        long toVersion,
+        String rawSnapshot,
+        int adjustOperationCount,
+        int diffOperationCount,
+        boolean parseAttachmentElements) {
       return new Entry(
           segment,
           fromVersion,
@@ -439,11 +480,12 @@ public final class J2clSelectedWaveViewportState {
           rawSnapshot,
           adjustOperationCount,
           diffOperationCount,
-          true);
+          true,
+          parseAttachmentElements);
     }
 
     static Entry placeholder(String segment, long fromVersion, long toVersion) {
-      return new Entry(segment, fromVersion, toVersion, "", 0, 0, false);
+      return new Entry(segment, fromVersion, toVersion, "", 0, 0, false, false);
     }
 
     public String getSegment() {
@@ -472,6 +514,10 @@ public final class J2clSelectedWaveViewportState {
 
     public boolean isLoaded() {
       return loaded;
+    }
+
+    public boolean shouldParseAttachmentElements() {
+      return parseAttachmentElements;
     }
 
     public boolean isBlip() {

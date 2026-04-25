@@ -251,6 +251,39 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void projectDocumentFallbackPreservesLiteralMarkupAndComparisons() {
+    String literalText =
+        "Literal 2 < 3 and <image attachment=\"example.com/att+literal\"> stays text";
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root", "user@example.com", 7L, 8L, literalText)),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals(literalText, blip.getText());
+    Assert.assertTrue(blip.getAttachments().isEmpty());
+    Assert.assertEquals(
+        literalText, projected.getViewportState().getReadWindowEntries().get(0).getText());
+    Assert.assertTrue(
+        projected.getViewportState().getReadWindowEntries().get(0).getAttachments().isEmpty());
+  }
+
+  @Test
   public void projectBuildsInteractionBlipMetadataFromDocumentAnnotationsAndReactionDocs() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(

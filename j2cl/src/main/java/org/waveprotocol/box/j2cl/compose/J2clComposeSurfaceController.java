@@ -150,6 +150,7 @@ public final class J2clComposeSurfaceController {
   private boolean signedOut;
   private boolean started;
   private String activeCommandId = "";
+  private String annotationCommandId = "";
   private String commandStatusText = "";
   private String commandErrorText = "";
   private J2clAttachmentComposerController attachmentController;
@@ -309,6 +310,7 @@ public final class J2clComposeSurfaceController {
     }
     if (!hasSelectedWave(writeSession)) {
       activeCommandId = "";
+      annotationCommandId = "";
       commandStatusText = "";
       commandErrorText = "Open a wave before using rich-edit toolbar actions.";
       render();
@@ -317,6 +319,7 @@ public final class J2clComposeSurfaceController {
     }
     if (action == J2clDailyToolbarAction.CLEAR_FORMATTING) {
       activeCommandId = "";
+      annotationCommandId = "";
       commandErrorText = "";
       commandStatusText = "";
       refreshAttachmentCommandState();
@@ -328,8 +331,9 @@ public final class J2clComposeSurfaceController {
       view.focusReplyComposer();
       return true;
     }
-    if (safeEquals(activeCommandId, action.id())) {
+    if (safeEquals(annotationCommandId, action.id())) {
       activeCommandId = "";
+      annotationCommandId = "";
       commandErrorText = "";
       commandStatusText = action.label() + " cleared.";
       render();
@@ -337,6 +341,7 @@ public final class J2clComposeSurfaceController {
       return true;
     }
     activeCommandId = action.id();
+    annotationCommandId = action.id();
     commandErrorText = "";
     commandStatusText = action.label() + " applied to the current draft.";
     render();
@@ -517,6 +522,7 @@ public final class J2clComposeSurfaceController {
     createSubmitting = false;
     createDraft = "";
     activeCommandId = "";
+    annotationCommandId = "";
     commandStatusText = "";
     commandErrorText = "";
     createStatusText = "Wave created.";
@@ -612,6 +618,7 @@ public final class J2clComposeSurfaceController {
     // A sent reply closes the attachment batch; failures preserve size and attachments for retry.
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
+    annotationCommandId = "";
     commandStatusText = "";
     commandErrorText = "";
     J2clAttachmentComposerController completedAttachmentController = attachmentController;
@@ -640,6 +647,7 @@ public final class J2clComposeSurfaceController {
     replyStatusText = "";
     replyErrorText = error == null || error.isEmpty() ? "Reply failed." : error;
     activeCommandId = "";
+    annotationCommandId = "";
     commandStatusText = "";
     commandErrorText = "";
     replyStaleBasis = false;
@@ -673,7 +681,7 @@ public final class J2clComposeSurfaceController {
 
   private J2clComposerDocument buildDocument(String draftText, boolean includeAttachments) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
-    J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(activeCommandId);
+    J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(annotationCommandId);
     String annotationKey = annotationKey(action);
     String annotationValue = annotationValue(action);
     if (annotationKey != null
@@ -935,6 +943,7 @@ public final class J2clComposeSurfaceController {
     insertedAttachments.clear();
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
+    annotationCommandId = "";
     commandStatusText = "";
     commandErrorText = "";
     if (previousController != null) {

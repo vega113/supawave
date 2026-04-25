@@ -425,7 +425,11 @@ public final class J2clAttachmentComposerController {
   }
 
   private void notifyStateChanged() {
-    stateChangeCallback.onStateChanged();
+    try {
+      stateChangeCallback.onStateChanged();
+    } catch (RuntimeException ignored) {
+      // Keep upload state transitions resilient to observer failures.
+    }
   }
 
   private static String requireNonEmpty(String value, String message) {

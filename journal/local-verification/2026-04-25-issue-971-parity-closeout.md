@@ -4,12 +4,14 @@
 - Worktree: /Users/vega/devroot/worktrees/codex-issue-971-parity-closeout
 - Date: 2026-04-25
 - Issue: #971
+- Note: `scripts/worktree-boot.sh` would have generated `2026-04-25-branch-issue-971-parity-closeout.md` for branch `codex/issue-971-parity-closeout`; this committed evidence file was renamed afterward to `2026-04-25-issue-971-parity-closeout.md`.
 
 ## Commands
 
 - `bash scripts/worktree-boot.sh --port 9971`
 - `sbt -batch j2clSearchTest j2clProductionBuild j2clLitTest j2clLitBuild`
 - `python3 scripts/assemble-changelog.py && python3 scripts/validate-changelog.py`
+- `git diff --cached --check`
 - `git diff --check`
 - `PORT=9971 JAVA_OPTS='-Djava.util.logging.config.file=/Users/vega/devroot/worktrees/codex-issue-971-parity-closeout/wave/config/wiab-logging.conf -Djava.security.auth.login.config=/Users/vega/devroot/worktrees/codex-issue-971-parity-closeout/wave/config/jaas.config' bash scripts/wave-smoke.sh start`
 - `PORT=9971 bash scripts/wave-smoke.sh check`
@@ -29,6 +31,7 @@
   - Lit build completed.
   - Note: the SBT J2CL build phase emitted a Vertispan `DiskCacheThread` `RejectedExecutionException` after a success line, then continued through the remaining tasks and exited 0. Follow-up #1027 tracks whether this is benign cache-shutdown noise or a repo-owned build hygiene issue.
 - `python3 scripts/assemble-changelog.py && python3 scripts/validate-changelog.py`: passed; assembled 255 entries and validation passed.
+- `git diff --cached --check`: passed.
 - `git diff --check`: passed.
 - `bash scripts/worktree-boot.sh --port 9971`: passed; staged GWT and J2CL assets, wrote the port-specific runtime config, and created this evidence file.
 - `wave-smoke.sh start`: reported `PROBE_HTTP=200`, `READY`, and resolved a server PID.

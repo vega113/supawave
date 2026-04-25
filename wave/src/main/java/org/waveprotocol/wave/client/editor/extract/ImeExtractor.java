@@ -19,11 +19,13 @@
 
 package org.waveprotocol.wave.client.editor.extract;
 
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
 import com.google.gwt.dom.client.SpanElement;
 import com.google.gwt.dom.client.Style.Display;
+import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.dom.client.Text;
 
 import org.waveprotocol.wave.client.common.util.DomHelper;
@@ -85,8 +87,29 @@ public class ImeExtractor {
   private final ImeCompositionTextTracker compositionTextTracker =
       new ImeCompositionTextTracker();
   private boolean suppressPreviousGhostForCurrentComposition;
+  private boolean livePreviewSyncScheduled;
 
   private static final String WRAPPER_TAGNAME = "l:ime";
+  private static final String LIVE_PREVIEW_CLASS = "wave-ime-live-preview";
+  private static final String LIVE_PREVIEW_ATTR = "data-wave-ime-preview";
+  private static final String LIVE_PREVIEW_COLOR_PROPERTY = "--wave-ime-preview-color";
+  private static final String LIVE_PREVIEW_CSS =
+      "." + LIVE_PREVIEW_CLASS + " {"
+      + " color: transparent !important;"
+      + " caret-color: var(" + LIVE_PREVIEW_COLOR_PROPERTY + ", #111);"
+      + " display: inline-block;"
+      + " position: relative;"
+      + "}"
+      + "." + LIVE_PREVIEW_CLASS + "::before {"
+      + " color: var(" + LIVE_PREVIEW_COLOR_PROPERTY + ", #111);"
+      + " content: attr(" + LIVE_PREVIEW_ATTR + ");"
+      + " left: 0;"
+      + " pointer-events: none;"
+      + " position: absolute;"
+      + " top: 0;"
+      + " white-space: pre;"
+      + "}";
+  private static boolean livePreviewCssInjected;
 
   public static void register(ElementHandlerRegistry registry) {
     registry.registerRenderer(WRAPPER_TAGNAME, new Renderer() {
@@ -99,6 +122,7 @@ public class ImeExtractor {
 
   /***/
   public ImeExtractor() {
+    ensureLivePreviewCssInjected();
     NodeManager.setTransparency(imeContainer, Skip.DEEP);
     NodeManager.setMayContainSelectionEvenWhenDeep(imeContainer, true);
     if (QuirksConstants.SUPPORTS_CARET_IN_EMPTY_SPAN) {
@@ -228,6 +252,8 @@ public class ImeExtractor {
     captureGhostBaseline(previousModelBaseline, nextModelBaseline);
     compositionTextTracker.reset();
     suppressPreviousGhostForCurrentComposition = false;
+    livePreviewSyncScheduled = false;
+    clearVisibleCompositionPreview();
     if (ImeDebugTracer.isEnabled()) {
       Element anchor = imeContainer.getParentElement();
       ImeDebugTracer.start("ImeExtractor.activate")
@@ -249,6 +275,7 @@ public class ImeExtractor {
       return;
     }
     compositionTextTracker.observe(compositionText);
+    scheduleVisibleCompositionPreviewSync();
     if (ImeDebugTracer.isEnabled()) {
       ImeDebugTracer.start("ImeExtractor.compositionUpdate")
           .add("data", compositionText)
@@ -340,6 +367,8 @@ public class ImeExtractor {
     ghostNextSiblingCapturedText = null;
     suppressPreviousGhostForCurrentComposition = false;
     compositionTextTracker.reset();
+    livePreviewSyncScheduled = false;
+    clearVisibleCompositionPreview();
   }
 
   private String readCurrentPreviousText() {
@@ -419,6 +448,86 @@ public class ImeExtractor {
     imeInput.setInnerText(text);
   }
 
+  private static void ensureLivePreviewCssInjected() {
+    if (livePreviewCssInjected) {
+      return;
+    }
+    StyleInjector.inject(LIVE_PREVIEW_CSS, true);
+    livePreviewCssInjected = true;
+  }
+
+  private void scheduleVisibleCompositionPreviewSync() {
+    if (!UserAgent.isAndroid() || livePreviewSyncScheduled) {
+      return;
+    }
+    livePreviewSyncScheduled = true;
+    Scheduler.get().scheduleDeferred(new Scheduler.ScheduledCommand() {
+      @Override
+      public void execute() {
+        livePreviewSyncScheduled = false;
+        syncVisibleCompositionPreview();
+      }
+    });
+  }
+
+  private void syncVisibleCompositionPreview() {
+    if (!isActive() || !UserAgent.isAndroid()) {
+      clearVisibleCompositionPreview();
+      return;
+    }
+    String scratchContent = imeContainer.getInnerText();
+    if (scratchContent == null) {
+      scratchContent = "";
+    }
+    String previewContent = compositionTextTracker.previewText(scratchContent);
+    if (previewContent == null || previewContent.equals(scratchContent)) {
+      clearVisibleCompositionPreview();
+      return;
+    }
+    if (!imeContainer.hasClassName(LIVE_PREVIEW_CLASS)) {
+      String previewColor = readComputedColor(imeContainer);
+      if (previewColor != null && !previewColor.isEmpty()) {
+        setStyleProperty(imeContainer, LIVE_PREVIEW_COLOR_PROPERTY, previewColor);
+      }
+    }
+    imeContainer.setAttribute(LIVE_PREVIEW_ATTR, previewContent);
+    imeContainer.addClassName(LIVE_PREVIEW_CLASS);
+    imeContainer.getStyle().setProperty("minWidth", previewContent.length() + "ch");
+    if (ImeDebugTracer.isEnabled()) {
+      ImeDebugTracer.start("ImeExtractor.livePreview")
+          .add("scratch", scratchContent)
+          .add("preview", previewContent)
+          .emit();
+    }
+  }
+
+  private void clearVisibleCompositionPreview() {
+    imeContainer.removeClassName(LIVE_PREVIEW_CLASS);
+    imeContainer.removeAttribute(LIVE_PREVIEW_ATTR);
+    imeContainer.getStyle().clearProperty("minWidth");
+    clearStyleProperty(imeContainer, LIVE_PREVIEW_COLOR_PROPERTY);
+  }
+
+  private static native String readComputedColor(Element element) /*-{
+    if (!element || !$wnd.getComputedStyle) {
+      return "";
+    }
+    var style = $wnd.getComputedStyle(element);
+    return style && style.color ? style.color : "";
+  }-*/;
+
+  private static native void setStyleProperty(Element element, String name, String value) /*-{
+    if (element && element.style) {
+      element.style.setProperty(name, value);
+    }
+  }-*/;
+
+  private static native void clearStyleProperty(Element element, String name) /*-{
+    if (element && element.style) {
+      element.style.removeProperty(name);
+    }
+  }-*/;
+
   private void clearWrapper(LocalDocument<ContentNode, ContentElement, ContentTextNode> doc) {
     if (wrapper != null && wrapper.getParentElement() != null) {
       doc.transparentDeepRemove(wrapper);
@@ -428,6 +537,8 @@ public class ImeExtractor {
   }
 
   private void clearContainer() {
+    livePreviewSyncScheduled = false;
+    clearVisibleCompositionPreview();
     imeInput.setInnerHTML("");
     if (!QuirksConstants.SUPPORTS_CARET_IN_EMPTY_SPAN) {
       ParagraphHelper.INSTANCE.onEmpty(imeInput);

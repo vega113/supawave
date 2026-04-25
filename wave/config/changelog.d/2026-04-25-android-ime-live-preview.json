@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-android-ime-live-preview",
+  "version": "Issue #828",
+  "date": "2026-04-25",
+  "title": "Show recovered Android IME text while composing",
+  "summary": "Android Chrome composition now displays the recovered text while typing, so a blip no longer visibly shows the raw shortened IME scratch such as \"ew lip\" before the keyboard Done action commits it as \"new blip\".",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Typing text such as \"new blip\" on Android Chrome now previews the recovered composition text during active typing, not only after pressing Done."
+      ]
+    }
+  ]
+}

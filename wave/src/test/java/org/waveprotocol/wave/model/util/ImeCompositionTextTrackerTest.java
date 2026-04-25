@@ -35,6 +35,15 @@ public class ImeCompositionTextTrackerTest extends TestCase {
     assertEquals(expectedText, tracker.effectiveText(scratchText));
   }
 
+  private void assertImePreviewSequence(String expectedText, String scratchText,
+      String... observedValues) {
+    ImeCompositionTextTracker tracker = new ImeCompositionTextTracker();
+    for (String v : observedValues) {
+      tracker.observe(v);
+    }
+    assertEquals(expectedText, tracker.previewText(scratchText));
+  }
+
   public void testAndroidSingleLetterReplacementSequenceRecoversNew() {
     assertImeSequence("new", "ew", "n", "e", "e", "ew", "ew");
   }
@@ -45,6 +54,17 @@ public class ImeCompositionTextTrackerTest extends TestCase {
 
   public void testAndroidReplacementCanRecoverWhenScratchExtendsPendingValue() {
     assertImeSequence("new", "ew", "n", "e", "ew");
+  }
+
+  public void testAndroidLivePreviewShowsPendingReplacementBeforeCommit() {
+    assertImePreviewSequence("ne", "e", "n", "e");
+    assertImePreviewSequence("new", "ew", "n", "e", "e", "ew");
+    assertImePreviewSequence("bl", "l", "b", "l");
+    assertImePreviewSequence("blip", "lip", "b", "l", "l", "li", "li", "lip");
+  }
+
+  public void testPendingReplacementDoesNotChangeFinalEffectiveText() {
+    assertImeSequence("e", "e", "n", "e");
   }
 
   public void testRepeatedSingleCharacterDoesNotDuplicate() {

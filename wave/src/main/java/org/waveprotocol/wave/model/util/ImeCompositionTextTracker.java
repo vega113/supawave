@@ -118,6 +118,34 @@ public final class ImeCompositionTextTracker {
     return scratch;
   }
 
+  /**
+   * Returns the text that should be shown while the Android composition is
+   * still active.
+   *
+   * <p>Callers must pass the current raw DOM scratch text from the active IME
+   * container, not reconstructed or model-derived text. The preview relies on
+   * DOM-synchronous composition state and can produce an incorrect result if
+   * {@code scratchText} is not the exact browser scratch value for this tick.
+   *
+   * <p>The final effective text intentionally waits for duplicate or extension
+   * evidence before committing a one-character replacement. For local live
+   * display we can be more optimistic: if Android rewrites {@code n} to raw
+   * scratch {@code e}, showing {@code ne} matches the user's key stream and can
+   * be corrected by the next update if the IME revises the composing character
+   * again. The committed text path still uses {@link #effectiveText(String)}.
+   */
+  public String previewText(String scratchText) {
+    String scratch = scratchText == null ? "" : scratchText;
+    if (scratch.isEmpty()) {
+      return scratch;
+    }
+    if (!pendingReplacementValue.isEmpty()
+        && scratch.equals(pendingReplacementValue)) {
+      return pendingReplacementBase + pendingReplacementValue;
+    }
+    return effectiveText(scratch);
+  }
+
   private boolean isSingleCharacterReplacement(String value) {
     return value.length() == 1
         && lastObserved.length() == 1

@@ -70,6 +70,7 @@ background `DiskCacheThread` shutdown exception such as
 task completes. Treat this as benign only when the SBT command exits `0`, every
 requested J2CL or Lit task reports success, and there is no preceding compile,
 test, Closure, npm, or wrapper failure.
+
 The shutdown variants observed so far are `RejectedExecutionException` and
 `ClosedWatchServiceException`; grep for both strings when preserving evidence.
 

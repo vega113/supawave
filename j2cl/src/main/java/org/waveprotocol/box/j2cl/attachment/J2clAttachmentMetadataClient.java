@@ -89,7 +89,8 @@ public final class J2clAttachmentMetadataClient {
     if (response.getStatusCode() != 200) {
       return MetadataResult.failure(
           ErrorType.HTTP_STATUS,
-          "HTTP " + response.getStatusCode() + " while fetching attachment metadata.");
+          "HTTP " + response.getStatusCode() + " while fetching attachment metadata.",
+          response.getStatusCode());
     }
     if (!isJsonContentType(response.getContentType())) {
       return MetadataResult.failure(
@@ -394,18 +395,21 @@ public final class J2clAttachmentMetadataClient {
     private final List<String> missingAttachmentIds;
     private final ErrorType errorType;
     private final String message;
+    private final int statusCode;
 
     private MetadataResult(
         boolean success,
         List<J2clAttachmentMetadata> attachments,
         List<String> missingAttachmentIds,
         ErrorType errorType,
-        String message) {
+        String message,
+        int statusCode) {
       this.success = success;
       this.attachments = Collections.unmodifiableList(new ArrayList<J2clAttachmentMetadata>(attachments));
       this.missingAttachmentIds = Collections.unmodifiableList(new ArrayList<String>(missingAttachmentIds));
       this.errorType = errorType;
       this.message = message == null ? "" : message;
+      this.statusCode = Math.max(0, statusCode);
     }
 
     // Public so controller tests outside this package can exercise metadata callback paths without
@@ -416,16 +420,21 @@ public final class J2clAttachmentMetadataClient {
       if (attachments == null || missingAttachmentIds == null) {
         throw new IllegalArgumentException("Metadata result lists are required.");
       }
-      return new MetadataResult(true, attachments, missingAttachmentIds, null, "");
+      return new MetadataResult(true, attachments, missingAttachmentIds, null, "", 0);
     }
 
     public static MetadataResult failure(ErrorType errorType, String message) {
+      return failure(errorType, message, 0);
+    }
+
+    public static MetadataResult failure(ErrorType errorType, String message, int statusCode) {
       return new MetadataResult(
           false,
           Collections.<J2clAttachmentMetadata>emptyList(),
           Collections.<String>emptyList(),
           errorType,
-          message);
+          message,
+          statusCode);
     }
 
     public boolean isSuccess() {
@@ -446,6 +455,10 @@ public final class J2clAttachmentMetadataClient {
 
     public String getMessage() {
       return message;
+    }
+
+    public int getStatusCode() {
+      return statusCode;
     }
   }
 

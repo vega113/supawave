@@ -253,6 +253,7 @@ public class J2clAttachmentMetadataClientTest {
     Assert.assertFalse(callback.result.isSuccess());
     Assert.assertEquals(
         J2clAttachmentMetadataClient.ErrorType.HTTP_STATUS, callback.result.getErrorType());
+    Assert.assertEquals(403, callback.result.getStatusCode());
   }
 
   @Test
@@ -269,6 +270,7 @@ public class J2clAttachmentMetadataClientTest {
     Assert.assertFalse(callback.result.isSuccess());
     Assert.assertEquals(
         J2clAttachmentMetadataClient.ErrorType.HTTP_STATUS, callback.result.getErrorType());
+    Assert.assertEquals(500, callback.result.getStatusCode());
   }
 
   @Test

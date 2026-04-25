@@ -12,6 +12,7 @@ import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveController
@@ -119,6 +120,7 @@ public final class J2clSelectedWaveController
   private final RetryScheduler retryScheduler;
   private final ReadStateFetchScheduler readStateFetchScheduler;
   private final WriteSessionListener writeSessionListener;
+  private final J2clClientTelemetry.Sink telemetrySink;
   private Subscription currentSubscription;
   private SidecarSessionBootstrap currentBootstrap;
   private SidecarSelectedWaveUpdate lastUpdate;
@@ -167,7 +169,24 @@ public final class J2clSelectedWaveController
         retryScheduler,
         readStateFetchScheduler,
         null,
-        null);
+        null,
+        J2clClientTelemetry.noop());
+  }
+
+  public J2clSelectedWaveController(
+      Gateway gateway,
+      View view,
+      RetryScheduler retryScheduler,
+      ReadStateFetchScheduler readStateFetchScheduler,
+      J2clClientTelemetry.Sink telemetrySink) {
+    this(
+        gateway,
+        view,
+        retryScheduler,
+        readStateFetchScheduler,
+        null,
+        null,
+        telemetrySink);
   }
 
   public J2clSelectedWaveController(
@@ -202,11 +221,30 @@ public final class J2clSelectedWaveController
       ReadStateFetchScheduler readStateFetchScheduler,
       WriteSessionListener writeSessionListener,
       VisibilitySource visibilitySource) {
+    this(
+        gateway,
+        view,
+        retryScheduler,
+        readStateFetchScheduler,
+        writeSessionListener,
+        visibilitySource,
+        J2clClientTelemetry.noop());
+  }
+
+  public J2clSelectedWaveController(
+      Gateway gateway,
+      View view,
+      RetryScheduler retryScheduler,
+      ReadStateFetchScheduler readStateFetchScheduler,
+      WriteSessionListener writeSessionListener,
+      VisibilitySource visibilitySource,
+      J2clClientTelemetry.Sink telemetrySink) {
     this.gateway = gateway;
     this.view = view;
     this.retryScheduler = retryScheduler;
     this.readStateFetchScheduler = readStateFetchScheduler;
     this.writeSessionListener = writeSessionListener;
+    this.telemetrySink = telemetrySink == null ? J2clClientTelemetry.noop() : telemetrySink;
     this.currentModel = J2clSelectedWaveModel.empty();
     this.view.render(currentModel);
     this.view.setViewportEdgeHandler(this::onViewportEdge);
@@ -616,13 +654,18 @@ public final class J2clSelectedWaveController
             }
             J2clSelectedWaveViewportState nextViewportState;
             if (result != null && result.isSuccess()) {
+              List<String> missingAttachmentIds = missingAttachmentIdsForRequest(idsToFetch, result);
+              if (!missingAttachmentIds.isEmpty()) {
+                emitMetadataFailed("metadata", "other");
+              }
               nextViewportState =
                   currentModel
                       .getViewportState()
                       .withAttachmentMetadata(
                           result.getAttachments(),
-                          missingAttachmentIdsForRequest(idsToFetch, result));
+                          missingAttachmentIds);
             } else {
+              emitMetadataFailed(metadataFailureReason(result), statusBucket(result));
               nextViewportState =
                   currentModel
                       .getViewportState()
@@ -636,6 +679,7 @@ public final class J2clSelectedWaveController
           });
     } catch (RuntimeException e) {
       clearAttachmentMetadataFetches(idsToFetch);
+      emitMetadataFailed("client-error", "other");
       J2clSelectedWaveViewportState nextViewportState =
           currentModel
               .getViewportState()
@@ -664,6 +708,58 @@ public final class J2clSelectedWaveController
     return e == null || e.getMessage() == null || e.getMessage().isEmpty()
         ? DEFAULT_METADATA_FAILURE_MESSAGE
         : e.getMessage();
+  }
+
+  private void emitMetadataFailed(String reason, String statusBucket) {
+    emit(
+        J2clClientTelemetry.event("attachment.metadata.failed")
+            .field("source", "selected-wave")
+            .field("reason", reason)
+            .field("statusBucket", statusBucket)
+            .build());
+  }
+
+  private void emit(J2clClientTelemetry.Event event) {
+    try {
+      telemetrySink.record(event);
+    } catch (Throwable ignored) {
+      // Telemetry is best-effort and must not alter selected-wave rendering.
+    }
+  }
+
+  private static String metadataFailureReason(
+      J2clAttachmentMetadataClient.MetadataResult result) {
+    if (result == null || result.getErrorType() == null) {
+      return "metadata";
+    }
+    switch (result.getErrorType()) {
+      case INVALID_REQUEST:
+        return "validation";
+      case NETWORK:
+        return "network";
+      case HTTP_STATUS:
+        int statusCode = result.getStatusCode();
+        return statusCode == 401 || statusCode == 403 ? "forbidden" : "server";
+      case UNEXPECTED_CONTENT_TYPE:
+      case PARSE_ERROR:
+        return "metadata";
+      default:
+        return "metadata";
+    }
+  }
+
+  private static String statusBucket(J2clAttachmentMetadataClient.MetadataResult result) {
+    if (result == null) {
+      return "other";
+    }
+    int statusCode = result.getStatusCode();
+    if (statusCode >= 400 && statusCode < 500) {
+      return "4xx";
+    }
+    if (statusCode >= 500 && statusCode < 600) {
+      return "5xx";
+    }
+    return "other";
   }
 
   private static List<String> missingAttachmentIdsForRequest(

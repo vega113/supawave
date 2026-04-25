@@ -14,6 +14,8 @@ import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadataClient;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
@@ -945,6 +947,91 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void metadataNetworkFailureEmitsTelemetry() throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    Object controller = harness.createController(false);
+
+    harness.openWaveWithAttachment(controller);
+    harness.rejectAttachmentMetadata(0, "metadata network failure");
+
+    J2clClientTelemetry.Event event = telemetry.lastEvent();
+    Assert.assertEquals("attachment.metadata.failed", event.getName());
+    Assert.assertEquals("selected-wave", event.getFields().get("source"));
+    Assert.assertEquals("network", event.getFields().get("reason"));
+    Assert.assertEquals("other", event.getFields().get("statusBucket"));
+  }
+
+  @Test
+  public void metadataMissingResultEmitsMetadataReason() throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    Object controller = harness.createController(false);
+
+    harness.openWaveWithAttachment(controller);
+    harness.resolveAttachmentMetadata(
+        0,
+        Collections.<J2clAttachmentMetadata>emptyList(),
+        Collections.<String>emptyList());
+
+    J2clClientTelemetry.Event event = telemetry.lastEvent();
+    Assert.assertEquals("attachment.metadata.failed", event.getName());
+    Assert.assertEquals("metadata", event.getFields().get("reason"));
+  }
+
+  @Test
+  public void metadataTelemetryMapsEveryMetadataReason() throws Exception {
+    assertMetadataReason(
+        J2clAttachmentMetadataClient.MetadataResult.failure(
+            J2clAttachmentMetadataClient.ErrorType.INVALID_REQUEST, "bad request"),
+        "validation",
+        "other");
+    assertMetadataReason(metadataHttpFailure(403), "forbidden", "4xx");
+    assertMetadataReason(metadataHttpFailure(500), "server", "5xx");
+    assertMetadataReason(
+        J2clAttachmentMetadataClient.MetadataResult.failure(
+            J2clAttachmentMetadataClient.ErrorType.UNEXPECTED_CONTENT_TYPE, "html"),
+        "metadata",
+        "other");
+    assertMetadataReason(
+        J2clAttachmentMetadataClient.MetadataResult.failure(
+            J2clAttachmentMetadataClient.ErrorType.PARSE_ERROR, "bad json"),
+        "metadata",
+        "other");
+  }
+
+  @Test
+  public void metadataDispatchExceptionEmitsClientErrorReason() throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    harness.attachmentMetadataDispatchError = "dispatch failed";
+    Object controller = harness.createController(false);
+
+    harness.openWaveWithAttachment(controller);
+
+    J2clClientTelemetry.Event event = telemetry.lastEvent();
+    Assert.assertEquals("attachment.metadata.failed", event.getName());
+    Assert.assertEquals("client-error", event.getFields().get("reason"));
+    Assert.assertEquals("other", event.getFields().get("statusBucket"));
+    Assert.assertTrue(harness.firstReadAttachment().isMetadataFailure());
+  }
+
+  @Test
+  public void throwingTelemetrySinkDoesNotBreakMetadataFailureRendering() throws Exception {
+    Harness harness =
+        new Harness(
+            event -> {
+              throw new RuntimeException("telemetry boom");
+            });
+    Object controller = harness.createController(false);
+
+    harness.openWaveWithAttachment(controller);
+    harness.rejectAttachmentMetadata(0, "metadata network failure");
+
+    Assert.assertTrue(harness.firstReadAttachment().isMetadataFailure());
+  }
+
+  @Test
   public void selectedWaveMarksAttachmentMetadataDispatchThrowAsFailure() throws Exception {
     Harness harness = new Harness();
     harness.attachmentMetadataDispatchError = "metadata dispatch failed";
@@ -1068,6 +1155,32 @@ public class J2clSelectedWaveControllerTest {
         false);
   }
 
+  private static void assertMetadataReason(
+      J2clAttachmentMetadataClient.MetadataResult result,
+      String reason,
+      String statusBucket)
+      throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    Object controller = harness.createController(false);
+
+    harness.openWaveWithAttachment(controller);
+    harness.completeAttachmentMetadata(0, result);
+
+    J2clClientTelemetry.Event event = telemetry.lastEvent();
+    Assert.assertEquals("attachment.metadata.failed", event.getName());
+    Assert.assertEquals("selected-wave", event.getFields().get("source"));
+    Assert.assertEquals(reason, event.getFields().get("reason"));
+    Assert.assertEquals(statusBucket, event.getFields().get("statusBucket"));
+  }
+
+  private static J2clAttachmentMetadataClient.MetadataResult metadataHttpFailure(int statusCode) {
+    return J2clAttachmentMetadataClient.MetadataResult.failure(
+        J2clAttachmentMetadataClient.ErrorType.HTTP_STATUS,
+        "HTTP " + statusCode,
+        statusCode);
+  }
+
   private static final class Harness {
     private int openCount;
     private int closedCount;
@@ -1088,6 +1201,15 @@ public class J2clSelectedWaveControllerTest {
     private Method onWaveSelectedMethod;
     private Method onWaveSelectedWithDigestMethod;
     private String attachmentMetadataDispatchError;
+    private final J2clClientTelemetry.Sink telemetrySink;
+
+    private Harness() {
+      this(J2clClientTelemetry.noop());
+    }
+
+    private Harness(J2clClientTelemetry.Sink telemetrySink) {
+      this.telemetrySink = telemetrySink;
+    }
 
     private Object createControllerWithVisibility(boolean withScheduler) throws Exception {
       return createControllerInternal(withScheduler, /* injectVisibility= */ true);
@@ -1255,21 +1377,43 @@ public class J2clSelectedWaveControllerTest {
                   return null;
                 });
         Constructor<?> constructor =
-            controllerClass.getConstructor(
-                gatewayClass,
-                viewClass,
-                schedulerClass,
-                readStateSchedulerClass,
-                writeSessionListenerClass,
-                visibilityClass);
+            telemetrySink == null
+                ? controllerClass.getConstructor(
+                    gatewayClass,
+                    viewClass,
+                    schedulerClass,
+                    readStateSchedulerClass,
+                    writeSessionListenerClass,
+                    visibilityClass)
+                : controllerClass.getConstructor(
+                    gatewayClass,
+                    viewClass,
+                    schedulerClass,
+                    readStateSchedulerClass,
+                    writeSessionListenerClass,
+                    visibilityClass,
+                    J2clClientTelemetry.Sink.class);
         controller =
-            constructor.newInstance(
-                gateway, view, scheduler, readStateScheduler, null, visibility);
+            telemetrySink == null
+                ? constructor.newInstance(
+                    gateway, view, scheduler, readStateScheduler, null, visibility)
+                : constructor.newInstance(
+                    gateway, view, scheduler, readStateScheduler, null, visibility, telemetrySink);
       } else {
         Constructor<?> constructor =
-            controllerClass.getConstructor(
-                gatewayClass, viewClass, schedulerClass, readStateSchedulerClass);
-        controller = constructor.newInstance(gateway, view, scheduler, readStateScheduler);
+            telemetrySink == null
+                ? controllerClass.getConstructor(
+                    gatewayClass, viewClass, schedulerClass, readStateSchedulerClass)
+                : controllerClass.getConstructor(
+                    gatewayClass,
+                    viewClass,
+                    schedulerClass,
+                    readStateSchedulerClass,
+                    J2clClientTelemetry.Sink.class);
+        controller =
+            telemetrySink == null
+                ? constructor.newInstance(gateway, view, scheduler, readStateScheduler)
+                : constructor.newInstance(gateway, view, scheduler, readStateScheduler, telemetrySink);
       }
       // The `withScheduler` flag is kept for call-site symmetry with legacy tests;
       // the harness always wires a custom scheduler now so the implicit retry and
@@ -1356,21 +1500,34 @@ public class J2clSelectedWaveControllerTest {
         int index,
         List<J2clAttachmentMetadata> attachments,
         List<String> missingAttachmentIds) {
-      attachmentMetadataAttempts
-          .get(index)
-          .callback
-          .onComplete(
-              J2clAttachmentMetadataClient.MetadataResult.success(
-                  attachments, missingAttachmentIds));
+      completeAttachmentMetadata(
+          index,
+          J2clAttachmentMetadataClient.MetadataResult.success(
+              attachments, missingAttachmentIds));
     }
 
     private void rejectAttachmentMetadata(int index, String message) {
+      completeAttachmentMetadata(
+          index,
+          J2clAttachmentMetadataClient.MetadataResult.failure(
+              J2clAttachmentMetadataClient.ErrorType.NETWORK, message));
+    }
+
+    private void completeAttachmentMetadata(
+        int index, J2clAttachmentMetadataClient.MetadataResult result) {
       attachmentMetadataAttempts
           .get(index)
           .callback
-          .onComplete(
-              J2clAttachmentMetadataClient.MetadataResult.failure(
-                  J2clAttachmentMetadataClient.ErrorType.NETWORK, message));
+          .onComplete(result);
+    }
+
+    private void openWaveWithAttachment(Object controller) throws Exception {
+      selectWave(controller, "example.com/w+1", null);
+      resolveBootstrap(0);
+      deliverUpdate(
+          0,
+          "Intro <image attachment=\"example.com/att+hero\" display-size=\"medium\">"
+              + "<caption>Hero diagram</caption></image> outro");
     }
 
     private void deliverUpdate(int index, String rawSnapshot) {

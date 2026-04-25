@@ -188,6 +188,28 @@ describe("<composer-inline-reply>", () => {
     expect(pasteEvents).to.equal(0);
   });
 
+  it("emits pasted image via clipboardData.files fallback when items has no image", async () => {
+    const el = await fixture(html`<composer-inline-reply available></composer-inline-reply>`);
+    const textarea = el.renderRoot.querySelector("textarea");
+    const imageFile = new File(["png"], "mobile-paste.png", { type: "image/png" });
+    let pastedFile = null;
+    el.addEventListener("attachment-paste-image", (event) => {
+      pastedFile = event.detail.file;
+    });
+    const pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(pasteEvent, "clipboardData", {
+      value: {
+        items: [],
+        files: [imageFile]
+      }
+    });
+
+    textarea.dispatchEvent(pasteEvent);
+
+    expect(pasteEvent.defaultPrevented).to.equal(true);
+    expect(pastedFile).to.equal(imageFile);
+  });
+
   it("ignores focus requests when the textarea has not rendered", async () => {
     const el = await fixture(html`<composer-inline-reply></composer-inline-reply>`);
     el.renderRoot.querySelector("textarea").remove();

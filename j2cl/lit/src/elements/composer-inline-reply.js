@@ -130,10 +130,15 @@ export class ComposerInlineReply extends LitElement {
 
   onPaste(event) {
     const items = Array.from(event.clipboardData?.items || []);
-    const file = items
+    let file = items
       .filter((item) => item.type?.startsWith("image/"))
       .map((item) => this.fileFromClipboardItem(item))
       .find(Boolean);
+    // Fallback for browsers (common mobile path) that expose pasted images via files
+    if (!file) {
+      const files = Array.from(event.clipboardData?.files || []);
+      file = files.find((f) => f.type?.startsWith("image/")) ?? null;
+    }
     if (!file) {
       return;
     }

@@ -33,7 +33,7 @@ public final class MobileChromeControlsContractTest extends TestCase {
 
     assertContains(source, "mobile-control-svg");
     assertContains(source, "mobile-control-label");
-    assertContains(source, "width: 44px");
+    assertContains(source, "min-width: 44px");
     assertContains(source, "height: 44px");
     assertContains(source, "border-radius: 12px");
     assertContains(source, "title=\\\"Show tags tray\\\"");

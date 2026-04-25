@@ -140,14 +140,16 @@ public final class WavePanelTagsLayoutTest extends TestCase {
     assertTrue(controller.contains("messages.closeTagAction()"));
   }
 
-  public void testTagsCssDefinesMobileCollapsedAndPinnedStates() throws Exception {
+  public void testTagsCssDefinesMobileOverlayOpenClosedStates() throws Exception {
     String css = read("wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
 
     assertTrue(css.contains("body.mobile-tags-open [data-mobile-role='wave-tags']"));
     assertFalse(css.contains("body.mobile-tags-pinned [data-mobile-role='wave-tags']"));
     assertTrue(css.contains("transform: translateY(100%);"));
     assertTrue(css.contains("pointer-events: none;"));
+    assertTrue(css.contains("visibility: hidden;"));
     assertTrue(css.contains("transform: translateY(0);"));
+    assertTrue(css.contains("visibility: visible;"));
     assertTrue(css.contains("transition: transform 180ms ease-out, max-height 180ms ease-out;"));
   }
 

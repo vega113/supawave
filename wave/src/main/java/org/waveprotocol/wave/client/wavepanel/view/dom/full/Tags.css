@@ -237,6 +237,7 @@ body.mobile-wave-open [data-mobile-role='wave-tags'] {
   overflow: hidden;
   transform: translateY(100%);
   pointer-events: none;
+  visibility: hidden;
   transition: transform 180ms ease-out, max-height 180ms ease-out;
   z-index: 120;
 }
@@ -244,6 +245,7 @@ body.mobile-wave-open [data-mobile-role='wave-tags'] {
 body.mobile-tags-open [data-mobile-role='wave-tags'] {
   transform: translateY(0);
   pointer-events: auto;
+  visibility: visible;
   max-height: 40vh;
 }
 

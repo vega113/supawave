@@ -19,6 +19,11 @@ describe("<compose-attachment-picker>", () => {
     expect(trigger.getAttribute("aria-expanded")).to.equal("true");
     expect(overlay.open).to.equal(true);
     expect(overlay.modal).to.equal(true);
+    await overlay.updateComplete;
+    await Promise.resolve();
+    expect(overlay.renderRoot.querySelector("[part='surface']")).to.equal(
+      overlay.shadowRoot.activeElement
+    );
 
     const closeEvent = oneEvent(el, "attachment-picker-close");
     overlay.dispatchEvent(new CustomEvent("overlay-close", {

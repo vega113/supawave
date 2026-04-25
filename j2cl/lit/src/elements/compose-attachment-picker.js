@@ -209,12 +209,6 @@ export class ComposeAttachmentPicker extends LitElement {
     `;
   }
 
-  updated(changedProperties) {
-    if (changedProperties.has("open") && this.open) {
-      this.renderRoot.querySelector("input[type='file']")?.focus();
-    }
-  }
-
   openPicker() {
     if (this.open) {
       return;
@@ -247,7 +241,7 @@ export class ComposeAttachmentPicker extends LitElement {
         composed: true
       })
     );
-    // interaction-overlay-layer reports focusTargetId; this host owns restoration.
+    // interaction-overlay-layer only reports focusTargetId; this host performs restoration.
     this.updateComplete.then(() => {
       this.renderRoot.querySelector("#attachment-picker-trigger")?.focus();
     });

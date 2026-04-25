@@ -186,4 +186,18 @@ public class J2clReadBlipContentTest {
     Assert.assertEquals("example.com/att+self", attachment.getAttachmentId());
     Assert.assertEquals("medium", attachment.getDisplaySize());
   }
+
+  @Test
+  public void literalGreaterThanInPlainTextIsPreserved() {
+    J2clReadBlipContent parsed = J2clReadBlipContent.parseRawSnapshot("a > b");
+    Assert.assertEquals("a > b", parsed.getText());
+    Assert.assertEquals(0, parsed.getAttachments().size());
+  }
+
+  @Test
+  public void literalGreaterThanOutsideTagIsNotTreatedAsTagClose() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body>x > y</body>");
+    Assert.assertEquals("x > y", parsed.getText());
+  }
 }

@@ -146,7 +146,7 @@ public final class J2clReadBlipContent {
       if (c == '<') {
         insideTag = true;
         tagBuf.setLength(0);
-      } else if (c == '>') {
+      } else if (c == '>' && insideTag) {
         insideTag = false;
         // <line/> and <line> are DocOp structural separators: Hello<line/>World -> Hello\nWorld.
         if (isLineTag(tagBuf.toString())) {

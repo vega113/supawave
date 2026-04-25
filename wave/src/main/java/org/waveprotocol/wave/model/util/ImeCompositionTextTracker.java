@@ -122,6 +122,11 @@ public final class ImeCompositionTextTracker {
    * Returns the text that should be shown while the Android composition is
    * still active.
    *
+   * <p>Callers must pass the current raw DOM scratch text from the active IME
+   * container, not reconstructed or model-derived text. The preview relies on
+   * DOM-synchronous composition state and can produce an incorrect result if
+   * {@code scratchText} is not the exact browser scratch value for this tick.
+   *
    * <p>The final effective text intentionally waits for duplicate or extension
    * evidence before committing a one-character replacement. For local live
    * display we can be more optimistic: if Android rewrites {@code n} to raw

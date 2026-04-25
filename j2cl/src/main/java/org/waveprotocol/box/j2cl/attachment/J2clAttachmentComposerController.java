@@ -1,0 +1,311 @@
+package org.waveprotocol.box.j2cl.attachment;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.waveprotocol.box.j2cl.richtext.J2clComposerDocument;
+
+/** Controller-domain layer for composer attachment selection, upload, and insertion callbacks. */
+public final class J2clAttachmentComposerController {
+  private static final String PASTED_IMAGE_FILENAME = "pasted-image.png";
+
+  public interface DocumentInsertionCallback {
+    void onInsert(J2clComposerDocument document, AttachmentInsertion insertion);
+  }
+
+  public enum DisplaySize {
+    SMALL("small"),
+    MEDIUM("medium"),
+    LARGE("large");
+
+    private final String documentValue;
+
+    DisplaySize(String documentValue) {
+      this.documentValue = documentValue;
+    }
+
+    public String getDocumentValue() {
+      return documentValue;
+    }
+  }
+
+  public enum UploadStatus {
+    QUEUED,
+    UPLOADING,
+    COMPLETE,
+    FAILED
+  }
+
+  public static final class AttachmentSelection {
+    private final Object payload;
+    private final String fileName;
+    private final String caption;
+    private final DisplaySize displaySize;
+    private final boolean pastedImage;
+
+    private AttachmentSelection(
+        Object payload,
+        String fileName,
+        String caption,
+        DisplaySize displaySize,
+        boolean pastedImage) {
+      this.payload = payload;
+      this.fileName = requireNonEmpty(fileName, "Attachment file name is required.");
+      this.caption = caption == null ? "" : caption;
+      this.displaySize = requirePresent(displaySize, "Attachment display size is required.");
+      this.pastedImage = pastedImage;
+      if (payload == null) {
+        throw new IllegalArgumentException("Attachment payload is required.");
+      }
+    }
+
+    public static AttachmentSelection file(
+        Object payload, String fileName, String caption, DisplaySize displaySize) {
+      return new AttachmentSelection(payload, fileName, caption, displaySize, false);
+    }
+  }
+
+  public static final class AttachmentInsertion {
+    private final String attachmentId;
+    private final String caption;
+    private final DisplaySize displaySize;
+
+    private AttachmentInsertion(String attachmentId, String caption, DisplaySize displaySize) {
+      this.attachmentId = attachmentId;
+      this.caption = caption;
+      this.displaySize = displaySize;
+    }
+
+    public String getAttachmentId() {
+      return attachmentId;
+    }
+
+    public String getCaption() {
+      return caption;
+    }
+
+    public DisplaySize getDisplaySize() {
+      return displaySize;
+    }
+  }
+
+  public static final class UploadItem {
+    private final String attachmentId;
+    private final String fileName;
+    private final String caption;
+    private final DisplaySize displaySize;
+    private final UploadStatus status;
+    private final int progressPercent;
+    private final String errorCode;
+    private final String errorMessage;
+
+    private UploadItem(QueueItem item) {
+      this.attachmentId = item.attachmentId;
+      this.fileName = item.selection.fileName;
+      this.caption = item.caption();
+      this.displaySize = item.selection.displaySize;
+      this.status = item.status;
+      this.progressPercent = item.progressPercent;
+      this.errorCode = item.errorCode;
+      this.errorMessage = item.errorMessage;
+    }
+
+    public String getAttachmentId() {
+      return attachmentId;
+    }
+
+    public String getFileName() {
+      return fileName;
+    }
+
+    public String getCaption() {
+      return caption;
+    }
+
+    public DisplaySize getDisplaySize() {
+      return displaySize;
+    }
+
+    public UploadStatus getStatus() {
+      return status;
+    }
+
+    public int getProgressPercent() {
+      return progressPercent;
+    }
+
+    public String getErrorCode() {
+      return errorCode;
+    }
+
+    public String getErrorMessage() {
+      return errorMessage;
+    }
+  }
+
+  private static final class QueueItem {
+    private final String attachmentId;
+    private final AttachmentSelection selection;
+    private UploadStatus status = UploadStatus.QUEUED;
+    private int progressPercent;
+    private String errorCode = "";
+    private String errorMessage = "";
+
+    private QueueItem(String attachmentId, AttachmentSelection selection) {
+      this.attachmentId = attachmentId;
+      this.selection = selection;
+    }
+
+    private String caption() {
+      String trimmed = selection.caption.trim();
+      return trimmed.isEmpty() ? selection.fileName : trimmed;
+    }
+  }
+
+  private final String waveRef;
+  private final J2clAttachmentUploadClient uploadClient;
+  private final J2clAttachmentIdGenerator idGenerator;
+  private final DocumentInsertionCallback insertionCallback;
+  private final List<QueueItem> queue = new ArrayList<QueueItem>();
+  private boolean uploadInProgress;
+  private int resetGeneration;
+
+  public J2clAttachmentComposerController(
+      String waveRef,
+      J2clAttachmentUploadClient uploadClient,
+      J2clAttachmentIdGenerator idGenerator,
+      DocumentInsertionCallback insertionCallback) {
+    this.waveRef = requireNonEmpty(waveRef, "Wave ref is required.");
+    this.uploadClient = requirePresent(uploadClient, "Attachment upload client is required.");
+    this.idGenerator = requirePresent(idGenerator, "Attachment id generator is required.");
+    this.insertionCallback =
+        requirePresent(insertionCallback, "Attachment insertion callback is required.");
+  }
+
+  public void selectFiles(List<AttachmentSelection> selections) {
+    if (selections == null) {
+      throw new IllegalArgumentException("Attachment selections are required.");
+    }
+    for (AttachmentSelection selection : selections) {
+      queue.add(
+          new QueueItem(
+              idGenerator.nextAttachmentId(),
+              requirePresent(selection, "Attachment selection is required.")));
+    }
+    startNextUpload();
+  }
+
+  public void pasteImage(Object imagePayload, String caption, DisplaySize displaySize) {
+    queue.add(
+        new QueueItem(
+            idGenerator.nextAttachmentId(),
+            new AttachmentSelection(
+                imagePayload, PASTED_IMAGE_FILENAME, caption, displaySize, true)));
+    startNextUpload();
+  }
+
+  public List<UploadItem> getQueueSnapshot() {
+    List<UploadItem> snapshot = new ArrayList<UploadItem>();
+    for (QueueItem item : queue) {
+      snapshot.add(new UploadItem(item));
+    }
+    return Collections.unmodifiableList(snapshot);
+  }
+
+  public void cancelAndReset() {
+    resetGeneration++;
+    uploadInProgress = false;
+    queue.clear();
+  }
+
+  private void startNextUpload() {
+    if (uploadInProgress) {
+      return;
+    }
+    QueueItem item = firstQueuedItem();
+    if (item == null) {
+      return;
+    }
+    uploadInProgress = true;
+    item.status = UploadStatus.UPLOADING;
+    int generation = resetGeneration;
+    J2clAttachmentUploadClient.UploadProgressCallback progressCallback =
+        percent -> {
+          if (generation == resetGeneration && item.status == UploadStatus.UPLOADING) {
+            item.progressPercent = percent;
+          }
+        };
+    J2clAttachmentUploadClient.UploadCallback uploadCallback =
+        result -> handleUploadComplete(generation, item, result);
+    if (item.selection.pastedImage) {
+      uploadClient.uploadPastedImage(
+          item.attachmentId, waveRef, item.selection.payload, progressCallback, uploadCallback);
+    } else {
+      uploadClient.uploadFile(
+          item.attachmentId,
+          waveRef,
+          item.selection.payload,
+          item.selection.fileName,
+          progressCallback,
+          uploadCallback);
+    }
+  }
+
+  private QueueItem firstQueuedItem() {
+    for (QueueItem item : queue) {
+      if (item.status == UploadStatus.QUEUED) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  private void handleUploadComplete(
+      int generation, QueueItem item, J2clAttachmentUploadClient.UploadResult result) {
+    if (generation != resetGeneration || !queue.contains(item)) {
+      return;
+    }
+    uploadInProgress = false;
+    if (result != null && result.isSuccess()) {
+      item.status = UploadStatus.COMPLETE;
+      item.progressPercent = 100;
+      insertAttachment(item);
+    } else {
+      item.status = UploadStatus.FAILED;
+      J2clAttachmentUploadClient.ErrorType errorType =
+          result == null ? J2clAttachmentUploadClient.ErrorType.NETWORK : result.getErrorType();
+      item.errorCode = errorType == null ? "" : errorType.name();
+      item.errorMessage =
+          result == null ? "Attachment upload failed without a result." : result.getMessage();
+    }
+    startNextUpload();
+  }
+
+  private void insertAttachment(QueueItem item) {
+    AttachmentInsertion insertion =
+        new AttachmentInsertion(item.attachmentId, item.caption(), item.selection.displaySize);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .imageAttachment(
+                insertion.getAttachmentId(),
+                insertion.getCaption(),
+                insertion.getDisplaySize().getDocumentValue())
+            .build();
+    insertionCallback.onInsert(document, insertion);
+  }
+
+  private static String requireNonEmpty(String value, String message) {
+    String trimmed = value == null ? "" : value.trim();
+    if (trimmed.isEmpty()) {
+      throw new IllegalArgumentException(message);
+    }
+    return trimmed;
+  }
+
+  private static <T> T requirePresent(T value, String message) {
+    if (value == null) {
+      throw new IllegalArgumentException(message);
+    }
+    return value;
+  }
+}

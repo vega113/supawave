@@ -225,11 +225,21 @@ recorded here so it is not silently dropped:
   that were not part of the inspected daily command packet: superscript,
   subscript, font size, font family, font color, highlight color / `backColor`,
   and block quote. The block quote affordance was not present in the inspected
-  GWT `EditToolbar.java` action set (`wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java`,
-  toolbar action methods at approximately lines 364–765, commit `c4a09da3a`), so
-  it is not counted as a #971 daily parity requirement unless a later packet adds
-  it explicitly. This finding is the reason R-5.7 no longer lists block quote as
-  a daily-path example.
+  GWT `EditToolbar.java` action set. Evidence:
+  `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:319-362`
+  enumerates toolbar groups,
+  `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:364-522`
+  covers bold/italic/underline/strikethrough, superscript/subscript, font
+  size/family, text color (`createFontColorButton`), highlight / `backColor`
+  (`createFontBackColorButton`), and clear formatting
+  (`createClearFormattingButton`), and
+  `wave/src/main/java/org/waveprotocol/wave/client/wavepanel/impl/toolbar/EditToolbar.java:647-737`
+  covers link/unlink, `createClearHeadingsListener`, heading, indent/outdent,
+  and list command methods. The inspected toolbar has no `createBlockQuote*`
+  action, so block quote is not counted as a #971 daily parity requirement
+  unless a later packet adds it explicitly.
+  This finding is the reason R-5.7 no longer lists block quote as a daily-path
+  example.
 - #971 also defers drag-and-drop attachment insertion, client-side image
   compression, and mobile/touch-specific toolbar gestures beyond the file
   picker and paste-image flows. These remain follow-up candidates after the

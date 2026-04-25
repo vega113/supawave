@@ -4,7 +4,10 @@
 - Worktree: /Users/vega/devroot/worktrees/codex-issue-971-parity-closeout
 - Date: 2026-04-25
 - Issue: #971
-- Note: `scripts/worktree-boot.sh` would have generated `2026-04-25-branch-issue-971-parity-closeout.md` for branch `codex/issue-971-parity-closeout`; this committed evidence file was renamed afterward to `2026-04-25-issue-971-parity-closeout.md`.
+- Note: `scripts/worktree-boot.sh` would have generated
+  `2026-04-25-branch-codex-issue-971-parity-closeout.md` for branch
+  `codex/issue-971-parity-closeout`; this committed evidence file was renamed
+  afterward to `2026-04-25-issue-971-parity-closeout.md`.
 
 ## Commands
 

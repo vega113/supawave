@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import pathlib
 import shlex
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
+from typing import Any
 
 
 DEFAULT_SESSION = "vibe-code"
@@ -15,6 +18,13 @@ DEFAULT_SHARED_ROOT = pathlib.Path("/Users/vega/devroot/worktrees/pr-monitors")
 DEFAULT_CODEX_BIN = "codex"
 DEFAULT_MODEL = "gpt-5.4"
 DEFAULT_REASONING = "high"
+EXIT_ACTIONABLE = 0
+EXIT_MERGED = 10
+EXIT_CLOSED = 11
+EXIT_POLLER_FATAL = 12
+POLL_FAILURE_FATAL_THRESHOLD = 5
+REVIEW_GATE_CHECK_NAMES = {"Codex Review Gate", "PR Review Gate"}
+REVIEW_GATE_WORKFLOW = "Codex Review Gate"
 
 
 @dataclass(frozen=True)
@@ -35,6 +45,7 @@ class LauncherConfig:
     runner_path: pathlib.Path
     pane_title: str
     pr_head_oid: str
+    launcher_script_path: pathlib.Path = pathlib.Path(__file__).resolve()
     session_name: str = DEFAULT_SESSION
     window_name: str = DEFAULT_WINDOW
     codex_bin: str = DEFAULT_CODEX_BIN
@@ -84,7 +95,7 @@ Do not exit just because auto-merge is armed.
 Do not exit just because the PR is temporarily merge-ready.
 Keep monitoring until the PR is actually merged, because another PR may merge first and make this PR behind, conflicted, or conversation-dirty again.
 
-If there is nothing to do right now, keep polling GitHub and stay alive in this lane instead of exiting.
+If you inspect GitHub and find no actionable work, exit promptly; the shell runner polls GitHub without model tokens and will restart Codex when checks, review threads, conflicts, or merge state require action.
 """
 
 
@@ -109,6 +120,297 @@ def build_codex_command(
     ]
 
 
+@dataclass(frozen=True)
+class MonitorDecision:
+    state: str
+    reason: str
+
+
+def _check_bucket(check: dict[str, Any]) -> str:
+    return str(check.get("bucket") or "").lower()
+
+
+def _check_name(check: dict[str, Any]) -> str:
+    return str(check.get("name") or check.get("workflow") or "unnamed check")
+
+
+def _is_review_gate_check(check: dict[str, Any]) -> bool:
+    name = str(check.get("name") or "")
+    workflow = str(check.get("workflow") or check.get("workflowName") or "")
+    return name in REVIEW_GATE_CHECK_NAMES or workflow == REVIEW_GATE_WORKFLOW
+
+
+def _is_waiting_review_gate_check(check: dict[str, Any]) -> bool:
+    description = str(check.get("description") or "").lower()
+    return "waiting" in description and "review" in description
+
+
+def _summarize_checks(checks: list[dict[str, Any]]) -> str:
+    names = [_check_name(check) for check in checks[:3]]
+    if len(checks) > 3:
+        names.append(f"{len(checks) - 3} more")
+    return ", ".join(names)
+
+
+def _all_checks_finished_successfully(checks: list[dict[str, Any]]) -> bool:
+    return all(
+        _check_bucket(check) in {"pass", "skipping"} for check in checks
+    )
+
+
+def classify_pr_snapshot(
+    pr: dict[str, Any],
+    checks: list[dict[str, Any]],
+    unresolved_review_threads: int,
+) -> MonitorDecision:
+    state = str(pr.get("state") or "")
+    merged_at = pr.get("mergedAt")
+    if state == "MERGED" or (merged_at and merged_at != "null"):
+        return MonitorDecision("merged", f"PR merged at {merged_at or 'unknown time'}")
+    if state == "CLOSED":
+        return MonitorDecision("closed", "PR closed without merge")
+
+    if unresolved_review_threads > 0:
+        return MonitorDecision(
+            "actionable",
+            f"{unresolved_review_threads} unresolved review thread(s)",
+        )
+
+    if pr.get("isDraft"):
+        return MonitorDecision("actionable", "PR is still draft")
+
+    mergeable = str(pr.get("mergeable") or "")
+    merge_state = str(pr.get("mergeStateStatus") or "")
+    if mergeable == "CONFLICTING" or merge_state == "DIRTY":
+        return MonitorDecision("actionable", "PR has merge conflicts")
+    if merge_state == "BEHIND":
+        return MonitorDecision("actionable", "PR branch is behind the base branch")
+
+    failed_checks = [
+        check for check in checks if _check_bucket(check) in {"fail", "cancel"}
+    ]
+    review_gate_failures = [
+        check for check in failed_checks if _is_review_gate_check(check)
+    ]
+    non_gate_failures = [
+        check for check in failed_checks if not _is_review_gate_check(check)
+    ]
+    if non_gate_failures:
+        return MonitorDecision(
+            "actionable",
+            f"failed checks: {_summarize_checks(non_gate_failures)}",
+        )
+
+    pending_checks = [check for check in checks if _check_bucket(check) == "pending"]
+    if review_gate_failures:
+        if any(_is_waiting_review_gate_check(check) for check in review_gate_failures):
+            return MonitorDecision("idle", "waiting for review gate window")
+        return MonitorDecision("actionable", "review gate failed")
+
+    if pending_checks:
+        return MonitorDecision(
+            "idle",
+            f"waiting for checks: {_summarize_checks(pending_checks)}",
+        )
+
+    if pr.get("autoMergeRequest"):
+        return MonitorDecision("idle", "auto-merge is armed; waiting for GitHub")
+
+    if merge_state == "CLEAN" and _all_checks_finished_successfully(checks):
+        return MonitorDecision("actionable", "merge-ready but auto-merge is not armed")
+
+    return MonitorDecision(
+        "idle",
+        f"waiting for GitHub merge state {merge_state or 'unknown'}",
+    )
+
+
+def _run_json(command: list[str], allow_nonzero: bool = False) -> Any:
+    result = subprocess.run(
+        command,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0 and not allow_nonzero:
+        message = (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or f"exit {result.returncode}"
+        )
+        raise RuntimeError(message)
+    output = result.stdout.strip()
+    if not output:
+        if result.returncode != 0:
+            message = result.stderr.strip() or f"exit {result.returncode}"
+            raise RuntimeError(message)
+        return None
+    return json.loads(output)
+
+
+def fetch_pr_view(repo: str, pr_number: int) -> dict[str, Any]:
+    fields = ",".join(
+        [
+            "autoMergeRequest",
+            "isDraft",
+            "mergeable",
+            "mergedAt",
+            "mergeStateStatus",
+            "state",
+        ]
+    )
+    return _run_json(
+        [
+            "gh",
+            "pr",
+            "view",
+            str(pr_number),
+            "--repo",
+            repo,
+            "--json",
+            fields,
+        ]
+    )
+
+
+def fetch_pr_checks(repo: str, pr_number: int) -> list[dict[str, Any]]:
+    checks = _run_json(
+        [
+            "gh",
+            "pr",
+            "checks",
+            str(pr_number),
+            "--repo",
+            repo,
+            "--json",
+            "name,bucket,description,workflow",
+        ],
+        allow_nonzero=True,
+    )
+    return checks or []
+
+
+def _split_repo(repo: str) -> tuple[str, str]:
+    parts = repo.split("/")
+    if len(parts) < 2:
+        raise ValueError(f"Unsupported repo format: {repo!r}")
+    return parts[-2], parts[-1]
+
+
+def fetch_unresolved_review_thread_count(repo: str, pr_number: int) -> int:
+    owner, name = _split_repo(repo)
+    query = """
+query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100, after: $cursor) {
+        nodes {
+          isResolved
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+"""
+    cursor = ""
+    unresolved = 0
+    while True:
+        command = [
+            "gh",
+            "api",
+            "graphql",
+            "-f",
+            f"query={query}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"name={name}",
+            "-F",
+            f"number={pr_number}",
+        ]
+        if cursor:
+            command.extend(["-F", f"cursor={cursor}"])
+        response = _run_json(command)
+        threads = response["data"]["repository"]["pullRequest"]["reviewThreads"]
+        unresolved += sum(1 for node in threads["nodes"] if not node.get("isResolved"))
+        page_info = threads["pageInfo"]
+        if not page_info["hasNextPage"]:
+            return unresolved
+        cursor = page_info["endCursor"]
+
+
+def fetch_pr_snapshot(
+    repo: str,
+    pr_number: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
+    pr = fetch_pr_view(repo, pr_number)
+    state = str(pr.get("state") or "")
+    merged_at = pr.get("mergedAt")
+    if state in {"MERGED", "CLOSED"} or (merged_at and merged_at != "null"):
+        return pr, [], 0
+    return (
+        pr,
+        fetch_pr_checks(repo, pr_number),
+        fetch_unresolved_review_thread_count(repo, pr_number),
+    )
+
+
+def _timestamp() -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def wait_for_actionable_pr_state(
+    repo: str,
+    pr_number: int,
+    poll_delay_seconds: int,
+) -> int:
+    consecutive_failures = 0
+    while True:
+        try:
+            pr, checks, unresolved_review_threads = fetch_pr_snapshot(repo, pr_number)
+            decision = classify_pr_snapshot(pr, checks, unresolved_review_threads)
+        except Exception as exc:
+            consecutive_failures += 1
+            if consecutive_failures >= POLL_FAILURE_FATAL_THRESHOLD:
+                print(
+                    f"[{_timestamp()}] GitHub polling failed {consecutive_failures} "
+                    f"times without Codex tokens: {exc}. Stopping monitor lane.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return EXIT_POLLER_FATAL
+            print(
+                f"[{_timestamp()}] Unable to inspect GitHub state without Codex tokens: {exc}. "
+                f"Retrying in {poll_delay_seconds}s.",
+                flush=True,
+            )
+            time.sleep(poll_delay_seconds)
+            continue
+        consecutive_failures = 0
+
+        if decision.state == "idle":
+            print(
+                f"[{_timestamp()}] Idle without Codex tokens: {decision.reason}. "
+                f"Polling again in {poll_delay_seconds}s.",
+                flush=True,
+            )
+            time.sleep(poll_delay_seconds)
+            continue
+        print(
+            f"[{_timestamp()}] GitHub state is {decision.state}: {decision.reason}",
+            flush=True,
+        )
+        if decision.state == "merged":
+            return EXIT_MERGED
+        if decision.state == "closed":
+            return EXIT_CLOSED
+        return EXIT_ACTIONABLE
+
+
 def build_runner_script(config: LauncherConfig) -> str:
     codex_command = shlex.join(
         build_codex_command(config.codex_bin, config.model, config.reasoning_effort)
@@ -116,6 +418,7 @@ def build_runner_script(config: LauncherConfig) -> str:
     worktree = shlex.quote(str(config.worktree_path))
     repo = shlex.quote(config.repo)
     prompt_path = shlex.quote(str(config.prompt_path))
+    monitor_script_path = shlex.quote(str(config.launcher_script_path))
     return f"""#!/usr/bin/env bash
 set -euo pipefail
 
@@ -123,33 +426,57 @@ REPO={repo}
 PR_NUMBER={config.pr_number}
 WORKTREE={worktree}
 PROMPT_PATH={prompt_path}
+MONITOR_SCRIPT_PATH={monitor_script_path}
 RESTART_DELAY_SECONDS={config.restart_delay_seconds}
-
-read_pr_state() {{
-  gh pr view "$PR_NUMBER" --repo "$REPO" --json state,mergedAt --jq '.state'
-}}
-
-read_pr_merged_at() {{
-  gh pr view "$PR_NUMBER" --repo "$REPO" --json mergedAt --jq '.mergedAt // ""'
-}}
 
 print_timestamp() {{
   date '+%Y-%m-%d %H:%M:%S'
+}}
+
+resolve_monitor_script_path() {{
+  if [ -f "$MONITOR_SCRIPT_PATH" ]; then
+    printf '%s\\n' "$MONITOR_SCRIPT_PATH"
+    return 0
+  fi
+  if [ -f "$WORKTREE/scripts/pr_monitor.py" ]; then
+    printf '%s\\n' "$WORKTREE/scripts/pr_monitor.py"
+    return 0
+  fi
+  return 1
+}}
+
+wait_for_actionable_or_done() {{
+  monitor_script="$(resolve_monitor_script_path)" || return {EXIT_POLLER_FATAL}
+  python3 "$monitor_script" wait-for-actionable \\
+    --repo "$REPO" \\
+    --pr-number "$PR_NUMBER" \\
+    --poll-delay-seconds "$RESTART_DELAY_SECONDS"
 }}
 
 cd "$WORKTREE"
 
 attempt=0
 while true; do
-  merged_at="$(read_pr_merged_at 2>/dev/null || true)"
-  state="$(read_pr_state 2>/dev/null || true)"
-  if [ -n "$merged_at" ] && [ "$merged_at" != "null" ]; then
-    printf '[%s] PR merged at %s\\n' "$(print_timestamp)" "$merged_at"
+  set +e
+  wait_for_actionable_or_done
+  wait_exit=$?
+  set -e
+  if [ "$wait_exit" -eq {EXIT_MERGED} ]; then
+    printf '[%s] PR merged; monitor complete.\\n' "$(print_timestamp)"
     exit 0
   fi
-  if [ "$state" = "CLOSED" ]; then
+  if [ "$wait_exit" -eq {EXIT_CLOSED} ]; then
     printf '[%s] PR closed without merge; treating monitor as blocked.\\n' "$(print_timestamp)"
     exit 0
+  fi
+  if [ "$wait_exit" -eq {EXIT_POLLER_FATAL} ]; then
+    printf '[%s] GitHub state poller hit a fatal error; stopping lane.\\n' "$(print_timestamp)"
+    exit 1
+  fi
+  if [ "$wait_exit" -ne 0 ]; then
+    printf '[%s] GitHub state poller exited with code %s. Retrying in %ss.\\n' "$(print_timestamp)" "$wait_exit" "$RESTART_DELAY_SECONDS"
+    sleep "$RESTART_DELAY_SECONDS"
+    continue
   fi
 
   attempt=$((attempt + 1))
@@ -160,19 +487,11 @@ while true; do
   exit_code=$?
   set -e
 
-  merged_at="$(read_pr_merged_at 2>/dev/null || true)"
-  state="$(read_pr_state 2>/dev/null || true)"
-  if [ -n "$merged_at" ] && [ "$merged_at" != "null" ]; then
-    printf '[%s] PR merged at %s\\n' "$(print_timestamp)" "$merged_at"
-    exit 0
+  printf '[%s] Codex exited with code %s. Rechecking GitHub state before any restart.\\n' "$(print_timestamp)" "$exit_code"
+  if [ "$exit_code" -ne 0 ]; then
+    printf '[%s] Codex failed; waiting %ss before retrying.\\n' "$(print_timestamp)" "$RESTART_DELAY_SECONDS"
+    sleep "$RESTART_DELAY_SECONDS"
   fi
-  if [ "$state" = "CLOSED" ]; then
-    printf '[%s] PR closed without merge; treating monitor as blocked.\\n' "$(print_timestamp)"
-    exit 0
-  fi
-
-  printf '[%s] Codex exited with code %s while PR is still open. Restarting in %ss.\\n' "$(print_timestamp)" "$exit_code" "$RESTART_DELAY_SECONDS"
-  sleep "$RESTART_DELAY_SECONDS"
 done
 """
 
@@ -444,21 +763,36 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_RESTART_DELAY_SECONDS,
     )
 
+    wait_parser = subparsers.add_parser("wait-for-actionable")
+    wait_parser.add_argument("--repo", default="vega113/supawave")
+    wait_parser.add_argument("--pr-number", type=positive_int, required=True)
+    wait_parser.add_argument(
+        "--poll-delay-seconds",
+        type=positive_int,
+        default=DEFAULT_RESTART_DELAY_SECONDS,
+    )
+
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
-    if args.command != "start":
-        raise ValueError(f"Unsupported command {args.command}")
-    config = build_launcher_config(args)
-    pane_id = launch_monitor(config)
-    print(f"pane_id={pane_id}")
-    print(f"pane_title={config.pane_title}")
-    print(f"prompt_path={config.prompt_path}")
-    print(f"log_path={config.log_path}")
-    print(f"runner_path={config.runner_path}")
-    return 0
+    if args.command == "wait-for-actionable":
+        return wait_for_actionable_pr_state(
+            args.repo,
+            args.pr_number,
+            args.poll_delay_seconds,
+        )
+    if args.command == "start":
+        config = build_launcher_config(args)
+        pane_id = launch_monitor(config)
+        print(f"pane_id={pane_id}")
+        print(f"pane_title={config.pane_title}")
+        print(f"prompt_path={config.prompt_path}")
+        print(f"log_path={config.log_path}")
+        print(f"runner_path={config.runner_path}")
+        return 0
+    raise ValueError(f"Unsupported command {args.command}")
 
 
 if __name__ == "__main__":

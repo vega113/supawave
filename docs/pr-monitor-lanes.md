@@ -15,6 +15,7 @@ Behavior:
 - writes durable prompt, log, and runner files under `<shared-root>` (default: `/Users/vega/devroot/worktrees/pr-monitors/`, configurable via `--shared-root`)
 - launches Codex with explicit `--dangerously-bypass-approvals-and-sandbox --sandbox danger-full-access`
 - never uses `--full-auto`
-- restarts the inner monitor if Codex exits while the PR is still open
+- polls GitHub from the shell without model tokens while the PR is only waiting on pending checks, review-gate timing, or armed auto-merge
+- starts or restarts the inner Codex monitor only when GitHub state looks actionable, such as unresolved review threads, conflicts, a behind branch, failed non-gate checks, or a merge-ready PR without auto-merge
 - stops only when GitHub reports the PR merged or closed without merge
 - leaves the pane open after completion for inspection

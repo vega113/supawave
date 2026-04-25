@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.read;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 
 /** Parsed text and attachment placeholders extracted from a selected-wave blip snapshot. */
@@ -147,12 +148,9 @@ public final class J2clReadBlipContent {
         tagBuf.setLength(0);
       } else if (c == '>') {
         insideTag = false;
-        // <line/> and <line> are DocOp structural separators; insert a space so adjacent segments
-        // aren't concatenated (e.g. <line/>Hello<line/>World → "Hello World", not "HelloWorld").
-        if (isLineTag(tagBuf.toString())
-            && stripped.length() > 0
-            && stripped.charAt(stripped.length() - 1) != ' ') {
-          stripped.append(' ');
+        // <line/> and <line> are DocOp structural separators: Hello<line/>World -> Hello\nWorld.
+        if (isLineTag(tagBuf.toString())) {
+          appendLineSeparator(stripped);
         }
         tagBuf.setLength(0);
       } else if (insideTag) {
@@ -166,10 +164,23 @@ public final class J2clReadBlipContent {
 
   private static boolean isLineTag(String tagContent) {
     // Matches <line/>, <line>, <line attrs...> but not e.g. <linefeed>.
-    return tagContent.startsWith("line")
-        && (tagContent.length() == 4
-            || tagContent.charAt(4) == '/'
-            || tagContent.charAt(4) == ' ');
+    String normalized = tagContent.trim().toLowerCase(Locale.ROOT);
+    return normalized.startsWith("line")
+        && (normalized.length() == 4
+            || normalized.charAt(4) == '/'
+            || Character.isWhitespace(normalized.charAt(4)));
+  }
+
+  private static void appendLineSeparator(StringBuilder stripped) {
+    // Normalize horizontal whitespace at paragraph boundaries before emitting one line break.
+    while (stripped.length() > 0
+        && Character.isWhitespace(stripped.charAt(stripped.length() - 1))
+        && stripped.charAt(stripped.length() - 1) != '\n') {
+      stripped.deleteCharAt(stripped.length() - 1);
+    }
+    if (stripped.length() > 0 && stripped.charAt(stripped.length() - 1) != '\n') {
+      stripped.append('\n');
+    }
   }
 
   private static String decodeEntities(String value) {

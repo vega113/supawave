@@ -91,8 +91,87 @@ public class J2clReadBlipContentTest {
         J2clReadBlipContent.parseRawSnapshot(
             "<body><line/>Hello<line/>World</body>");
 
-    Assert.assertEquals("Hello World", parsed.getText());
+    Assert.assertEquals("Hello\nWorld", parsed.getText());
     Assert.assertTrue(parsed.getAttachments().isEmpty());
+  }
+
+  @Test
+  public void leadingLineTagDoesNotAddLeadingSeparator() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body><line/>Hello</body>");
+
+    Assert.assertEquals("Hello", parsed.getText());
+  }
+
+  @Test
+  public void trailingLineTagDocumentsTrailingSeparatorBehavior() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body>Hello<line/></body>");
+
+    Assert.assertEquals("Hello\n", parsed.getText());
+  }
+
+  @Test
+  public void consecutiveLineTagsDoNotDuplicateLeadingSeparator() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body><line/><line/>Hello</body>");
+
+    Assert.assertEquals("Hello", parsed.getText());
+  }
+
+  @Test
+  public void consecutiveLineTagsInsideTextCollapseToSingleSeparator() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body>Hello<line/><line/>World</body>");
+
+    Assert.assertEquals("Hello\nWorld", parsed.getText());
+  }
+
+  @Test
+  public void trailingHorizontalWhitespaceIsNormalizedAtLineBoundary() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body>Hello   <line/>World</body>");
+
+    Assert.assertEquals("Hello\nWorld", parsed.getText());
+  }
+
+  @Test
+  public void lineTagsMatchCaseAndWhitespaceVariants() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body>A<LINE t=\"1\"/>B<line\n/>C<line \t t=\"2\"></line>D</body>");
+
+    Assert.assertEquals("A\nB\nC\nD", parsed.getText());
+  }
+
+  @Test
+  public void linefeedTagDoesNotCountAsLineSeparator() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot("<body>A<linefeed/>B</body>");
+
+    Assert.assertEquals("AB", parsed.getText());
+  }
+
+  @Test
+  public void lineSeparatorAndImageExtractionCompose() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><line/>X<image attachment=\"example.com/att+1\"/>"
+                + "<line/>Y</body>");
+
+    Assert.assertEquals("X\nY", parsed.getText());
+    Assert.assertEquals(1, parsed.getAttachments().size());
+    Assert.assertEquals("example.com/att+1", parsed.getAttachments().get(0).getAttachmentId());
+  }
+
+  @Test
+  public void leadingLineBeforeImageDoesNotAddSeparator() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><line/><image attachment=\"example.com/att+1\"/><line/>Y</body>");
+
+    Assert.assertEquals("Y", parsed.getText());
+    Assert.assertEquals(1, parsed.getAttachments().size());
   }
 
   @Test

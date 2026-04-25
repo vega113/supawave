@@ -301,11 +301,12 @@ Create `wave/config/changelog.d/2026-04-25-issue-1027-j2cl-diskcache-noise.json`
 {
   "releaseId": "2026-04-25-issue-1027-j2cl-diskcache-noise",
   "date": "2026-04-25",
-  "version": "Issue #1027",
+  "version": "Unreleased",
+  "title": "J2CL build verification documents Vertispan DiskCache shutdown noise",
   "summary": "Clarifies or hardens the J2CL SBT build path so Vertispan DiskCache shutdown noise does not obscure successful parity verification.",
-  "categories": [
+  "sections": [
     {
-      "name": "Build and verification",
+      "type": "fix",
       "items": [
         "Kept J2CL verification behind SBT while documenting or removing the Vertispan DiskCacheThread shutdown warning seen during parity builds"
       ]
@@ -506,7 +507,8 @@ case "$classification" in
   *) echo "Unexpected classification: $classification" >&2; exit 1 ;;
 esac
 git add docs/superpowers/plans/2026-04-25-issue-1027-j2cl-diskcache-noise.md
-git add journal/local-verification/2026-04-25-issue-1027-j2cl-diskcache-noise.md
+# journal/ is gitignored; force-add only this issue-specific verification record.
+git add -f journal/local-verification/2026-04-25-issue-1027-j2cl-diskcache-noise.md
 git add wave/config/changelog.d/2026-04-25-issue-1027-j2cl-diskcache-noise.json
 git diff --quiet -- docs/runbooks/j2cl-sidecar-testing.md || git add docs/runbooks/j2cl-sidecar-testing.md
 git diff --quiet -- build.sbt || git add build.sbt

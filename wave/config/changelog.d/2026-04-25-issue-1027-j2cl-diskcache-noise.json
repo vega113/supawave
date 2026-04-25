@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-issue-1027-j2cl-diskcache-noise",
+  "date": "2026-04-25",
+  "version": "Unreleased",
+  "title": "J2CL build verification documents Vertispan DiskCache shutdown noise",
+  "summary": "Clarifies the J2CL SBT build verification path for the Vertispan DiskCacheThread shutdown warning so successful parity builds are not confused with real failures.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Documented that the Vertispan DiskCacheThread shutdown warning is benign only when the SBT command exits 0 and every requested J2CL or Lit task completes successfully"
+      ]
+    }
+  ]
+}

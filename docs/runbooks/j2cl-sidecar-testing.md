@@ -2,7 +2,7 @@
 
 Status: Canonical
 Owner: Project Maintainers
-Updated: 2026-04-21
+Updated: 2026-04-25
 Review cadence: quarterly
 
 This runbook covers the local verification path for the merged J2CL sidecar
@@ -61,6 +61,28 @@ sbt -batch j2clProductionBuild
 ```
 
 Use that when you need to verify the `war/j2cl/**` output specifically.
+
+## Known Vertispan DiskCache Shutdown Warning
+
+During chained SBT J2CL tasks, Vertispan `j2cl-maven-plugin` 0.22.0 may emit a
+background `DiskCacheThread` shutdown exception such as
+`RejectedExecutionException` or `ClosedWatchServiceException` after a successful
+task completes. Treat this as benign only when the SBT command exits `0`, every
+requested J2CL or Lit task reports success, and there is no preceding compile,
+test, Closure, npm, or wrapper failure.
+The shutdown variants observed so far are `RejectedExecutionException` and
+`ClosedWatchServiceException`; grep for both strings when preserving evidence.
+
+The canonical reproduction check is:
+
+```bash
+sbt -batch j2clSearchTest j2clProductionBuild j2clLitTest j2clLitBuild
+```
+
+Treat the warning as a build failure when the SBT exit code is non-zero, when a
+requested task is skipped or incomplete, or when it appears next to another
+compile/test/package error. Record the stack excerpt in the issue or PR
+evidence so the warning cannot hide a real failure.
 
 ## Full PR Gate For J2CL Work
 

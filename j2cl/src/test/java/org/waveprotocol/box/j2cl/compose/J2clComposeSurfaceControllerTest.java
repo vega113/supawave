@@ -579,6 +579,65 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void toolbarRichCommandToggleOffPreservesActiveUploadStatus() {
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "uploading.png")));
+    controller.onToolbarAction(J2clDailyToolbarAction.BOLD);
+
+    // Toggle Bold off — the active upload must not be silently overwritten by "Bold cleared."
+    Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.BOLD));
+
+    Assert.assertEquals("attachment-upload-queue", view.model.getActiveCommandId());
+    Assert.assertEquals("Uploading uploading.png (0%).", view.model.getCommandStatusText());
+    Assert.assertEquals("", view.model.getCommandErrorText());
+  }
+
+  @Test
+  public void toolbarRichCommandToggleOffPreservesUploadErrorStatus() {
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "fail.png")));
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(500, "error", null));
+    controller.onToolbarAction(J2clDailyToolbarAction.BOLD);
+
+    // Toggle Bold off — the attachment error must not be silently cleared.
+    Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.BOLD));
+
+    Assert.assertEquals("attachment-error-state", view.model.getActiveCommandId());
+    Assert.assertTrue(view.model.getCommandErrorText().contains("fail.png"));
+    Assert.assertEquals("", view.model.getCommandStatusText());
+  }
+
+  @Test
   public void clearFormattingCommandRemovesStructuredInlineAnnotation() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -1921,7 +1980,7 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
-  public void cancelAttachmentToolbarActionKeepsAlreadyInsertedAttachments() {
+  public void cancelAttachmentToolbarActionPreservesInsertedAndContinuesIdGenerator() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
     FakeAttachmentTransport transport = new FakeAttachmentTransport();
@@ -1943,12 +2002,54 @@ public class J2clComposeSurfaceControllerTest {
 
     Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.ATTACHMENT_CANCEL));
     Assert.assertEquals("Pending uploads cancelled. Attached files kept.", view.model.getCommandStatusText());
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "second.png")));
+    transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
     controller.onReplySubmitted("");
 
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
     assertContains(
         gateway.lastSubmitRequest.getDeltaJson(),
         "{\"1\":\"attachment\",\"2\":\"example.com/seedA\"}",
-        "\"2\":\"kept.png\"");
+        "\"2\":\"kept.png\"",
+        "{\"1\":\"attachment\",\"2\":\"example.com/seedB\"}",
+        "\"2\":\"second.png\"");
+  }
+
+  @Test
+  public void cancelAttachmentToolbarActionPreservesIdGeneratorAfterPendingUploadCancel() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "cancelled.png")));
+    Assert.assertEquals("/attachment/example.com/seedA", transport.requests.get(0).getUrl());
+
+    Assert.assertTrue(controller.onToolbarAction(J2clDailyToolbarAction.ATTACHMENT_CANCEL));
+    transport.complete(0, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "second.png")));
+    transport.complete(1, new J2clAttachmentUploadClient.HttpResponse(200, "OK", null));
+    controller.onReplySubmitted("");
+
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertFalse(gateway.lastSubmitRequest.getDeltaJson().contains("example.com/seedA"));
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "{\"1\":\"attachment\",\"2\":\"example.com/seedB\"}",
+        "\"2\":\"second.png\"");
   }
 
   @Test

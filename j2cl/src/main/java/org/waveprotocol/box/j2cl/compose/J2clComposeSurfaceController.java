@@ -344,7 +344,11 @@ public final class J2clComposeSurfaceController {
       activeCommandId = "";
       annotationCommandId = "";
       commandErrorText = "";
-      commandStatusText = action.label() + " cleared.";
+      commandStatusText = "";
+      refreshAttachmentCommandState();
+      if (commandStatusText.isEmpty() && commandErrorText.isEmpty()) {
+        commandStatusText = action.label() + " cleared.";
+      }
       render();
       view.focusReplyComposer();
       return true;
@@ -828,7 +832,6 @@ public final class J2clComposeSurfaceController {
     if (action == J2clDailyToolbarAction.ATTACHMENT_CANCEL) {
       if (attachmentController != null) {
         attachmentController.cancelAndReset();
-        attachmentController = null;
       }
       commandStatusText =
           insertedAttachments.isEmpty()

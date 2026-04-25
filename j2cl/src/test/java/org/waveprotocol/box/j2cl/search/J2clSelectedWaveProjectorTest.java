@@ -284,6 +284,97 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void viewportDocumentMergeOverFragmentSwitchesBackToLiteralText() {
+    J2clSelectedWaveViewportState state =
+        J2clSelectedWaveViewportState.fromFragments(
+            new SidecarSelectedWaveFragments(
+                9L,
+                0L,
+                9L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment(
+                        "blip:b+root",
+                        "<image attachment=\"example.com/att+hero\">"
+                            + "<caption>Hero</caption></image>",
+                        0,
+                        0))));
+    String literalText = "Literal 2 < 3 and <image attachment=\"example.com/att+literal\">";
+
+    state =
+        state.mergeDocuments(
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 7L, 10L, literalText)));
+
+    Assert.assertEquals(literalText, state.getLoadedReadBlips().get(0).getText());
+    Assert.assertTrue(state.getLoadedReadBlips().get(0).getAttachments().isEmpty());
+    Assert.assertEquals(literalText, state.getReadWindowEntries().get(0).getText());
+    Assert.assertTrue(state.getReadWindowEntries().get(0).getAttachments().isEmpty());
+  }
+
+  @Test
+  public void viewportFragmentMergeOverDocumentRestoresAttachmentParsing() {
+    J2clSelectedWaveViewportState state =
+        J2clSelectedWaveViewportState.fromDocuments(
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 7L, 8L, "Literal <image> text")));
+
+    state =
+        state.mergeFragments(
+            new SidecarSelectedWaveFragments(
+                10L,
+                0L,
+                10L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 10L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment(
+                        "blip:b+root",
+                        "Intro <image attachment=\"example.com/att+hero\">"
+                            + "<caption>Hero</caption></image> outro",
+                        0,
+                        0))),
+            J2clViewportGrowthDirection.FORWARD);
+
+    Assert.assertEquals("Intro  outro", state.getLoadedReadBlips().get(0).getText());
+    Assert.assertEquals(1, state.getLoadedReadBlips().get(0).getAttachments().size());
+    Assert.assertEquals(1, state.getReadWindowEntries().get(0).getAttachments().size());
+  }
+
+  @Test
+  public void viewportPlaceholderMergePreservesFragmentAttachmentParsing() {
+    J2clSelectedWaveViewportState state =
+        J2clSelectedWaveViewportState.fromFragments(
+            new SidecarSelectedWaveFragments(
+                9L,
+                0L,
+                9L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment(
+                        "blip:b+root",
+                        "Intro <image attachment=\"example.com/att+hero\">"
+                            + "<caption>Hero</caption></image> outro",
+                        0,
+                        0))));
+
+    state =
+        state.mergeFragments(
+            new SidecarSelectedWaveFragments(
+                10L,
+                0L,
+                10L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 10L)),
+                Collections.<SidecarSelectedWaveFragment>emptyList()),
+            J2clViewportGrowthDirection.FORWARD);
+
+    Assert.assertEquals("Intro  outro", state.getLoadedReadBlips().get(0).getText());
+    Assert.assertEquals(1, state.getLoadedReadBlips().get(0).getAttachments().size());
+    Assert.assertEquals(1, state.getReadWindowEntries().get(0).getAttachments().size());
+  }
+
+  @Test
   public void projectBuildsInteractionBlipMetadataFromDocumentAnnotationsAndReactionDocs() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(

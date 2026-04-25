@@ -455,6 +455,7 @@ public final class J2clSelectedWaveViewportState {
         String rawSnapshot,
         int adjustOperationCount,
         int diffOperationCount) {
+      // Default loaded entries are document text snapshots; fragment debug XML opts in below.
       return loaded(
           segment,
           fromVersion,

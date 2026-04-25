@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.compose;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1305,6 +1306,203 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void attachmentControllerFactoryKeepsIdsMonotonicAcrossWaveChanges() {
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController.AttachmentControllerFactory factory =
+        J2clComposeSurfaceController.attachmentControllerFactory(
+            "seed", new J2clAttachmentUploadClient(transport));
+    J2clAttachmentComposerController firstController =
+        factory.create(
+            "example.com/w+1/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+    J2clAttachmentComposerController secondController =
+        factory.create(
+            "example.com/w+2/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+    J2clAttachmentComposerController otherDomainController =
+        factory.create(
+            "other.example/w+1/~/conv+root",
+            "other.example",
+            (document, insertion) -> { },
+            () -> { });
+
+    firstController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "first.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    firstController.cancelAndReset();
+    firstController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "after-cancel.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    otherDomainController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "other.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+    // Only selections consume ids: cancel clears queue state without rewinding the shared counter.
+    secondController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "second.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals("/attachment/example.com/seedA", transport.requests.get(0).getUrl());
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+    Assert.assertEquals("/attachment/other.example/seedA", transport.requests.get(2).getUrl());
+    Assert.assertEquals("/attachment/example.com/seedC", transport.requests.get(3).getUrl());
+
+    FakeAttachmentTransport secondTransport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController.AttachmentControllerFactory secondFactory =
+        J2clComposeSurfaceController.attachmentControllerFactory(
+            "seed", new J2clAttachmentUploadClient(secondTransport));
+    J2clAttachmentComposerController secondFactoryController =
+        secondFactory.create(
+            "example.com/w+fresh/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+    secondFactoryController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "fresh.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals(
+        "/attachment/example.com/seedA", secondTransport.requests.get(0).getUrl());
+  }
+
+  @Test
+  public void attachmentControllerFactoryUsesGeneratorDomainValidationContract() {
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    J2clComposeSurfaceController.AttachmentControllerFactory factory =
+        J2clComposeSurfaceController.attachmentControllerFactory(
+            "seed", new J2clAttachmentUploadClient(transport));
+    J2clAttachmentComposerController controller =
+        factory.create(
+            "example.com/w+1/~/conv+root",
+            "  example.com  ",
+            (document, insertion) -> { },
+            () -> { });
+
+    controller.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "trimmed.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals("/attachment/example.com/seedA", transport.requests.get(0).getUrl());
+    J2clAttachmentComposerController normalizedController =
+        factory.create(
+            "example.com/w+2/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+    normalizedController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "normalized.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals("/attachment/example.com/seedB", transport.requests.get(1).getUrl());
+
+    assertFactoryRejectsDomain(factory, null);
+    assertFactoryRejectsDomain(factory, "");
+    assertFactoryRejectsDomain(factory, "   ");
+    assertFactoryRejectsDomain(factory, "example.com/bad");
+
+    J2clAttachmentComposerController freshController =
+        factory.create(
+            "fresh.example/w+1/~/conv+root",
+            "fresh.example",
+            (document, insertion) -> { },
+            () -> { });
+    freshController.selectFiles(
+        Arrays.asList(
+            J2clAttachmentComposerController.AttachmentSelection.file(
+                new Object(),
+                "fresh.png",
+                "",
+                J2clAttachmentComposerController.DisplaySize.SMALL)));
+
+    Assert.assertEquals("/attachment/fresh.example/seedA", transport.requests.get(2).getUrl());
+  }
+
+  @Test
+  public void attachmentControllerFactoryValidatesDomainBeforeCreatingUploadClient() {
+    CountingUploadClientFactory clientFactory = new CountingUploadClientFactory();
+    J2clComposeSurfaceController.AttachmentControllerFactory factory =
+        J2clComposeSurfaceController.attachmentControllerFactory("seed", clientFactory);
+
+    assertFactoryRejectsDomain(factory, null);
+    assertFactoryRejectsDomain(factory, "");
+    assertFactoryRejectsDomain(factory, "example.com/bad");
+
+    Assert.assertEquals(0, clientFactory.createCalls);
+  }
+
+  @Test
+  public void attachmentControllerFactoryCreatesUploadClientPerController() {
+    CountingUploadClientFactory clientFactory = new CountingUploadClientFactory();
+    J2clComposeSurfaceController.AttachmentControllerFactory factory =
+        J2clComposeSurfaceController.attachmentControllerFactory("seed", clientFactory);
+
+    factory.create(
+        "example.com/w+1/~/conv+root",
+        "example.com",
+        (document, insertion) -> { },
+        () -> { });
+    factory.create(
+        "example.com/w+2/~/conv+root",
+        "example.com",
+        (document, insertion) -> { },
+        () -> { });
+
+    Assert.assertEquals(2, clientFactory.createCalls);
+  }
+
+  @Test
+  public void publicAttachmentControllerFactoryCreatesFreshUploadClients() throws Exception {
+    J2clComposeSurfaceController.AttachmentControllerFactory factory =
+        J2clComposeSurfaceController.attachmentControllerFactory("seed");
+
+    J2clAttachmentComposerController first =
+        factory.create(
+            "example.com/w+1/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+    J2clAttachmentComposerController second =
+        factory.create(
+            "example.com/w+2/~/conv+root",
+            "example.com",
+            (document, insertion) -> { },
+            () -> { });
+
+    Assert.assertNotSame(uploadClient(first), uploadClient(second));
+  }
+
+  @Test
   public void sameWaveReconnectPreservesInFlightAttachmentUpload() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -2270,6 +2468,38 @@ public class J2clComposeSurfaceControllerTest {
             new J2clAttachmentIdGenerator(domain, "seed"),
             insertionCallback,
             stateChangeCallback);
+  }
+
+  private static void assertFactoryRejectsDomain(
+      J2clComposeSurfaceController.AttachmentControllerFactory factory, String domain) {
+    try {
+      factory.create(
+          "example.com/w+invalid/~/conv+root",
+          domain,
+          (document, insertion) -> { },
+          () -> { });
+      Assert.fail("Expected invalid domain to fail.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(expected.getMessage().contains("domain"));
+    }
+  }
+
+  private static final class CountingUploadClientFactory
+      implements J2clComposeSurfaceController.AttachmentUploadClientFactory {
+    private int createCalls;
+
+    @Override
+    public J2clAttachmentUploadClient create() {
+      createCalls++;
+      return new J2clAttachmentUploadClient(new FakeAttachmentTransport());
+    }
+  }
+
+  private static J2clAttachmentUploadClient uploadClient(
+      J2clAttachmentComposerController controller) throws Exception {
+    Field field = J2clAttachmentComposerController.class.getDeclaredField("uploadClient");
+    field.setAccessible(true);
+    return (J2clAttachmentUploadClient) field.get(controller);
   }
 
   private static void assertContains(String value, String... expectedSubstrings) {

@@ -297,6 +297,9 @@ export class ComposeAttachmentPicker extends LitElement {
 
   onFilesSelected(event) {
     const files = Array.from(event.target.files || []);
+    if (files.length === 0) {
+      return;
+    }
     this.dispatchEvent(
       new CustomEvent("attachment-files-selected", {
         detail: {

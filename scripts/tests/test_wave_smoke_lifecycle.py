@@ -1,5 +1,6 @@
 import os
 import re
+import shlex
 import signal
 import shutil
 import socket
@@ -35,10 +36,12 @@ def write_fake_install(tmp_path: Path, server_source: str) -> Path:
     server = install / "fake_wave_server.py"
     server.write_text(server_source)
     launcher = bin_dir / "wave"
+    py_exec = shlex.quote(sys.executable)
+    server_path = shlex.quote(str(server))
     launcher.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        f"exec {sys.executable} {server}\n"
+        f"exec {py_exec} {server_path}\n"
     )
     launcher.chmod(0o755)
     return install

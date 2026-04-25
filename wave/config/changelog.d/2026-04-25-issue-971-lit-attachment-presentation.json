@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-25-issue-971-lit-attachment-presentation",
+  "version": "PR #1023",
+  "date": "2026-04-25",
+  "title": "Prepare Lit attachment picker and card presentation",
+  "summary": "The J2CL Lit shell now includes attachment picker and attachment card primitives for the attachment parity flow.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added Lit attachment presentation primitives for picker open and close, caption and display-size selection, upload live regions, blocked attachment alerts, and open or download controls."
+      ]
+    }
+  ]
+}

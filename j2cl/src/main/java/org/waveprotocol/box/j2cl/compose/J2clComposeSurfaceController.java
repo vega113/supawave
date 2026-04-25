@@ -125,6 +125,11 @@ public final class J2clComposeSurfaceController {
   static final String ATTACHMENT_ERROR_STATE_ID = "attachment-error-state";
   private static final String REPLY_SUBMITTING_ATTACHMENT_MESSAGE =
       "Wait for the current reply to finish before attaching files.";
+  // Package-visible for assertion reuse in controller tests.
+  static final String PENDING_ATTACHMENT_REPLY_MESSAGE =
+      "Wait for attachment uploads to finish before replying.";
+  static final String EMPTY_REPLY_VALIDATION_MESSAGE =
+      "Enter text or attach a file before replying.";
   // Legacy constructors are not used by the root shell; production passes the root session seed.
   private static final String LEGACY_ATTACHMENT_SESSION_SEED = "j2cl";
 
@@ -574,13 +579,13 @@ public final class J2clComposeSurfaceController {
     }
     if (hasPendingAttachmentUpload()) {
       replyStatusText = "";
-      replyErrorText = "Wait for attachment uploads to finish before replying.";
+      replyErrorText = PENDING_ATTACHMENT_REPLY_MESSAGE;
       render();
       return;
     }
     if (replyDraft.trim().isEmpty() && insertedAttachments.isEmpty()) {
       replyStatusText = "";
-      replyErrorText = "Enter text or attach a file before replying.";
+      replyErrorText = EMPTY_REPLY_VALIDATION_MESSAGE;
       render();
       return;
     }
@@ -665,7 +670,7 @@ public final class J2clComposeSurfaceController {
     replyStatusText = "";
     replyErrorText = error == null || error.isEmpty() ? "Reply failed." : error;
     activeCommandId = "";
-    annotationCommandId = "";
+    // Preserve annotationCommandId so the user can retry with the same formatting intent.
     commandStatusText = "";
     commandErrorText = "";
     replyStaleBasis = false;
@@ -886,7 +891,9 @@ public final class J2clComposeSurfaceController {
       J2clComposerDocument document,
       J2clAttachmentComposerController.AttachmentInsertion insertion) {
     insertedAttachments.add(insertion);
-    replyErrorText = "";
+    if (shouldClearReplyErrorAfterAttachmentInsert()) {
+      replyErrorText = "";
+    }
     activeCommandId = J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE.id();
     commandStatusText = "Attached " + attachmentStatusLabel(insertion) + ".";
     commandErrorText = "";
@@ -895,7 +902,8 @@ public final class J2clComposeSurfaceController {
 
   private void onAttachmentStateChanged() {
     refreshAttachmentCommandState();
-    if (!hasPendingAttachmentUpload() && replyErrorText.startsWith("Wait for attachment")) {
+    // State changes only resolve the pending-upload gate; empty-reply validation clears on insert.
+    if (!hasPendingAttachmentUpload() && PENDING_ATTACHMENT_REPLY_MESSAGE.equals(replyErrorText)) {
       replyErrorText = "";
     }
     render();
@@ -944,6 +952,12 @@ public final class J2clComposeSurfaceController {
       commandStatusText = "Attached " + attachmentStatusLabel(insertion) + ".";
       commandErrorText = "";
     }
+  }
+
+  private boolean shouldClearReplyErrorAfterAttachmentInsert() {
+    // Covers pre-insert empty validation and the late-arriving pending-upload gate.
+    return EMPTY_REPLY_VALIDATION_MESSAGE.equals(replyErrorText)
+        || PENDING_ATTACHMENT_REPLY_MESSAGE.equals(replyErrorText);
   }
 
   private static String attachmentStatusLabel(

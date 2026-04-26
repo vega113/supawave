@@ -182,6 +182,11 @@ export class WavyProfileOverlay extends LitElement {
       if (clamped !== this.index) {
         this.index = clamped;
       }
+      // Keep aria-label current when the displayed participant changes while open.
+      if (this.open) {
+        const name = (list[clamped] && list[clamped].displayName) || "Profile";
+        this.setAttribute("aria-label", name);
+      }
     }
   }
 
@@ -190,7 +195,13 @@ export class WavyProfileOverlay extends LitElement {
       this.removeAttribute("hidden");
       this.setAttribute("role", "dialog");
       this.setAttribute("aria-modal", "true");
-      this.setAttribute("aria-labelledby", "wavy-profile-name");
+      // aria-labelledby cannot resolve across the shadow DOM boundary; use
+      // aria-label so assistive tech can announce the dialog name.
+      const list = Array.isArray(this.participants) ? this.participants : [];
+      const max = list.length > 0 ? list.length - 1 : 0;
+      const idx = Math.max(0, Math.min(Number.isFinite(this.index) ? this.index : 0, max));
+      const name = (list[idx] && list[idx].displayName) || "Profile";
+      this.setAttribute("aria-label", name);
       this.removeAttribute("aria-hidden");
       // Make the host focusable so ArrowLeft / ArrowRight / Escape
       // delivered via real keyboard (not synthetic dispatch) reach the
@@ -208,6 +219,7 @@ export class WavyProfileOverlay extends LitElement {
       this.setAttribute("hidden", "");
       this.setAttribute("aria-hidden", "true");
       this.removeAttribute("tabindex");
+      this.removeAttribute("aria-label");
     }
   }
 

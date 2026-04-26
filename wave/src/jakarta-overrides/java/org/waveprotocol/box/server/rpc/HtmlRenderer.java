@@ -3403,9 +3403,22 @@ public final class HtmlRenderer {
           .append("\" aria-label=\"J2CL root shell\">\n");
       sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave J2CL Root Shell</span>\n");
       sb.append("    </a>\n");
-      sb.append("    <span slot=\"actions-signed-in\">Signed in as ")
-          .append(safeAddress)
-          .append("</span>\n");
+      // F-2 slice 3 (#1047): wavy header chrome (A.1, A.2, A.5, A.6,
+      // A.7) is mounted as a <wavy-header> custom element inside the
+      // signed-in actions slot. Server-side we emit the FULL inner
+      // light DOM (brand link, locale select with seven options, bell
+      // button, mail icon, user-menu trigger). The Lit upgrade
+      // re-renders the same content into the shadow DOM and wires
+      // event handlers; the server-rendered light DOM is what
+      // J2clSearchRailParityTest asserts on (mirrors the F-2 S1
+      // <wavy-blip-card> server-render contract). The raw address is
+      // passed through alongside the safe (HTML-escaped) form so
+      // computeUserInitials can run on the unescaped local part.
+      appendWavyHeaderActionsSlot(sb, address, safeAddress);
+      // The legacy inline Admin and Sign out links are PRESERVED until
+      // the F-0 user-menu sheet ships (A.7 only mounts the trigger;
+      // A.8–A.18 are F-0). Removing them now would orphan affordances
+      // A.15 and A.17 on the J2CL route.
       if (isAdminOrOwner) {
         sb.append("    <a slot=\"actions-signed-in\" data-j2cl-root-admin-link=\"true\" href=\"/admin\">Admin</a>\n");
       }
@@ -3413,9 +3426,20 @@ public final class HtmlRenderer {
           .append(safeEncodedReturnTarget)
           .append("\">Sign out</a>\n");
       sb.append("  </shell-header>\n");
+      // F-2 slice 3 (#1047): replace the Inbox-link placeholder with a
+      // full wavy-search-rail SSR'd into the existing nav slot. The
+      // <shell-nav-rail> wrapper is preserved so future slices can
+      // co-mount additional nav-area elements alongside the rail.
       sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-      sb.append("    <a href=\"").append(safeResolvedReturnTarget).append("\">Inbox</a>\n");
+      appendWavySearchRail(sb);
       sb.append("  </shell-nav-rail>\n");
+      // Single document-level <wavy-search-help> instance. The rail's
+      // help-trigger emits wavy-search-help-toggle (composed +
+      // bubbles); a connectedCallback-installed listener on this
+      // element flips the open attribute. Mounted as a direct child
+      // of <shell-root> (NOT inside any slot) so it can dialog.showModal
+      // over everything.
+      appendWavySearchHelpModal(sb);
       sb.append("  <shell-main-region slot=\"main\">\n");
       sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
       appendRootShellWorkflowMarkup(sb, resolvedSnapshotResult, true);
@@ -3598,6 +3622,231 @@ public final class HtmlRenderer {
     sb.append("  return window.__gwtStatsEvent({module:'j2cl.root_shell', subtype:subtype, reason:reason, durationMs:durationMs || 0, waveIdPresent:!!waveIdPresent});\n");
     sb.append("};\n");
     sb.append("</script>\n");
+  }
+
+  /**
+   * F-2 slice 3 (#1047): emit the {@code <wavy-header>} chrome into
+   * the {@code actions-signed-in} slot of the existing
+   * {@code <shell-header>}. The server-rendered light DOM mirrors
+   * what the Lit element renders client-side so the J2CL upgrade is
+   * a content-preserving in-place upgrade and so
+   * {@code J2clSearchRailParityTest} can assert against the
+   * server-rendered HTML directly.
+   *
+   * <p>Affordances: A.1 brand link, A.2 locale picker (seven
+   * options), A.5 notifications bell, A.6 inbox/mail icon,
+   * A.7 user-menu trigger (avatar + email).
+   */
+  private static void appendWavyHeaderActionsSlot(
+      StringBuilder sb, String rawAddress, String safeAddress) {
+    String escapedAddress = safeAddress == null ? "" : safeAddress;
+    // computeUserInitials runs on the RAW address so the local-part
+    // splitting matches the JS Lit element exactly (the Lit element
+    // also splits the unescaped string). The result is then HTML-
+    // escaped before being written into the avatar text node.
+    String initialsRaw = computeUserInitials(rawAddress);
+    String initials = StringEscapeUtils.escapeHtml4(initialsRaw);
+    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in locale=\"en\" data-address=\"")
+        .append(escapedAddress)
+        .append("\" user-name=\"")
+        .append(escapedAddress)
+        .append("\" unread-count=\"0\">\n");
+    sb.append("      <a class=\"brand\" href=\"/\" aria-label=\"SupaWave home\">")
+        .append("<span class=\"brand-dot\" aria-hidden=\"true\"></span>")
+        .append("<span class=\"brand-text\">SupaWave</span></a>\n");
+    sb.append("      <select class=\"locale\" aria-label=\"Language\">\n");
+    sb.append("        <option value=\"en\" selected>English</option>\n");
+    sb.append("        <option value=\"de\">Deutsch</option>\n");
+    sb.append("        <option value=\"es\">Español</option>\n");
+    sb.append("        <option value=\"fr\">Français</option>\n");
+    sb.append("        <option value=\"ru\">Русский</option>\n");
+    sb.append("        <option value=\"sl\">Slovenščina</option>\n");
+    sb.append("        <option value=\"zh_TW\">繁體中文</option>\n");
+    sb.append("      </select>\n");
+    // A.5 notifications bell — server-renders the same SVG glyph the
+    // Lit element renders so the icon does not appear empty pre-upgrade.
+    sb.append("      <button type=\"button\" class=\"bell\" aria-label=\"Notifications\">")
+        .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
+        .append("<path d=\"M3 12h10l-1.4-1.4A2 2 0 0 1 11 9.2V7a3 3 0 0 0-6 0v2.2a2 2 0 0 1-.6 1.4L3 12z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>")
+        .append("<path d=\"M6.5 13.5a1.5 1.5 0 0 0 3 0\" stroke-linecap=\"round\"/></svg>")
+        .append("<span class=\"dot violet\" hidden aria-hidden=\"true\"></span></button>\n");
+    // A.6 inbox/mail icon — server-renders the envelope SVG.
+    sb.append("      <a class=\"mail\" href=\"/?q=in:inbox\" aria-label=\"Inbox\">")
+        .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
+        .append("<rect x=\"2\" y=\"3.5\" width=\"12\" height=\"9\" rx=\"1.4\"/>")
+        .append("<path d=\"M2.5 4.5l5.5 4 5.5-4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>\n");
+    sb.append("      <button type=\"button\" class=\"user-menu\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-label=\"Open user menu\">")
+        .append("<span class=\"avatar\" aria-hidden=\"true\">")
+        .append(initials)
+        .append("</span>")
+        .append("<span class=\"user-email\">")
+        .append(escapedAddress)
+        .append("</span></button>\n");
+    sb.append("    </wavy-header>\n");
+  }
+
+  /**
+   * F-2 slice 3 (#1047): emit the {@code <wavy-search-rail>} into the
+   * existing {@code <shell-nav-rail slot="nav">} wrapper. SSR'd inner
+   * light DOM covers B.1–B.12.
+   */
+  private static void appendWavySearchRail(StringBuilder sb) {
+    sb.append("    <wavy-search-rail query=\"in:inbox\" data-active-folder=\"inbox\" result-count=\"\">\n");
+    sb.append("      <div class=\"search\">\n");
+    sb.append("        <span class=\"waveform\" aria-hidden=\"true\"></span>\n");
+    sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"in:inbox\">\n");
+    sb.append("        <button type=\"button\" class=\"help-trigger\" aria-label=\"Search help\" aria-haspopup=\"dialog\" aria-controls=\"wavy-search-help\">?</button>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"actions\">\n");
+    sb.append("        <button type=\"button\" class=\"new-wave\" data-shortcut=\"Shift+Cmd+O\" aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\">New Wave</button>\n");
+    sb.append("        <button type=\"button\" class=\"manage-saved\">Manage saved searches</button>\n");
+    sb.append("      </div>\n");
+    sb.append("      <div class=\"folders-header\">\n");
+    sb.append("        <h2 id=\"folders-title\">Saved searches</h2>\n");
+    sb.append("        <button type=\"button\" class=\"refresh\" aria-label=\"Refresh search results\">⟳</button>\n");
+    sb.append("      </div>\n");
+    sb.append("      <ul class=\"folders\" aria-labelledby=\"folders-title\">\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"page\"><span class=\"label\">Inbox</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"mentions\" data-query=\"mentions:me\" aria-current=\"false\"><span class=\"label\">Mentions</span><span class=\"dot mentions-dot\" hidden></span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"tasks\" data-query=\"tasks:me\" aria-current=\"false\"><span class=\"label\">Tasks</span><span class=\"chip tasks-chip\" hidden>0</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"public\" data-query=\"with:@\" aria-current=\"false\"><span class=\"label\">Public</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"false\"><span class=\"label\">Archive</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"false\"><span class=\"label\">Pinned</span></button></li>\n");
+    sb.append("      </ul>\n");
+    sb.append("      <p class=\"result-count\" aria-live=\"polite\"></p>\n");
+    sb.append("    </wavy-search-rail>\n");
+  }
+
+  /**
+   * F-2 slice 3 (#1047): emit the singleton {@code <wavy-search-help>}
+   * modal as a direct child of {@code <shell-root>}. SSR'd inner
+   * light DOM contains every one of the 22 token literals (C.1–C.22)
+   * the GWT search-help panel advertises today; the parser fixture
+   * {@code J2clSearchHelpTokenParseTest} pins the token contract.
+   */
+  private static void appendWavySearchHelpModal(StringBuilder sb) {
+    // The SSR'd light DOM stays hidden until the Lit upgrade replaces
+    // it with the shadow-DOM render — `hidden` keeps the modal body
+    // invisible across both legacy renderers (display:none) and
+    // browsers that have not yet executed the J2CL bundle. The Lit
+    // element drops `hidden` (the `open` reflection takes over) when
+    // the user toggles the modal.
+    sb.append("  <wavy-search-help id=\"wavy-search-help\" hidden>\n");
+    sb.append("    <div class=\"sheet\" role=\"dialog\" aria-modal=\"true\">\n");
+    sb.append("      <header><h2>Search Help</h2><button type=\"button\" class=\"dismiss\" aria-label=\"Close search help\">Got it</button></header>\n");
+    sb.append("      <div class=\"columns\">\n");
+    // Each clickable example uses <code class="example"> so the
+    // pre-upgrade SSR matches the Lit element's clickable chip
+    // contract (the Lit element's render also tags clickable example
+    // tokens with class="example"). The plain <code> form is used
+    // only for the abstract "with:user@domain"-style row labels that
+    // are NOT meant to be clicked.
+    sb.append("        <section><p class=\"section-title\">Filters</p><table>\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td><code class=\"example\">in:inbox</code></td><td>Waves in your inbox</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">in:archive</code></td><td>Archived waves</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">in:all</code></td><td>All waves including public</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">in:pinned</code></td><td>Pinned waves</td></tr>\n");
+    sb.append("            <tr><td><code>with:user@domain</code></td><td>Waves with a participant &mdash; try: <code class=\"example\">with:alice@example.com</code></td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">with:@</code></td><td>Public waves (shared domain)</td></tr>\n");
+    sb.append("            <tr><td><code>creator:user@domain</code></td><td>Waves created by someone &mdash; try: <code class=\"example\">creator:bob@example.com</code></td></tr>\n");
+    sb.append("            <tr><td><code>tag:name</code></td><td>Waves with a specific tag &mdash; try: <code class=\"example\">tag:important</code></td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">unread:true</code></td><td>Only waves with unread blips</td></tr>\n");
+    sb.append("            <tr><td><code>title:text</code></td><td>Waves whose title contains text &mdash; try: <code class=\"example\">title:meeting</code></td></tr>\n");
+    sb.append("            <tr><td><code>content:text</code></td><td>Waves containing text in any blip &mdash; try: <code class=\"example\">content:agenda</code></td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">mentions:me</code></td><td>Waves where you are @mentioned</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">tasks:all</code></td><td>Waves you can access that contain any task</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">tasks:me</code></td><td>Waves with tasks assigned to you</td></tr>\n");
+    sb.append("            <tr><td><code>tasks:user@domain</code></td><td>Tasks assigned to someone specific &mdash; try: <code class=\"example\">tasks:alice@example.com</code></td></tr>\n");
+    sb.append("            <tr class=\"free-text-row\"><td>free text</td><td>Implicit content: search &mdash; try: <code class=\"example\">meeting notes</code></td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table></section>\n");
+    sb.append("        <section><p class=\"section-title\">Sort Options</p><table>\n");
+    sb.append("          <tbody>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:datedesc</code></td><td>Last modified, newest first (default)</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:dateasc</code></td><td>Last modified, oldest first</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:createddesc</code></td><td>Created time, newest first</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:createdasc</code></td><td>Created time, oldest first</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:creatordesc</code></td><td>Creator email Z&rarr;A</td></tr>\n");
+    sb.append("            <tr><td><code class=\"example\">orderby:creatorasc</code></td><td>Creator email A&rarr;Z</td></tr>\n");
+    sb.append("          </tbody>\n");
+    sb.append("        </table>\n");
+    sb.append("        <div class=\"combinations\"><p class=\"section-title\">Combinations</p>\n");
+    sb.append("          <div class=\"grid\">\n");
+    sb.append("            <code class=\"example\">in:inbox tag:important</code>\n");
+    sb.append("            <code class=\"example\">in:all orderby:createdasc</code>\n");
+    sb.append("            <code class=\"example\">with:alice@example.com tag:project</code>\n");
+    sb.append("            <code class=\"example\">in:pinned orderby:creatordesc</code>\n");
+    sb.append("            <code class=\"example\">creator:bob in:archive</code>\n");
+    sb.append("            <code class=\"example\">mentions:me unread:true</code>\n");
+    sb.append("            <code class=\"example\">tasks:all unread:true</code>\n");
+    sb.append("          </div>\n");
+    sb.append("        </div>\n");
+    sb.append("        </section>\n");
+    sb.append("      </div>\n");
+    sb.append("    </div>\n");
+    sb.append("  </wavy-search-help>\n");
+  }
+
+  /**
+   * Compute the two-letter uppercase initials used by {@code
+   * <wavy-header>}'s avatar chip when the J2CL client has not yet
+   * upgraded the element. Mirrors the Lit element's _initials()
+   * helper EXACTLY: split the local part by "." and take the first
+   * character of the first segment + the first character of the LAST
+   * segment. Falls back to first-two-characters for single-segment
+   * locals. Avoids avatar flicker on multi-dot emails like
+   * "john.q.public@x.com" (both sides yield "JP").
+   *
+   * <p>NOTE: input must be the RAW (unescaped) email address — the
+   * caller is responsible for HTML-escaping the result before writing
+   * it into the markup. Operating on the raw string keeps the
+   * computation deterministic when local parts contain HTML-special
+   * characters.
+   */
+  private static String computeUserInitials(String rawAddress) {
+    if (rawAddress == null) {
+      return "?";
+    }
+    String trimmed = rawAddress.trim();
+    if (trimmed.isEmpty()) {
+      return "?";
+    }
+    int at = trimmed.indexOf('@');
+    String local = at < 0 ? trimmed : trimmed.substring(0, at);
+    if (local.isEmpty()) {
+      return "?";
+    }
+    if (local.indexOf('.') >= 0) {
+      String[] segments = local.split("\\.");
+      String first = "";
+      String last = "";
+      for (String s : segments) {
+        if (!s.isEmpty()) {
+          if (first.isEmpty()) {
+            first = s.substring(0, 1);
+          }
+          last = s.substring(0, 1);
+        }
+      }
+      if (!first.isEmpty()) {
+        // first == last when only one non-empty segment survives
+        // (e.g. ".bob" or "bob." or "bob..smith" all collapse to one
+        // unique non-empty segment in the JS split).
+        if (first.equals(last)) {
+          if (local.length() >= 2 && !local.startsWith(".")) {
+            return local.substring(0, 2).toUpperCase(java.util.Locale.ROOT);
+          }
+          return first.toUpperCase(java.util.Locale.ROOT);
+        }
+        return (first + last).toUpperCase(java.util.Locale.ROOT);
+      }
+      return "?";
+    }
+    if (local.length() >= 2) {
+      return local.substring(0, 2).toUpperCase(java.util.Locale.ROOT);
+    }
+    return local.toUpperCase(java.util.Locale.ROOT);
   }
 
   private static void appendRootShellWorkflowMarkup(

@@ -44,6 +44,14 @@ import "./elements/wave-blip.js";
 import "./elements/wavy-focus-frame.js";
 import "./elements/wavy-wave-nav-row.js";
 import "./elements/wavy-depth-nav-bar.js";
+// F-2 slice 3 (#1047): search rail + search-help modal + wavy header
+// chrome. <wavy-search-help> mounts as a single document-level
+// instance under <shell-root>; <wavy-search-rail> drives it via the
+// wavy-search-help-toggle CustomEvent.
+import "./elements/wavy-search-help.js";
+import "./elements/wavy-search-rail-card.js";
+import "./elements/wavy-search-rail.js";
+import "./elements/wavy-header.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

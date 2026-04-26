@@ -1,0 +1,263 @@
+package org.waveprotocol.box.j2cl.search;
+
+import com.google.j2cl.junit.apt.J2clTestInput;
+import elemental2.dom.DomGlobal;
+import elemental2.dom.HTMLElement;
+import java.util.Arrays;
+import java.util.Collections;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Test;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
+
+/**
+ * F-2 slice 2 (#1046) — coverage for the chrome elements
+ * {@link J2clSelectedWaveView} mounts: {@code <wavy-depth-nav-bar>},
+ * {@code <wavy-wave-nav-row>} (and indirectly {@code <wavy-focus-frame>}
+ * which the renderer mounts inside its surface).
+ *
+ * <p>These tests run only when a real browser DOM is present (J2CL test
+ * runner against Chromium); JVM test runs skip via {@code Assume}.
+ */
+@J2clTestInput(J2clSelectedWaveViewChromeTest.class)
+public class J2clSelectedWaveViewChromeTest {
+  private HTMLElement currentHost;
+
+  @After
+  public void tearDown() {
+    if (currentHost != null && currentHost.parentElement != null) {
+      currentHost.parentElement.removeChild(currentHost);
+    }
+    currentHost = null;
+  }
+
+  @Test
+  public void coldMountInsertsAllThreeChromeLandmarks() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    new J2clSelectedWaveView(host);
+    Assert.assertNotNull(
+        "Cold mount must insert <wavy-depth-nav-bar>",
+        host.querySelector("wavy-depth-nav-bar"));
+    Assert.assertNotNull(
+        "Cold mount must insert <wavy-wave-nav-row>",
+        host.querySelector("wavy-wave-nav-row"));
+  }
+
+  @Test
+  public void coldMountCardCarriesKeyboardBindingHostAttribute() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    new J2clSelectedWaveView(host);
+    HTMLElement card = (HTMLElement) host.querySelector(".sidecar-selected-card");
+    Assert.assertNotNull(card);
+    Assert.assertTrue(
+        "Card must carry data-j2cl-selected-wave-host for the H key handler",
+        card.hasAttribute("data-j2cl-selected-wave-host"));
+  }
+
+  @Test
+  public void coldMountDepthNavBarStartsHidden() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    new J2clSelectedWaveView(host);
+    HTMLElement bar = (HTMLElement) host.querySelector("wavy-depth-nav-bar");
+    Assert.assertTrue(
+        "Depth-nav-bar starts hidden at top-of-wave", bar.hasAttribute("hidden"));
+  }
+
+  @Test
+  public void renderBindsUnreadCountToWaveNavRow() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    J2clSelectedWaveModel model =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            false,
+            "example.com/w+1",
+            "Selected wave",
+            "",
+            "5 unread.",
+            "Live.",
+            "",
+            0,
+            Collections.<String>emptyList(),
+            Arrays.<String>asList(),
+            Arrays.<J2clReadBlip>asList(),
+            null,
+            5,
+            false,
+            true,
+            false);
+    view.render(model);
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertEquals(
+        "Nav-row receives the model's unread count via the unread-count attribute",
+        "5",
+        row.getAttribute("unread-count"));
+  }
+
+  @Test
+  public void renderBindsSourceWaveIdToWaveNavRow() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    J2clSelectedWaveModel model =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            false,
+            "example.com/w+abc",
+            "Selected wave",
+            "",
+            "Read.",
+            "",
+            "",
+            0,
+            Collections.<String>emptyList(),
+            Arrays.<String>asList(),
+            Arrays.<J2clReadBlip>asList(),
+            null,
+            0,
+            true,
+            true,
+            false);
+    view.render(model);
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertEquals(
+        "Nav-row receives the source wave id",
+        "example.com/w+abc",
+        row.getAttribute("source-wave-id"));
+  }
+
+  @Test
+  public void renderClearsSourceWaveIdWhenSelectionIsEmpty() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(J2clSelectedWaveModel.clearedSelection());
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertFalse(
+        "Cleared selection clears the source wave id on the nav row",
+        row.hasAttribute("source-wave-id"));
+  }
+
+  @Test
+  public void unknownUnreadCountClampsToZero() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    // J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT == -1; the nav-row must
+    // never receive a negative count (would falsely emphasize E.2 cyan).
+    view.render(J2clSelectedWaveModel.empty());
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertEquals(
+        "Unknown unread count clamps to 0 (no spurious cyan emphasis)",
+        "0",
+        row.getAttribute("unread-count"));
+  }
+
+  @Test
+  public void navRowEventsEmitTelemetry() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    RecordingTelemetrySink sink = new RecordingTelemetrySink();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host, sink);
+    HTMLElement card = (HTMLElement) host.querySelector(".sidecar-selected-card");
+    int before = sink.events().size();
+    // Synthesize a nav-row event the same way the Lit element would.
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    elemental2.dom.CustomEvent<Object> evt =
+        new elemental2.dom.CustomEvent<Object>("wave-nav-pin-toggle-requested", init);
+    card.dispatchEvent(evt);
+    boolean recorded = false;
+    for (int i = before; i < sink.events().size(); i++) {
+      if ("wave_chrome.nav_row.click".equals(sink.events().get(i).getName())) {
+        recorded = true;
+        break;
+      }
+    }
+    Assert.assertTrue(
+        "Nav-row click must emit wave_chrome.nav_row.click telemetry", recorded);
+  }
+
+  @Test
+  public void depthNavEventsEmitTelemetry() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    RecordingTelemetrySink sink = new RecordingTelemetrySink();
+    new J2clSelectedWaveView(host, sink);
+    HTMLElement card = (HTMLElement) host.querySelector(".sidecar-selected-card");
+    int before = sink.events().size();
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    elemental2.dom.CustomEvent<Object> evt =
+        new elemental2.dom.CustomEvent<Object>("wavy-depth-up", init);
+    card.dispatchEvent(evt);
+    boolean recorded = false;
+    for (int i = before; i < sink.events().size(); i++) {
+      if ("wave_chrome.depth_nav.click".equals(sink.events().get(i).getName())) {
+        recorded = true;
+        break;
+      }
+    }
+    Assert.assertTrue(
+        "Depth-nav click must emit wave_chrome.depth_nav.click telemetry", recorded);
+  }
+
+  @Test
+  public void serverFirstReBindsExistingChromeLandmarks() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    // Synthesize a server-first markup matching what HtmlRenderer emits.
+    host.innerHTML =
+        "<div class=\"sidecar-selected-host\" data-j2cl-selected-wave-host=\"true\">"
+            + "<section class=\"sidecar-selected-card\""
+            + " data-j2cl-server-first-mode=\"snapshot\""
+            + " data-j2cl-upgrade-placeholder=\"selected-wave\">"
+            + "<p class=\"sidecar-eyebrow\">Opened wave</p>"
+            + "<wavy-depth-nav-bar hidden data-j2cl-server-first-chrome=\"true\"></wavy-depth-nav-bar>"
+            + "<h2 class=\"sidecar-selected-title\">Title</h2>"
+            + "<p class=\"sidecar-selected-unread\" hidden></p>"
+            + "<p class=\"sidecar-selected-status\"></p>"
+            + "<p class=\"sidecar-selected-detail\"></p>"
+            + "<p class=\"sidecar-selected-participants\" hidden></p>"
+            + "<wavy-wave-nav-row data-j2cl-server-first-chrome=\"true\"></wavy-wave-nav-row>"
+            + "<p class=\"sidecar-selected-snippet\" hidden></p>"
+            + "<div class=\"sidecar-selected-compose\"></div>"
+            + "<div class=\"sidecar-selected-content\" data-wave-id=\"example.com/w+1\"></div>"
+            + "</section>"
+            + "</div>";
+    HTMLElement bar = (HTMLElement) host.querySelector("wavy-depth-nav-bar");
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    new J2clSelectedWaveView(host);
+    Assert.assertSame(
+        "Server-first re-bind must re-use the same depth-nav-bar element (no replaceChild)",
+        bar,
+        host.querySelector("wavy-depth-nav-bar"));
+    Assert.assertSame(
+        "Server-first re-bind must re-use the same wave-nav-row element (no replaceChild)",
+        row,
+        host.querySelector("wavy-wave-nav-row"));
+  }
+
+  // -- helpers ---------------------------------------------------------
+
+  private HTMLElement createHost() {
+    currentHost = (HTMLElement) DomGlobal.document.createElement("div");
+    DomGlobal.document.body.appendChild(currentHost);
+    return currentHost;
+  }
+
+  private static void assumeBrowserDom() {
+    Assume.assumeTrue(DomGlobal.document != null && DomGlobal.document.body != null);
+  }
+}

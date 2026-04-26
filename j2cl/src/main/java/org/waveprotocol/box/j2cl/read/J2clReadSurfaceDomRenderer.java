@@ -763,16 +763,16 @@ public final class J2clReadSurfaceDomRenderer {
     // aria-keyshortcuts to avoid screen-reader collisions with global
     // shortcuts (g/G, [/] are deferred to slice 5).
     if ("ArrowDown".equals(key) || "j".equals(key)) {
-      focusByOffset(1);
+      focusByOffset(1, key);
       keyEvent.preventDefault();
     } else if ("ArrowUp".equals(key) || "k".equals(key)) {
-      focusByOffset(-1);
+      focusByOffset(-1, key);
       keyEvent.preventDefault();
     } else if ("Home".equals(key)) {
-      focusByIndex(0);
+      focusByIndex(0, key);
       keyEvent.preventDefault();
     } else if ("End".equals(key)) {
-      focusByIndex(renderedBlips.size() - 1);
+      focusByIndex(renderedBlips.size() - 1, key);
       keyEvent.preventDefault();
     }
   }
@@ -870,32 +870,36 @@ public final class J2clReadSurfaceDomRenderer {
     host.scrollTop = Math.max(0, host.scrollTop + delta);
   }
 
-  private void focusByOffset(int offset) {
+  private void focusByOffset(int offset, String key) {
     List<HTMLElement> visibleBlips = visibleBlips();
     int current = focusedBlip == null ? -1 : visibleBlips.indexOf(focusedBlip);
     if (current < 0) {
-      focusVisibleByIndex(offset > 0 ? 0 : visibleBlips.size() - 1);
+      focusVisibleByIndex(offset > 0 ? 0 : visibleBlips.size() - 1, key);
       return;
     }
-    focusVisibleByIndex(current + offset);
+    focusVisibleByIndex(current + offset, key);
   }
 
-  private void focusByIndex(int index) {
-    focusVisibleByIndex(index);
+  private void focusByIndex(int index, String key) {
+    focusVisibleByIndex(index, key);
   }
 
-  private void focusVisibleByIndex(int index) {
+  private void focusVisibleByIndex(int index, String key) {
     List<HTMLElement> visibleBlips = visibleBlips();
     if (visibleBlips.isEmpty()) {
       return;
     }
     int boundedIndex = Math.max(0, Math.min(index, visibleBlips.size() - 1));
     HTMLElement next = visibleBlips.get(boundedIndex);
-    focusBlip(next);
+    focusBlip(next, key);
     next.focus();
   }
 
   private void focusBlip(HTMLElement next) {
+    focusBlip(next, "");
+  }
+
+  private void focusBlip(HTMLElement next, String key) {
     if (next == null) {
       clearFocusedBlip();
       return;
@@ -908,19 +912,26 @@ public final class J2clReadSurfaceDomRenderer {
     focusedBlip.classList.add("j2cl-read-blip-focused");
     focusedBlip.setAttribute("aria-current", "true");
     focusedBlip.setAttribute("tabindex", "0");
-    dispatchFocusChanged(focusedBlip, "");
+    dispatchFocusChanged(focusedBlip, key);
   }
 
   /**
    * F-2 slice 2 (#1046, R-3.2): emit a {@code wavy-focus-changed}
-   * CustomEvent on the renderer host so the {@code <wavy-focus-frame>}
-   * Lit element (mounted as a child of the host) can paint the cyan ring
-   * around the focused blip. Bounds are in {@code host}-local coordinate
-   * space (the frame is positioned absolutely inside {@code host} which
-   * carries {@code position: relative} via {@code wavy-thread-collapse.css}).
+   * CustomEvent on the renderer's read-surface element (the inner
+   * {@code <section data-j2cl-read-surface="true">}) so the
+   * {@code <wavy-focus-frame>} Lit element (mounted as a child of that
+   * surface by {@code ensureFocusFrame}) can paint the cyan ring around
+   * the focused blip. Bounds are in surface-local coordinate space (the
+   * frame is positioned absolutely inside the surface which carries
+   * {@code position: relative} via {@code wavy-thread-collapse.css}).
+   *
+   * <p>Falls back to dispatching on {@code host} (the outer content list)
+   * when no surface has been rendered yet — defensive only; any time the
+   * frame has been mounted, the surface exists.
    */
   private void dispatchFocusChanged(HTMLElement blip, String key) {
-    if (blip == null || host == null) {
+    HTMLElement target = renderedSurface != null ? renderedSurface : host;
+    if (blip == null || target == null) {
       return;
     }
     String blipId = blip.getAttribute("data-blip-id");
@@ -928,9 +939,12 @@ public final class J2clReadSurfaceDomRenderer {
       blipId = "";
     }
     DOMRect blipRect = blip.getBoundingClientRect();
-    DOMRect hostRect = host.getBoundingClientRect();
-    double top = blipRect.top - hostRect.top + host.scrollTop;
-    double left = blipRect.left - hostRect.left + host.scrollLeft;
+    DOMRect targetRect = target.getBoundingClientRect();
+    // Surface-local coords. Surface is the positioning ancestor for the
+    // <wavy-focus-frame> overlay; the frame's `top/left` style values
+    // therefore plug straight in.
+    double top = blipRect.top - targetRect.top + target.scrollTop;
+    double left = blipRect.left - targetRect.left + target.scrollLeft;
     JsPropertyMap<Object> bounds = JsPropertyMap.of();
     bounds.set("top", Double.valueOf(top));
     bounds.set("left", Double.valueOf(left));
@@ -946,7 +960,7 @@ public final class J2clReadSurfaceDomRenderer {
     init.setDetail(Js.cast(detail));
     try {
       CustomEvent<Object> evt = new CustomEvent<Object>("wavy-focus-changed", init);
-      host.dispatchEvent(evt);
+      target.dispatchEvent(evt);
     } catch (Throwable ignored) {
       // Event dispatch is observational; never let it break focus state.
     }
@@ -954,11 +968,25 @@ public final class J2clReadSurfaceDomRenderer {
       telemetrySink.record(
           J2clClientTelemetry.event("wave_chrome.focus_frame.transition")
               .field("key", key == null ? "" : key)
+              .field("direction", focusDirectionFromKey(key))
               .field("blipId", blipId)
               .build());
     } catch (Throwable ignored) {
       // Telemetry is observational.
     }
+  }
+
+  private static String focusDirectionFromKey(String key) {
+    if (key == null || key.isEmpty()) {
+      return "restore";
+    }
+    if ("ArrowDown".equals(key) || "j".equals(key) || "End".equals(key)) {
+      return "forward";
+    }
+    if ("ArrowUp".equals(key) || "k".equals(key) || "Home".equals(key)) {
+      return "backward";
+    }
+    return "jump";
   }
 
   /**
@@ -1195,7 +1223,7 @@ public final class J2clReadSurfaceDomRenderer {
   private void focusNearestVisibleFrom(HTMLElement origin) {
     int originIndex = renderedBlips.indexOf(origin);
     if (originIndex < 0) {
-      focusVisibleByIndex(0);
+      focusVisibleByIndex(0, "");
       return;
     }
     for (int index = originIndex + 1; index < renderedBlips.size(); index++) {

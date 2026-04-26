@@ -166,6 +166,43 @@ public class WaveClientServlet extends HttpServlet {
 
     if (VIEW_J2CL_ROOT.equals(requestedView)
         || (StringUtils.isEmpty(requestedView) && j2clRootBootstrapEnabled)) {
+      // F-0 (#1035): admin-or-owner gated design preview sub-branch.
+      // Reachable at ?view=j2cl-root&q=design-preview per issue body
+      // §Verification. A non-admin requesting q=design-preview falls
+      // through to the regular root shell with no error / no leak.
+      if ("design-preview".equals(request.getParameter("q")) && id != null) {
+        boolean isAdminOrOwner = false;
+        try {
+          AccountData acct = accountStore.getAccount(id);
+          if (acct != null && acct.isHuman()) {
+            String role = acct.asHuman().getRole();
+            isAdminOrOwner =
+                HumanAccountData.ROLE_ADMIN.equals(role)
+                    || HumanAccountData.ROLE_OWNER.equals(role);
+          }
+        } catch (Exception e) {
+          LOG.warning("Failed to look up role for design-preview gate " + id.getAddress(), e);
+        }
+        if (isAdminOrOwner) {
+          response.setContentType("text/html");
+          response.setCharacterEncoding("UTF-8");
+          response.setHeader("Cache-Control", "private, no-store");
+          response.setHeader("Vary", "Cookie");
+          response.setStatus(HttpServletResponse.SC_OK);
+          try (var w = response.getWriter()) {
+            w.write(HtmlRenderer.renderJ2clDesignPreviewPage(
+                request.getContextPath(),
+                buildCommit,
+                serverBuildTime,
+                currentReleaseId)); // codeql[java/xss]
+          } catch (IOException e) {
+            LOG.warning("Failed to render J2CL design preview page", e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+          }
+          return;
+        }
+        // Fall through: non-admin reaches the regular root shell.
+      }
       String rootShellReturnTarget = buildJ2clRootShellReturnTarget(request);
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult =
           j2clSelectedWaveSnapshotRenderer == null

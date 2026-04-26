@@ -22,6 +22,16 @@ import "./elements/task-metadata-popover.js";
 import "./elements/reaction-row.js";
 import "./elements/reaction-picker-popover.js";
 import "./elements/reaction-authors-popover.js";
+// F-0 (#1035): wavy design recipe elements. CSS tokens are loaded
+// separately via <link rel="stylesheet" href="…wavy-tokens.css"> by
+// the server template (renderJ2clRootShellPage and the design preview
+// route) so esbuild does NOT inline the CSS into shell.css.
+import "./design/wavy-blip-card.js";
+import "./design/wavy-compose-card.js";
+import "./design/wavy-rail-panel.js";
+import "./design/wavy-edit-toolbar.js";
+import "./design/wavy-depth-nav.js";
+import "./design/wavy-pulse-stage.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

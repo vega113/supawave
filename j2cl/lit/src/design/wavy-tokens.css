@@ -1,0 +1,173 @@
+/* Wavy — Firefly Signal design tokens (issue #1035, F-0).
+ *
+ * Source of truth: Stitch project 15560635515125057401 / asset
+ * 6962139294633729409 (v1, "Wavy — Firefly Signal"). The values below
+ * reproduce the Stitch designMd field exactly — do not re-interpret
+ * without an updated source-of-truth bump.
+ *
+ * Dark is the default (matches Stitch colorMode: DARK). Light overrides
+ * apply via prefers-color-scheme media query OR explicit
+ * data-wavy-theme="light" attribute on a scope element. Contrast
+ * variant applies via prefers-contrast: more OR explicit
+ * data-wavy-theme="contrast".
+ *
+ * Recipe elements consume only --wavy-* tokens; flipping the data
+ * attribute on any ancestor scope swaps the whole packet.
+ */
+:root {
+  /* Color — surface + chrome (DARK default) */
+  --wavy-bg-base: #0b1320;
+  --wavy-bg-surface: #11192a;
+  --wavy-border-hairline: rgba(34, 211, 238, 0.18);
+
+  /* Color — text (DARK default) */
+  --wavy-text-body: rgba(232, 240, 255, 0.92);
+  --wavy-text-muted: rgba(232, 240, 255, 0.62);
+  --wavy-text-quiet: rgba(232, 240, 255, 0.42);
+
+  /* Color — signal accents (constant across light/dark) */
+  --wavy-signal-cyan: #22d3ee;
+  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.22);
+  --wavy-signal-violet: #7c3aed;
+  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.22);
+  --wavy-signal-amber: #fb923c;
+  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.22);
+
+  /* Color — derived focus + pulse */
+  --wavy-focus-ring: 0 0 0 2px var(--wavy-signal-cyan);
+  --wavy-pulse-ring: 0 0 0 4px var(--wavy-signal-cyan-soft);
+
+  /* Typography — font families */
+  --wavy-font-headline: "Space Grotesk", "Inter", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --wavy-font-body: "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --wavy-font-label: "Geist", "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+
+  /* Typography — type scale (font shorthand: size/line-height family) */
+  --wavy-type-display: clamp(1.875rem, 1.4rem + 1.6vw, 2.25rem) / 1.18
+    var(--wavy-font-headline);
+  --wavy-type-h1: 1.5rem / 1.25 var(--wavy-font-headline);
+  --wavy-type-h2: 1.25rem / 1.3 var(--wavy-font-headline);
+  --wavy-type-h3: 1.0625rem / 1.35 var(--wavy-font-headline);
+  --wavy-type-body: 0.9375rem / 1.55 var(--wavy-font-body);
+  --wavy-type-label: 0.75rem / 1.35 var(--wavy-font-label);
+  --wavy-type-meta: 0.6875rem / 1.4 var(--wavy-font-label);
+
+  /* Motion — durations */
+  --wavy-motion-pulse-duration: 600ms;
+  --wavy-motion-focus-duration: 180ms;
+  --wavy-motion-collapse-duration: 240ms;
+  --wavy-motion-fragment-fade-duration: 300ms;
+
+  /* Motion — easings */
+  --wavy-easing-pulse: cubic-bezier(0.32, 0.72, 0.32, 1);
+  --wavy-easing-focus: cubic-bezier(0.2, 0, 0.2, 1);
+  --wavy-easing-collapse: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing — 4px base */
+  --wavy-spacing-1: 4px;
+  --wavy-spacing-2: 8px;
+  --wavy-spacing-3: 12px;
+  --wavy-spacing-4: 16px;
+  --wavy-spacing-5: 20px;
+  --wavy-spacing-6: 24px;
+  --wavy-spacing-7: 32px;
+  --wavy-spacing-8: 40px;
+
+  /* Shape */
+  --wavy-radius-card: 12px;
+  --wavy-radius-pill: 9999px;
+}
+
+/* Light variant — applies under prefers-color-scheme: light unless an
+ * explicit data-wavy-theme overrides. Surface, border, and text triads
+ * flip; accents stay constant per Stitch markdown. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-wavy-theme]) {
+    --wavy-bg-base: #f6f7fb;
+    --wavy-bg-surface: #ffffff;
+    --wavy-border-hairline: rgba(11, 19, 32, 0.10);
+    --wavy-text-body: rgba(11, 19, 32, 0.92);
+    --wavy-text-muted: rgba(11, 19, 32, 0.62);
+    --wavy-text-quiet: rgba(11, 19, 32, 0.55);
+    --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.18);
+    --wavy-signal-violet-soft: rgba(124, 58, 237, 0.16);
+    --wavy-signal-amber-soft: rgba(251, 146, 60, 0.16);
+  }
+}
+
+/* Explicit dark override — wins over media query so a light-OS user
+ * can still see the dark variant in a scoped section. Applies to any
+ * scope element carrying the attribute (not just :root). */
+[data-wavy-theme="dark"] {
+  --wavy-bg-base: #0b1320;
+  --wavy-bg-surface: #11192a;
+  --wavy-border-hairline: rgba(34, 211, 238, 0.18);
+  --wavy-text-body: rgba(232, 240, 255, 0.92);
+  --wavy-text-muted: rgba(232, 240, 255, 0.62);
+  --wavy-text-quiet: rgba(232, 240, 255, 0.42);
+  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.22);
+  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.22);
+  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.22);
+}
+
+/* Explicit light override — wins over media query and over :root.
+ * text-quiet uses alpha 0.55 (vs the symmetric 0.42 used in dark) so
+ * it composites to ≥3:1 contrast on #ffffff. */
+[data-wavy-theme="light"] {
+  --wavy-bg-base: #f6f7fb;
+  --wavy-bg-surface: #ffffff;
+  --wavy-border-hairline: rgba(11, 19, 32, 0.10);
+  --wavy-text-body: rgba(11, 19, 32, 0.92);
+  --wavy-text-muted: rgba(11, 19, 32, 0.62);
+  --wavy-text-quiet: rgba(11, 19, 32, 0.55);
+  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.18);
+  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.16);
+  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.16);
+}
+
+/* High-contrast variant — issue body §Scope.1 mandates from day one.
+ * WCAG-AAA targets (7:1) for body/muted/quiet text on the black
+ * surface. Inner-glow border replaced with a solid 1.5px hairline so
+ * contrast is carried by edges, not light. */
+@media (prefers-contrast: more) {
+  :root:not([data-wavy-theme]) {
+    --wavy-bg-base: #000000;
+    --wavy-bg-surface: #0b1320;
+    --wavy-border-hairline: rgba(255, 255, 255, 0.85);
+    --wavy-text-body: #ffffff;
+    --wavy-text-muted: rgba(255, 255, 255, 0.85);
+    --wavy-text-quiet: rgba(255, 255, 255, 0.7);
+    --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.45);
+    --wavy-signal-violet-soft: rgba(124, 58, 237, 0.45);
+    --wavy-signal-amber-soft: rgba(251, 146, 60, 0.45);
+    --wavy-focus-ring: 0 0 0 3px var(--wavy-signal-cyan);
+  }
+}
+
+[data-wavy-theme="contrast"] {
+  --wavy-bg-base: #000000;
+  --wavy-bg-surface: #0b1320;
+  --wavy-border-hairline: rgba(255, 255, 255, 0.85);
+  --wavy-text-body: #ffffff;
+  --wavy-text-muted: rgba(255, 255, 255, 0.85);
+  --wavy-text-quiet: rgba(255, 255, 255, 0.7);
+  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.45);
+  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.45);
+  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.45);
+  --wavy-focus-ring: 0 0 0 3px var(--wavy-signal-cyan);
+}
+
+/* Reduced motion — collapse durations to ~0 so animations are
+ * effectively skipped while still firing animationend / transitionend
+ * so JS state machines tracking the end event resolve. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --wavy-motion-pulse-duration: 0.01ms;
+    --wavy-motion-focus-duration: 0.01ms;
+    --wavy-motion-collapse-duration: 0.01ms;
+    --wavy-motion-fragment-fade-duration: 0.01ms;
+  }
+}

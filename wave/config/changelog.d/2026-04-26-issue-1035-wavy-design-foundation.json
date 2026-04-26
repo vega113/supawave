@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-26-issue-1035-wavy-design-foundation",
+  "version": "F-0 (#1035)",
+  "date": "2026-04-26",
+  "title": "Wavy Design Foundation + Plugin Slot Contracts",
+  "summary": "The J2CL parity client gains the Wavy — Firefly Signal design packet (CSS tokens + six Lit recipe elements) and a documented contract for the four plugin slot points that future robots/data-API plugins will mount into. The user menu's API group is renamed to make the plugin surface visible.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "New Lit design packet (j2cl/lit/src/design/) ships --wavy-* CSS custom properties (color, typography, motion, spacing, shape) with dark / light / high-contrast variants and reduced-motion support.",
+        "Six new Lit recipe elements (<wavy-blip-card>, <wavy-compose-card>, <wavy-rail-panel>, <wavy-edit-toolbar>, <wavy-depth-nav>, <wavy-pulse-stage>) consume the tokens and expose four named plugin slots: blip-extension, compose-extension, rail-extension, toolbar-extension.",
+        "New docs/j2cl-plugin-slots.md formalises the slot context (data attributes + frozen JS properties), styling contract, accessibility contract, lifecycle, and rollback semantics for each of the four slots.",
+        "Admin/owner-only design preview route at /?view=j2cl-root&q=design-preview mounts every recipe under all three theme variants plus a live-update pulse moment, with dashed outlines around empty plugin slots so designers see where plugins will land.",
+        "User-menu group renamed from \"Automation / APIs\" to \"Plugins / Integrations\" in both the wave-client and standalone topbars; the existing /account/robots and /api-docs links are preserved."
+      ]
+    }
+  ]
+}

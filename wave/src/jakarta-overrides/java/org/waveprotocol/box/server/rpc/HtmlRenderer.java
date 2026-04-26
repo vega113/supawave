@@ -3377,6 +3377,10 @@ public final class HtmlRenderer {
     sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
     sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/sidecar.css\">\n");
     sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.css\">\n");
+    // F-0 (#1035): wavy design tokens for the F-2/F-3/F-4 recipe surfaces.
+    // Loaded alongside shell.css so the recipes' --wavy-* var() lookups
+    // resolve under the J2CL root shell view.
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/wavy-tokens.css\">\n");
     sb.append("<script type=\"module\" src=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.js\"></script>\n");
     appendJ2clRootShellStatsShim(sb);
     appendAnalyticsFragment(sb, analyticsAccount, null);
@@ -3453,6 +3457,126 @@ public final class HtmlRenderer {
     }
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  /**
+   * F-0 (#1035): renders the design-preview page that mounts every
+   * wavy recipe in dark / light / contrast variants plus the four
+   * plugin-slot dashed-outline previews. Reachable at
+   * {@code /?view=j2cl-root&q=design-preview} when the viewer is
+   * admin or owner; the gating happens in {@code WaveClientServlet}.
+   *
+   * <p>The page is server-rendered HTML — no new J2CL or Lit
+   * behaviour ships from this route. The recipes' web-test-runner
+   * tests cover the client-side rendering.
+   */
+  public static String renderJ2clDesignPreviewPage(
+      String contextPath, String buildCommit, long serverBuildTime, String currentReleaseId) {
+    String resolvedBasePath = contextPath == null ? "/" : contextPath;
+    if (!resolvedBasePath.endsWith("/")) {
+      resolvedBasePath = resolvedBasePath + "/";
+    }
+    String safeResolvedBasePath = StringEscapeUtils.escapeHtml4(resolvedBasePath);
+    StringBuilder sb = new StringBuilder(4096);
+    sb.append("<!DOCTYPE html>\n<html lang=\"en\" data-wavy-design-preview>\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
+    sb.append("<title>SupaWave J2CL Design Preview</title>\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
+    sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
+    sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/sidecar.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"").append(safeResolvedBasePath).append("j2cl/assets/wavy-tokens.css\">\n");
+    sb.append("<script type=\"module\" src=\"").append(safeResolvedBasePath).append("j2cl/assets/shell.js\"></script>\n");
+    sb.append("<style>\n");
+    sb.append("body{margin:0;background:var(--wavy-bg-base);color:var(--wavy-text-body);font:var(--wavy-type-body);min-height:100vh;}\n");
+    sb.append(".wavy-design-preview-header{padding:var(--wavy-spacing-5) var(--wavy-spacing-6);border-bottom:1px solid var(--wavy-border-hairline);}\n");
+    sb.append(".wavy-design-preview-header h1{margin:0;font:var(--wavy-type-h1);font-weight:600;color:var(--wavy-text-body);}\n");
+    sb.append(".wavy-design-preview-header p{margin:var(--wavy-spacing-2) 0 0;color:var(--wavy-text-muted);font:var(--wavy-type-body);}\n");
+    sb.append(".wavy-design-preview-section{padding:var(--wavy-spacing-6);background:var(--wavy-bg-base);}\n");
+    sb.append(".wavy-design-preview-section h2{margin:0 0 var(--wavy-spacing-4);font:var(--wavy-type-h2);font-weight:600;color:var(--wavy-text-body);}\n");
+    sb.append(".wavy-design-preview-grid{display:grid;grid-template-columns:1fr 280px;gap:var(--wavy-spacing-5);}\n");
+    sb.append(".wavy-design-preview-content{min-width:0;}\n");
+    sb.append(".wavy-design-preview-rail{min-width:0;}\n");
+    sb.append("@media (max-width:860px){.wavy-design-preview-grid{grid-template-columns:1fr;}}\n");
+    sb.append("</style>\n");
+    sb.append("</head>\n<body>\n");
+    sb.append("<header class=\"wavy-design-preview-header\">\n");
+    sb.append("  <h1>Wavy design preview</h1>\n");
+    sb.append("  <p>Reference layout for the F-0 design packet (issue #1035). See <code>docs/j2cl-plugin-slots.md</code> for the slot contract and <code>j2cl/lit/src/design/README.md</code> for the design system source of truth. Variants below: dark (default), light, and high-contrast.</p>\n");
+    sb.append("</header>\n");
+    appendDesignPreviewSection(sb, "Dark variant", null);
+    appendDesignPreviewSection(sb, "Light variant", "light");
+    appendDesignPreviewSection(sb, "High-contrast variant", "contrast");
+    sb.append("</body>\n</html>\n");
+    return sb.toString();
+  }
+
+  /**
+   * Appends one design-preview section for the given theme variant.
+   * Each section mounts: depth-nav crumb, focused blip card with a
+   * sample {@code blip-extension} plugin, unfocused unread blip card
+   * with an empty slot (showing the dashed-outline preview), compose
+   * card with edit toolbar + sample compose/toolbar plugins, rail
+   * panel with a sample rail plugin, and a pulse-stage with a third
+   * blip card so a designer can fire the live-update pulse moment.
+   *
+   * @param themeAttr null/empty for the dark default; otherwise
+   *     applied as {@code data-wavy-theme="…"} on the section
+   *     wrapper so the recipes resolve scope-overridden tokens.
+   */
+  private static void appendDesignPreviewSection(StringBuilder sb, String label, String themeAttr) {
+    String safeLabel = escapeHtml(label);
+    String themeAttrSnippet =
+        (themeAttr == null || themeAttr.isEmpty())
+            ? ""
+            : " data-wavy-theme=\"" + escapeHtml(themeAttr) + "\"";
+    sb.append("<section class=\"wavy-design-preview-section\"").append(themeAttrSnippet).append(">\n");
+    sb.append("  <h2>").append(safeLabel).append("</h2>\n");
+    sb.append("  <div class=\"wavy-design-preview-grid\">\n");
+    sb.append("    <div class=\"wavy-design-preview-content\">\n");
+    sb.append("      <wavy-depth-nav id=\"wavy-design-preview-crumb-").append(escapeHtml(themeAttr == null ? "dark" : themeAttr)).append("\"></wavy-depth-nav>\n");
+    // F-0 (#1035): plugin slot-context attributes use the data-* form
+    // (per docs/j2cl-plugin-slots.md) — see the property declarations
+    // in the recipe element classes for the canonical names.
+    sb.append("      <wavy-blip-card data-blip-id=\"b1\" data-wave-id=\"w1\" author-name=\"Alice\" posted-at=\"2026-04-26T12:00Z\" focused>\n");
+    sb.append("        Sample focused blip body — long-form reading rhythm at the wavy ~70 character target line length.\n");
+    sb.append("        <span slot=\"blip-extension\" data-wavy-design-preview-plugin=\"blip\">[plugin: poll]</span>\n");
+    sb.append("        <span slot=\"reactions\">👍 ✨ 🌊</span>\n");
+    sb.append("      </wavy-blip-card>\n");
+    sb.append("      <wavy-blip-card data-blip-id=\"b2\" data-wave-id=\"w1\" author-name=\"Bob\" posted-at=\"2026-04-26T12:05Z\" unread>\n");
+    sb.append("        Sample unfocused unread blip body — empty blip-extension slot shows the dashed outline preview.\n");
+    sb.append("      </wavy-blip-card>\n");
+    sb.append("      <wavy-compose-card focused data-reply-target-blip-id=\"b1\">\n");
+    sb.append("        <p>Sample composer body — type your reply…</p>\n");
+    sb.append("        <wavy-edit-toolbar slot=\"toolbar\" active-selection='{\"start\":0,\"end\":0}'>\n");
+    sb.append("          <button type=\"button\" aria-pressed=\"false\">B</button>\n");
+    sb.append("          <button type=\"button\" aria-pressed=\"false\">I</button>\n");
+    sb.append("          <span slot=\"toolbar-extension\" data-wavy-design-preview-plugin=\"toolbar\">[plugin: code]</span>\n");
+    sb.append("        </wavy-edit-toolbar>\n");
+    sb.append("        <span slot=\"compose-extension\" data-wavy-design-preview-plugin=\"compose\">[plugin: poll]</span>\n");
+    sb.append("        <button slot=\"affordance\" type=\"button\">Send wave</button>\n");
+    sb.append("      </wavy-compose-card>\n");
+    sb.append("      <wavy-pulse-stage>\n");
+    sb.append("        <wavy-blip-card data-blip-id=\"b3\" data-wave-id=\"w1\" author-name=\"Carol\" posted-at=\"now\">\n");
+    sb.append("          Sample arriving blip — press <em>Fire pulse</em> to see the live-update glow.\n");
+    sb.append("        </wavy-blip-card>\n");
+    sb.append("      </wavy-pulse-stage>\n");
+    sb.append("    </div>\n");
+    sb.append("    <div class=\"wavy-design-preview-rail\">\n");
+    sb.append("      <wavy-rail-panel panel-title=\"Saved searches\" data-active-wave-id=\"w1\" data-active-folder=\"inbox\">\n");
+    sb.append("        <ul style=\"list-style:none;padding:0;margin:0;\"><li>Inbox</li><li>Mentions</li><li>Tasks</li></ul>\n");
+    sb.append("        <span slot=\"rail-extension\" data-wavy-design-preview-plugin=\"rail\">[plugin: assistant]</span>\n");
+    sb.append("      </wavy-rail-panel>\n");
+    sb.append("    </div>\n");
+    sb.append("  </div>\n");
+    sb.append("  <script type=\"text/javascript\">\n");
+    sb.append("(function(){var n=document.getElementById('wavy-design-preview-crumb-").append(escapeHtml(themeAttr == null ? "dark" : themeAttr)).append("');if(n)n.crumbs=[{label:'Inbox',href:'#'},{label:'Sample wave',href:'#'},{label:'Top thread',current:true}];})();\n");
+    sb.append("  </script>\n");
+    sb.append("</section>\n");
   }
 
   private static void appendJ2clRootShellStatsShim(StringBuilder sb) {
@@ -4470,7 +4594,10 @@ public final class HtmlRenderer {
     sb.append("          <a href=\"").append(safeCtx).append("/account/settings\">Account Settings</a>\n");
     sb.append("        </div>\n");
     sb.append("        <div class=\"menu-section\">\n");
-    sb.append("          <div class=\"section-label\">Automation / APIs</div>\n");
+    // F-0 (#1035, A.10/M.1): renamed from "Automation / APIs" so the
+    // group is the user-facing surface for the forthcoming
+    // robots/data-API plugin registry. Anchor URLs unchanged.
+    sb.append("          <div class=\"section-label\">Plugins / Integrations</div>\n");
     sb.append("          <a class=\"section-link-strong\" href=\"").append(safeCtx).append("/account/robots\">Robot &amp; Data API</a>\n");
     sb.append("          <a href=\"").append(safeCtx).append("/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
     sb.append("        </div>\n");
@@ -4659,7 +4786,9 @@ public final class HtmlRenderer {
       sb.append("          <a href=\"/account/settings\">Account Settings</a>\n");
       sb.append("        </div>\n");
       sb.append("        <div class=\"menu-section\">\n");
-      sb.append("          <div class=\"section-label\">Automation / APIs</div>\n");
+      // F-0 (#1035, A.10/M.1): renamed from "Automation / APIs". See
+      // companion rename in the standalone topbar above.
+      sb.append("          <div class=\"section-label\">Plugins / Integrations</div>\n");
       sb.append("          <a class=\"section-link-strong\" href=\"/account/robots\">Robot &amp; Data API</a>\n");
       sb.append("          <a href=\"/api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
       sb.append("        </div>\n");

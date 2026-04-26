@@ -40,6 +40,9 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("<shell-skip-link slot=\"skip-link\""));
     assertTrue(html.contains("/j2cl/assets/shell.js"));
     assertTrue(html.contains("/j2cl/assets/shell.css"));
+    // F-0 (#1035): wavy design tokens must load alongside shell.css so
+    // F-2/F-3/F-4 recipes resolve --wavy-* under the J2CL root view.
+    assertTrue(html.contains("/j2cl/assets/wavy-tokens.css"));
     assertTrue(html.contains("data-j2cl-server-first-workflow=\"true\""));
     assertTrue(html.contains("window.__j2clRootShellStat"));
   }

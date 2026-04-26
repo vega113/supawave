@@ -10,6 +10,11 @@ import { ifDefined } from "lit/directives/if-defined.js";
  *     glyph + aria-label "Close navigation drawer"). When false, the
  *     button shows hamburger + aria-label "Open navigation drawer".
  *
+ * Layout:
+ *   - The host is fixed-position in the top-right of the viewport
+ *     (escapes the shell-root grid so it sits in the visible header
+ *     band rather than below the min-height:100vh shell).
+ *
  * A11y:
  *   - role="button", aria-expanded reflects `open`,
  *     aria-controls is preserved from a host attribute (renderer sets
@@ -27,6 +32,10 @@ export class WavyNavDrawerToggle extends LitElement {
 
   static styles = css`
     :host {
+      position: fixed;
+      top: var(--wavy-spacing-3, 12px);
+      right: var(--wavy-spacing-3, 12px);
+      z-index: 90;
       display: inline-flex;
     }
     @media (min-width: 861px) {

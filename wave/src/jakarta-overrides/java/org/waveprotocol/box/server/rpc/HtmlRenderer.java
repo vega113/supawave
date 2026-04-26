@@ -3456,12 +3456,25 @@ public final class HtmlRenderer {
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
       sb.append("</shell-root>\n");
-      // F-2.S4 (#1048): floating + overlay mount points. Sit as siblings
-      // of <shell-root> so their position:fixed escapes the shell-root
-      // CSS Grid layout. data-j2cl-floating-mount lets the parity
-      // fixture count "all six present" with a single attribute.
+      // F-2.S4 (#1048): floating + overlay mount points. Each control
+      // host carries position:fixed in its own :host CSS so sibling
+      // placement after </shell-root> still anchors them inside the
+      // viewport (instead of landing below shell-root's min-height:100vh
+      // grid). data-j2cl-floating-mount lets the parity fixture count
+      // "all six present" with a single attribute.
+      //
+      // shell-nav-drawer placeholder: keeps the J.4 nav-toggle's
+      // aria-controls relationship resolvable. The actual drawer chrome
+      // ships in F-2.S5 (view-wiring slice); for now this is a hidden
+      // landing element so AT can resolve the relationship and the JS
+      // drawer wiring can target a stable id.
+      sb.append("<div id=\"shell-nav-drawer\" hidden role=\"navigation\" aria-label=\"Mobile navigation drawer\"></div>\n");
+      // J.5 — back-to-inbox uses the canonical inbox route (without the
+      // current `wave=...` query) so clicking it actually navigates to
+      // the inbox view rather than self-linking back to the current wave.
+      String safeJ2clRootInboxTarget = StringEscapeUtils.escapeHtml4(J2CL_ROOT_RETURN_TARGET);
       sb.append("<wavy-back-to-inbox data-j2cl-floating-mount=\"true\" href=\"")
-          .append(safeResolvedReturnTarget)
+          .append(safeJ2clRootInboxTarget)
           .append("\"></wavy-back-to-inbox>\n");
       sb.append("<wavy-nav-drawer-toggle data-j2cl-floating-mount=\"true\" aria-controls=\"shell-nav-drawer\"></wavy-nav-drawer-toggle>\n");
       sb.append("<wavy-wave-controls-toggle data-j2cl-floating-mount=\"true\"></wavy-wave-controls-toggle>\n");

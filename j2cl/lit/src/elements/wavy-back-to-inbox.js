@@ -10,9 +10,14 @@ import { LitElement, css, html } from "lit";
  * Properties:
  *   - href: string — the URL to navigate to. Defaults to "#inbox".
  *
+ * Layout:
+ *   - The host is fixed-position in the top-left of the viewport (escapes
+ *     the shell-root grid so it sits in the visible header band rather
+ *     than below the min-height:100vh shell). Mobile-only via @media
+ *     (min-width: 861px) hides on desktop.
+ *
  * A11y:
  *   - aria-label="Back to inbox"
- *   - mobile-only via @media (min-width: 861px) hides on desktop.
  *
  * Events emitted (CustomEvent, bubbles + composed, NOT cancelling):
  *   - `wavy-back-to-inbox-clicked` — no detail.
@@ -24,6 +29,10 @@ export class WavyBackToInbox extends LitElement {
 
   static styles = css`
     :host {
+      position: fixed;
+      top: var(--wavy-spacing-3, 12px);
+      left: var(--wavy-spacing-3, 12px);
+      z-index: 90;
       display: inline-flex;
     }
     @media (min-width: 861px) {

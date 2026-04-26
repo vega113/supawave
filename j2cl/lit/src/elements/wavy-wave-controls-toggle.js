@@ -8,6 +8,12 @@ import { LitElement, css, html } from "lit";
  * Properties:
  *   - pressed: boolean — when true, controls are hidden ("compact mode").
  *
+ * Layout:
+ *   - The host is fixed-position in the top-right of the viewport,
+ *     offset to the left of the nav-drawer-toggle on mobile (escapes
+ *     the shell-root grid so it sits in the visible header band rather
+ *     than below the min-height:100vh shell).
+ *
  * A11y:
  *   - The inner native &lt;button&gt; carries the role + keyboard
  *     activation (Enter/Space). The host element does NOT carry a role
@@ -29,7 +35,17 @@ export class WavyWaveControlsToggle extends LitElement {
 
   static styles = css`
     :host {
+      position: fixed;
+      top: var(--wavy-spacing-3, 12px);
+      right: var(--wavy-spacing-5, 24px);
+      z-index: 90;
       display: inline-flex;
+    }
+    /* Shift further left on mobile to clear the nav-drawer-toggle. */
+    @media (max-width: 860px) {
+      :host {
+        right: calc(var(--wavy-spacing-3, 12px) + var(--wavy-spacing-5, 24px) + var(--wavy-spacing-2, 8px));
+      }
     }
     button {
       display: inline-flex;

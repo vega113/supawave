@@ -158,6 +158,94 @@ test("fails with unresolved threads even after window", () => {
   assert.match(result.message, /unresolved review thread/);
 });
 
+// --- skipCodexCheck: chatgpt-codex-connector bot filtering ---
+
+test("skipCodexCheck: passes when only chatgpt-codex-connector thread is unresolved", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    skipCodexCheck: true,
+    pullRequest: buildPullRequest({
+      reviewThreads: {
+        nodes: [
+          {
+            isResolved: false,
+            comments: { nodes: [{ author: { login: "chatgpt-codex-connector" } }] },
+          },
+        ],
+      },
+    }),
+  });
+  assert.equal(result.ok, true);
+  assert.match(result.message, /Codex quota exhausted/);
+});
+
+test("skipCodexCheck: passes when only chatgpt-codex-connector[bot] thread is unresolved", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    skipCodexCheck: true,
+    pullRequest: buildPullRequest({
+      reviewThreads: {
+        nodes: [
+          {
+            isResolved: false,
+            comments: { nodes: [{ author: { login: "chatgpt-codex-connector[bot]" } }] },
+          },
+        ],
+      },
+    }),
+  });
+  assert.equal(result.ok, true);
+  assert.match(result.message, /Codex quota exhausted/);
+});
+
+test("skipCodexCheck: fails when human reviewer thread is unresolved alongside bot thread", () => {
+  const result = evaluateCodexReviewGate({
+    defaultBranchName: "main",
+    nowMs: AFTER_WINDOW,
+    skipCodexCheck: true,
+    pullRequest: buildPullRequest({
+      reviewThreads: {
+        nodes: [
+          {
+            isResolved: false,
+            comments: { nodes: [{ author: { login: "chatgpt-codex-connector" } }] },
+          },
+          {
+            isResolved: false,
+            comments: { nodes: [{ author: { login: "human-reviewer" } }] },
+          },
+        ],
+      },
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.message, /unresolved review thread/);
+  assert.match(result.message, /bot thread\(s\) skipped/);
+});
+
+test("skipCodexCheck: shouldRequeue true when only chatgpt-codex-connector thread blocks", () => {
+  assert.equal(
+    shouldRequeueCodexReviewGate({
+      defaultBranchName: "main",
+      nowMs: AFTER_WINDOW,
+      skipCodexCheck: true,
+      pullRequest: buildPullRequest({
+        reviewThreads: {
+          nodes: [
+            {
+              isResolved: false,
+              comments: { nodes: [{ author: { login: "chatgpt-codex-connector" } }] },
+            },
+          ],
+        },
+      }),
+    }),
+    true,
+  );
+});
+
 // --- shouldRequeueCodexReviewGate ---
 
 test("shouldRequeue: true after window, no unresolved threads, not yet passed", () => {

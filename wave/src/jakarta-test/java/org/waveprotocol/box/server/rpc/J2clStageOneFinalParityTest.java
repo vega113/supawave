@@ -57,6 +57,9 @@ import org.junit.runners.Suite;
  */
 public final class J2clStageOneFinalParityTest {
 
+  /** Canonical count of F-2 owned gate rows; fails fast if a row is silently removed. */
+  private static final int EXPECTED_F2_OWNER_COUNT = 21;
+
   /**
    * Select the inner {@code AllParityTests} class explicitly in JUnit
    * to run this suite; running the outer enclosing class executes only
@@ -116,6 +119,11 @@ public final class J2clStageOneFinalParityTest {
     report.append("F-2 (umbrella #1037) per-row parity roll-up\n");
     report.append("===========================================\n");
     int total = ROW_OWNERS.size();
+    assertEquals(
+        "ROW_OWNERS must list exactly " + EXPECTED_F2_OWNER_COUNT
+            + " F-2 gate rows — update EXPECTED_F2_OWNER_COUNT when the matrix changes",
+        EXPECTED_F2_OWNER_COUNT,
+        total);
     int covered = 0;
     for (Map.Entry<String, Class<?>> entry : ROW_OWNERS.entrySet()) {
       Class<?> owner = entry.getValue();
@@ -175,7 +183,7 @@ public final class J2clStageOneFinalParityTest {
     assertTrue("version-history mounts open",
         html.contains("<wavy-version-history") && html.contains("open></wavy-version-history>"));
     assertTrue("profile overlay mounts open",
-        html.contains("<wavy-profile-overlay") && html.contains("open"));
+        html.matches("(?s).*<wavy-profile-overlay[^>]*\\bopen\\b[^>]*>.*"));
     assertTrue("awareness pill present", html.contains("data-j2cl-awareness-pill=\"true\""));
     assertTrue("focus frame present", html.contains("<wavy-focus-frame"));
     assertTrue("at least one wave-blip", html.contains("<wave-blip"));

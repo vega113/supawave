@@ -43,9 +43,9 @@ import { LitElement, css, html } from "lit";
  *   clicked. <wavy-search-rail> listens and populates its textbox.
  * - `wavy-search-help-dismissed` — when "Got it" closes the dialog.
  *
- * Accessibility: role="dialog", aria-modal="true". Uses native
- * <dialog> when supported, falls back to a fixed-position
- * role="dialog" div otherwise (iOS Safari pre-15.4).
+ * Accessibility: role="dialog", aria-modal="true". Renders a
+ * fixed-position backdrop and sheet-based custom modal; it does not use
+ * the native <dialog> element.
  */
 export class WavySearchHelp extends LitElement {
   static properties = {

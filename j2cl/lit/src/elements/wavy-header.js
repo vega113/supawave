@@ -134,8 +134,7 @@ export class WavyHeader extends LitElement {
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
     }
     @media (max-width: 600px) {
-      .user-email,
-      .locale option {
+      .user-email {
         font-size: 0;
       }
     }
@@ -160,8 +159,12 @@ export class WavyHeader extends LitElement {
     const local = source.split("@")[0];
     if (!local) return "?";
     if (local.includes(".")) {
-      const [a, b] = local.split(".");
-      return ((a[0] || "") + (b[0] || "")).toUpperCase();
+      const parts = local.split(".").filter((part) => part);
+      if (parts.length > 0) {
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        return ((first[0] || "") + (last[0] || "")).toUpperCase();
+      }
     }
     return local.slice(0, 2).toUpperCase();
   }

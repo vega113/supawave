@@ -128,6 +128,16 @@ describe("<wavy-header>", () => {
     const avatar = el.renderRoot.querySelector(".avatar");
     expect(avatar.textContent.trim()).to.equal("?");
   });
+
+  it("avatar initials use first + last segment for multi-dot addresses (SSR parity)", async () => {
+    const el = await fixture(
+      html`<wavy-header signed-in data-address="john.q.public@x.com"></wavy-header>`
+    );
+    await el.updateComplete;
+    const avatar = el.renderRoot.querySelector(".avatar");
+    // first="john" → J, last="public" → P (not second segment "q")
+    expect(avatar.textContent.trim()).to.equal("JP");
+  });
 });
 
 function WavyHeader_styleText() {

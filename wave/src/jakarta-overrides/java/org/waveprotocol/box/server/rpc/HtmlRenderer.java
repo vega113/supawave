@@ -3437,8 +3437,8 @@ public final class HtmlRenderer {
       // help-trigger emits wavy-search-help-toggle (composed +
       // bubbles); a connectedCallback-installed listener on this
       // element flips the open attribute. Mounted as a direct child
-      // of <shell-root> (NOT inside any slot) so it can dialog.showModal
-      // over everything.
+      // of <shell-root> (NOT inside any slot) so its open-state/CSS
+      // overlay can render above the rest of the shell.
       appendWavySearchHelpModal(sb);
       sb.append("  <shell-main-region slot=\"main\">\n");
       sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
@@ -3693,7 +3693,7 @@ public final class HtmlRenderer {
   private static void appendWavySearchRail(StringBuilder sb) {
     sb.append("    <wavy-search-rail query=\"in:inbox\" data-active-folder=\"inbox\" result-count=\"\">\n");
     sb.append("      <div class=\"search\">\n");
-    sb.append("        <span class=\"waveform\" aria-hidden=\"true\"></span>\n");
+    sb.append("        <span class=\"waveform\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" focusable=\"false\" aria-hidden=\"true\"><path d=\"M2 12c2.2 0 2.8-6 5-6s2.8 12 5 12 2.8-12 5-12 2.8 6 5 6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span>\n");
     sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"in:inbox\">\n");
     sb.append("        <button type=\"button\" class=\"help-trigger\" aria-label=\"Search help\" aria-haspopup=\"dialog\" aria-controls=\"wavy-search-help\">?</button>\n");
     sb.append("      </div>\n");

@@ -298,8 +298,9 @@ public final class WaveContentRenderer {
    * Build the per-render windowing options. When {@code initialWindowSize} is
    * positive and the root thread carries more blips than the requested
    * window, the returned options short-list the leading {@code N} blip ids
-   * and supply the terminal placeholder. Otherwise, a no-op option is
-   * returned so emission falls back to the legacy whole-conversation shape.
+   * and supply the terminal placeholder. When {@code initialWindowSize} is
+   * non-positive, or when the root thread fits entirely within the window,
+   * the legacy whole-conversation shape is preserved.
    *
    * <p>Always sets {@code firstRootBlipId} to the first root-thread blip
    * (when one exists) so the keyboard contract (R-6.1) is consistent across

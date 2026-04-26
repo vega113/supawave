@@ -3574,7 +3574,7 @@ public final class HtmlRenderer {
     sb.append("    </div>\n");
     sb.append("  </div>\n");
     sb.append("  <script type=\"text/javascript\">\n");
-    sb.append("(function(){var n=document.getElementById('wavy-design-preview-crumb-").append(escapeHtml(themeAttr == null ? "dark" : themeAttr)).append("');if(n)n.crumbs=[{label:'Inbox',href:'#'},{label:'Sample wave',href:'#'},{label:'Top thread',current:true}];})();\n");
+    sb.append("(function(){var id='wavy-design-preview-crumb-").append(escapeHtml(themeAttr == null ? "dark" : themeAttr)).append("';customElements.whenDefined('wavy-depth-nav').then(function(){var n=document.getElementById(id);if(n)n.crumbs=[{label:'Inbox',href:'#'},{label:'Sample wave',href:'#'},{label:'Top thread',current:true}];});})();\n");
     sb.append("  </script>\n");
     sb.append("</section>\n");
   }

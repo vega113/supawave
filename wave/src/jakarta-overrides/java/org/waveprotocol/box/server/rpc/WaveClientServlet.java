@@ -268,8 +268,34 @@ public class WaveClientServlet extends HttpServlet {
       // renderTopBar accepts a null username and emits the signed-out auth shell.
       String topBarHtml = HtmlRenderer.renderTopBar(username, userDomain, userRole);
 
-      // Keep the legacy rollback path on the existing skeleton load until the
-      // server-side pre-rendered fragment has an explicit sanitization boundary.
+      // Issue #1050 / F-2 S1 follow-up: render the requested wave as a
+      // non-windowed legacy server-first fragment so a ?view=gwt rollback
+      // retains the legacy `<div class="blip">` host markup that
+      // ServerHtmlRenderer emits. The J2CL-only shell surface (the
+      // `<wave-blip>` custom element host, the wavy design-tokens
+      // stylesheet, the `j2cl/assets/shell.js` bundle, and the
+      // `data-j2cl-selected-wave-host` attribute) lives exclusively in
+      // `HtmlRenderer.renderJ2clRootShellPage` so it cannot leak through
+      // `renderWaveClientPage`; the F-1 windowed surface markers
+      // (`data-j2cl-server-first-surface`, `data-j2cl-initial-window-size`,
+      // `data-j2cl-upgrade-placeholder`) are gated on the windowed render
+      // path and the `renderRequestedWaveForLegacy` overload skips both
+      // windowing and the J2CL viewport-initial-window counter increment.
+      String legacySnapshotHtml = null;
+      if (id != null && j2clSelectedWaveSnapshotRenderer != null) {
+        try {
+          J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult =
+              j2clSelectedWaveSnapshotRenderer.renderRequestedWaveForLegacy(
+                  request.getParameter("wave"), id);
+          if (snapshotResult != null && snapshotResult.hasSnapshotHtml()) {
+            legacySnapshotHtml = snapshotResult.getSnapshotHtml();
+          }
+        } catch (RuntimeException e) {
+          LOG.warning(
+              "Failed to render legacy GWT route server-first snapshot, falling back to skeleton",
+              e);
+        }
+      }
       w.write(HtmlRenderer.renderWaveClientPage(
           getSessionJson(session),
           getClientFlags(request),
@@ -279,7 +305,7 @@ public class WaveClientServlet extends HttpServlet {
           buildCommit,
           serverBuildTime,
           currentReleaseId,
-          null)); // codeql[java/xss]
+          legacySnapshotHtml)); // codeql[java/xss]
     } catch (IOException e) {
       LOG.warning("Failed to render WaveClient page", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

@@ -189,7 +189,38 @@ public class J2clSelectedWaveSnapshotRenderer {
     this.currentTimeSource = currentTimeSource;
   }
 
+  /**
+   * Issue #1050 / F-2 S1 follow-up: render the requested wave as a legacy
+   * (non-windowed, non-J2CL) server-first HTML fragment. This is consumed by
+   * the {@code ?view=gwt} fall-through path in {@code WaveClientServlet} so a
+   * rollback to the legacy GWT route still gets the same per-wave first paint
+   * a J2CL viewer would, but without:
+   *
+   * <ul>
+   *   <li>the F-1 windowed surface markers ({@code data-j2cl-server-first-surface},
+   *       {@code data-j2cl-initial-window-size}) — gated on
+   *       {@link WaveContentRenderer}'s windowed render path which this entry
+   *       point bypasses by passing {@code initialWindowSize=0};</li>
+   *   <li>the F-1 / F-2 client-bundle markers ({@code <wave-blip>},
+   *       {@code wavy-tokens.css}, {@code j2cl/assets/shell.js},
+   *       {@code data-j2cl-selected-wave-host}) — only emitted by
+   *       {@code HtmlRenderer.renderJ2clRootShellPage}, which the GWT route
+   *       does not invoke;</li>
+   *   <li>the J2CL viewport-initial-window observability counter — not
+   *       advanced because the GWT route is not a J2CL viewport open.</li>
+   * </ul>
+   */
+  public SnapshotResult renderRequestedWaveForLegacy(
+      String requestedWaveId, ParticipantId viewer) {
+    return renderRequestedWaveInternal(requestedWaveId, viewer, /*windowed=*/ false);
+  }
+
   public SnapshotResult renderRequestedWave(String requestedWaveId, ParticipantId viewer) {
+    return renderRequestedWaveInternal(requestedWaveId, viewer, /*windowed=*/ true);
+  }
+
+  private SnapshotResult renderRequestedWaveInternal(
+      String requestedWaveId, ParticipantId viewer, boolean windowed) {
     if (StringUtils.isBlank(requestedWaveId)) {
       return SnapshotResult.noWave();
     }
@@ -243,9 +274,14 @@ public class J2clSelectedWaveSnapshotRenderer {
         return SnapshotResult.denied();
       }
 
+      // Issue #1050: the legacy GWT fall-through invokes this path with
+      // windowed=false so the rendered HTML carries no F-1 windowed-surface
+      // markers (data-j2cl-server-first-surface, data-j2cl-initial-window-size)
+      // and the J2CL viewport-initial-window counter does not advance.
+      int effectiveWindowSize = windowed ? initialWindowSize : 0;
       String snapshotHtml =
           WaveContentRenderer.renderWaveContent(
-              waveView, viewer, () -> overBudget(startTimeMs), initialWindowSize);
+              waveView, viewer, () -> overBudget(startTimeMs), effectiveWindowSize);
       if (overBudget(startTimeMs)) {
         LOG.info("Skipping server-first selected-wave snapshot because the render budget was exceeded after render for "
             + waveId.serialise());
@@ -261,7 +297,10 @@ public class J2clSelectedWaveSnapshotRenderer {
       // Snapshot path counts toward the J2CL viewport-initial-window
       // observability stream so the audit's required `viewport.initial_window`
       // counter advances even when the live socket open is still in flight.
-      if (org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
+      // The legacy GWT fall-through (windowed=false) is not a J2CL viewport
+      // open so it deliberately does not advance this counter.
+      if (windowed
+          && org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics.isEnabled()) {
         org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics
             .j2clViewportInitialWindows.incrementAndGet();
       }

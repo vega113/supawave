@@ -145,6 +145,56 @@ public final class J2clSelectedWaveSnapshotRendererWindowTest extends TestCase {
         windowedSize * 100L < wholeSize * 75L);
   }
 
+  /**
+   * Issue #1050: the legacy {@code ?view=gwt} fall-through invokes
+   * {@link J2clSelectedWaveSnapshotRenderer#renderRequestedWaveForLegacy}
+   * with the same wave ID. The returned snapshot must:
+   *
+   * <ul>
+   *   <li>contain the legacy {@code class="blip"} host markup that
+   *       {@code ServerHtmlRenderer} emits (so a GWT rollback still renders
+   *       the per-wave first paint instead of an empty skeleton);</li>
+   *   <li>NOT carry the F-1 windowed-surface markers
+   *       ({@code data-j2cl-server-first-surface},
+   *       {@code data-j2cl-initial-window-size}) — those are J2CL-only;</li>
+   *   <li>NOT advance the {@code j2cl.viewport.initial_window} counter —
+   *       the GWT route is not a J2CL viewport open.</li>
+   * </ul>
+   */
+  public void testLegacyEntryPointEmitsLegacyMarkupAndOmitsJ2clMarkersAndCounter() {
+    TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
+    for (int i = 0; i < 6; i++) {
+      data.appendBlipWithText("Body " + i);
+    }
+
+    J2clSelectedWaveSnapshotRenderer renderer =
+        new J2clSelectedWaveSnapshotRenderer(
+            providerFor(data.copyWaveletData(), true),
+            500L,
+            262144,
+            5,
+            new SequenceTimeSource(0L, 10L, 20L, 30L, 40L, 50L));
+
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
+        renderer.renderRequestedWaveForLegacy(WAVE_ID.serialise(), VIEWER);
+
+    assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT, result.getMode());
+    assertTrue(
+        "Legacy entry point must emit ServerHtmlRenderer's class=\"blip\" host markup so "
+            + "?view=gwt rollback retains the legacy per-wave first paint",
+        result.getSnapshotHtml().contains("class=\"blip\""));
+    assertFalse(
+        "Legacy entry point must not carry the F-1 windowed-surface marker",
+        result.getSnapshotHtml().contains("data-j2cl-server-first-surface"));
+    assertFalse(
+        "Legacy entry point must not carry the F-1 initial-window-size marker",
+        result.getSnapshotHtml().contains("data-j2cl-initial-window-size"));
+    assertEquals(
+        "Legacy entry point must not advance the J2CL viewport-initial-window counter",
+        initialWindowsBefore,
+        FragmentsMetrics.j2clViewportInitialWindows.get());
+  }
+
   public void testZeroWindowSizeSkipsWindowMarkersAndStillCountsInitialWindow() {
     TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
     data.appendBlipWithText("Single blip");

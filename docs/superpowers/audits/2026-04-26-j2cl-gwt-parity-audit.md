@@ -2,7 +2,7 @@
 
 Status: Final — follow-up chain filed 2026-04-26  
 Audited by: J2CL parity lead session  
-Audited against: `docs/j2cl-gwt-parity-matrix.md` (Updated 2026-04-22)  
+Audited against: `docs/j2cl-gwt-parity-matrix.md` (Updated 2026-04-25)  
 Live deployment: `https://supawave.ai/`  
 Build: `e66ce6013` (post-#1033 merge)  
 Account: `vega@supawave.ai` (signed-in, `j2cl-root-bootstrap` feature flag enabled)

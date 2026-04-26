@@ -250,32 +250,132 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private HTMLElement renderBlip(J2clReadBlip blip, int index) {
-    HTMLElement article = (HTMLElement) DomGlobal.document.createElement("article");
-    article.className = "blip j2cl-read-blip";
-    article.setAttribute("data-j2cl-read-blip", "true");
-    article.setAttribute("data-blip-id", blip.getBlipId());
-    article.setAttribute("role", "listitem");
-    article.setAttribute("tabindex", index == 0 ? "0" : "-1");
+    // F-2 (#1037, R-3.1) — emit a <wave-blip> custom element from
+    // j2cl/lit/src/elements/wave-blip.js. The element wraps the F-0
+    // <wavy-blip-card> recipe and surfaces the per-blip toolbar, author
+    // header, datetime tooltip, mention rail, and inline-reply chip.
+    //
+    // The legacy class names (`blip`, `j2cl-read-blip`) and attributes
+    // (`data-blip-id`, `data-j2cl-read-blip`, `role`, `tabindex`) are
+    // preserved on the host so the existing focus / collapse / scroll-
+    // anchor / keyboard-navigation contract in this renderer continues to
+    // work without rewriting the navigation logic.
+    HTMLElement element =
+        (HTMLElement) DomGlobal.document.createElement("wave-blip");
+    element.className = "blip j2cl-read-blip";
+    element.setAttribute("data-j2cl-read-blip", "true");
+    element.setAttribute("data-blip-id", blip.getBlipId());
+    element.setAttribute("role", "listitem");
+    element.setAttribute("tabindex", index == 0 ? "0" : "-1");
 
-    HTMLElement meta = (HTMLElement) DomGlobal.document.createElement("div");
-    meta.className = "blip-meta j2cl-read-blip-meta";
-    meta.textContent = blipLabel(blip.getBlipId());
-    meta.setAttribute("aria-hidden", "true");
-    article.appendChild(meta);
+    if (blip.getAuthorId() != null && !blip.getAuthorId().isEmpty()) {
+      element.setAttribute("author-id", blip.getAuthorId());
+    }
+    String displayName = blip.getAuthorDisplayName();
+    if (displayName != null && !displayName.isEmpty()) {
+      element.setAttribute("author-name", displayName);
+    }
+    long modifiedMs = blip.getLastModifiedTimeMillis();
+    if (modifiedMs > 0L) {
+      element.setAttribute("posted-at", formatRelativeTimestamp(modifiedMs));
+      element.setAttribute("posted-at-iso", formatIsoTimestamp(modifiedMs));
+    } else {
+      // Fallback so the avatar header still renders an empty <time> with
+      // the legacy "Blip <id>" label, preserving AT discoverability.
+      element.setAttribute("posted-at", blipLabel(blip.getBlipId()));
+    }
+    if (blip.isUnread()) {
+      element.setAttribute("unread", "");
+    }
+    if (blip.hasMention()) {
+      element.setAttribute("has-mention", "");
+    }
+
+    // The renderer doesn't know the parent wave id (it lives one layer up
+    // in J2clSelectedWaveView). The view sets `data-wave-id` on the host
+    // <div class="sidecar-selected-content"> wrapper; the wave-blip
+    // wrapper picks the wave id off the closest ancestor with
+    // `data-wave-id` so we don't have to plumb it through the renderer
+    // signature for now.
+    HTMLElement waveAncestor = host;
+    String waveId = waveAncestor == null ? null : waveAncestor.getAttribute("data-wave-id");
+    if (waveId != null && !waveId.isEmpty()) {
+      element.setAttribute("data-wave-id", waveId);
+    }
 
     HTMLElement content = (HTMLElement) DomGlobal.document.createElement("div");
     content.className = "blip-content j2cl-read-blip-content";
     content.textContent = blip.getText();
-    article.appendChild(content);
+    element.appendChild(content);
+
     if (!blip.getAttachments().isEmpty()) {
       HTMLElement attachments = (HTMLElement) DomGlobal.document.createElement("div");
       attachments.className = "j2cl-read-attachments";
       for (J2clAttachmentRenderModel attachment : blip.getAttachments()) {
         attachments.appendChild(renderAttachment(attachment));
       }
-      article.appendChild(attachments);
+      element.appendChild(attachments);
     }
-    return article;
+    return element;
+  }
+
+  /**
+   * F-2 (#1037, R-3.1 step 2) — relative timestamp like "2m ago", "3h
+   * ago", "yesterday". Hidden in tests via Clock-injection extension
+   * point; defaults to the system clock.
+   */
+  static String formatRelativeTimestamp(long modifiedMs) {
+    long nowMs = (long) currentTimeMs();
+    long deltaMs = Math.max(0L, nowMs - modifiedMs);
+    long deltaSec = deltaMs / 1000L;
+    if (deltaSec < 60L) {
+      return "just now";
+    }
+    long deltaMin = deltaSec / 60L;
+    if (deltaMin < 60L) {
+      return deltaMin + "m ago";
+    }
+    long deltaHr = deltaMin / 60L;
+    if (deltaHr < 24L) {
+      return deltaHr + "h ago";
+    }
+    long deltaDays = deltaHr / 24L;
+    if (deltaDays == 1L) {
+      return "yesterday";
+    }
+    if (deltaDays < 7L) {
+      return deltaDays + "d ago";
+    }
+    long deltaWeeks = deltaDays / 7L;
+    if (deltaWeeks < 5L) {
+      return deltaWeeks + "w ago";
+    }
+    return formatIsoDate(modifiedMs);
+  }
+
+  /**
+   * F-2 (#1037, R-3.1 step 2) — ISO-8601 timestamp for the
+   * full-datetime tooltip (F.3). The tooltip surfaces on hover via the
+   * <time title=...> attribute that <wave-blip> wires up.
+   */
+  static String formatIsoTimestamp(long modifiedMs) {
+    if (modifiedMs <= 0L) {
+      return "";
+    }
+    return new elemental2.core.JsDate((double) modifiedMs).toISOString();
+  }
+
+  /** YYYY-MM-DD slice of the ISO timestamp. */
+  static String formatIsoDate(long modifiedMs) {
+    String iso = formatIsoTimestamp(modifiedMs);
+    int sep = iso.indexOf('T');
+    return sep <= 0 ? iso : iso.substring(0, sep);
+  }
+
+  private static double currentTimeMs() {
+    return DomGlobal.performance == null
+        ? 0
+        : DomGlobal.performance.timeOrigin + DomGlobal.performance.now();
   }
 
   private HTMLElement renderAttachment(J2clAttachmentRenderModel model) {

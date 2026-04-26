@@ -26,6 +26,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private final HTMLElement emptyState;
   private boolean serverFirstActive;
   private boolean serverFirstSwapRecorded;
+  private boolean coldMountSwapRecorded;
   private String serverFirstWaveId;
   private String serverFirstMode;
   private double serverFirstMountedAtMs;
@@ -181,6 +182,20 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (serverFirstActive) {
       emitRootShellSwap("live-update");
       clearServerFirstMarkers();
+    } else if (!coldMountSwapRecorded
+        && model.hasSelection()
+        && hasRenderedReadSurface) {
+      // R-6.3: emit a `shell_swap` event with reason=cold-mount when the
+      // J2CL surface mounts content for the first time *without* a
+      // server-first card to swap from. Operators see the same signal
+      // shape on both server-first and cold-mount paths so dashboards do
+      // not need a special case for the missing-card scenario.
+      coldMountSwapRecorded = true;
+      Object statFn = Js.asPropertyMap(DomGlobal.window).get("__j2clRootShellStat");
+      if (statFn != null) {
+        RootShellStatFn rootShellStatFn = Js.uncheckedCast(statFn);
+        rootShellStatFn.accept("shell_swap", "cold-mount", 0, false);
+      }
     }
   }
 

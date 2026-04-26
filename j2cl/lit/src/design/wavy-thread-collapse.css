@@ -14,12 +14,16 @@
 
 /* Inline reply threads animate height + opacity per F-0 token. Default
  * max-height covers any plausible thread height; the collapsed state
- * snaps to 0. */
+ * snaps to 0. The root thread ([data-thread-id="root"]) is excluded from
+ * overflow+max-height so it is never clipped at the 10000px cap. */
 .j2cl-read-thread {
   transition: max-height var(--wavy-motion-collapse-duration, 240ms)
       var(--wavy-easing-collapse, cubic-bezier(0.4, 0, 0.2, 1)),
     opacity var(--wavy-motion-collapse-duration, 240ms)
       var(--wavy-easing-collapse, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.j2cl-read-thread:not([data-thread-id="root"]) {
   overflow: hidden;
   max-height: 10000px;
 }

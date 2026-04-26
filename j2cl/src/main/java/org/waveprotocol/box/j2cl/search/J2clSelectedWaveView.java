@@ -30,7 +30,6 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private final HTMLElement card;
   private final HTMLElement depthNavBar;
   private final HTMLElement waveNavRow;
-  private final J2clClientTelemetry.Sink chromeTelemetrySink;
   private boolean serverFirstActive;
   private boolean serverFirstSwapRecorded;
   private boolean coldMountSwapRecorded;
@@ -46,7 +45,6 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   public J2clSelectedWaveView(HTMLElement host, J2clClientTelemetry.Sink telemetrySink) {
     J2clClientTelemetry.Sink effectiveTelemetrySink =
         telemetrySink == null ? J2clClientTelemetry.noop() : telemetrySink;
-    this.chromeTelemetrySink = effectiveTelemetrySink;
     HTMLElement existingCard = J2clServerFirstRootShellDom.findSelectedWaveCard(host);
     if (existingCard != null) {
       title = queryRequired(existingCard, ".sidecar-selected-title");

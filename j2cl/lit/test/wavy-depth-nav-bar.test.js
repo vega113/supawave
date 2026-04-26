@@ -38,7 +38,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("shows itself when a current depth is set", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+3"
+        current-depth-blip-id="b+3"
         parent-depth-blip-id="b+1"
         parent-author-name="Alice"
       ></wavy-depth-nav-bar>`
@@ -50,7 +50,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("G.2 — Up one level button has parent-author-aware aria-label", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+3"
+        current-depth-blip-id="b+3"
         parent-depth-blip-id="b+1"
         parent-author-name="Alice"
       ></wavy-depth-nav-bar>`
@@ -66,7 +66,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("G.2 — Up one level falls back to generic label when parentAuthorName is empty", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+3"
+        current-depth-blip-id="b+3"
         parent-depth-blip-id="b+1"
       ></wavy-depth-nav-bar>`
     );
@@ -78,7 +78,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("G.2 — clicking Up one level emits wavy-depth-up with from/to blip ids", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+3"
+        current-depth-blip-id="b+3"
         parent-depth-blip-id="b+1"
         parent-author-name="Alice"
       ></wavy-depth-nav-bar>`
@@ -97,7 +97,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("G.3 — Up to wave button aria-label is constant", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+3"
+        current-depth-blip-id="b+3"
       ></wavy-depth-nav-bar>`
     );
     await el.updateComplete;
@@ -109,7 +109,7 @@ describe("<wavy-depth-nav-bar>", () => {
   it("G.3 — clicking Up to wave emits wavy-depth-root with fromBlipId", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+5"
+        current-depth-blip-id="b+5"
       ></wavy-depth-nav-bar>`
     );
     await el.updateComplete;
@@ -129,7 +129,7 @@ describe("<wavy-depth-nav-bar>", () => {
       { label: "Top thread", current: true, blipId: "b+1" }
     ];
     const el = await fixture(html`<wavy-depth-nav-bar
-      data-current-depth-blip-id="b+1"
+      current-depth-blip-id="b+1"
       .crumbs=${crumbs}
     ></wavy-depth-nav-bar>`);
     await el.updateComplete;
@@ -146,7 +146,7 @@ describe("<wavy-depth-nav-bar>", () => {
       { label: "This blip", current: true }
     ];
     const el = await fixture(html`<wavy-depth-nav-bar
-      data-current-depth-blip-id="b+2"
+      current-depth-blip-id="b+2"
       .crumbs=${crumbs}
     ></wavy-depth-nav-bar>`);
     await el.updateComplete;
@@ -166,7 +166,7 @@ describe("<wavy-depth-nav-bar>", () => {
 
   it("reserves an awareness-pill slot for S5 to fill", async () => {
     const el = await fixture(
-      html`<wavy-depth-nav-bar data-current-depth-blip-id="b+1">
+      html`<wavy-depth-nav-bar current-depth-blip-id="b+1">
         <span slot="awareness-pill" data-test="pill">↑ 2 new</span>
       </wavy-depth-nav-bar>`
     );
@@ -177,13 +177,13 @@ describe("<wavy-depth-nav-bar>", () => {
     expect(assigned.some((n) => n.dataset && n.dataset.test === "pill")).to.be.true;
   });
 
-  it("reflects data-current-depth-blip-id on the host", async () => {
+  it("reflects current-depth-blip-id on the host", async () => {
     const el = await fixture(
       html`<wavy-depth-nav-bar
-        data-current-depth-blip-id="b+9"
+        current-depth-blip-id="b+9"
       ></wavy-depth-nav-bar>`
     );
     await el.updateComplete;
-    expect(el.getAttribute("data-current-depth-blip-id")).to.equal("b+9");
+    expect(el.getAttribute("current-depth-blip-id")).to.equal("b+9");
   });
 });

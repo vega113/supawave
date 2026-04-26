@@ -624,8 +624,6 @@ public final class J2clReadSurfaceDomRenderer {
     }
     HTMLElement frame =
         (HTMLElement) DomGlobal.document.createElement("wavy-focus-frame");
-    frame.setAttribute("hidden", "");
-    frame.setAttribute("aria-hidden", "true");
     surface.appendChild(frame);
   }
 
@@ -990,9 +988,9 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   /**
-   * F-2 slice 2 (#1046, R-3.7-chrome): writer that the
-   * {@code <wavy-depth-nav-bar>} reads via data-attributes. Slice 5
-   * wires the URL state reader that drives this trio.
+   * F-2 slice 2 (#1046, R-3.7-chrome): writes depth-focus data-attributes on
+   * the read-surface host element. Slice 5 wires the URL-state reader that
+   * reads these attributes and forwards them to {@code <wavy-depth-nav-bar>}.
    */
   public void setDepthFocus(
       String currentDepthBlipId, String parentDepthBlipId, String parentAuthorName) {

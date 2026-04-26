@@ -35,7 +35,7 @@ export class WavyDepthNavBar extends LitElement {
   static properties = {
     currentDepthBlipId: {
       type: String,
-      attribute: "data-current-depth-blip-id",
+      attribute: "current-depth-blip-id",
       reflect: true
     },
     parentDepthBlipId: { type: String, attribute: "parent-depth-blip-id" },

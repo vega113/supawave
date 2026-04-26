@@ -385,9 +385,10 @@ public final class J2clStageOneReadSurfaceParityTest {
   }
 
   /**
-   * R-3.2 — the J2CL root shell pre-renders a {@code <wavy-focus-frame>}
-   * landmark inside the read surface so the focus visualization is in
-   * place before client boot.
+   * R-3.2 — verifies the shell bundle registering {@code <wavy-focus-frame>}
+   * is loaded. The frame itself is mounted client-side by
+   * {@code J2clReadSurfaceDomRenderer.ensureFocusFrame}; no server-first
+   * pre-render is needed.
    */
   @Test
   public void j2clRootRendersFocusFrameLandmark() throws Exception {

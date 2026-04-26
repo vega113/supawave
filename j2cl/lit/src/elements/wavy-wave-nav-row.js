@@ -31,9 +31,9 @@ import { LitElement, css, html } from "lit";
  * - `wave-nav-next-mention-requested` (E.7)
  * - `wave-nav-archive-toggle-requested` (E.8)
  * - `wave-nav-pin-toggle-requested` (E.9)
- * - `wave-nav-version-history-requested` (E.10) — also bound to `H` keyboard
+ * - `wave-nav-version-history-requested` (E.10) — also bound to `h`/`H` keyboard
  *
- * Keyboard: `H` (Shift+h) emits the version-history event when the
+ * Keyboard: `h` or `H` emits the version-history event when the
  * user is not in a text-input context. The keydown listener is bound
  * to the closest `[data-j2cl-selected-wave-host]` ancestor (NOT
  * document) to prevent multi-fire when more than one nav-row mounts
@@ -52,6 +52,7 @@ export class WavyWaveNavRow extends LitElement {
   static styles = css`
     :host {
       display: block;
+      position: relative;
       /* container-type:inline-size enables the @container query below.
        * Without this declaration the mobile-collapse path is dead code. */
       container-type: inline-size;
@@ -179,7 +180,7 @@ export class WavyWaveNavRow extends LitElement {
   }
 
   _onKeyDown(event) {
-    if (!event || event.key !== "H") {
+    if (!event || (event.key !== "H" && event.key !== "h")) {
       return;
     }
     if (event.ctrlKey || event.metaKey || event.altKey) {
@@ -331,8 +332,8 @@ export class WavyWaveNavRow extends LitElement {
         <button
           type="button"
           data-action="version-history"
-          aria-label="Open version history (H)"
-          aria-keyshortcuts="H"
+          aria-label="Open version history (h)"
+          aria-keyshortcuts="h H"
           @click=${this._onClick("version-history")}
         >
           Version history
@@ -384,7 +385,7 @@ export class WavyWaveNavRow extends LitElement {
               role="menuitem"
               data-action="version-history"
               data-overflow="true"
-              aria-label="Open version history (H)"
+              aria-label="Open version history (h)"
               @click=${this._onClick("version-history")}
             >
               Version history

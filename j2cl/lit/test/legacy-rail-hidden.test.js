@@ -48,10 +48,8 @@ describe("legacy search card is visibly hidden when wavy-search-rail is mounted"
 
   it("css source-of-truth uses display:none !important on the legacy card", async () => {
     const text = await loadStylesheet();
-    expect(text).to.include(
-      '.sidecar-search-card[data-j2cl-legacy-search-card="hidden"] {\n' +
-        "  display: none !important;\n" +
-        "}"
+    expect(text).to.match(
+      /\.sidecar-search-card\[data-j2cl-legacy-search-card="hidden"\]\s*\{\s*display\s*:\s*none\s*!important\s*;\s*\}/
     );
     // Regression guard: the buggy display:contents must not appear on
     // any block keyed off the legacy-search-card marker.

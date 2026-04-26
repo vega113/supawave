@@ -46,8 +46,8 @@ Top-down on the page:
 
 ## Side-by-side with `?view=gwt`
 
-Open `/?view=j2cl-root&q=read-surface-preview` and `/?view=gwt` on
-the same wave id (the GWT side will show your real waves; the
+Open `/?view=j2cl-root&q=read-surface-preview` and `/?view=gwt` in
+the same signed-in session (the GWT side will show your real waves; the
 preview is a fixture so the comparison is structural, not literal).
 The chrome surface should match GWT's affordance inventory from
 [`docs/superpowers/audits/2026-04-26-gwt-functional-inventory.md`](../superpowers/audits/2026-04-26-gwt-functional-inventory.md)

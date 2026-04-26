@@ -3669,7 +3669,7 @@ public final class HtmlRenderer {
     appendReadSurfacePreviewWorkflow(sb);
     sb.append("    </section>\n");
     sb.append("  </shell-main-region>\n");
-    sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Read-surface preview fixture — non-live</span></shell-status-strip>\n");
+    sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text-preview\">Read-surface preview fixture — non-live</span></shell-status-strip>\n");
     sb.append("</shell-root>\n");
     // F-2.S4 floating mounts. The version-history + profile overlays
     // are pre-opened so reviewers can see the open-state styling.
@@ -3682,6 +3682,7 @@ public final class HtmlRenderer {
     sb.append("<wavy-floating-scroll-to-new data-j2cl-floating-mount=\"true\"></wavy-floating-scroll-to-new>\n");
     sb.append("<wavy-version-history data-j2cl-floating-mount=\"true\" open></wavy-version-history>\n");
     sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" open data-participant=\"carol@example.com\"></wavy-profile-overlay>\n");
+    sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
     appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     sb.append("</body>\n</html>\n");
     // Mark CodeQL: all dynamic content above is HTML-escaped via
@@ -3766,6 +3767,16 @@ public final class HtmlRenderer {
     sb.append("                        <button type=\"button\" class=\"depth-nav-chip\" data-j2cl-depth-nav-chip=\"true\" aria-label=\"Drill into this subthread\">Drill in →</button>\n");
     sb.append("                        <div class=\"chips\" data-j2cl-chips=\"true\"><span class=\"chip task-chip\" data-j2cl-task-chip=\"true\">Task: triage replies</span></div>\n");
     sb.append("                      </wave-blip>\n");
+    sb.append("                        <div id=\"b3-replies\" class=\"collapsed-replies\" aria-hidden=\"true\">\n");
+    sb.append("                          <wave-blip data-blip-id=\"b3r1\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                            <header><span class=\"author\">alice@example.com</span> <time>10:13</time></header>\n");
+    sb.append("                            <p>Reply 1 — collapsed by default.</p>\n");
+    sb.append("                          </wave-blip>\n");
+    sb.append("                          <wave-blip data-blip-id=\"b3r2\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                            <header><span class=\"author\">bob@example.com</span> <time>10:14</time></header>\n");
+    sb.append("                            <p>Reply 2 — collapsed by default.</p>\n");
+    sb.append("                          </wave-blip>\n");
+    sb.append("                        </div>\n");
     sb.append("                    </div>\n");
     sb.append("                    <wave-blip data-blip-id=\"b4\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" data-j2cl-unread=\"true\" tabindex=\"-1\">\n");
     sb.append("                      <header><span class=\"author\">dave@example.com</span> <time>10:20</time></header>\n");

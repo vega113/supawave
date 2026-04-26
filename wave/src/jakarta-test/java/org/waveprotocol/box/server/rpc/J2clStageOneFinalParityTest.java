@@ -56,10 +56,10 @@ import org.junit.runners.Suite;
 public final class J2clStageOneFinalParityTest {
 
   /**
-   * Suite roll-up of every existing per-row parity test class.
-   * Running the outer enclosing class via JUnit runs both the suite
-   * (via the inner class) and the summary tests below — the suite
-   * handle is exposed separately so CI can target it independently.
+   * Select the inner {@code AllParityTests} class explicitly in JUnit
+   * to run this suite; running the outer enclosing class executes only
+   * the summary tests below. The suite handle is exposed separately so
+   * CI can target it independently.
    */
   @RunWith(Suite.class)
   @Suite.SuiteClasses({

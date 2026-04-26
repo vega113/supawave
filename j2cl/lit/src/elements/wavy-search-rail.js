@@ -268,6 +268,10 @@ export class WavySearchRail extends LitElement {
     }
   }
 
+  _onQueryInput(evt) {
+    this.query = evt.target.value;
+  }
+
   _onFolderClick(folder) {
     this.query = folder.query;
     this.activeFolder = folder.id;
@@ -292,6 +296,7 @@ export class WavySearchRail extends LitElement {
           aria-label="Search waves"
           .value=${this.query}
           @keydown=${this._onQueryKey}
+          @input=${this._onQueryInput}
         />
         <button
           type="button"

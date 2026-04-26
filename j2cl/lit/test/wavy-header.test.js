@@ -127,6 +127,9 @@ describe("<wavy-header>", () => {
     await el.updateComplete;
     const avatar = el.renderRoot.querySelector(".avatar");
     expect(avatar.textContent.trim()).to.equal("?");
+    const email = el.renderRoot.querySelector(".user-email");
+    expect(email).to.exist;
+    expect(email.textContent.trim()).to.equal("");
   });
 
   it("avatar initials use first + last segment for multi-dot addresses (SSR parity)", async () => {

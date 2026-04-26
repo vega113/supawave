@@ -138,7 +138,54 @@ public final class J2clRootShellController {
     // The rehydration runs inside the live-surface starter so the URL
     // depth value is applied right after route.start().
     bindDepthEventsToRoute(selectedWaveView, routeController);
+    // F-2 slice 5 (#1055): bridge wavy-search-rail events to the search
+    // controller so search queries entered in the rail are forwarded to
+    // the (hidden) legacy form pipeline without requiring a visible form.
+    bindSearchRailEvents(host, controller);
     liveSurfaceController.start();
+  }
+
+  /**
+   * Listens for {@code wavy-search-submit} and {@code wavy-saved-search-selected}
+   * events bubbled from {@code <wavy-search-rail>} and forwards the query
+   * directly to the search panel controller.  The legacy {@code .sidecar-search-toolbar}
+   * form is hidden from the user but stays in the DOM for the controller's
+   * internal bindings; this bridge makes the rail the functional query surface.
+   */
+  private static void bindSearchRailEvents(
+      HTMLElement host, J2clSearchPanelController controller) {
+    host.addEventListener(
+        "wavy-search-submit",
+        evt -> {
+          Object detail = Js.asPropertyMap(evt).get("detail");
+          if (detail == null) {
+            return;
+          }
+          Object q = Js.asPropertyMap(detail).get("query");
+          if (q == null) {
+            return;
+          }
+          String query = String.valueOf(q);
+          if (!query.isEmpty()) {
+            controller.onQuerySubmitted(query);
+          }
+        });
+    host.addEventListener(
+        "wavy-saved-search-selected",
+        evt -> {
+          Object detail = Js.asPropertyMap(evt).get("detail");
+          if (detail == null) {
+            return;
+          }
+          Object q = Js.asPropertyMap(detail).get("query");
+          if (q == null) {
+            return;
+          }
+          String query = String.valueOf(q);
+          if (!query.isEmpty()) {
+            controller.onQuerySubmitted(query);
+          }
+        });
   }
 
   /**

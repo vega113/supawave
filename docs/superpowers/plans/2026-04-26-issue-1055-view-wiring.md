@@ -179,7 +179,7 @@ Follow-up issue link will be added to the PR body.
 
 ## Verification gate
 
-```
+```bash
 sbt -batch j2clLitTest j2clSearchTest j2clProductionBuild \
   jakartaTest:testOnly *J2clRootShellIntegrationTest *J2clStageOneReadSurfaceParityTest
 ```

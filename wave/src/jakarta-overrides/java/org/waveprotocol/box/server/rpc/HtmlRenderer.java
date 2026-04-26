@@ -3354,6 +3354,13 @@ public final class HtmlRenderer {
     // Query-only client routes reuse this path prefix when updating return targets.
     String resolvedBasePath = queryStart >= 0 ? resolvedReturnTarget.substring(0, queryStart) : resolvedReturnTarget;
     String safeResolvedBasePath = StringEscapeUtils.escapeHtml4(resolvedBasePath);
+    // Extract the `q` search parameter from the return target so the SSR search
+    // rail reflects the current query rather than always defaulting to "in:inbox".
+    String resolvedInitialQuery = extractQueryParam(resolvedReturnTarget, "q");
+    if (resolvedInitialQuery == null || resolvedInitialQuery.isEmpty()) {
+      resolvedInitialQuery = "in:inbox";
+    }
+    String safeInitialQuery = StringEscapeUtils.escapeHtml4(resolvedInitialQuery);
 
     String safeAddress = escapeHtml(address);
 
@@ -3431,7 +3438,7 @@ public final class HtmlRenderer {
       // <shell-nav-rail> wrapper is preserved so future slices can
       // co-mount additional nav-area elements alongside the rail.
       sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-      appendWavySearchRail(sb);
+      appendWavySearchRail(sb, safeInitialQuery);
       sb.append("  </shell-nav-rail>\n");
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
@@ -3694,11 +3701,15 @@ public final class HtmlRenderer {
    * existing {@code <shell-nav-rail slot="nav">} wrapper. SSR'd inner
    * light DOM covers B.1–B.12.
    */
-  private static void appendWavySearchRail(StringBuilder sb) {
-    sb.append("    <wavy-search-rail query=\"in:inbox\" data-active-folder=\"inbox\" result-count=\"\">\n");
+  private static void appendWavySearchRail(StringBuilder sb, String safeInitialQuery) {
+    // Derive the active folder from the initial query so the SSR folder highlight
+    // matches the query pre-upgrade (mirrors WavySearchRail._deriveActiveFolder).
+    String activeFolder = deriveActiveFolder(safeInitialQuery);
+    sb.append("    <wavy-search-rail query=\"").append(safeInitialQuery)
+        .append("\" data-active-folder=\"").append(activeFolder).append("\" result-count=\"\">\n");
     sb.append("      <div class=\"search\">\n");
-    sb.append("        <span class=\"waveform\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" focusable=\"false\" aria-hidden=\"true\"><path d=\"M2 12c2.2 0 2.8-6 5-6s2.8 12 5 12 2.8-12 5-12 2.8 6 5 6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span>\n");
-    sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"in:inbox\">\n");
+    sb.append("        <span class=\"waveform\" aria-hidden=\"true\"><svg viewBox=\"0 0 14 14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><path d=\"M1 7h2l1-3 1 6 1-4 1 5 1-6 1 4 1-2h2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span>\n");
+    sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"").append(safeInitialQuery).append("\">\n");
     sb.append("        <button type=\"button\" class=\"help-trigger\" aria-label=\"Search help\" aria-haspopup=\"dialog\" aria-controls=\"wavy-search-help\">?</button>\n");
     sb.append("      </div>\n");
     sb.append("      <div class=\"actions\">\n");
@@ -3710,12 +3721,12 @@ public final class HtmlRenderer {
     sb.append("        <button type=\"button\" class=\"refresh\" aria-label=\"Refresh search results\">⟳</button>\n");
     sb.append("      </div>\n");
     sb.append("      <ul class=\"folders\" aria-labelledby=\"folders-title\">\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"page\"><span class=\"label\">Inbox</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"mentions\" data-query=\"mentions:me\" aria-current=\"false\"><span class=\"label\">Mentions</span><span class=\"dot mentions-dot\" hidden></span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"tasks\" data-query=\"tasks:me\" aria-current=\"false\"><span class=\"label\">Tasks</span><span class=\"chip tasks-chip\" hidden>0</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"public\" data-query=\"with:@\" aria-current=\"false\"><span class=\"label\">Public</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"false\"><span class=\"label\">Archive</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"false\"><span class=\"label\">Pinned</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"").append("inbox".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Inbox</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"mentions\" data-query=\"mentions:me\" aria-current=\"").append("mentions".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Mentions</span><span class=\"dot mentions-dot\" hidden></span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"tasks\" data-query=\"tasks:me\" aria-current=\"").append("tasks".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Tasks</span><span class=\"chip tasks-chip\" hidden>0</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"public\" data-query=\"with:@\" aria-current=\"").append("public".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Public</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"").append("archive".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Archive</span></button></li>\n");
+    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"").append("pinned".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Pinned</span></button></li>\n");
     sb.append("      </ul>\n");
     sb.append("      <p class=\"result-count\" aria-live=\"polite\"></p>\n");
     sb.append("    </wavy-search-rail>\n");
@@ -3793,6 +3804,50 @@ public final class HtmlRenderer {
   }
 
   /**
+   * Extract the value of a named query parameter from a URL-like string.
+   * Returns null if the parameter is absent. Does not URL-decode the value —
+   * callers should HTML-escape before writing into markup.
+   */
+  private static String extractQueryParam(String url, String name) {
+    if (url == null) return null;
+    int q = url.indexOf('?');
+    if (q < 0) return null;
+    String query = url.substring(q + 1);
+    String prefix = name + "=";
+    for (String part : query.split("&")) {
+      if (part.startsWith(prefix)) {
+        return part.substring(prefix.length());
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Derive the active-folder id from an initial query string. Mirrors
+   * {@code WavySearchRail._deriveActiveFolder} in the Lit component so the
+   * SSR folder highlight matches pre-upgrade.
+   */
+  private static String deriveActiveFolder(String query) {
+    String text = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+    if (text.isEmpty()) return "inbox";
+    String[][] folders = {
+      {"inbox",    "in:inbox"},
+      {"mentions", "mentions:me"},
+      {"tasks",    "tasks:me"},
+      {"public",   "with:@"},
+      {"archive",  "in:archive"},
+      {"pinned",   "in:pinned"},
+    };
+    for (String[] f : folders) {
+      String fq = f[1];
+      if (text.equals(fq) || text.startsWith(fq + " ")) {
+        return f[0];
+      }
+    }
+    return "";
+  }
+
+  /**
    * Compute the two-letter uppercase initials used by {@code
    * <wavy-header>}'s avatar chip when the J2CL client has not yet
    * upgraded the element. Mirrors the Lit element's _initials()
@@ -3834,15 +3889,10 @@ public final class HtmlRenderer {
         }
       }
       if (!first.isEmpty()) {
-        // first == last when only one non-empty segment survives
-        // (e.g. ".bob" or "bob." or "bob..smith" all collapse to one
-        // unique non-empty segment in the JS split).
-        if (first.equals(last)) {
-          if (local.length() >= 2 && !local.startsWith(".")) {
-            return local.substring(0, 2).toUpperCase(java.util.Locale.ROOT);
-          }
-          return first.toUpperCase(java.util.Locale.ROOT);
-        }
+        // first == last when only one non-empty segment survives (e.g.
+        // ".bob", "bob.", "bob.."). Mirror the JS behaviour: duplicate
+        // the first character (JS: parts[0][0] + parts[last][0] where
+        // both sides are the same segment).
         return (first + last).toUpperCase(java.util.Locale.ROOT);
       }
       return "?";

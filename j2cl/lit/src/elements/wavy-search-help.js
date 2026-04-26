@@ -175,8 +175,10 @@ export class WavySearchHelp extends LitElement {
   constructor() {
     super();
     this.open = false;
+    this._lastFocused = null;
     this._onToggle = this._onToggle.bind(this);
     this._onKey = this._onKey.bind(this);
+    this._onTrapTab = this._onTrapTab.bind(this);
   }
 
   connectedCallback() {
@@ -204,6 +206,51 @@ export class WavySearchHelp extends LitElement {
     document.removeEventListener("wavy-search-help-toggle", this._onToggle);
     document.removeEventListener("keydown", this._onKey);
     super.disconnectedCallback();
+  }
+
+  updated(changed) {
+    if (changed.has("open")) {
+      if (this.open) {
+        this._lastFocused = document.activeElement;
+        // Move focus to the first focusable element inside the modal.
+        this.updateComplete.then(() => {
+          const first = this._focusable()[0];
+          if (first) first.focus();
+        });
+        document.addEventListener("keydown", this._onTrapTab);
+      } else {
+        document.removeEventListener("keydown", this._onTrapTab);
+        if (this._lastFocused && typeof this._lastFocused.focus === "function") {
+          this._lastFocused.focus();
+        }
+        this._lastFocused = null;
+      }
+    }
+  }
+
+  _focusable() {
+    return Array.from(
+      this.shadowRoot.querySelectorAll('button, [tabindex="0"]')
+    ).filter((el) => !el.hasAttribute("disabled") && !el.hasAttribute("hidden"));
+  }
+
+  _onTrapTab(evt) {
+    if (!this.open || evt.key !== "Tab") return;
+    const items = this._focusable();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (evt.shiftKey) {
+      if (document.activeElement === first || this.shadowRoot.activeElement === first) {
+        evt.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || this.shadowRoot.activeElement === last) {
+        evt.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   _onToggle() {

@@ -135,7 +135,7 @@ export class WavyHeader extends LitElement {
     }
     @media (max-width: 600px) {
       .user-email {
-        font-size: 0;
+        display: none;
       }
     }
     svg {

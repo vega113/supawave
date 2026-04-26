@@ -331,6 +331,12 @@ public final class J2clStageOneReadSurfaceParityTest {
     assertFalse(
         "GWT path must not advertise the F-1 server-first selected-wave host",
         html.contains("data-j2cl-selected-wave-host"));
+    assertFalse(
+        "GWT path must not emit <wave-blip> hosts",
+        html.contains("<wave-blip"));
+    assertTrue(
+        "GWT path should retain legacy blip host markup",
+        html.contains("class=\"blip\""));
   }
 
   // --- helpers (mirror of the F-1 fixture so the two stay in lockstep) ----

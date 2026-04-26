@@ -98,6 +98,13 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
   private final ParticipantId viewer;
   private final WaveContentRenderer.RenderBudget budget;
   private final WindowOptions windowOptions;
+  /**
+   * Tracks whether the non-windowed render has already assigned {@code tabindex="0"} to a root
+   * blip.  In windowed mode {@link WindowOptions#firstRootBlipId()} controls focus; in non-windowed
+   * mode we assign focus to the very first root-thread blip we encounter so that the rendered HTML
+   * always has exactly one keyboard-focusable entry point.
+   */
+  private boolean nonWindowedFocusAssigned = false;
 
   public ServerHtmlRenderer(ParticipantId viewer) {
     this(viewer, () -> false);
@@ -201,11 +208,24 @@ public final class ServerHtmlRenderer implements RenderingRules<String> {
             && blip.getThread().getConversation() != null
             && blip.getThread() == blip.getThread().getConversation().getRootThread();
     sb.append(" role=\"").append(isRootThreadBlip ? "listitem" : "article").append("\"");
-    boolean isFirstRootBlip =
-        isRootThreadBlip
-            && windowOptions.firstRootBlipId() != null
-            && windowOptions.firstRootBlipId().equals(blip.getId());
-    sb.append(" tabindex=\"").append(isFirstRootBlip ? "0" : "-1").append("\">");
+    boolean isTabbable;
+    if (windowOptions.isWindowed()) {
+      // Windowed mode: only the designated first root blip is tabbable.
+      isTabbable =
+          isRootThreadBlip
+              && windowOptions.firstRootBlipId() != null
+              && windowOptions.firstRootBlipId().equals(blip.getId());
+    } else {
+      // Non-windowed mode: make the first root-thread blip encountered tabbable
+      // so the rendered surface always has at least one keyboard entry point.
+      if (isRootThreadBlip && !nonWindowedFocusAssigned) {
+        isTabbable = true;
+        nonWindowedFocusAssigned = true;
+      } else {
+        isTabbable = false;
+      }
+    }
+    sb.append(" tabindex=\"").append(isTabbable ? "0" : "-1").append("\">");
 
     // -- Meta bar: author + timestamp --
     sb.append("<div class=\"").append(CSS_BLIP_META).append("\">");

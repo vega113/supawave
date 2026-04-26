@@ -183,6 +183,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       emitRootShellSwap("live-update");
       clearServerFirstMarkers();
     } else if (!coldMountSwapRecorded
+        && !serverFirstSwapRecorded
         && model.hasSelection()
         && hasRenderedReadSurface) {
       // R-6.3: emit a `shell_swap` event with reason=cold-mount when the
@@ -194,7 +195,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       Object statFn = Js.asPropertyMap(DomGlobal.window).get("__j2clRootShellStat");
       if (statFn != null) {
         RootShellStatFn rootShellStatFn = Js.uncheckedCast(statFn);
-        rootShellStatFn.accept("shell_swap", "cold-mount", 0, false);
+        rootShellStatFn.accept(
+            "shell_swap",
+            "cold-mount",
+            0,
+            model.getSelectedWaveId() != null && !model.getSelectedWaveId().isEmpty());
       }
     }
   }

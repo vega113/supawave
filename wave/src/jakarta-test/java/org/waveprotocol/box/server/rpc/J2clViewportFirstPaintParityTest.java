@@ -125,9 +125,14 @@ public final class J2clViewportFirstPaintParityTest {
     assertTrue(
         "J2CL root response appends the visible-region terminal placeholder",
         html.contains("data-j2cl-server-placeholder=\"true\""));
-    assertTrue(
+    assertEquals(
         "J2CL root response keyboard-focuses exactly one blip",
-        countOccurrences(html, "tabindex=\"0\"") >= 1);
+        1,
+        countOccurrences(html, "tabindex=\"0\""));
+    assertEquals(
+        "J2CL root response marks the other inline blips unfocusable",
+        4,
+        countOccurrences(html, "tabindex=\"-1\""));
     assertEquals(
         "Snapshot path advances the J2CL viewport-initial-window counter",
         initialWindowsBefore + 1,
@@ -337,6 +342,7 @@ public final class J2clViewportFirstPaintParityTest {
     HttpServletResponse response = mock(HttpServletResponse.class);
     StringWriter body = new StringWriter();
     when(request.getParameter("view")).thenReturn(view);
+    when(request.getParameterValues("view")).thenReturn(new String[]{view});
     when(request.getParameter("wave")).thenReturn(waveId);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));

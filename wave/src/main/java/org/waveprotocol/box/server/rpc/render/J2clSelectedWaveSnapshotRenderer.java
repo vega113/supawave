@@ -47,12 +47,31 @@ public class J2clSelectedWaveSnapshotRenderer {
   static final long DEFAULT_RENDER_BUDGET_MS = 150L;
   static final int DEFAULT_PAYLOAD_LIMIT_BYTES = 131072;
   /**
-   * Initial visible-window size for the server-first first paint (R-7.1).
-   * Mirrors the J2CL transport default at
+   * Fallback initial visible-window size used when no system property or
+   * operator override is present.  Mirrors the J2CL transport default at
    * {@code wave.fragments.defaultViewportLimit = 5} in {@code reference.conf}
    * so the server HTML and the live socket open agree on the same window.
    */
   static final int DEFAULT_INITIAL_WINDOW_SIZE = 5;
+
+  /**
+   * Returns the initial window size for the server-first first paint (R-7.1).
+   * Reads the {@code wave.fragments.defaultViewportLimit} system property so
+   * operators can override the default without recompiling.  Falls back to
+   * {@link #DEFAULT_INITIAL_WINDOW_SIZE} (5) when the property is absent or
+   * cannot be parsed.
+   */
+  static int getInitialWindowSize() {
+    String prop = System.getProperty("wave.fragments.defaultViewportLimit");
+    if (prop != null) {
+      try {
+        return Integer.parseInt(prop.trim());
+      } catch (NumberFormatException ignored) {
+        // fall through to default
+      }
+    }
+    return DEFAULT_INITIAL_WINDOW_SIZE;
+  }
 
   interface CurrentTimeSource {
     long currentTimeMillis();
@@ -154,7 +173,7 @@ public class J2clSelectedWaveSnapshotRenderer {
         waveletProvider,
         DEFAULT_RENDER_BUDGET_MS,
         DEFAULT_PAYLOAD_LIMIT_BYTES,
-        DEFAULT_INITIAL_WINDOW_SIZE,
+        getInitialWindowSize(),
         System::currentTimeMillis);
   }
 
@@ -167,7 +186,7 @@ public class J2clSelectedWaveSnapshotRenderer {
         waveletProvider,
         renderBudgetMs,
         payloadLimitBytes,
-        DEFAULT_INITIAL_WINDOW_SIZE,
+        getInitialWindowSize(),
         currentTimeSource);
   }
 

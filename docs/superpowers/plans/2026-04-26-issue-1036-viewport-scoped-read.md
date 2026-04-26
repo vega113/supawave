@@ -146,7 +146,7 @@ because reformatting can shift them by a line or two.
 Each task lists files to edit, expected diff, paired tests, the parity row
 it satisfies, and a verification command.
 
-### T1 — Server: viewport-bounded `WaveContentRenderer.renderWindow(...)`
+### T1 — Server: viewport-bounded `WaveContentRenderer` overload
 
 **Rows: R-3.5, R-6.1, R-7.1**
 
@@ -156,35 +156,49 @@ Add a viewport-aware overload to `WaveContentRenderer`:
 public static String renderWaveContent(
     WaveViewData waveView,
     ParticipantId viewer,
-    int initialWindowSize)
+    int initialWindowSize)        // 0 == "render whole wave" (legacy GWT path)
 ```
 
 Implementation outline:
 
-1. Walk the root thread of the conversation in `renderWaveContent`. After
-   `extractTitle` / `safeGetTags` / `countBlipsAndThreads`, build a list of
-   `ConversationBlip`s in document order (DFS through reply threads as
-   today, but track the visit order).
-2. If `initialWindowSize > 0` and `blips.size() > initialWindowSize`, only
-   render the first `initialWindowSize` blips through `ServerHtmlRenderer`.
-   Append a `<div class="visible-region-placeholder"
+1. Threading. The existing
+   `renderWaveContent(WaveViewData, ParticipantId, RenderBudget)` worker
+   currently delegates the entire conversation to
+   `ServerHtmlRenderer` via `ReductionBasedRenderer.renderWith(rules,
+   conversations)` (`WaveContentRenderer.java:171`). The new overload
+   forwards `initialWindowSize` to a sibling worker that calls
+   `ReductionBasedRenderer.renderWith(...)` against a per-blip subset.
+   Concretely: walk the root thread blips in document order (the same DFS
+   as `countBlipsAndThreads` at line 325), keep the first
+   `initialWindowSize` blips, render *only* those plus their inline reply
+   threads. The participants and title/tags wrapper is unchanged.
+2. Server-side terminal placeholder. After the rendered slice append a
+   `<div class="visible-region-placeholder"
    data-j2cl-server-placeholder="true" data-segment="placeholder-tail"
    role="listitem" aria-busy="true">Additional blips will load on
-   scroll.</div>` after the rendered slice. Encoding the placeholder with
-   the same DOM marker the J2CL client already understands
-   (`J2clReadSurfaceDomRenderer.renderPlaceholder` uses
-   `data-j2cl-viewport-placeholder`; we mirror with a sibling marker so
-   `enhanceExistingSurface` can promote it).
-3. Set a `data-j2cl-initial-window-size` attribute on the wave-content
-   wrapper so the J2CL renderer can confirm the server window matches its
-   request.
+   scroll.</div>`. The marker is **for visual continuity / AT
+   announcement on the static HTML only**. It is not promoted into the
+   J2CL `renderedWindowEntries` list — extension on scroll is driven
+   exclusively by `J2clSelectedWaveProjector.projectViewportState` after
+   the live socket update lands and `view.render(model)` calls
+   `readSurface.renderWindow(...)`. The data-shape contract for that path
+   is documented in §2 above and in `J2clSelectedWaveViewportState.java`
+   line 363.
+3. Attribute the wrapper with `data-j2cl-initial-window-size` (numeric
+   value of the server-applied window size) on the existing
+   `<div class="wave-content">` element so the J2CL renderer and tests
+   can verify "the server window matches the limit we asked for." Add
+   `data-j2cl-server-first-surface="true"` to the same wrapper so T2/T4
+   can branch on it without introducing a new outer element (the J2CL
+   `findExistingSurface` selector at
+   `J2clReadSurfaceDomRenderer.java:481` already matches `.wave-content`).
 4. `J2clSelectedWaveSnapshotRenderer.renderRequestedWave` adopts a small
    `INITIAL_WINDOW_SIZE` constant (set equal to the existing
-   `wave.fragments.defaultViewportLimit = 5` from `reference.conf:468`) and
-   threads it into `renderWaveContent`. Increment
-   `FragmentsMetrics.j2clViewportInitialWindows` once per snapshot
-   regardless of mode (the existing `WaveClientRpcImpl` increment handles
-   socket opens; the snapshot-renderer increment handles first-paint).
+   `wave.fragments.defaultViewportLimit = 5` from `reference.conf:468`)
+   and threads it into `renderWaveContent`. Increment
+   `FragmentsMetrics.j2clViewportInitialWindows` once on the snapshot
+   path. The existing `WaveClientRpcImpl` socket-open increment is
+   independent — both call sites contribute to the counter.
 
 Paired tests:
 
@@ -224,11 +238,11 @@ Changes:
    emission near line 200): add `role="list"` for the root thread and
    `role="group"` for inline threads, plus `aria-label` for the inline
    thread (mirroring `enhanceInlineThread`).
-3. Wrap the rendered conversation in a `<section
-   data-j2cl-server-first-surface="true" aria-label="Selected wave read
-   surface">` so `J2clReadSurfaceDomRenderer.enhanceExistingSurface` knows
-   the surface is already enhanced and skips the "no inline reply
-   thread" promotion paths that would otherwise mutate focus.
+3. The `data-j2cl-server-first-surface="true"` attribute set on the
+   `wave-content` wrapper in T1 step 3 allows
+   `J2clReadSurfaceDomRenderer.enhanceExistingSurface` (after the T4
+   focus-preserving change) to know the surface is server-rendered and
+   keep the focused element stable.
 
 Paired tests:
 
@@ -518,12 +532,46 @@ closed slices skipped, so this plan refuses to ship without it.
 
 **Open question I cannot resolve in plan time.** The audit notes
 `enableDynamicRendering = false` is the production default
-(`reference.conf:435`). T1 emits the placeholder marker regardless, but
-the J2CL client only walks the placeholder when the renderer is in window
-mode (`renderWindow`, not `render`). I am explicitly *not* flipping
-`enableDynamicRendering` in this lane; that is a config-time decision
-documented in `docs/fragments-config.md` and outside the F-1 surface. If
-the demo wave does not visibly extend on scroll because dynamic rendering
-is off in the worktree-local config, the fix is to either set
-`enableDynamicRendering=true` for the parity demo or update
-`reference.conf` in a follow-up PR — not to expand F-1's scope.
+(`reference.conf:435`). That flag governs the *legacy GWT* dynamic
+rendering wave panel and is independent of the J2CL fragments transport
+(`server.fragments.transport = stream`, also default). The J2CL
+viewport-extension path is gated on the J2CL transport, so flipping
+`enableDynamicRendering` is **not** required for F-1's contract to hold.
+If the demo wave does not visibly extend on scroll, the diagnostic chain
+is: (a) does the J2CL controller emit `viewport.initial_window`?, (b) does
+the server-side `J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK` log fire?, (c) is
+`server.fragments.transport=stream` set? — none of those need a new code
+change in F-1 if defaults are honoured.
+
+**Late-review correctness check (round 2).** Re-reading the plan against
+the actual J2CL data flow:
+
+- The server-side `data-j2cl-server-placeholder` marker is **decorative
+  only**. Extension on scroll is driven by
+  `J2clSelectedWaveProjector.projectViewportState` →
+  `J2clSelectedWaveViewportState.fromFragments` (line 56) →
+  `J2clSelectedWaveModel.getViewportState().getReadWindowEntries()` (line
+  363) → `view.render(model)` calling
+  `readSurface.renderWindow(readWindowEntries)` →
+  `J2clReadSurfaceDomRenderer.requestReachablePlaceholderAfterRender`
+  (line 645). The plan no longer claims the server placeholder triggers
+  fetch; T1 step 2 spells this out.
+- `J2clReadSurfaceDomRenderer.findExistingSurface` (line 474) matches
+  `[data-j2cl-read-surface='true']` first then `.wave-content`. T1's
+  attribute sits on the existing `wave-content` wrapper so the matcher
+  picks it up unchanged.
+- `J2clSelectedWaveView.shouldPreserveServerSnapshot` (line 203) decides
+  whether to keep the server-first card when the live update has empty
+  read-blip / read-window state. With T1's window-bounded snapshot, the
+  card *will* have rendered blips, so the model's
+  `getReadBlips()/getReadWindowEntries()` will be populated by the live
+  update and the swap proceeds normally. T4's "cold-mount" reason fires
+  only when no card was present.
+- Telemetry field guard in `J2clClientTelemetry.rejectSensitiveOrReservedField`
+  (line 142) blocks `waveid`, `address`, `attachmentid`, `caption`, etc.
+  T3's events use `direction`, `limit`, `outcome`, `delta`, `reason` —
+  none of these are on the rejected list.
+- `FragmentsMetrics.setEnabled(boolean)` (line 30) defaults false.
+  Tests must call `FragmentsMetrics.setEnabled(true)` in `@Before` and
+  reset to false in `@After` to avoid leaking state across the test
+  suite (the existing `WaveClientRpcViewportHintsTest` is the precedent).

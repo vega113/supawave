@@ -3686,7 +3686,7 @@ public final class HtmlRenderer {
         .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
         .append("<rect x=\"2\" y=\"3.5\" width=\"12\" height=\"9\" rx=\"1.4\"/>")
         .append("<path d=\"M2.5 4.5l5.5 4 5.5-4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>\n");
-    sb.append("      <button type=\"button\" class=\"user-menu\" aria-haspopup=\"menu\" aria-expanded=\"false\" aria-label=\"Open user menu\">")
+    sb.append("      <button type=\"button\" class=\"user-menu\" aria-haspopup=\"menu\" aria-label=\"Open user menu\">")
         .append("<span class=\"avatar\" aria-hidden=\"true\">")
         .append(initials)
         .append("</span>")
@@ -3805,8 +3805,10 @@ public final class HtmlRenderer {
 
   /**
    * Extract the value of a named query parameter from a URL-like string.
-   * Returns null if the parameter is absent. Does not URL-decode the value —
-   * callers should HTML-escape before writing into markup.
+   * Returns null if the parameter is absent. URL-decodes the value (UTF-8)
+   * so callers see plain tokens like {@code mentions:me} instead of
+   * {@code mentions%3Ame}; callers should still HTML-escape before writing
+   * into markup. Falls back to the raw value on malformed percent-escapes.
    */
   private static String extractQueryParam(String url, String name) {
     if (url == null) return null;
@@ -3816,7 +3818,12 @@ public final class HtmlRenderer {
     String prefix = name + "=";
     for (String part : query.split("&")) {
       if (part.startsWith(prefix)) {
-        return part.substring(prefix.length());
+        String value = part.substring(prefix.length());
+        try {
+          return java.net.URLDecoder.decode(value, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+          return value;
+        }
       }
     }
     return null;

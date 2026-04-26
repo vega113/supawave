@@ -239,7 +239,6 @@ export class WavyHeader extends LitElement {
               type="button"
               class="user-menu"
               aria-haspopup="menu"
-              aria-expanded="false"
               aria-label="Open user menu"
               @click=${this._onUserMenuClick}
             >

@@ -205,13 +205,21 @@ export class WavySearchHelp extends LitElement {
   disconnectedCallback() {
     document.removeEventListener("wavy-search-help-toggle", this._onToggle);
     document.removeEventListener("keydown", this._onKey);
+    // Defensive: _onTrapTab is only attached while open, but disconnect can
+    // race with open=true (singleton detached mid-modal); make removal idempotent.
+    document.removeEventListener("keydown", this._onTrapTab);
     super.disconnectedCallback();
   }
 
   updated(changed) {
     if (changed.has("open")) {
       if (this.open) {
-        this._lastFocused = document.activeElement;
+        // Walk through nested shadow roots so we capture the actual focused
+        // element (e.g. the help-trigger inside <wavy-search-rail>'s shadow
+        // DOM), not just the top-level shadow host. Without this, restore
+        // focus would land on the host and the trigger button would never
+        // regain focus on close.
+        this._lastFocused = this._deepActiveElement();
         // Move focus to the first focusable element inside the modal.
         this.updateComplete.then(() => {
           const first = this._focusable()[0];
@@ -226,6 +234,14 @@ export class WavySearchHelp extends LitElement {
         this._lastFocused = null;
       }
     }
+  }
+
+  _deepActiveElement() {
+    let active = document.activeElement;
+    while (active && active.shadowRoot && active.shadowRoot.activeElement) {
+      active = active.shadowRoot.activeElement;
+    }
+    return active;
   }
 
   _focusable() {

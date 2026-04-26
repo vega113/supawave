@@ -82,6 +82,46 @@ public class J2clReadBlipMetadataTest {
   }
 
   @Test
+  public void displayNameFallsBackToAuthorIdWhenWhitespaceOnly() {
+    // CodeRabbit PRRT_kwDOBwxLXs59qNMN: isEmpty() treats "   " as a real
+    // display name; trim() before the empty check so the fallback to
+    // authorId fires for whitespace-only inputs (the renderer would
+    // otherwise emit a blank author label).
+    J2clReadBlip blip =
+        new J2clReadBlip(
+            "b+3w",
+            "x",
+            Collections.emptyList(),
+            "dave@example.com",
+            "   ",
+            0L,
+            "",
+            "",
+            false,
+            false);
+
+    Assert.assertEquals("dave@example.com", blip.getAuthorDisplayName());
+  }
+
+  @Test
+  public void displayNameTrimsSurroundingWhitespaceWhenNonEmpty() {
+    J2clReadBlip blip =
+        new J2clReadBlip(
+            "b+3t",
+            "x",
+            Collections.emptyList(),
+            "eve@example.com",
+            "  Eve  ",
+            0L,
+            "",
+            "",
+            false,
+            false);
+
+    Assert.assertEquals("Eve", blip.getAuthorDisplayName());
+  }
+
+  @Test
   public void withUnreadIdentityWhenFlagUnchanged() {
     J2clReadBlip blip =
         new J2clReadBlip(

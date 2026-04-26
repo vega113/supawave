@@ -248,6 +248,45 @@ public final class J2clStageOneReadSurfaceParityTest {
   }
 
   /**
+   * R-3.3 + R-3.7 — nested-thread parity. {@code buildWaveletData}
+   * grafts an inline reply onto the first blip so the server-rendered
+   * HTML actually exercises the threaded (non-root) render path. A
+   * regression that flattens nested threads into the root list (or
+   * drops the inline-thread {@code role="group"} / aria-label) would
+   * fail this assertion even if the flat-walk tests above kept passing.
+   */
+  @Test
+  public void serverFirstPaintRendersNestedReplyThreadContract() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(6));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServlet(VIEWER, renderer);
+
+    String html = invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+
+    // ServerHtmlRenderer marks every non-root thread with role=group +
+    // aria-label="inline reply thread"; the root thread uses role=list.
+    // The fixture grafts exactly one inline reply onto blip 0, so the
+    // server-rendered HTML must contain at least one inline-thread
+    // marker. This is the wire contract the F-2 client preserves on
+    // upgrade (R-3.3 collapse + R-3.7 depth-nav both consume it).
+    assertTrue(
+        "Nested-thread fixture must surface the inline-thread aria-label "
+            + "(role=group + aria-label=\"inline reply thread\") so the "
+            + "threaded render path is actually exercised — got HTML: " + html,
+        html.contains("aria-label=\"inline reply thread\""));
+    assertTrue(
+        "Nested-thread fixture must surface the inline-thread role=group marker",
+        html.contains("role=\"group\""));
+    // Sanity: the nested thread carries its own data-thread-id distinct
+    // from the root thread, so collapse / depth-nav can address it.
+    int threadIdCount = countOccurrences(html, "data-thread-id=");
+    assertTrue(
+        "At least 2 data-thread-id markers (root + 1 nested reply thread) — got "
+            + threadIdCount,
+        threadIdCount >= 2);
+  }
+
+  /**
    * R-4.4 — the server-first card emits the per-wave unread count slot
    * (sidecar-selected-unread) the J2CL client renders into. The
    * per-blip {@code unread} flip is driven from the supplement read

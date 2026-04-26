@@ -57,6 +57,52 @@ public class J2clReadWindowEntryMetadataTest {
   }
 
   @Test
+  public void displayNameFallsBackToAuthorIdWhenWhitespaceOnly() {
+    // CodeRabbit PRRT_kwDOBwxLXs59qNMS: same fallback hole as
+    // J2clReadBlip — "   " is not empty so callers get a blank label
+    // instead of authorId. trim() before isEmpty() so the fallback
+    // fires.
+    J2clReadWindowEntry entry =
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+2w",
+            0L,
+            5L,
+            "b+2w",
+            "world",
+            Collections.emptyList(),
+            "frank@example.com",
+            "   ",
+            0L,
+            "",
+            "",
+            false,
+            false);
+
+    Assert.assertEquals("frank@example.com", entry.getAuthorDisplayName());
+  }
+
+  @Test
+  public void displayNameTrimsSurroundingWhitespaceWhenNonEmpty() {
+    J2clReadWindowEntry entry =
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+2t",
+            0L,
+            5L,
+            "b+2t",
+            "world",
+            Collections.emptyList(),
+            "grace@example.com",
+            "  Grace  ",
+            0L,
+            "",
+            "",
+            false,
+            false);
+
+    Assert.assertEquals("Grace", entry.getAuthorDisplayName());
+  }
+
+  @Test
   public void placeholderRetainsLegacyShape() {
     J2clReadWindowEntry placeholder =
         J2clReadWindowEntry.placeholder("blip:b+3", 0L, 9L, "b+3");

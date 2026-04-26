@@ -21,6 +21,7 @@ package org.waveprotocol.box.server.rpc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import org.junit.Assume;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,9 +45,10 @@ import org.junit.runners.Suite;
  *
  * <ul>
  *   <li>{@link Suite} — chains the existing per-row parity test
- *       classes so a single {@code testOnly *J2clStageOneFinalParityTest}
- *       run also exercises every per-row assertion. Use the inner
- *       {@link AllParityTests} class as the suite handle.
+ *       classes. Use the inner {@link AllParityTests} class explicitly
+ *       (e.g. {@code testOnly *AllParityTests}) to run it; or pass
+ *       {@code -Dj2cl.run.chained.parity=true} to opt-in from within
+ *       this class without double-executing the individual suites.
  *   <li>This class — owns one summary test per gate row that asserts
  *       at least one declared test method exists in the per-row class
  *       responsible for that row, and produces a printable row-coverage
@@ -186,9 +188,12 @@ public final class J2clStageOneFinalParityTest {
 
   @Test
   public void allChainedParityTestClassesPass() {
-    // Run the chained suite and surface any failures. This is the
-    // single command that proves every per-row parity test class
-    // still passes alongside the F-2 closeout.
+    // Gate behind a system property so the default suite run does not
+    // execute the chained parity classes a second time.  Set
+    // -Dj2cl.run.chained.parity=true (e.g. via testOnly) to opt in.
+    Assume.assumeTrue(
+        "Set -Dj2cl.run.chained.parity=true to run the full chained parity suite",
+        "true".equals(System.getProperty("j2cl.run.chained.parity")));
     Result result = JUnitCore.runClasses(AllParityTests.class);
     if (!result.wasSuccessful()) {
       StringBuilder sb = new StringBuilder("Chained parity suite FAILED:\n");

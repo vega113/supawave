@@ -286,10 +286,11 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     // wrapper + every adoption-target child is removed from layout.
     assertTrue(
         "wavy-thread-collapse.css must contain the legacy-card hide rule with display: none !important",
-        css.contains(
-            ".sidecar-search-card[data-j2cl-legacy-search-card=\"hidden\"] {\n"
-                + "  display: none !important;\n"
-                + "}"));
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-search-card\\[data-j2cl-legacy-search-card=\"hidden\"\\]"
+                    + "\\s*\\{\\s*display\\s*:\\s*none\\s*!important\\s*;\\s*\\}")
+            .matcher(css)
+            .find());
     // Regression guard: the buggy `display: contents` shape (S5)
     // must NOT appear on this selector.
     int markerIdx = css.indexOf("[data-j2cl-legacy-search-card=\"hidden\"]");

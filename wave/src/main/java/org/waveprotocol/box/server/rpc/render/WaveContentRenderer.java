@@ -199,7 +199,7 @@ public final class WaveContentRenderer {
     checkBudget(budget);
     String title = extractTitle(rootConversation);
     Set<String> tags = safeGetTags(rootConversation);
-    int[] counts = countBlipsAndThreads(rootConversation);
+    int[] counts = countBlipsAndThreads(rootConversation, budget);
     int blipCount = counts[0];
     int threadCount = counts[1];
     long creationTime = convWaveletData.getCreationTime();
@@ -435,7 +435,7 @@ public final class WaveContentRenderer {
    *
    * @return int array of [blipCount, threadCount]
    */
-  static int[] countBlipsAndThreads(Conversation conversation) {
+  static int[] countBlipsAndThreads(Conversation conversation, RenderBudget budget) {
     int blipCount = 0;
     int threadCount = 0;
 
@@ -444,12 +444,13 @@ public final class WaveContentRenderer {
       return new int[]{0, 0};
     }
 
-    // Use a simple iterative BFS to avoid deep recursion.
+    // Use a simple iterative DFS to avoid deep recursion.
     List<ConversationThread> queue = new ArrayList<>();
     queue.add(rootThread);
 
     while (!queue.isEmpty()) {
-      ConversationThread thread = queue.remove(queue.size() - 1); // DFS via stack
+      checkBudget(budget);
+      ConversationThread thread = queue.remove(queue.size() - 1);
       threadCount++;
       for (ConversationBlip blip : thread.getBlips()) {
         blipCount++;

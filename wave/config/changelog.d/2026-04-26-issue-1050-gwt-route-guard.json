@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-26-issue-1050-gwt-route-guard",
+  "version": "Fix #1050 (PR #1051)",
+  "date": "2026-04-26",
+  "title": "Restore Per-Wave Server-First Paint on Legacy GWT Route",
+  "summary": "The legacy ?view=gwt fall-through now renders the requested wave as a non-windowed server-first HTML fragment so a J2CL rollback retains the legacy class=\"blip\" host markup, while keeping all F-1 / F-2 J2CL-only client surface markers gated on the J2CL route.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Wire WaveClientServlet's legacy GWT fall-through through a new J2clSelectedWaveSnapshotRenderer.renderRequestedWaveForLegacy entry point so ?view=gwt rollbacks render the same per-wave first paint as the J2CL root shell, but with no F-1 windowed-surface markers (data-j2cl-server-first-surface, data-j2cl-initial-window-size), no J2CL-only client-bundle markers (<wave-blip>, wavy-tokens.css, j2cl/assets/shell.js, data-j2cl-selected-wave-host), and no advance of the j2cl.viewport.initial_window counter."
+      ]
+    }
+  ]
+}

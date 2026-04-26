@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
@@ -79,6 +80,11 @@ public final class J2clSelectedWaveProjector {
         && !previous.getReadBlips().isEmpty()) {
       readBlips = previous.getReadBlips();
     }
+    // F-2 (#1037, R-3.1) — enrich the viewport-derived read blips with the
+    // per-blip metadata (author, timestamp, mention flag) sourced from the
+    // documents list when the same wire payload carries both shapes. The
+    // document path is still authoritative when it exists.
+    readBlips = enrichReadBlipMetadata(readBlips, update.getDocuments());
     J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous);
     boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
@@ -356,9 +362,92 @@ public final class J2clSelectedWaveProjector {
           || textContent == null || textContent.isEmpty()) {
         continue;
       }
-      blips.add(new J2clReadBlip(documentId, textContent));
+      blips.add(
+          new J2clReadBlip(
+              documentId,
+              textContent,
+              Collections.<org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel>emptyList(),
+              /* authorId= */ document.getAuthor() == null ? "" : document.getAuthor(),
+              /* authorDisplayName= */ document.getAuthor() == null ? "" : document.getAuthor(),
+              /* lastModifiedTimeMillis= */ document.getLastModifiedTime(),
+              /* parentBlipId= */ "",
+              /* threadId= */ "",
+              /* unread= */ false,
+              /* hasMention= */ documentHasMention(document)));
     }
     return blips;
+  }
+
+  /**
+   * F-2 (#1037, R-3.1) — when the viewport-derived read-blip list carries no
+   * per-blip metadata (because {@link J2clSelectedWaveViewportState} only
+   * knows the segment + raw text), enrich each entry by looking up the
+   * matching {@link SidecarSelectedWaveDocument} from the same update. The
+   * document carries author, timestamp, and annotation ranges. Blips that do
+   * not have a matching document (e.g. placeholder-replaced fragments fetched
+   * via {@code /fragments}) are returned unchanged.
+   */
+  static List<J2clReadBlip> enrichReadBlipMetadata(
+      List<J2clReadBlip> readBlips, List<SidecarSelectedWaveDocument> documents) {
+    if (readBlips == null || readBlips.isEmpty()
+        || documents == null || documents.isEmpty()) {
+      return readBlips;
+    }
+    Map<String, SidecarSelectedWaveDocument> docsByBlipId =
+        new LinkedHashMap<String, SidecarSelectedWaveDocument>();
+    for (SidecarSelectedWaveDocument doc : documents) {
+      if (doc == null || doc.getDocumentId() == null
+          || !doc.getDocumentId().startsWith("b+")) {
+        continue;
+      }
+      docsByBlipId.put(doc.getDocumentId(), doc);
+    }
+    if (docsByBlipId.isEmpty()) {
+      return readBlips;
+    }
+    List<J2clReadBlip> enriched = new ArrayList<J2clReadBlip>(readBlips.size());
+    for (J2clReadBlip blip : readBlips) {
+      SidecarSelectedWaveDocument doc = docsByBlipId.get(blip.getBlipId());
+      if (doc == null) {
+        enriched.add(blip);
+        continue;
+      }
+      // Preserve the viewport-decoded text and attachments; only graft on the
+      // per-blip metadata that the document carries authoritatively.
+      String author = doc.getAuthor() == null ? "" : doc.getAuthor();
+      enriched.add(
+          new J2clReadBlip(
+              blip.getBlipId(),
+              blip.getText(),
+              blip.getAttachments(),
+              author,
+              author,
+              doc.getLastModifiedTime(),
+              /* parentBlipId= */ blip.getParentBlipId(),
+              /* threadId= */ blip.getThreadId(),
+              blip.isUnread(),
+              documentHasMention(doc)));
+    }
+    return enriched;
+  }
+
+  /**
+   * F-2 (#1037, R-3.4 E.6 / E.7) — a blip "has a mention" when any annotation
+   * carries the {@code mention/} key prefix. The annotation ranges are already
+   * shipped on the wire today via {@link SidecarSelectedWaveDocument} for the
+   * interaction-blip projection; reading them here keeps the read-surface
+   * mention navigation in lockstep with the interaction surface.
+   */
+  static boolean documentHasMention(SidecarSelectedWaveDocument document) {
+    if (document == null || document.getAnnotationRanges() == null) {
+      return false;
+    }
+    for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
+      if (range != null && range.isMention()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static List<J2clInteractionBlipModel> extractInteractionBlips(

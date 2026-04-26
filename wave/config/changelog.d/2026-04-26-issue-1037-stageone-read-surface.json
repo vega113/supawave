@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-26-issue-1037-stageone-read-surface",
+  "version": "F-2 (#1037)",
+  "date": "2026-04-26",
+  "title": "StageOne J2CL Read Surface — Threaded Blip Rendering",
+  "summary": "The J2CL open-wave panel now renders each blip as a Lit <wave-blip> element wrapping the F-0 wavy design recipe — with author display name, initials avatar chip, relative timestamp, full ISO datetime tooltip, per-blip toolbar (Reply/Edit/Link/overflow), inline-reply chip, mention rail, and live-pulse glow. Replaces the previous flat \"Blip <id>\" raw markup.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Per-blip metadata flows through the read-surface model: J2clReadBlip and J2clReadWindowEntry now carry author id + display name, last-modified timestamp, parent blip id, thread id, unread flag, and a has-mention flag derived from the SidecarSelectedWaveDocument annotation ranges (mention/* keys).",
+        "Renderer emits <wave-blip> custom elements that wrap the F-0 <wavy-blip-card> recipe and surface the F-2 author header, posted-at + ISO datetime tooltip, per-blip toolbar (hidden until :focus-within or :hover), inline-reply chip when reply-count > 0, and the violet mention rail when has-mention reflects.",
+        "Plugin-slot contract preserved unchanged: <wave-blip> forwards the named blip-extension slot to the inner <wavy-blip-card> so plugins continue to read host.dataset.blipId / blipView per docs/j2cl-plugin-slots.md.",
+        "Per-row parity fixture J2clStageOneReadSurfaceParityTest mounts the J2CL servlet at both ?view=j2cl-root and ?view=gwt and asserts contract attributes for R-3.1 (open-wave rendering), R-3.2 (focus-frame anchor), R-3.4 (blip navigation), R-3.7 (depth-nav id contract), R-4.4 (unread slot), plus the reciprocal that ?view=gwt does not leak F-2 client markers."
+      ]
+    }
+  ]
+}

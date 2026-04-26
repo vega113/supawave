@@ -356,6 +356,45 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderWindowEntriesPropagatePerBlipMetadataIntoTheRenderedBlipElement() {
+    // F-2 (#1037, R-3.1) — the viewport-window path is the dominant render
+    // path. The window entry now carries author / timestamp / unread /
+    // mention metadata sourced from the projector. This guards against a
+    // regression where renderWindow rebuilt a 3-arg J2clReadBlip and
+    // dropped the per-blip header data on the floor.
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .renderWindow(
+                Arrays.asList(
+                    J2clReadWindowEntry.loadedWithMetadata(
+                        "blip:b+root",
+                        0L,
+                        9L,
+                        "b+root",
+                        "Root text",
+                        Collections.<J2clAttachmentRenderModel>emptyList(),
+                        "alice@example.com",
+                        "Alice",
+                        1700000000000L,
+                        /* parentBlipId= */ "",
+                        /* threadId= */ "t+root",
+                        /* unread= */ true,
+                        /* hasMention= */ true))));
+
+    HTMLElement root = blip(host, "b+root");
+    Assert.assertNotNull(root);
+    Assert.assertEquals("alice@example.com", root.getAttribute("author-id"));
+    Assert.assertEquals("Alice", root.getAttribute("author-name"));
+    Assert.assertNotNull(root.getAttribute("posted-at"));
+    Assert.assertNotNull(root.getAttribute("posted-at-iso"));
+    Assert.assertTrue(root.hasAttribute("unread"));
+    Assert.assertTrue(root.hasAttribute("has-mention"));
+  }
+
+  @Test
   public void openAndDownloadLinksEmitClickTelemetry() {
     assumeBrowserDom();
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();

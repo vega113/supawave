@@ -138,6 +138,15 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       readSurface.clearViewportScrollMemory();
       lastRenderedWaveId = renderedWaveId;
     }
+    // F-2 (#1037, R-3.1) — surface the wave id on the content host so the
+    // <wave-blip> renderer can lift it onto each rendered card without
+    // changing the renderer signature. Cleared explicitly when no wave is
+    // selected so a stale id is not propagated to the next opened wave.
+    if (renderedWaveId.isEmpty()) {
+      contentList.removeAttribute("data-wave-id");
+    } else {
+      contentList.setAttribute("data-wave-id", renderedWaveId);
+    }
     if (shouldPreserveServerFirstCard(model)) {
       renderPreservedServerFirstState(model);
       return;

@@ -32,6 +32,10 @@ import "./design/wavy-rail-panel.js";
 import "./design/wavy-edit-toolbar.js";
 import "./design/wavy-depth-nav.js";
 import "./design/wavy-pulse-stage.js";
+// F-2 (#1037): StageOne read-surface elements that wrap the F-0
+// design recipes. The renderer mounts <wave-blip> per blip.
+import "./elements/wave-blip-toolbar.js";
+import "./elements/wave-blip.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

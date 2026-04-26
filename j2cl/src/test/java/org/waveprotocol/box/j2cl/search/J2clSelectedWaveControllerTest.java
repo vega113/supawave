@@ -1208,6 +1208,27 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void viewportEdgeFetchDoesNotEmitClampAppliedWhenServerDeliversFullWindow()
+      throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    // Server returns exactly FRAGMENT_GROWTH_LIMIT (5) blip ranges — no clamp (R-7.3).
+    harness.resolveFragmentFetch(0, fragmentsResponseWithNBlips(5));
+
+    Assert.assertEquals(
+        "clamp_applied must not fire when server delivers the full window",
+        0,
+        countEventsNamed(telemetry, "viewport.clamp_applied"));
+  }
+
+  @Test
   public void viewportEdgeFetchErrorEmitsErrorOutcome() throws Exception {
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
     Harness harness = new Harness(telemetry);
@@ -1846,6 +1867,29 @@ public class J2clSelectedWaveControllerTest {
     json.append("]}");
     return SidecarFragmentsResponse.fromJson(
         json.toString());
+  }
+
+  private static SidecarFragmentsResponse fragmentsResponseWithNBlips(int n) {
+    StringBuilder json =
+        new StringBuilder(
+            "{\"status\":\"ok\",\"waveRef\":\"example.com/w+1/~/conv+root\","
+                + "\"version\":{\"snapshot\":48,\"start\":44,\"end\":48},\"ranges\":[");
+    for (int i = 0; i < n; i++) {
+      if (i > 0) {
+        json.append(",");
+      }
+      json.append("{\"segment\":\"blip:b+").append(i).append("\",\"from\":44,\"to\":48}");
+    }
+    json.append("],\"fragments\":[");
+    for (int i = 0; i < n; i++) {
+      if (i > 0) {
+        json.append(",");
+      }
+      json.append("{\"segment\":\"blip:b+").append(i)
+          .append("\",\"rawSnapshot\":\"content\",\"adjust\":[],\"diff\":[]}");
+    }
+    json.append("]}");
+    return SidecarFragmentsResponse.fromJson(json.toString());
   }
 
   private static SidecarSelectedWaveUpdate snapshotOnlyUpdate(String textContent) {

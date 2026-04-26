@@ -8,6 +8,7 @@ import java.util.Set;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadataClient;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragmentRange;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
@@ -527,23 +528,20 @@ public final class J2clSelectedWaveController
             fragmentFetchesInFlight.remove(edgeKey);
             return;
           }
-          // Capture the pre-merge state inside the callback so that any live-stream
-          // updates that arrived between dispatch and response do not inflate the delta.
-          J2clSelectedWaveViewportState preState = currentModel.getViewportState();
-          int loadedBlipsBeforeMerge = preState.getLoadedReadBlips().size();
           J2clSelectedWaveViewportState mergedState =
-              preState.mergeFragments(response.getFragments(), normalizedDirection);
+              currentModel.getViewportState().mergeFragments(
+                  response.getFragments(), normalizedDirection);
           currentModel = currentModel.withViewportState(mergedState);
-          int loadedBlipsAfter = mergedState.getLoadedReadBlips().size();
-          int delta = Math.max(0, loadedBlipsAfter - loadedBlipsBeforeMerge);
-          if (delta < FRAGMENT_GROWTH_LIMIT) {
-            // R-7.3: the server clamped the requested limit. Surface the shortfall so the
-            // audit-required `viewport.clamp_applied` counter advances proportionally.
+          // R-7.3: count delivered blips from the response payload so the clamp check is
+          // independent of model state (the anchor blip is included in the server window and
+          // already in the model, so a model-diff delta would be limit-1 even for a full fetch).
+          int delivered = countBlipRanges(response);
+          if (delivered < FRAGMENT_GROWTH_LIMIT) {
             emit(
                 J2clClientTelemetry.event("viewport.clamp_applied")
                     .field("direction", normalizedDirection)
                     .field("requested", Integer.toString(FRAGMENT_GROWTH_LIMIT))
-                    .field("delivered", Integer.toString(delta))
+                    .field("delivered", Integer.toString(delivered))
                     .build());
           }
           // Only clear the soft fragment-growth banner owned by this controller.
@@ -1028,5 +1026,15 @@ public final class J2clSelectedWaveController
                 onVisible.run();
               }
             });
+  }
+
+  private static int countBlipRanges(SidecarFragmentsResponse response) {
+    int count = 0;
+    for (SidecarSelectedWaveFragmentRange range : response.getFragments().getRanges()) {
+      if (range.getSegment().startsWith(J2clSelectedWaveViewportState.BLIP_SEGMENT_PREFIX)) {
+        count++;
+      }
+    }
+    return count;
   }
 }

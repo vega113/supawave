@@ -3579,6 +3579,221 @@ public final class HtmlRenderer {
   }
 
   /**
+   * F-2 slice 6 (#1058, Part B): renders the read-surface preview page
+   * reachable at {@code /?view=j2cl-root&q=read-surface-preview}. The
+   * page reuses the same shell + chrome as the regular signed-in
+   * {@code ?view=j2cl-root} route but pre-mounts a fixture wave so
+   * design + reviewers can see every F-2 affordance on a single URL.
+   *
+   * <p>The fixture content is server-rendered in place — there is no
+   * WaveletProvider lookup, so reviewers always see the same content
+   * regardless of session. The page is server-only; the J2CL bundle
+   * still loads so client-side interactions (collapse animation,
+   * focus frame motion, depth-nav drill, modal toggles) work, but no
+   * websocket activity is required to see the visual state.
+   *
+   * <p>See {@code docs/runbooks/j2cl-read-surface-preview.md}.
+   */
+  public static String renderJ2clReadSurfacePreviewPage(
+      String contextPath,
+      String buildCommit,
+      long serverBuildTime,
+      String currentReleaseId,
+      String viewerAddress,
+      String websocketAddress) {
+    String resolvedBasePath = contextPath == null || contextPath.isEmpty() ? "/" : contextPath;
+    if (!resolvedBasePath.endsWith("/")) {
+      resolvedBasePath = resolvedBasePath + "/";
+    }
+    String safeResolvedBasePath = StringEscapeUtils.escapeHtml4(resolvedBasePath);
+    String resolvedReturnTarget = resolvedBasePath + "?view=j2cl-root&q=read-surface-preview";
+    String safeResolvedReturnTarget = StringEscapeUtils.escapeHtml4(resolvedReturnTarget);
+    String resolvedAddress = viewerAddress == null ? "preview@example.com" : viewerAddress;
+    String safeAddress = StringEscapeUtils.escapeHtml4(resolvedAddress);
+    String safeInitialQuery = StringEscapeUtils.escapeHtml4("read-surface-preview");
+
+    StringBuilder sb = new StringBuilder(8192);
+    sb.append("<!DOCTYPE html>\n<html lang=\"en\" data-j2cl-read-surface-preview=\"true\">\n<head>\n");
+    sb.append("<meta charset=\"UTF-8\">\n");
+    sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
+    sb.append("<title>SupaWave J2CL Read Surface Preview</title>\n");
+    sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
+    sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
+    sb.append("<meta name=\"build-commit\" content=\"")
+        .append(escapeHtml(buildCommit == null ? "" : buildCommit))
+        .append("\">\n");
+    sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
+    sb.append("<meta name=\"current-release-id\" content=\"")
+        .append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId))
+        .append("\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"")
+        .append(safeResolvedBasePath)
+        .append("j2cl/assets/sidecar.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"")
+        .append(safeResolvedBasePath)
+        .append("j2cl/assets/shell.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"")
+        .append(safeResolvedBasePath)
+        .append("j2cl/assets/wavy-tokens.css\">\n");
+    sb.append("<link rel=\"stylesheet\" href=\"")
+        .append(safeResolvedBasePath)
+        .append("j2cl/assets/wavy-thread-collapse.css\">\n");
+    sb.append("<script type=\"module\" src=\"")
+        .append(safeResolvedBasePath)
+        .append("j2cl/assets/shell.js\"></script>\n");
+    appendJ2clRootShellStatsShim(sb);
+    sb.append("</head>\n<body class=\"j2cl-root-shell-page\" data-j2cl-read-surface-preview=\"true\">\n");
+    sb.append("<shell-root data-j2cl-root-shell=\"true\" data-j2cl-read-surface-preview=\"true\" data-j2cl-root-return-target=\"")
+        .append(safeResolvedReturnTarget)
+        .append("\" data-j2cl-root-base-path=\"")
+        .append(safeResolvedBasePath)
+        .append("\">\n");
+    sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
+        .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
+        .append("</shell-skip-link>\n");
+    sb.append("  <shell-header slot=\"header\" signed-in>\n");
+    sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
+        .append(safeResolvedReturnTarget)
+        .append("\" aria-label=\"J2CL read-surface preview\">\n");
+    sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave Read Surface Preview</span>\n");
+    sb.append("    </a>\n");
+    appendWavyHeaderActionsSlot(
+        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath);
+    sb.append("  </shell-header>\n");
+    sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
+    appendWavySearchRail(sb, safeInitialQuery);
+    sb.append("  </shell-nav-rail>\n");
+    appendWavySearchHelpModal(sb);
+    sb.append("  <shell-main-region slot=\"main\">\n");
+    sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
+    appendReadSurfacePreviewWorkflow(sb);
+    sb.append("    </section>\n");
+    sb.append("  </shell-main-region>\n");
+    sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text-preview\">Read-surface preview fixture — non-live</span></shell-status-strip>\n");
+    sb.append("</shell-root>\n");
+    // F-2.S4 floating mounts. The version-history + profile overlays
+    // are pre-opened so reviewers can see the open-state styling.
+    sb.append("<div id=\"shell-nav-drawer\" hidden role=\"navigation\" aria-label=\"Mobile navigation drawer\"></div>\n");
+    sb.append("<wavy-back-to-inbox data-j2cl-floating-mount=\"true\" href=\"")
+        .append(safeResolvedBasePath)
+        .append("?view=j2cl-root\"></wavy-back-to-inbox>\n");
+    sb.append("<wavy-nav-drawer-toggle data-j2cl-floating-mount=\"true\" aria-controls=\"shell-nav-drawer\"></wavy-nav-drawer-toggle>\n");
+    sb.append("<wavy-wave-controls-toggle data-j2cl-floating-mount=\"true\"></wavy-wave-controls-toggle>\n");
+    sb.append("<wavy-floating-scroll-to-new data-j2cl-floating-mount=\"true\"></wavy-floating-scroll-to-new>\n");
+    sb.append("<wavy-version-history data-j2cl-floating-mount=\"true\" open></wavy-version-history>\n");
+    sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" open data-participant=\"carol@example.com\"></wavy-profile-overlay>\n");
+    sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
+    appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
+    sb.append("</body>\n</html>\n");
+    // Mark CodeQL: all dynamic content above is HTML-escaped via
+    // StringEscapeUtils.escapeHtml4 / escapeHtml before being threaded
+    // into the StringBuilder. The fixture content is hard-coded.
+    return sb.toString(); // codeql[java/xss]
+  }
+
+  /**
+   * Appends the read-surface-preview workflow content into the shell
+   * main region. Mounts a fixture wave with five blips that exercise
+   * threading, focus framing, collapse, depth-nav drill-in, reactions,
+   * mentions, tasks, attachments, and the awareness pill.
+   */
+  private static void appendReadSurfacePreviewWorkflow(StringBuilder sb) {
+    sb.append("      <section class=\"sidecar-search-shell\" data-j2cl-server-first-workflow=\"true\" data-j2cl-read-surface-preview=\"true\">\n");
+    sb.append("        <div class=\"sidecar-split-layout\">\n");
+    // The legacy adoption wrapper is still emitted so the J2CL bundle's
+    // J2clSearchPanelView.queryRequired calls resolve the same selectors
+    // as the regular root shell route. The CSS rule from
+    // wavy-thread-collapse.css collapses the wrapper visually so it
+    // does not duplicate the wavy rail (Part A regression-locked).
+    sb.append("          <div class=\"sidecar-search-card\" data-j2cl-legacy-search-card=\"hidden\">\n");
+    sb.append("            <form class=\"sidecar-search-toolbar\" data-j2cl-legacy-search-form=\"true\" action=\"#\" onsubmit=\"return false;\" hidden>\n");
+    sb.append("              <input class=\"sidecar-search-input\" type=\"search\" placeholder=\"Search waves\" aria-label=\"Search waves\" autocomplete=\"off\">\n");
+    sb.append("              <button class=\"sidecar-search-submit\" type=\"submit\">Search</button>\n");
+    sb.append("            </form>\n");
+    sb.append("            <p class=\"sidecar-search-session\" hidden>Read-surface preview fixture.</p>\n");
+    sb.append("            <div class=\"sidecar-search-compose\"></div>\n");
+    sb.append("            <p class=\"sidecar-search-status\" hidden>Preview — no live session.</p>\n");
+    sb.append("            <p class=\"sidecar-wave-count\" hidden></p>\n");
+    sb.append("            <div class=\"sidecar-digests\"></div>\n");
+    sb.append("            <div class=\"sidecar-empty-state\" hidden>Preview — no live results.</div>\n");
+    sb.append("            <button class=\"sidecar-show-more\" type=\"button\" hidden>Show more waves</button>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"sidecar-selected-host\" data-j2cl-selected-wave-host=\"true\">\n");
+    sb.append("            <section class=\"sidecar-selected-card\" data-j2cl-server-first-mode=\"snapshot\" data-j2cl-server-first-selected-wave=\"preview-fixture-1\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
+    sb.append("              <p class=\"sidecar-eyebrow\">Opened wave</p>\n");
+    sb.append("              <wavy-depth-nav-bar data-j2cl-server-first-chrome=\"true\" data-current-depth=\"top-thread\"></wavy-depth-nav-bar>\n");
+    sb.append("              <h2 class=\"sidecar-selected-title\">Sample read-surface preview wave</h2>\n");
+    sb.append("              <p class=\"sidecar-selected-unread\">3 unread</p>\n");
+    sb.append("              <p class=\"sidecar-selected-status\">Read-surface preview fixture — every F-2 chrome affordance is mounted on this single URL.</p>\n");
+    sb.append("              <p class=\"sidecar-selected-detail\">Open the version-history, profile, and depth-nav overlays via the floating controls; press <kbd>j</kbd>/<kbd>k</kbd> to move the focus frame.</p>\n");
+    sb.append("              <output class=\"wavy-awareness-pill\" data-j2cl-awareness-pill=\"true\">2 new replies above</output>\n");
+    sb.append("              <p class=\"sidecar-selected-participants\">alice@example.com, bob@example.com, carol@example.com</p>\n");
+    sb.append("              <wavy-wave-nav-row data-j2cl-server-first-chrome=\"true\"></wavy-wave-nav-row>\n");
+    sb.append("              <p class=\"sidecar-selected-snippet\" hidden></p>\n");
+    sb.append("              <div class=\"sidecar-selected-compose\" data-j2cl-compose-host=\"true\"></div>\n");
+    sb.append("              <div class=\"sidecar-selected-content\">\n");
+    appendReadSurfacePreviewBlips(sb);
+    sb.append("              </div>\n");
+    sb.append("              <div class=\"sidecar-empty-state\" hidden></div>\n");
+    sb.append("            </section>\n");
+    sb.append("          </div>\n");
+    sb.append("        </div>\n");
+    sb.append("      </section>\n");
+  }
+
+  /**
+   * Emits a five-blip fixture with threading, focus frame on b2,
+   * collapsed thread under b3, reactions, mention, task, and
+   * attachment chips.
+   */
+  private static void appendReadSurfacePreviewBlips(StringBuilder sb) {
+    sb.append("                <div class=\"j2cl-read-surface\" data-j2cl-read-surface=\"preview\">\n");
+    sb.append("                  <div class=\"j2cl-read-thread\" data-thread-id=\"root\">\n");
+    sb.append("                    <wave-blip data-blip-id=\"b1\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                      <header><span class=\"author\">alice@example.com</span> <time>10:00</time></header>\n");
+    sb.append("                      <p>Welcome to the F-2 read-surface preview. This fixture exercises the full chrome surface so reviewers can confirm parity on a single URL.</p>\n");
+    sb.append("                      <div class=\"reactions\" data-j2cl-reactions=\"true\">👍 ✨ 🌊</div>\n");
+    sb.append("                    </wave-blip>\n");
+    sb.append("                    <wave-blip data-blip-id=\"b2\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" data-j2cl-focused=\"true\" tabindex=\"0\">\n");
+    sb.append("                      <header><span class=\"author\">bob@example.com</span> <time>10:05</time></header>\n");
+    sb.append("                      <p>Focus frame lives on this blip — press <kbd>j</kbd>/<kbd>k</kbd> to move.</p>\n");
+    sb.append("                      <div class=\"chips\" data-j2cl-chips=\"true\"><span class=\"chip mention-chip\" data-j2cl-mention-chip=\"true\">@alice</span></div>\n");
+    sb.append("                    </wave-blip>\n");
+    sb.append("                    <div class=\"j2cl-read-thread\" data-thread-id=\"b3-root\">\n");
+    sb.append("                      <wave-blip data-blip-id=\"b3\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" data-j2cl-collapsed=\"true\" tabindex=\"-1\">\n");
+    sb.append("                        <header><span class=\"author\">carol@example.com</span> <time>10:12</time></header>\n");
+    sb.append("                        <button type=\"button\" class=\"collapse-toggle\" aria-expanded=\"false\" aria-controls=\"b3-replies\">Replies (2 collapsed)</button>\n");
+    sb.append("                        <p>Click to expand a collapsed thread; the depth-nav drill-in chip appears on hover.</p>\n");
+    sb.append("                        <button type=\"button\" class=\"depth-nav-chip\" data-j2cl-depth-nav-chip=\"true\" aria-label=\"Drill into this subthread\">Drill in →</button>\n");
+    sb.append("                        <div class=\"chips\" data-j2cl-chips=\"true\"><span class=\"chip task-chip\" data-j2cl-task-chip=\"true\">Task: triage replies</span></div>\n");
+    sb.append("                      </wave-blip>\n");
+    sb.append("                        <div id=\"b3-replies\" class=\"collapsed-replies\" aria-hidden=\"true\">\n");
+    sb.append("                          <wave-blip data-blip-id=\"b3r1\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                            <header><span class=\"author\">alice@example.com</span> <time>10:13</time></header>\n");
+    sb.append("                            <p>Reply 1 — collapsed by default.</p>\n");
+    sb.append("                          </wave-blip>\n");
+    sb.append("                          <wave-blip data-blip-id=\"b3r2\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                            <header><span class=\"author\">bob@example.com</span> <time>10:14</time></header>\n");
+    sb.append("                            <p>Reply 2 — collapsed by default.</p>\n");
+    sb.append("                          </wave-blip>\n");
+    sb.append("                        </div>\n");
+    sb.append("                    </div>\n");
+    sb.append("                    <wave-blip data-blip-id=\"b4\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" data-j2cl-unread=\"true\" tabindex=\"-1\">\n");
+    sb.append("                      <header><span class=\"author\">dave@example.com</span> <time>10:20</time></header>\n");
+    sb.append("                      <p>Unread blips show the cyan pulse on the badge. Attached:</p>\n");
+    sb.append("                      <div class=\"attachment-tile\" data-j2cl-attachment-tile=\"true\">📎 design-spec-v3.pdf · 4.2 MB</div>\n");
+    sb.append("                    </wave-blip>\n");
+    sb.append("                    <wave-blip data-blip-id=\"b5\" data-wave-id=\"preview-fixture-1\" data-j2cl-read-blip=\"true\" tabindex=\"-1\">\n");
+    sb.append("                      <header><span class=\"author\">eve@example.com</span> <time>10:25</time></header>\n");
+    sb.append("                      <p>End of the fixture wave. Tag row below the wave (read-only in F-2; F-3 owns add/remove).</p>\n");
+    sb.append("                    </wave-blip>\n");
+    sb.append("                    <div class=\"tags-row\" data-j2cl-tags-row=\"true\"><span class=\"tag\">design</span> <span class=\"tag\">f-2-preview</span> <span class=\"tag\">parity</span></div>\n");
+    sb.append("                  </div>\n");
+    sb.append("                  <wavy-focus-frame data-j2cl-focus-frame=\"true\"></wavy-focus-frame>\n");
+    sb.append("                </div>\n");
+  }
+
+  /**
    * Appends one design-preview section for the given theme variant.
    * Each section mounts: depth-nav crumb, focused blip card with a
    * sample {@code blip-extension} plugin, unfocused unread blip card

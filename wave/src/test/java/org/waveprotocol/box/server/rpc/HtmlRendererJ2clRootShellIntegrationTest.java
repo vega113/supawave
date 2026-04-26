@@ -22,6 +22,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import junit.framework.TestCase;
 import org.json.JSONObject;
 
@@ -207,5 +213,172 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     assertTrue(
         "Compose host must carry data-j2cl-compose-host so view-wiring can target it",
         html.contains("data-j2cl-compose-host=\"true\""));
+  }
+
+  public void testComposeHostStartsEmptyPreEdit() {
+    String html = renderSignedInPage();
+    // The compose host is a div that the controller fills with the editor
+    // toolbar wall during an active edit session. Pre-edit, it must render
+    // empty so the wavy-thread-collapse.css `:empty { display: none }` rule
+    // collapses it without a layout gap.
+    assertTrue(
+        "Compose host must SSR as a self-empty <div ...></div> so the :empty CSS rule applies",
+        html.contains(
+            "<div class=\"sidecar-selected-compose\" data-j2cl-compose-host=\"true\"></div>"));
+  }
+
+  // ---------------------------------------------------------------------
+  // F-2 slice 6 (#1058, Part A) — visible-rail regression lock.
+  //
+  // Slice 5 (#1057) marked the legacy search card with
+  // data-j2cl-legacy-search-card="hidden" but the matching CSS rule
+  // used `display: contents`, which removes the wrapper's box but
+  // keeps every child visible. The `.sidecar-digests` adoption target
+  // and `.sidecar-empty-state` paragraph painted as a duplicate light
+  // surface below the dark wavy rail.
+  //
+  // These assertions regression-lock both sides of the fix:
+  //   1. the SSR markup still carries the legacy-card marker so the
+  //      adoption path resolves;
+  //   2. the actual CSS rule uses `display: none !important`, NOT
+  //      `display: contents` — so the wrapper + every legacy-styled
+  //      child is removed from layout.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Loads the wavy-thread-collapse stylesheet so we can assert against
+   * the actual CSS rule shape. The file is shipped under
+   * {@code j2cl/lit/src/design/wavy-thread-collapse.css}; the rendered
+   * HTML links to {@code j2cl/assets/wavy-thread-collapse.css} (the
+   * built copy). We intentionally read the source-of-truth file so a
+   * regression in the design source is caught even if the build copy
+   * is stale.
+   */
+  private static String readWavyThreadCollapseCss() {
+    Path candidate = Paths.get("j2cl/lit/src/design/wavy-thread-collapse.css");
+    if (!Files.isRegularFile(candidate)) {
+      candidate = Paths.get("../j2cl/lit/src/design/wavy-thread-collapse.css");
+    }
+    if (!Files.isRegularFile(candidate)) {
+      // Fallback to classpath lookup if the build copy is on the test classpath.
+      try (InputStream in =
+          HtmlRendererJ2clRootShellIntegrationTest.class
+              .getResourceAsStream("/wavy-thread-collapse.css")) {
+        if (in != null) {
+          return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      } catch (IOException ignored) {
+        // fall through
+      }
+      throw new AssertionError(
+          "wavy-thread-collapse.css not found — run from the repo root or stage the asset");
+    }
+    try {
+      return new String(Files.readAllBytes(candidate), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new AssertionError("Could not read " + candidate + ": " + e.getMessage(), e);
+    }
+  }
+
+  public void testLegacySearchCardCssRuleHidesItVisibly() {
+    String css = readWavyThreadCollapseCss();
+    // The fix: the rule MUST use `display: none !important` so the
+    // wrapper + every adoption-target child is removed from layout.
+    assertTrue(
+        "wavy-thread-collapse.css must contain the legacy-card hide rule with display: none !important",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-search-card\\[data-j2cl-legacy-search-card=\"hidden\"\\]"
+                    + "\\s*\\{\\s*display\\s*:\\s*none\\s*!important\\s*;\\s*\\}")
+            .matcher(css)
+            .find());
+    // Regression guard: the buggy `display: contents` shape (S5)
+    // must NOT appear on this selector.
+    int markerIdx = css.indexOf("[data-j2cl-legacy-search-card=\"hidden\"]");
+    while (markerIdx >= 0) {
+      int blockStart = css.indexOf('{', markerIdx);
+      int blockEnd = css.indexOf('}', blockStart);
+      assertTrue(
+          "Block for [data-j2cl-legacy-search-card=\"hidden\"] selector must close",
+          blockStart > 0 && blockEnd > blockStart);
+      String block = css.substring(blockStart, blockEnd);
+      assertFalse(
+          "Legacy-card hide rule must not use `display: contents` — that keeps children visible",
+          block.contains("display: contents"));
+      markerIdx = css.indexOf("[data-j2cl-legacy-search-card=\"hidden\"]", blockEnd);
+    }
+  }
+
+  public void testLegacyComposeHostHasEmptyCollapseRule() {
+    String css = readWavyThreadCollapseCss();
+    assertTrue(
+        "wavy-thread-collapse.css must collapse the empty compose host to avoid a layout gap pre-edit",
+        css.contains(
+            ".sidecar-selected-compose[data-j2cl-compose-host=\"true\"]:empty"));
+  }
+
+  public void testLegacySearchFormHideRulePresent() {
+    String css = readWavyThreadCollapseCss();
+    assertTrue(
+        "Legacy search form must carry an explicit display:none rule",
+        css.contains("[data-j2cl-legacy-search-form=\"true\"]"));
+  }
+
+  public void testWavyThreadCollapseStylesheetIsLinkedFromRootShell() {
+    String html = renderSignedInPage();
+    assertTrue(
+        "Root shell page must <link> wavy-thread-collapse.css so the legacy-card hide rule applies",
+        html.contains("j2cl/assets/wavy-thread-collapse.css"));
+  }
+
+  // ---------------------------------------------------------------------
+  // F-2 slice 6 (#1058, Part B) — demo route smoke (server-side).
+  //
+  // The demo route at ?view=j2cl-root&q=read-surface-preview is a
+  // server-rendered fixture that exercises the full F-2 chrome surface
+  // for design + reviewer walkthrough. The route returns HTML similar
+  // to the regular signed-in shell but with a fixture wave pre-mounted.
+  // ---------------------------------------------------------------------
+
+  public void testReadSurfacePreviewPageRenders() {
+    String html =
+        HtmlRenderer.renderJ2clReadSurfacePreviewPage(
+            "/", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
+    assertTrue(
+        "Read-surface preview must render the wavy-search-rail in the nav slot",
+        html.contains("<wavy-search-rail"));
+    assertTrue(
+        "Read-surface preview must mount the depth-nav crumb",
+        html.contains("<wavy-depth-nav-bar"));
+    assertTrue(
+        "Read-surface preview must mount the wave-nav-row chrome",
+        html.contains("<wavy-wave-nav-row"));
+    assertTrue(
+        "Read-surface preview must mount the version-history overlay open",
+        html.contains("<wavy-version-history"));
+    assertTrue(
+        "Read-surface preview must mount the profile overlay open",
+        html.contains("<wavy-profile-overlay"));
+    assertTrue(
+        "Read-surface preview must mount the awareness pill",
+        html.contains("data-j2cl-awareness-pill=\"true\""));
+    assertTrue(
+        "Read-surface preview must include the fixture wave title in the selected card",
+        html.contains("Sample read-surface preview wave"));
+    assertTrue(
+        "Read-surface preview must render at least one wave-blip element with the fixture content",
+        html.contains("<wave-blip"));
+    assertTrue(
+        "Read-surface preview must label itself as a preview route for reviewers",
+        html.contains("data-j2cl-read-surface-preview=\"true\""));
+  }
+
+  public void testReadSurfacePreviewDoesNotShowLegacySearchCardLight() {
+    String html =
+        HtmlRenderer.renderJ2clReadSurfacePreviewPage(
+            "/", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
+    // Same no-duplicate contract as the regular root shell.
+    assertTrue(
+        "Preview route must hide the legacy search card via the same data-marker as the root shell",
+        html.contains("data-j2cl-legacy-search-card=\"hidden\""));
   }
 }

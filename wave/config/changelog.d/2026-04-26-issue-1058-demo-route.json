@@ -1,0 +1,31 @@
+{
+  "releaseId": "2026-04-26-issue-1058-demo-route",
+  "version": "F-2.S6 (#1058)",
+  "date": "2026-04-26",
+  "title": "F-2 Slice 6 — Demo route + integration polish + closeout",
+  "summary": "F-2 closeout slice. Part A fixes the slice 5 regression where the legacy `.sidecar-search-card` wrapper still painted as a duplicate light surface below the dark <wavy-search-rail>: the wavy-thread-collapse.css rule now uses `display: none !important` instead of `display: contents`, and the integration test + a new Lit fixture lock both the source-of-truth CSS shape and the computed display so the regression cannot ship again. Part B adds a server-rendered read-surface preview route at `/?view=j2cl-root&q=read-surface-preview` that mounts a five-blip fixture wave through the full F-2 chrome surface (depth-nav, focus frame on b2, collapsed thread under b3, reactions / mentions / tasks / attachment chips, awareness pill, pre-opened version-history + profile overlays) so design + reviewer walkthrough is a single URL. Closes the F-2 umbrella #1037; the per-row parity roll-up class chains every existing per-row parity test class and asserts the demo route renders.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Visible-rail regression fix (Part A): wavy-thread-collapse.css now hides the legacy `.sidecar-search-card[data-j2cl-legacy-search-card=\"hidden\"]` wrapper with `display: none !important`. Slice 5 used `display: contents`, which removed the wrapper's box but kept every child visible — so the `.sidecar-digests` adoption target and `.sidecar-empty-state` paragraph painted in legacy light styling directly below the dark wavy rail. The adoption path still works because `J2clSearchPanelView.queryRequired` resolves selectors regardless of computed visibility.",
+        "Defensive collapse on the empty compose host: `.sidecar-selected-compose[data-j2cl-compose-host=\"true\"]:empty { display: none }` so the host never inserts a layout gap before an active edit session. The `:empty` selector lets the controller un-hide naturally by appending children.",
+        "HtmlRendererJ2clRootShellIntegrationTest now reads the wavy-thread-collapse.css source and asserts the rule uses `display: none !important` (NOT `display: contents`); a Lit fixture in `j2cl/lit/test/legacy-rail-hidden.test.js` mounts the SSR'd structure inline and asserts `getComputedStyle(legacyCard).display === 'none'` plus `offsetParent === null` on every adoption-target child. Both regression-lock the bug at the source-of-truth and computed-style layers."
+      ]
+    },
+    {
+      "type": "feature",
+      "items": [
+        "Read-surface preview route (Part B): `/?view=j2cl-root&q=read-surface-preview` is a server-rendered fixture page that mounts the full F-2 chrome surface on a single URL — depth-nav, focus frame on b2, collapsed thread under b3 with depth-nav drill chip, reactions on b1, mention chip on b2, task chip on b3, unread badge + attachment tile on b4, awareness pill, pre-opened `<wavy-version-history open>` + `<wavy-profile-overlay open>` for `carol@example.com`, and the read-only tag row. Routed by `WaveClientServlet` when `?view=j2cl-root&q=read-surface-preview` and the viewer is signed in; signed-out viewers fall through to the regular shell + sign-in flow. No WaveletProvider lookup, so reviewers always see the same content.",
+        "Runbook at `docs/runbooks/j2cl-read-surface-preview.md` documents the URL, what each affordance demonstrates, the browser walkthrough, the side-by-side with `?view=gwt`, and the maintenance note that the fixture content lives only in `HtmlRenderer.renderJ2clReadSurfacePreviewPage` / `appendReadSurfacePreviewWorkflow` / `appendReadSurfacePreviewBlips`.",
+        "Final per-row parity roll-up at `J2clStageOneFinalParityTest`: a JUnit `@Suite` chain of `HtmlRendererJ2clRootShellIntegrationTest`, `J2clStageOneReadSurfaceParityTest`, `J2clStageOneFloatingOverlaysParityTest`, `J2clSearchRailParityTest`, and `J2clViewportFirstPaintParityTest`, plus a summary test that asserts every F-2 owned gate row (R-3.1, R-3.2, R-3.3, R-3.4, R-3.5, R-3.6, R-3.7, R-4.1, R-4.2, R-4.3, R-4.5, R-4.6, R-4.7, R-6.1, R-6.2, R-6.3, R-6.4, R-7.1, R-7.2, R-7.3, R-7.4) has at least one passing assertion in its owner class, and that the demo route mounts the full chrome surface. R-4.4 mark-blip-read remains deferred to F-4 (#1056)."
+      ]
+    },
+    {
+      "type": "feature",
+      "items": [
+        "Closes #1037 (F-2 umbrella). PRs in the umbrella: F-2.S1 #1045, F-2.S2 #1053, F-2.S3 #1049, F-2.S4 #1052, F-2.S5 #1057, F-2.S6 (this PR)."
+      ]
+    }
+  ]
+}

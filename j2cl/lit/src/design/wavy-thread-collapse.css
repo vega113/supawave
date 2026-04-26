@@ -52,17 +52,47 @@ wavy-search-rail .waveform > svg {
   height: 14px;
 }
 
-/* F-2 slice 5 (#1055, A.1) — hide the legacy "Hosted workflow" search
- * card (now superseded by <wavy-search-rail> in the nav slot). The card
- * wrapper stays in the DOM so J2clSearchPanelView can adopt the inputs
- * + digest list, but its visible chrome collapses. The nested digests
- * + empty-state list opt back in below. */
+/* F-2 slice 6 (#1058, A.1) — visibly hide the legacy "Hosted workflow"
+ * search card (superseded by <wavy-search-rail> in the nav slot). The
+ * card wrapper stays in the DOM so J2clSearchPanelView's
+ * `queryRequired(card, ".sidecar-digests")` adoption still resolves,
+ * but the entire subtree is removed from layout so the legacy
+ * sidecar-styled digest items + empty-state copy never paint as a
+ * duplicate light surface below the dark wavy rail.
+ *
+ * Slice 5 (#1057) used `display: contents` here, which removes the
+ * wrapper's box but keeps every child visible — so `sidecar-digests`
+ * (the adoption target J2clSearchPanelView writes digest cards into)
+ * and `sidecar-empty-state` (the "Search results will appear here."
+ * copy) still painted in light styling. The integration test only
+ * checked the `data-j2cl-legacy-search-card="hidden"` attribute was
+ * present, not visual invisibility, so the regression shipped. The
+ * Lit fixture in `j2cl/lit/test/legacy-rail-hidden.test.js` and the
+ * tightened HtmlRendererJ2clRootShellIntegrationTest assertions now
+ * regression-lock both the CSS rule shape and the computed display.
+ *
+ * !important is required because the wavy-search-rail is the canonical
+ * surface; no future per-child override should be able to re-introduce
+ * a visible legacy-light digest list below the rail. */
 .sidecar-search-card[data-j2cl-legacy-search-card="hidden"] {
-  display: contents;
+  display: none !important;
 }
 
-.sidecar-search-card[data-j2cl-legacy-search-card="hidden"]
-  > [data-j2cl-legacy-search-form="true"] {
+/* Compatibility: the legacy form already carries the `hidden` HTML
+ * attribute, but keep the explicit selector in case a future
+ * adoption path re-parents the form outside the hidden wrapper. */
+[data-j2cl-legacy-search-form="true"] {
+  display: none;
+}
+
+/* F-2 slice 6 (#1058) — defensive collapse on the compose host. The
+ * `data-j2cl-compose-host="true"` div hosts the legacy editor toolbar
+ * wall only when J2clSelectedWaveView un-hides it during an active
+ * edit session. While empty (the default state), it should not insert
+ * a layout gap above the read surface. The `:empty` selector lets the
+ * controller un-hide by appending children — the rule then no longer
+ * matches and the host expands naturally. */
+.sidecar-selected-compose[data-j2cl-compose-host="true"]:empty {
   display: none;
 }
 

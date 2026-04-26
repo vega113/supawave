@@ -75,14 +75,18 @@ describe("<wavy-header>", () => {
     expect(cssText).to.match(/\.dot\.violet\s*\{[^}]*var\(--wavy-signal-violet/);
   });
 
-  it("mail icon links to /?q=in:inbox (A.6)", async () => {
+  it("mail icon links to /?view=j2cl-root&q=in:inbox (A.6)", async () => {
     const el = await fixture(
       html`<wavy-header signed-in data-address="alice@example.com"></wavy-header>`
     );
     await el.updateComplete;
     const mail = el.renderRoot.querySelector("a.mail");
     expect(mail).to.exist;
-    expect(mail.getAttribute("href")).to.equal("/?q=in:inbox");
+    // F-2 slice 6 (#1058): the mail icon must keep the J2CL view selector
+    // so signed-in users stay on the wavy chrome rather than being kicked
+    // back to the legacy GWT route. The source-of-truth href is
+    // `${base}?view=j2cl-root&q=in:inbox` in wavy-header.js.
+    expect(mail.getAttribute("href")).to.equal("/?view=j2cl-root&q=in:inbox");
     expect(mail.getAttribute("aria-label")).to.equal("Inbox");
   });
 

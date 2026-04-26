@@ -166,6 +166,32 @@ public class WaveClientServlet extends HttpServlet {
 
     if (VIEW_J2CL_ROOT.equals(requestedView)
         || (StringUtils.isEmpty(requestedView) && j2clRootBootstrapEnabled)) {
+      // F-2 slice 6 (#1058, Part B): signed-in read-surface preview
+      // route reachable at ?view=j2cl-root&q=read-surface-preview. The
+      // route is server-only — no WaveletProvider lookup, no live
+      // session — so reviewers and design contributors always see the
+      // same fixture content. Signed-out viewers fall through to the
+      // regular shell so the sign-in flow handles them.
+      if ("read-surface-preview".equals(request.getParameter("q")) && id != null) {
+        response.setContentType("text/html");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "private, no-store");
+        response.setHeader("Vary", "Cookie");
+        response.setStatus(HttpServletResponse.SC_OK);
+        try (var w = response.getWriter()) {
+          w.write(HtmlRenderer.renderJ2clReadSurfacePreviewPage(
+              request.getContextPath(),
+              buildCommit,
+              serverBuildTime,
+              currentReleaseId,
+              id.getAddress(),
+              resolveWebsocketAddressForPage(request, true))); // codeql[java/xss]
+        } catch (IOException e) {
+          LOG.warning("Failed to render J2CL read-surface preview page", e);
+          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+        return;
+      }
       // F-0 (#1035): admin-or-owner gated design preview sub-branch.
       // Reachable at ?view=j2cl-root&q=design-preview per issue body
       // §Verification. A non-admin requesting q=design-preview falls

@@ -222,6 +222,7 @@ export class WavySearchHelp extends LitElement {
         this._lastFocused = this._deepActiveElement();
         // Move focus to the first focusable element inside the modal.
         this.updateComplete.then(() => {
+          if (!this.open) return;
           const first = this._focusable()[0];
           if (first) first.focus();
         });

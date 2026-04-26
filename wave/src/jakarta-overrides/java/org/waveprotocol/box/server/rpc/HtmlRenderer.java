@@ -3657,7 +3657,9 @@ public final class HtmlRenderer {
         .append(escapedAddress)
         .append("\" user-name=\"")
         .append(escapedAddress)
-        .append("\" unread-count=\"0\">\n");
+        .append("\" unread-count=\"0\" base-path=\"")
+        .append(safeBasePath)
+        .append("\">\n");
     sb.append("      <a class=\"brand\" href=\"")
         .append(safeBasePath)
         .append("\" aria-label=\"SupaWave home\">")

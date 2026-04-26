@@ -33,7 +33,8 @@ export class WavyHeader extends LitElement {
     locale: { type: String, reflect: true },
     address: { type: String, attribute: "data-address", reflect: true },
     userName: { type: String, attribute: "user-name" },
-    unreadCount: { type: Number, attribute: "unread-count" }
+    unreadCount: { type: Number, attribute: "unread-count" },
+    basePath: { type: String, attribute: "base-path" }
   };
 
   // Locale set re-derived from the GWT locale build set; matches the
@@ -151,6 +152,14 @@ export class WavyHeader extends LitElement {
     this.address = "";
     this.userName = "";
     this.unreadCount = 0;
+    this.basePath = "/";
+  }
+
+  _normalizedBasePath() {
+    const raw = (this.basePath || "/").trim();
+    if (!raw || raw === "/") return "/";
+    const withLeading = raw.startsWith("/") ? raw : `/${raw}`;
+    return withLeading.endsWith("/") ? withLeading.slice(0, -1) : withLeading;
   }
 
   _initials() {
@@ -194,8 +203,9 @@ export class WavyHeader extends LitElement {
   render() {
     const initials = this._initials();
     const hasUnread = (this.unreadCount || 0) > 0;
+    const base = this._normalizedBasePath();
     return html`
-      <a class="brand" href="/" aria-label="SupaWave home">
+      <a class="brand" href=${base} aria-label="SupaWave home">
         <span class="brand-dot" aria-hidden="true"></span>
         <span class="brand-text">SupaWave</span>
       </a>
@@ -228,7 +238,7 @@ export class WavyHeader extends LitElement {
               <span class="dot violet" ?hidden=${!hasUnread} aria-hidden="true"></span>
             </button>
 
-            <a class="mail" href="/?q=in:inbox" aria-label="Inbox">
+            <a class="mail" href=${`${base}?q=in:inbox`} aria-label="Inbox">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
                 <rect x="2" y="3.5" width="12" height="9" rx="1.4"/>
                 <path d="M2.5 4.5l5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"/>

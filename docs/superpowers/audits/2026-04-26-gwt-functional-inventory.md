@@ -2,6 +2,7 @@
 
 Status: Final — input to F-2 / F-3 / F-4 acceptance criteria  
 Source: live `https://supawave.ai/?view=gwt` accessibility tree + screen capture (signed-in account `vega@supawave.ai`)  
+Ref notation: identifiers such as ref_1, ref_4, ref_28 are sequential accessibility-tree node IDs from the live session export; the full id → element mapping is in the exported accessibility node list captured alongside the screen capture.  
 Companion: `2026-04-26-j2cl-gwt-parity-audit.md`
 
 ## Why this exists
@@ -252,6 +253,6 @@ When a blip enters edit mode (or when the inline reply composer is active), the 
 2. → Update F-2 (#1037) issue body to enumerate affordances under its ownership and to add a new acceptance row **R-3.7 Arbitrary-depth drill-down navigation** with G.1–G.6 as concrete affordances.
 3. → Update F-3 (#1038) issue body to enumerate affordances under its ownership including the full edit-mode toolbar (H.1–H.24), tag affordances (I.1–I.6), and "Send Message" (L.2).
 4. → Update F-2 (#1037) to reference C.* search-help and B.* saved-search affordances explicitly so reviewers cannot accept "practical search parity" without the help modal + saved-search rail.
-5. → Update F-1 (#1036) data-path scope to confirm fragment-window contract supports fragmenting along the depth axis (G.1 prerequisite).
+5. → Update F-1 (#1036) data-path scope to confirm fragment-window contract supports fragmenting along the depth axis (G.1 prerequisite; see §G opening paragraph: "replaces the depth-clamp UI with infinite-depth support … load the subthread under a chosen blip without loading sibling subthreads").
 6. → Update F-0 (#1035) to specify the plugin slot points as M.2–M.5 with the slot-context contracts described above.
 7. → Generate Stitch screens for: Edit-mode toolbar in detail; Search-help modal + saved-search rail; Depth-navigation pattern.

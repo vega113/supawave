@@ -2215,6 +2215,111 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals("b+root", writeSession.getReplyTargetBlipId());
   }
 
+  // -- F-2 (#1037) per-blip metadata enrichment --------------------------------
+
+  @Test
+  public void documentReadBlipsCarryAuthorTimestampMention() {
+    SidecarAnnotationRange mention =
+        new SidecarAnnotationRange("mention/me", "alice@example.com", 0, 5);
+    SidecarSelectedWaveDocument doc =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714134000000L,
+            "Hello @alice",
+            Arrays.asList(mention),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                7L,
+                "HASH",
+                Arrays.asList("alice@example.com"),
+                Arrays.asList(doc),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("b+root", blip.getBlipId());
+    Assert.assertEquals("Hello @alice", blip.getText());
+    Assert.assertEquals("alice@example.com", blip.getAuthorId());
+    Assert.assertEquals("alice@example.com", blip.getAuthorDisplayName());
+    Assert.assertEquals(1714134000000L, blip.getLastModifiedTimeMillis());
+    Assert.assertTrue("annotation key 'mention/me' marks the blip as a mention", blip.hasMention());
+  }
+
+  @Test
+  public void viewportReadBlipsAreEnrichedWithDocumentMetadata() {
+    // Viewport-shaped fragment payload (no per-blip metadata) PLUS the same
+    // wire-update carrying a document for the same blip — F-2 grafts the
+    // document's author + timestamp + mention onto the viewport-derived blip.
+    SidecarSelectedWaveDocument doc =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "bob@example.com",
+            42L,
+            1714240000000L,
+            "Body",
+            Collections.<SidecarAnnotationRange>emptyList(),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                42L,
+                "HASH",
+                Arrays.asList("bob@example.com"),
+                Arrays.asList(doc),
+                new SidecarSelectedWaveFragments(
+                    42L,
+                    0L,
+                    42L,
+                    Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 42L)),
+                    Arrays.asList(new SidecarSelectedWaveFragment("blip:b+root", "Body", 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("b+root", blip.getBlipId());
+    Assert.assertEquals("Body", blip.getText());
+    Assert.assertEquals("bob@example.com", blip.getAuthorId());
+    Assert.assertEquals(1714240000000L, blip.getLastModifiedTimeMillis());
+    Assert.assertFalse(blip.hasMention());
+  }
+
+  @Test
+  public void enrichReadBlipMetadataReturnsInputWhenInputsAreEmpty() {
+    Assert.assertSame(
+        Collections.<J2clReadBlip>emptyList(),
+        J2clSelectedWaveProjector.enrichReadBlipMetadata(
+            Collections.<J2clReadBlip>emptyList(),
+            Collections.<SidecarSelectedWaveDocument>emptyList()));
+
+    java.util.List<J2clReadBlip> blips =
+        Arrays.asList(new J2clReadBlip("b+x", "y"));
+    Assert.assertSame(
+        blips,
+        J2clSelectedWaveProjector.enrichReadBlipMetadata(
+            blips, Collections.<SidecarSelectedWaveDocument>emptyList()));
+  }
+
   // -- Helpers ----------------------------------------------------------------
 
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {

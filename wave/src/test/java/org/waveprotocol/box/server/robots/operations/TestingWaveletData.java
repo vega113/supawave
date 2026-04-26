@@ -99,6 +99,13 @@ public class TestingWaveletData {
     TitleHelper.maybeFindAndSetImplicitTitle(blip.getContent());
   }
 
+  public ConversationBlip appendBlipWithTextAndReturn(String text) {
+    ConversationBlip blip = conversation.getRootThread().appendBlip();
+    LineContainers.appendToLastLine(blip.getContent(), XmlStringBuilder.createText(text));
+    TitleHelper.maybeFindAndSetImplicitTitle(blip.getContent());
+    return blip;
+  }
+
   /**
    * Appends a blip whose body content is constructed from raw XML. Use this
    * to inject elements like {@code <check value="true"/>} into test blips.

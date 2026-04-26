@@ -57,6 +57,7 @@ import org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
+import org.waveprotocol.wave.model.conversation.ConversationBlip;
 import org.waveprotocol.wave.model.operation.wave.TransformedWaveletDelta;
 import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -298,9 +299,18 @@ public final class J2clStageOneReadSurfaceParityTest {
   private static List<ObservableWaveletData> buildWaveletData(int blipCount) {
     TestingWaveletData data =
         new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
+    ConversationBlip parentBlip = null;
     for (int i = 0; i < blipCount; i++) {
-      data.appendBlipWithText(
+      ConversationBlip blip = data.appendBlipWithTextAndReturn(
           "Lorem ipsum dolor sit amet, consectetur adipiscing elit, blip " + i);
+      if (i == 0) {
+        parentBlip = blip;
+      }
+    }
+    // Add one inline reply so the server-rendered HTML exercises the
+    // threaded (non-root) path (R-3.3 data-thread-id on nested thread).
+    if (parentBlip != null) {
+      parentBlip.addReplyThread().appendBlip();
     }
     return data.copyWaveletData();
   }

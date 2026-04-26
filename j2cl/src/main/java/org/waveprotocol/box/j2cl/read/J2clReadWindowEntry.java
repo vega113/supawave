@@ -208,7 +208,8 @@ public final class J2clReadWindowEntry {
   }
 
   public String getAuthorDisplayName() {
-    return authorDisplayName.isEmpty() ? authorId : authorDisplayName;
+    String trimmed = authorDisplayName.trim();
+    return trimmed.isEmpty() ? authorId : trimmed;
   }
 
   public long getLastModifiedTimeMillis() {

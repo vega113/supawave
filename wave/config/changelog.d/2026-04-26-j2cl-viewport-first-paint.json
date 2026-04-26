@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-26-j2cl-viewport-first-paint",
+  "version": "F-1 (#1036)",
+  "date": "2026-04-26",
+  "title": "Viewport-Scoped J2CL Read Surface",
+  "summary": "The J2CL root shell now delivers a viewport-clamped first paint of the selected wave and surfaces viewport telemetry counters so dashboards can see initial-window, extension, clamp, and snapshot-fallback events.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Server-rendered first paint of the J2CL root shell clamps to the configured viewport limit (default 5 root-thread blips) and appends a visible-region terminal placeholder for AT continuity.",
+        "Server HTML now declares per-blip role (listitem/article), per-thread role (list/group), and a single tabindex=0 on the first root-thread blip so the static HTML is keyboard-navigable before client boot.",
+        "J2CL client emits four new telemetry events on every selected-wave open: viewport.initial_window, viewport.extension_fetch (+ outcome), viewport.clamp_applied, viewport.fallback_to_whole_wave.",
+        "Cold-mount selected-wave surfaces now emit a shell_swap event with reason=cold-mount so dashboards see the J2CL surface mounting content for the first time, with or without a server-first card."
+      ]
+    }
+  ]
+}

@@ -11,6 +11,8 @@ const BOT_REVIEWER_LOGINS = new Set([
   "copilot-pull-request-reviewer[bot]",
   "github-advanced-security",
   "codex",
+  "chatgpt-codex-connector",
+  "chatgpt-codex-connector[bot]",
 ]);
 
 function evaluateCodexReviewGate({

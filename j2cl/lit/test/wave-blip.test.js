@@ -188,6 +188,64 @@ describe("<wave-blip>", () => {
     expect(time.getAttribute("datetime")).to.equal("2026-04-26T12:00:00Z");
   });
 
+  it("omits the datetime attribute entirely when postedAtIso is empty", async () => {
+    // Empty datetime="" is invalid HTML and confuses ATs / validators. The
+    // wrapper must skip the attribute (via lit's ifDefined directive)
+    // rather than emit an empty string.
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b9b"
+        data-wave-id="w9b"
+        author-name="E"
+        posted-at="Blip b+9b"
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    const time = el.renderRoot.querySelector("time.posted");
+    expect(time).to.exist;
+    expect(time.hasAttribute("datetime")).to.be.false;
+  });
+
+  it("Link button builds a permalink that preserves view=j2cl-root and uses a fragment for the blip", async () => {
+    // The server only recognises the `wave` query param. The previous
+    // implementation built `?wave=...&blip=...`, which dropped the
+    // `view=j2cl-root` shell route and used an unsupported `blip` query
+    // param. The permalink must round-trip through the J2CL root shell and
+    // anchor to this blip via the URL fragment.
+    const originalHref = window.location.href;
+    const baseUrl = new URL(window.location.href);
+    baseUrl.search = "?view=j2cl-root";
+    baseUrl.hash = "";
+    history.replaceState(null, "", baseUrl.toString());
+    try {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b+link"
+          data-wave-id="example.com/w+w1"
+          author-name="A"
+        ></wave-blip>
+      `);
+      await el.updateComplete;
+      setTimeout(() => {
+        const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+        toolbar.dispatchEvent(
+          new CustomEvent("wave-blip-toolbar-link", {
+            bubbles: true,
+            composed: true
+          })
+        );
+      }, 0);
+      const ev = await oneEvent(el, "wave-blip-link-copied");
+      const url = new URL(ev.detail.url);
+      expect(url.searchParams.get("view")).to.equal("j2cl-root");
+      expect(url.searchParams.get("wave")).to.equal("example.com/w+w1");
+      expect(url.searchParams.has("blip")).to.be.false;
+      expect(url.hash).to.equal("#blip-b+link");
+    } finally {
+      history.replaceState(null, "", originalHref);
+    }
+  });
+
   it("blipView getter returns a frozen snapshot mirroring the F-0 plugin contract", async () => {
     const el = await fixture(html`
       <wave-blip

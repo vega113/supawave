@@ -83,6 +83,7 @@ export class WaveBlip extends LitElement {
       pointer-events: none;
     }
     :host([focused]) .toolbar,
+    :host(:focus-within) .toolbar,
     :host(:hover) .toolbar,
     .toolbar:focus-within {
       opacity: 1;
@@ -287,6 +288,11 @@ export class WaveBlip extends LitElement {
     if (typeof window === "undefined" || !window.location) {
       return "";
     }
+    // Start from the current href so we preserve view=j2cl-root (and any
+    // other shell-recognised query params like q=). The server only
+    // recognises the `wave` query parameter today; carry the per-blip
+    // anchor in the URL fragment instead of an unsupported `blip` param so
+    // the copied permalink restores the J2CL view AND points at this blip.
     const url = new URL(window.location.href);
     if (this.waveId) {
       url.searchParams.set("wave", this.waveId);
@@ -294,6 +300,7 @@ export class WaveBlip extends LitElement {
       url.searchParams.delete("wave");
     }
     url.searchParams.delete("blip");
+    url.hash = this.blipId ? `blip-${this.blipId}` : "";
     return url.toString();
   }
 

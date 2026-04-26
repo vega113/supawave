@@ -382,8 +382,13 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private static double currentTimeMs() {
+    // Prefer the high-resolution monotonic clock when available; fall back to
+    // the system wall clock via JsDate so environments without
+    // performance.now() (older test harnesses, certain WebViews) still report
+    // a real timestamp instead of zero — otherwise every relative timestamp
+    // would render as "just now".
     return DomGlobal.performance == null
-        ? DomGlobal.Date.now()
+        ? new elemental2.core.JsDate().getTime()
         : DomGlobal.performance.timeOrigin + DomGlobal.performance.now();
   }
 
@@ -969,7 +974,11 @@ public final class J2clReadSurfaceDomRenderer {
   private static boolean sameReadBlip(J2clReadBlip left, J2clReadBlip right) {
     return left.getBlipId().equals(right.getBlipId())
         && left.getText().equals(right.getText())
-        && left.getAttachments().equals(right.getAttachments());
+        && left.getAttachments().equals(right.getAttachments())
+        && left.getAuthorId().equals(right.getAuthorId())
+        && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
+        && left.isUnread() == right.isUnread()
+        && left.hasMention() == right.hasMention();
   }
 
   private boolean matchesRenderedWindowEntries(List<J2clReadWindowEntry> entries) {
@@ -995,7 +1004,11 @@ public final class J2clReadSurfaceDomRenderer {
         && left.getSegment().equals(right.getSegment())
         && left.getBlipId().equals(right.getBlipId())
         && left.getText().equals(right.getText())
-        && left.getAttachments().equals(right.getAttachments());
+        && left.getAttachments().equals(right.getAttachments())
+        && left.getAuthorId().equals(right.getAuthorId())
+        && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
+        && left.isUnread() == right.isUnread()
+        && left.hasMention() == right.hasMention();
   }
 
   private HTMLElement renderedBlipById(String blipId) {

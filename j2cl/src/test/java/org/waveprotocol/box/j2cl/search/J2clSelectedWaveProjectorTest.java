@@ -2320,6 +2320,48 @@ public class J2clSelectedWaveProjectorTest {
             blips, Collections.<SidecarSelectedWaveDocument>emptyList()));
   }
 
+  @Test
+  public void enrichReadBlipMetadataPreservesParentAndThreadLinkage() {
+    // F-2 (#1037, R-3.7) — the helper is meant to *enrich* viewport-derived
+    // read blips with author + last-modified + mention metadata sourced
+    // from the matching SidecarSelectedWaveDocument. It must not erase the
+    // parentBlipId / threadId already carried on the read blip — the
+    // projector's metadata source does not know about thread linkage and
+    // wiping those fields breaks R-3.7 depth-nav drill-in / inline-reply
+    // chip rendering.
+    J2clReadBlip blipWithLinkage =
+        new J2clReadBlip(
+            "b+child",
+            "Reply text",
+            Collections.<org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "b+parent",
+            /* threadId= */ "t+inline",
+            /* unread= */ false,
+            /* hasMention= */ false);
+
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+child",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Reply text");
+
+    java.util.List<J2clReadBlip> enriched =
+        J2clSelectedWaveProjector.enrichReadBlipMetadata(
+            Arrays.asList(blipWithLinkage), Arrays.asList(document));
+
+    Assert.assertEquals(1, enriched.size());
+    J2clReadBlip out = enriched.get(0);
+    Assert.assertEquals("alice@example.com", out.getAuthorId());
+    Assert.assertEquals(1714240000000L, out.getLastModifiedTimeMillis());
+    Assert.assertEquals("b+parent", out.getParentBlipId());
+    Assert.assertEquals("t+inline", out.getThreadId());
+  }
+
   // -- Helpers ----------------------------------------------------------------
 
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {

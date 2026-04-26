@@ -49,9 +49,22 @@ export class WavyPulseStage extends LitElement {
   constructor() {
     super();
     this.targetSelector = "wavy-blip-card";
+    this._pulseTimer = null;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._pulseTimer !== null) {
+      clearTimeout(this._pulseTimer);
+      this._pulseTimer = null;
+    }
   }
 
   firePulse() {
+    if (this._pulseTimer !== null) {
+      clearTimeout(this._pulseTimer);
+      this._pulseTimer = null;
+    }
     const target = this.querySelector(this.targetSelector);
     if (!target) return;
     target.removeAttribute("live-pulse");
@@ -64,7 +77,10 @@ export class WavyPulseStage extends LitElement {
       : raw.endsWith("s")
         ? parseFloat(raw) * 1000
         : 600;
-    setTimeout(() => target.removeAttribute("live-pulse"), Math.max(ms, 1) + 50);
+    this._pulseTimer = setTimeout(() => {
+      target.removeAttribute("live-pulse");
+      this._pulseTimer = null;
+    }, Math.max(ms, 1) + 50);
   }
 
   render() {

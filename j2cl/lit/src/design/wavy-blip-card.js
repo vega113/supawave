@@ -84,7 +84,7 @@ export class WavyBlipCard extends LitElement {
     }
     /* The blip-extension slot wrapper — empty in production, dashed
      * outline with label when the document is in design preview. */
-    .ext-slot-wrapper:not(:has(slot[name="blip-extension"]:empty)) {
+    :host(:has([slot="blip-extension"])) .ext-slot-wrapper {
       display: block;
       margin-top: var(--wavy-spacing-3, 12px);
     }
@@ -108,7 +108,7 @@ export class WavyBlipCard extends LitElement {
     }
     /* Plugin opt-out: a slotted root with data-wavy-plugin-untheme
      * suppresses the inner glow border so the plugin paints its own. */
-    :host(:has(.ext-slot-wrapper [data-wavy-plugin-untheme])) {
+    :host(:has([slot="blip-extension"][data-wavy-plugin-untheme])) {
       border-color: transparent;
     }
   `;

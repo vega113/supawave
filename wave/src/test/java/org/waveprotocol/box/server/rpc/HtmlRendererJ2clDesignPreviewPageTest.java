@@ -58,7 +58,8 @@ public final class HtmlRendererJ2clDesignPreviewPageTest extends TestCase {
 
   public void testEmitsAllThreeThemeSections() {
     String html = HtmlRenderer.renderJ2clDesignPreviewPage("/", "commit", 0L, "rel");
-    // Dark variant has no data-wavy-theme attribute (default scope).
+    assertTrue("dark variant section attribute",
+        html.contains("data-wavy-theme=\"dark\""));
     assertTrue("dark variant section header", html.contains("Dark variant"));
     assertTrue("light variant section attribute",
         html.contains("data-wavy-theme=\"light\""));

@@ -3508,7 +3508,7 @@ public final class HtmlRenderer {
     sb.append("  <h1>Wavy design preview</h1>\n");
     sb.append("  <p>Reference layout for the F-0 design packet (issue #1035). See <code>docs/j2cl-plugin-slots.md</code> for the slot contract and <code>j2cl/lit/src/design/README.md</code> for the design system source of truth. Variants below: dark (default), light, and high-contrast.</p>\n");
     sb.append("</header>\n");
-    appendDesignPreviewSection(sb, "Dark variant", null);
+    appendDesignPreviewSection(sb, "Dark variant", "dark");
     appendDesignPreviewSection(sb, "Light variant", "light");
     appendDesignPreviewSection(sb, "High-contrast variant", "contrast");
     sb.append("</body>\n</html>\n");

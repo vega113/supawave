@@ -1,11 +1,19 @@
 # J2CL ↔ GWT Parity Audit (2026-04-26)
 
-Status: Final  
+Status: Final — follow-up chain filed 2026-04-26  
 Audited by: J2CL parity lead session  
 Audited against: `docs/j2cl-gwt-parity-matrix.md` (Updated 2026-04-22)  
 Live deployment: `https://supawave.ai/`  
 Build: `e66ce6013` (post-#1033 merge)  
 Account: `vega@supawave.ai` (signed-in, `j2cl-root-bootstrap` feature flag enabled)
+
+Follow-up issues filed against this audit (each cites specific matrix row IDs as hard acceptance):
+
+- [#1035](https://github.com/vega113/supawave/issues/1035) F-0: Refresh Lit design packet for wavy aesthetic + plugin slot contracts
+- [#1036](https://github.com/vega113/supawave/issues/1036) F-1: Re-execute viewport-scoped J2CL read-surface data path
+- [#1037](https://github.com/vega113/supawave/issues/1037) F-2: Re-execute J2CL StageOne read surface (threaded blip rendering, focus, collapse, read/unread)
+- [#1038](https://github.com/vega113/supawave/issues/1038) F-3: Re-execute J2CL StageThree compose surface (inline rich-text editor, mentions, tasks, reactions, attachments)
+- [#1039](https://github.com/vega113/supawave/issues/1039) F-4: J2CL live read/unread state + feature activation visibility
 
 ## 1. Why this audit exists
 

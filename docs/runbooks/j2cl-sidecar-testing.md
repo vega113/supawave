@@ -214,8 +214,8 @@ curl -fsS -H 'Accept: application/json' http://localhost:9900/bootstrap.json | j
 
 Expected top-level keys and fields:
 
-- `session.domain` — always present
-- `session.address` / `session.role` / `session.features` — present only when signed in
+- `session.domain` / `session.role` — always present
+- `session.address` / `session.features` — present only when signed in
 - `/bootstrap.json` intentionally omits `SessionConstants.ID_SEED`; that volatile HTML `session.id` seed remains only in the legacy inline `window.__session` bootstrap during the #978 overlap window
 - `socket.address` — the presented WebSocket `host:port`
 - `shell.buildCommit`, `shell.serverBuildTime`, `shell.currentReleaseId`, `shell.routeReturnTarget`

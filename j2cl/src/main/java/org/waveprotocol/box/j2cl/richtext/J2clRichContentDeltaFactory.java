@@ -117,6 +117,11 @@ public final class J2clRichContentDeltaFactory {
    * still serialises with an empty-string value field
    * (`{"1":"task/assignee","3":""}`) and the GWT reader treats the
    * empty string as the "unset" sentinel.
+   *
+   * <p>{@code dueDate} must already be a numeric epoch-millis string (or empty).
+   * The caller — {@code J2clComposeSurfaceView} — converts the raw YYYY-MM-DD
+   * date-input value to epoch millis before invoking this method so that the
+   * reader path ({@code J2clInteractionBlipModel#parseLong}) can round-trip it.
    */
   public SidecarSubmitRequest taskMetadataRequest(
       String address,

@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.compose;
 
 import elemental2.core.JsArray;
+import elemental2.core.JsDate;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Event;
 import elemental2.dom.File;
@@ -158,7 +159,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           if (listener == null) return;
           String blipId = eventDetailString(event, "blipId");
           String assignee = eventDetailString(event, "assigneeAddress");
-          String due = eventDetailString(event, "dueDate");
+          String due = dueDateToEpochMs(eventDetailString(event, "dueDate"));
           listener.onTaskMetadataChanged(blipId, assignee, due);
         });
     DomGlobal.document.body.addEventListener(
@@ -422,6 +423,22 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   private static Object eventDetail(Event event) {
     return Js.asPropertyMap(event).get("detail");
+  }
+
+  /**
+   * Converts a YYYY-MM-DD date string (from an HTML date input) to a UTC midnight epoch-millis
+   * string so that the written task/dueTs annotation is a numeric timestamp that
+   * J2clInteractionBlipModel#parseLong can round-trip.  Returns "" for blank or unparseable input.
+   */
+  private static String dueDateToEpochMs(String yyyyMmDd) {
+    if (yyyyMmDd == null || yyyyMmDd.trim().isEmpty()) {
+      return "";
+    }
+    double ms = new JsDate(yyyyMmDd.trim()).getTime();
+    if (Double.isNaN(ms)) {
+      return "";
+    }
+    return String.valueOf((long) ms);
   }
 
   private static List<J2clComposeSurfaceController.AttachmentFileSelection> fileSelections(

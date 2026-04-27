@@ -213,10 +213,10 @@ public final class J2clStageThreeComposeS2ParityTest {
         "task toggle must emit the task/done annotation key",
         factory.contains("\"task/done\""));
     assertTrue(
-        "J2clRichContentDeltaFactory must expose taskMetadataRequest with task/owner + task/due",
+        "J2clRichContentDeltaFactory must expose taskMetadataRequest with task/assignee + task/dueTs",
         factory.contains("taskMetadataRequest")
-            && factory.contains("\"task/owner\"")
-            && factory.contains("\"task/due\""));
+            && factory.contains("\"task/assignee\"")
+            && factory.contains("\"task/dueTs\""));
   }
 
   @Test

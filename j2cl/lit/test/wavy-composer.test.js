@@ -792,6 +792,38 @@ describe("<wavy-composer> R-5.3 mentions", () => {
       el.remove();
     });
 
+    it("preserves mention chip inside a <ul> list item", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<ul><li>Hello <span class="wavy-mention-chip" data-mention-id="u1">@Alice</span> world</li></ul>';
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      // The mention chip must survive as a link/manual component, not be
+      // swallowed by the list's textContent serialization.
+      const mention = annotated.find(c => c.annotationKey === "link/manual");
+      expect(mention).to.exist;
+      expect(mention.text).to.equal("@Alice");
+      expect(mention.annotationValue).to.equal("u1");
+      el.remove();
+    });
+
+    it("preserves mention chip inside a <blockquote>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<blockquote>See <span class="wavy-mention-chip" data-mention-id="u2">@Bob</span></blockquote>';
+      const components = el.serializeRichComponents();
+      const mention = components.find(
+        c => c.type === "annotated" && c.annotationKey === "link/manual"
+      );
+      expect(mention).to.exist;
+      expect(mention.annotationValue).to.equal("u2");
+      el.remove();
+    });
+
     it("emits a link/manual component carrying href for <a>", async () => {
       const el = await fixture(html`<wavy-composer available></wavy-composer>`);
       document.body.appendChild(el);

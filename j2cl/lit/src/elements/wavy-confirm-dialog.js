@@ -161,10 +161,20 @@ export class WavyConfirmDialog extends LitElement {
       return;
     }
     if (event.key === "Enter") {
-      // Only catch Enter when the dialog has focus to avoid stealing
-      // the keystroke from a contenteditable elsewhere.
-      const active = document.activeElement;
-      if (active && this.contains(active)) {
+      // In a real browser, keydown fires on the focused element and
+      // bubbles up.  event.composedPath()[0] is therefore the element
+      // that physically received the key — the same as the focused
+      // element — even across Shadow DOM boundaries.  Using this rather
+      // than document.activeElement / shadowRoot.activeElement avoids
+      // the shadow-host indirection: Enter only confirms when the
+      // confirm button itself is the key origin (not the cancel button).
+      const path = event.composedPath ? event.composedPath() : [];
+      const keyOrigin = path[0];
+      if (
+        keyOrigin &&
+        keyOrigin.getAttribute &&
+        keyOrigin.getAttribute("data-confirm-action") === "confirm"
+      ) {
         event.preventDefault();
         this._resolve(true);
       }

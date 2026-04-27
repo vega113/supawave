@@ -836,7 +836,7 @@ public final class J2clComposeSurfaceController {
     final J2clSidecarWriteSession submitSession = writeSession;
     gateway.fetchRootSessionBootstrap(
         (SidecarSessionBootstrap bootstrap) -> {
-          if (signedOut || writeSession != submitSession) {
+          if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             recordBlipDeleteTelemetry("session-changed");
             return;
           }

@@ -603,68 +603,71 @@ export class WavyComposer extends LitElement {
           });
           continue;
         }
-        // F-3.S4 (#1038, R-5.7): bulleted list. Each <li> contributes
-        // an annotated component keyed by `list/unordered`; the
-        // annotation value is the literal "true" so the controller's
-        // delta-builder writes a list-item annotation start/end pair.
+        // F-3.S4 (#1038, R-5.7): list helpers.  Each <li> is walked
+        // recursively so that mention chips inside list items survive
+        // round-trip serialization.  Plain text items are promoted to
+        // the list annotation; rich components (mention/link) are
+        // passed through unchanged so their own annotation is preserved.
+        const walkListItems = (listNode, annotationKey) => {
+          flushText();
+          for (const itemNode of listNode.childNodes) {
+            if (
+              itemNode.nodeType === Node.ELEMENT_NODE &&
+              itemNode.tagName &&
+              itemNode.tagName.toLowerCase() === "li"
+            ) {
+              const snapLen = components.length;
+              const snapPending = pending;
+              pending = "";
+              walk(itemNode.childNodes);
+              flushText();
+              const itemComps = components.splice(snapLen);
+              pending = snapPending;
+              for (const c of itemComps) {
+                if (c.type === "text") {
+                  components.push({
+                    type: "annotated",
+                    text: c.text,
+                    annotationKey,
+                    annotationValue: "true"
+                  });
+                } else {
+                  components.push(c);
+                }
+              }
+            }
+          }
+        };
         if (tag === "ul") {
-          flushText();
-          for (const itemNode of node.childNodes) {
-            if (
-              itemNode.nodeType === Node.ELEMENT_NODE &&
-              itemNode.tagName &&
-              itemNode.tagName.toLowerCase() === "li"
-            ) {
-              const text = itemNode.textContent || "";
-              if (text.length > 0) {
-                components.push({
-                  type: "annotated",
-                  text,
-                  annotationKey: "list/unordered",
-                  annotationValue: "true"
-                });
-              }
-            }
-          }
+          walkListItems(node, "list/unordered");
           continue;
         }
-        // F-3.S4 (#1038, R-5.7): numbered list — same structure as
-        // <ul>, keyed by `list/ordered`.
         if (tag === "ol") {
-          flushText();
-          for (const itemNode of node.childNodes) {
-            if (
-              itemNode.nodeType === Node.ELEMENT_NODE &&
-              itemNode.tagName &&
-              itemNode.tagName.toLowerCase() === "li"
-            ) {
-              const text = itemNode.textContent || "";
-              if (text.length > 0) {
-                components.push({
-                  type: "annotated",
-                  text,
-                  annotationKey: "list/ordered",
-                  annotationValue: "true"
-                });
-              }
-            }
-          }
+          walkListItems(node, "list/ordered");
           continue;
         }
-        // F-3.S4 (#1038, R-5.7): block quote. The wrapping <blockquote>
-        // emits one `block/quote` component carrying the inner text;
-        // the controller's delta-builder writes a quote-start /
-        // quote-end pair around the contents.
+        // F-3.S4 (#1038, R-5.7): block quote — walk children so that
+        // mention chips inside a <blockquote> are not silently dropped.
         if (tag === "blockquote") {
           flushText();
-          const text = node.textContent || "";
-          if (text.length > 0) {
-            components.push({
-              type: "annotated",
-              text,
-              annotationKey: "block/quote",
-              annotationValue: "true"
-            });
+          const snapLen = components.length;
+          const snapPending = pending;
+          pending = "";
+          walk(node.childNodes);
+          flushText();
+          const bqComps = components.splice(snapLen);
+          pending = snapPending;
+          for (const c of bqComps) {
+            if (c.type === "text") {
+              components.push({
+                type: "annotated",
+                text: c.text,
+                annotationKey: "block/quote",
+                annotationValue: "true"
+              });
+            } else {
+              components.push(c);
+            }
           }
           continue;
         }

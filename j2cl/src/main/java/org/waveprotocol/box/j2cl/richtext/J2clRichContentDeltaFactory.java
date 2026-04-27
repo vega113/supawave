@@ -150,11 +150,12 @@ public final class J2clRichContentDeltaFactory {
 
   /**
    * F-3.S4 (#1038, R-5.6 F.6): build a stand-alone blip-deletion delta.
-   * Writes a `tombstone/deleted=true` annotation across the blip body
-   * so the supplement live-update mirrors the deletion to all
-   * subscribers. The read renderer skips blips carrying this
-   * annotation, so the user sees an immediate disappearance after the
-   * delta lands.
+   * Writes a {@code tombstone/deleted=true} annotation across the blip
+   * body so downstream deletion handling can mirror the tombstone to
+   * other subscribers via the existing server-side delta replay /
+   * supplement path. This factory only emits the annotation delta; it
+   * does not implement client-side read-renderer filtering for deleted
+   * blips.
    *
    * <p>The annotation-based deletion mirrors the existing GWT
    * "tombstone" semantic; full conversation-manifest manipulation

@@ -92,6 +92,53 @@ describe("<wavy-confirm-dialog>", () => {
     el.remove();
   });
 
+  it("Enter key does NOT confirm when cancel button has focus", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "q-enter-cancel", message: "Delete?" }
+      })
+    );
+    await el.updateComplete;
+    // Cancel button receives default focus on open; make it explicit.
+    const cancelBtn = el.renderRoot.querySelector('button[data-confirm-action="cancel"]');
+    cancelBtn.focus();
+    // Fire Enter — should NOT trigger a confirmed=true resolution.
+    let resolved = false;
+    const listener = () => { resolved = true; };
+    document.body.addEventListener("wavy-confirm-resolved", listener);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await el.updateComplete;
+    document.body.removeEventListener("wavy-confirm-resolved", listener);
+    expect(resolved).to.equal(false);
+    expect(el.open).to.equal(true);
+    el.remove();
+  });
+
+  it("Enter key confirms when confirm button has focus", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "q-enter-confirm", message: "Delete?" }
+      })
+    );
+    await el.updateComplete;
+    const confirmBtn = el.renderRoot.querySelector('button[data-confirm-action="confirm"]');
+    confirmBtn.focus();
+    // Dispatch keydown from the button so it bubbles to document with the
+    // correct shadow active element set; composed:true crosses shadow boundaries.
+    const eventPromise = oneEvent(document.body, "wavy-confirm-resolved");
+    confirmBtn.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, composed: true })
+    );
+    const ev = await eventPromise;
+    expect(ev.detail.requestId).to.equal("q-enter-confirm");
+    expect(ev.detail.confirmed).to.equal(true);
+    el.remove();
+  });
+
   it("ensureWavyConfirmDialogMounted is idempotent", () => {
     const a = ensureWavyConfirmDialogMounted();
     const b = ensureWavyConfirmDialogMounted();

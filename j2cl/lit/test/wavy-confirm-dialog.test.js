@@ -108,7 +108,7 @@ describe("<wavy-confirm-dialog>", () => {
     let resolved = false;
     const listener = () => { resolved = true; };
     document.body.addEventListener("wavy-confirm-resolved", listener);
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    cancelBtn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, composed: true }));
     await el.updateComplete;
     document.body.removeEventListener("wavy-confirm-resolved", listener);
     expect(resolved).to.equal(false);

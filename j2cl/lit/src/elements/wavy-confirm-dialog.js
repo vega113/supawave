@@ -135,9 +135,6 @@ export class WavyConfirmDialog extends LitElement {
   }
 
   _onRequest(event) {
-    if (this.open && this.requestId) {
-      this._resolve(false);
-    }
     const detail = event.detail || {};
     const nextRequestId = detail.requestId || "";
     // review-1077 Bug 7: if the dialog is already open for a prior

@@ -235,6 +235,11 @@ public class MarkBlipReadHelper {
           + WaveletName.of(waveId, udwId), e);
       return Result.internalError();
     }
+    if (udw == null) {
+      LOG.warning("mark-blip-read: user-data wavelet unavailable "
+          + WaveletName.of(waveId, udwId));
+      return Result.internalError();
+    }
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
     SupplementedWave supplement =

@@ -28,8 +28,9 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
@@ -115,11 +116,11 @@ public final class MarkBlipReadServlet extends HttpServlet {
       return;
     }
     String body;
-    try (BufferedReader reader = req.getReader()) {
-      char[] buf = new char[MAX_BODY_BYTES + 1];
+    try (InputStream in = req.getInputStream()) {
+      byte[] buf = new byte[MAX_BODY_BYTES + 1];
       int total = 0;
       while (total <= MAX_BODY_BYTES) {
-        int read = reader.read(buf, total, buf.length - total);
+        int read = in.read(buf, total, buf.length - total);
         if (read < 0) {
           break;
         }
@@ -129,7 +130,7 @@ public final class MarkBlipReadServlet extends HttpServlet {
         resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         return;
       }
-      body = new String(buf, 0, total);
+      body = new String(buf, 0, total, StandardCharsets.UTF_8);
     } catch (IOException e) {
       LOG.info("mark-blip-read: failed to read body");
       resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);

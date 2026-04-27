@@ -1367,8 +1367,8 @@ public class J2clSelectedWaveControllerTest {
 
     int beforeAttempts = harness.markBlipReadAttempts.size();
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
 
     Assert.assertEquals(beforeAttempts + 1, harness.markBlipReadAttempts.size());
     MarkBlipReadAttempt attempt =
@@ -1388,9 +1388,9 @@ public class J2clSelectedWaveControllerTest {
 
     int beforeAttempts = harness.markBlipReadAttempts.size();
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "");
-    onMarkBlipRead.invoke(controller, (String) null);
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "", (Runnable) () -> {});
+    onMarkBlipRead.invoke(controller, (String) null, (Runnable) () -> {});
 
     Assert.assertEquals(
         "empty / null blip ids must not dispatch",
@@ -1408,9 +1408,9 @@ public class J2clSelectedWaveControllerTest {
     harness.deliverUpdate(0, "Hello");
 
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
 
     Assert.assertEquals(
         "second markBlipRead for same blipId must be dropped while first is in flight",
@@ -1428,12 +1428,12 @@ public class J2clSelectedWaveControllerTest {
     harness.deliverUpdate(0, "Hello");
 
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
     Assert.assertEquals(1, harness.markBlipReadAttempts.size());
     harness.markBlipReadAttempts.get(0).success.accept(Integer.valueOf(2));
 
-    onMarkBlipRead.invoke(controller, "b+abc");
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
     Assert.assertEquals(
         "after success, the same blipId may be dispatched again",
         2,
@@ -1450,12 +1450,12 @@ public class J2clSelectedWaveControllerTest {
     harness.deliverUpdate(0, "Hello");
 
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
     Assert.assertEquals(1, harness.markBlipReadAttempts.size());
     harness.markBlipReadAttempts.get(0).error.accept("transient");
 
-    onMarkBlipRead.invoke(controller, "b+abc");
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
     Assert.assertEquals(
         "after error, the same blipId may be dispatched again",
         2,
@@ -1473,8 +1473,8 @@ public class J2clSelectedWaveControllerTest {
 
     int beforePending = harness.pendingReadStateDispatches.size();
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
     harness.markBlipReadAttempts.get(0).success.accept(Integer.valueOf(0));
 
     Assert.assertTrue(
@@ -1488,8 +1488,8 @@ public class J2clSelectedWaveControllerTest {
     Object controller = harness.createController(false);
 
     Method onMarkBlipRead =
-        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class);
-    onMarkBlipRead.invoke(controller, "b+abc");
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
 
     Assert.assertTrue(harness.markBlipReadAttempts.isEmpty());
   }

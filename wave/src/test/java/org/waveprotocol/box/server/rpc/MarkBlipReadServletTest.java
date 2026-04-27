@@ -25,13 +25,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
-import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 
 import junit.framework.TestCase;
 import org.waveprotocol.box.server.authentication.SessionManager;
@@ -291,10 +295,43 @@ public final class MarkBlipReadServletTest extends TestCase {
 
   private static HttpServletRequest requestWithBody(String body) throws Exception {
     HttpServletRequest request = mock(HttpServletRequest.class);
-    BufferedReader reader = new BufferedReader(new StringReader(body));
-    when(request.getReader()).thenReturn(reader);
-    when(request.getContentLength()).thenReturn(body == null ? 0 : body.length());
+    byte[] bytes = body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8);
+    when(request.getInputStream()).thenReturn(servletStreamOf(bytes));
+    when(request.getContentLength()).thenReturn(bytes.length);
     return request;
+  }
+
+  private static ServletInputStream servletStreamOf(byte[] bytes) {
+    final InputStream backing = new ByteArrayInputStream(bytes);
+    return new ServletInputStream() {
+      @Override
+      public boolean isFinished() {
+        try {
+          return backing.available() == 0;
+        } catch (IOException e) {
+          return true;
+        }
+      }
+
+      @Override
+      public boolean isReady() {
+        return true;
+      }
+
+      @Override
+      public void setReadListener(ReadListener readListener) {
+      }
+
+      @Override
+      public int read() throws IOException {
+        return backing.read();
+      }
+
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
+        return backing.read(b, off, len);
+      }
+    };
   }
 
   private static HttpServletResponse responseWithWriter() throws Exception {

@@ -58,7 +58,7 @@ public final class J2clReadSurfaceDomRenderer {
    */
   @FunctionalInterface
   public interface MarkBlipReadListener {
-    void markBlipRead(String blipId);
+    void markBlipRead(String blipId, Runnable onError);
   }
 
   /** Test seam for the dwell-timer scheduler so unit tests can swap a fake clock. */
@@ -128,6 +128,10 @@ public final class J2clReadSurfaceDomRenderer {
    */
   public void setMarkBlipReadListener(MarkBlipReadListener listener) {
     this.markBlipReadListener = listener;
+    if (listener == null) {
+      cancelAllDwellTimers();
+      markBlipReadInFlight.clear();
+    }
     if (!scrollListenerBound) {
       host.addEventListener("scroll", this::onHostScroll);
       scrollListenerBound = true;
@@ -218,12 +222,13 @@ public final class J2clReadSurfaceDomRenderer {
       // Already in flight — defence-in-depth.
       return;
     }
+    Runnable releaseGate = () -> markBlipReadInFlight.remove(blipId);
     try {
-      markBlipReadListener.markBlipRead(blipId);
+      markBlipReadListener.markBlipRead(blipId, releaseGate);
     } catch (Throwable t) {
       // Listener errors must not break the renderer; clear the in-flight
       // gate so a later re-arm can retry.
-      markBlipReadInFlight.remove(blipId);
+      releaseGate.run();
     }
   }
 
@@ -259,8 +264,12 @@ public final class J2clReadSurfaceDomRenderer {
     }
     // Tall-blip exception: a blip taller than the viewport can never reach
     // the area-ratio threshold. Treat "the visible slice fills ≥ 50% of the
-    // viewport" as visible too.
-    if (hostHeight > 0 && intersectHeight / hostHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
+    // viewport area" as visible too.
+    double hostWidth = hostRect.width;
+    double hostArea = hostHeight * hostWidth;
+    if (blipHeight > hostHeight
+        && hostArea > 0
+        && intersectArea / hostArea >= VIEWPORT_INTERSECTION_THRESHOLD) {
       return true;
     }
     return false;

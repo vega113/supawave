@@ -412,7 +412,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     // tracker. Passing null disables the listener but leaves the scroll
     // hook in place so re-installation on visibility change works.
     readSurface.setMarkBlipReadListener(
-        handler == null ? null : handler::markBlipRead);
+        handler == null ? null : (blipId, onError) -> handler.markBlipRead(blipId, onError));
   }
 
   @Override

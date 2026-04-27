@@ -178,15 +178,19 @@ public final class J2clSearchGateway
             try {
               Map<String, Object> json = SidecarTransportCodec.parseJsonObject(request.responseText);
               Object rawCount = json == null ? null : json.get("unreadCount");
-              int unreadCount = -1;
+              Integer unreadCount = null;
               if (rawCount instanceof Number) {
-                unreadCount = ((Number) rawCount).intValue();
+                unreadCount = Integer.valueOf(((Number) rawCount).intValue());
               } else if (rawCount instanceof String) {
                 try {
-                  unreadCount = Integer.parseInt((String) rawCount);
+                  unreadCount = Integer.valueOf(Integer.parseInt((String) rawCount));
                 } catch (NumberFormatException ignored) {
-                  unreadCount = -1;
+                  // fall through to null check
                 }
+              }
+              if (unreadCount == null) {
+                onError.accept("Invalid markBlipRead response: missing or non-numeric unreadCount.");
+                return;
               }
               // The "alreadyRead" flag from the helper is informational —
               // currently routed only through the success Integer because
@@ -194,7 +198,7 @@ public final class J2clSearchGateway
               // "ALREADY_READ" for live-decrement purposes (both converge
               // on the same unreadCount). Expose it as an extra signal in
               // a follow-up if telemetry buckets demand finer breakdown.
-              onSuccess.accept(Integer.valueOf(unreadCount));
+              onSuccess.accept(unreadCount);
             } catch (RuntimeException e) {
               onError.accept(messageOrDefault(e, "Unable to decode the markBlipRead response."));
             }

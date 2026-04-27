@@ -147,7 +147,7 @@ public final class J2clSelectedWaveController
    */
   @FunctionalInterface
   public interface MarkBlipReadHandler {
-    void markBlipRead(String blipId);
+    void markBlipRead(String blipId, Runnable onError);
   }
 
   public interface RetryScheduler {
@@ -1151,7 +1151,7 @@ public final class J2clSelectedWaveController
    * `unread` attribute so already-read blips never reach this method, but
    * we keep the in-flight set as defence-in-depth.
    */
-  public void onMarkBlipRead(String blipId) {
+  public void onMarkBlipRead(String blipId, Runnable rendererOnError) {
     if (selectedWaveId == null || selectedWaveId.isEmpty()) {
       return;
     }
@@ -1197,6 +1197,9 @@ public final class J2clSelectedWaveController
         },
         error -> {
           markBlipReadInFlight.remove(blipId);
+          if (rendererOnError != null) {
+            rendererOnError.run();
+          }
           if (!isCurrentGeneration(generation)) {
             return;
           }

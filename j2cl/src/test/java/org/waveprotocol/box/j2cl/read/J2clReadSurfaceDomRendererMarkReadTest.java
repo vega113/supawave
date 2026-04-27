@@ -178,16 +178,16 @@ public class J2clReadSurfaceDomRendererMarkReadTest {
 
     // Only the first ~2 blips fully fit in the 100px host. b+4 is fully
     // below the host's clipped bottom and should NOT have a timer.
-    boolean fourthIsScheduled = false;
+    int dwellTimersScheduled = 0;
     for (Scheduled s : scheduler.scheduled) {
-      if (s.delayMs == J2clReadSurfaceDomRenderer.VIEWPORT_DWELL_DEBOUNCE_MS
-          && (s.label != null && s.label.contains("b+4"))) {
-        fourthIsScheduled = true;
+      if (s.delayMs == J2clReadSurfaceDomRenderer.VIEWPORT_DWELL_DEBOUNCE_MS) {
+        dwellTimersScheduled++;
       }
     }
-    Assert.assertFalse(
-        "blip rendered fully below host viewport must not arm a timer",
-        fourthIsScheduled);
+    Assert.assertEquals(
+        "only visible blips must arm dwell timers (b+4 is fully off-screen)",
+        3,
+        dwellTimersScheduled);
   }
 
   @Test
@@ -361,7 +361,7 @@ public class J2clReadSurfaceDomRendererMarkReadTest {
     final List<String> fired = new ArrayList<String>();
 
     @Override
-    public void markBlipRead(String blipId) {
+    public void markBlipRead(String blipId, Runnable onError) {
       fired.add(blipId);
     }
   }

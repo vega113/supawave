@@ -862,7 +862,7 @@ public final class J2clComposeSurfaceController {
           try {
             request =
                 deltaFactory.createBlipDeleteRequest(
-                    bootstrap.getAddress(), submitSession, trimmed);
+                    bootstrap.getAddress(), writeSession, trimmed);
           } catch (RuntimeException e) {
             recordBlipDeleteTelemetry("failure-build");
             return;

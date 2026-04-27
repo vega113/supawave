@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-27-issue-1060-wavy-chrome-only",
+  "version": "PR #1060",
+  "date": "2026-04-27",
+  "title": "F-2 follow-up: wavy chrome is the only rendered surface",
+  "summary": "The J2CL root view now renders only the wavy F-2 chrome — no duplicate light search rail, no flat blip-id headers, no permanent editor-toolbar wall.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the default <slot> from <wavy-search-rail> shadow DOM so the SSR'd light rail no longer projects under the rendered chrome as a duplicate \"Saved searches\" surface.",
+        "Stopped the J2CL read renderer from falling back to the literal label \"Blip <id>\" in the posted-at slot when a blip has no real modified time — the avatar / author header now owns the metadata row and the AT label moves to aria-label.",
+        "Gated the J2CL toolbar's edit-formatting actions (Bold / Italic / ... / attachments) on an active edit session and collapsed <composer-inline-reply> until the controller flips it available so the read surface no longer shows a permanent editor-toolbar wall."
+      ]
+    }
+  ]
+}

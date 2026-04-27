@@ -184,18 +184,26 @@ describe("<wavy-search-rail>", () => {
     expect(p.textContent.trim()).to.equal("133 waves");
   });
 
-  it("default slot accepts <wavy-search-rail-card> children", async () => {
+  it("does NOT expose a default slot for SSR fallback children (#1060)", async () => {
+    // F-2 follow-up (#1060): the previous default slot projected the
+    // SSR'd light DOM under the rendered shadow chrome and painted the
+    // rail twice. The shadow-DOM render is now self-contained; light
+    // DOM children supplied for SSR fallback have no slot to project
+    // into and are visually hidden after upgrade.
     const el = await fixture(html`
       <wavy-search-rail>
         <div data-stub-card="1">card</div>
       </wavy-search-rail>
     `);
     await el.updateComplete;
-    const slot = el.renderRoot.querySelector("slot");
-    expect(slot).to.exist;
-    const assigned = slot.assignedElements();
-    expect(assigned.length).to.equal(1);
-    expect(assigned[0].dataset.stubCard).to.equal("1");
+    const defaultSlot = Array.from(
+      el.renderRoot.querySelectorAll("slot")
+    ).find((s) => !s.hasAttribute("name"));
+    expect(defaultSlot, "no default <slot> in shadow DOM").to.not.exist;
+    const stub = el.querySelector('[data-stub-card="1"]');
+    expect(stub, "light child stays in light DOM").to.exist;
+    expect(stub.assignedSlot, "light child must not project anywhere")
+      .to.equal(null);
   });
 });
 

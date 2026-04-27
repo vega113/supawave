@@ -294,9 +294,17 @@ public final class J2clReadSurfaceDomRenderer {
       element.setAttribute("posted-at", formatRelativeTimestamp(modifiedMs));
       element.setAttribute("posted-at-iso", formatIsoTimestamp(modifiedMs));
     } else {
-      // Fallback so the avatar header still renders an empty <time> with
-      // the legacy "Blip <id>" label, preserving AT discoverability.
-      element.setAttribute("posted-at", blipLabel(blip.getBlipId()));
+      // F-2 follow-up (#1060): when a blip has no real modified time
+      // (e.g. fixture / fallback paths, or first paint before metadata
+      // arrives) we used to fall back to the literal label "Blip <id>"
+      // in the posted-at slot, which painted as the entire header text
+      // on the live read surface (no author, no avatar — just the raw
+      // id). Leave posted-at empty so the visible <time> element does
+      // not show an internal token, but expose the AT-friendly label on
+      // the host's aria-label so screen readers can still announce the
+      // blip.
+      element.setAttribute("posted-at", "");
+      element.setAttribute("aria-label", blipLabel(blip.getBlipId()));
     }
     if (blip.isUnread()) {
       element.setAttribute("unread", "");

@@ -19,6 +19,17 @@ export class ComposerInlineReply extends LitElement {
     :host {
       display: block;
     }
+    /* F-2 follow-up (#1060): collapse the whole reply composer until an
+     * edit session marks it as available. Pre-fix this element painted
+     * "Reply target: ..." + an empty Send-reply textarea on every
+     * selected wave even when the user had not opened a compose, which
+     * read as a permanent editor-toolbar wall in the right column. The
+     * controller flips the available property to true via setProperty
+     * before any compose interaction, so users still see the textarea
+     * the moment they Reply / Edit. */
+    :host(:not([available])) {
+      display: none;
+    }
 
     .reply {
       display: grid;

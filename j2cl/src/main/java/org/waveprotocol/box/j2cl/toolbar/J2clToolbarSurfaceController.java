@@ -170,7 +170,19 @@ public final class J2clToolbarSurfaceController {
     if (viewActionsEnabled) {
       addViewActions(actions);
     }
-    addEditActions(actions);
+    // F-2 follow-up (#1060): only emit the edit-formatting toolbar
+    // (Bold / Italic / Underline / ... / attachment buttons) while an
+    // edit session is active. Previously the controller emitted the
+    // full edit-action set on every render with the buttons disabled,
+    // which painted as a permanent editor-toolbar wall on the right of
+    // the read surface even when no compose was open. The view's
+    // host.hidden = actions.isEmpty() guard then resolves the toolbar
+    // host to display:none, and the wavy-thread-collapse `:empty`
+    // collapse rule on the parent compose host removes the layout
+    // gap entirely until an edit session is opened.
+    if (editState.editable) {
+      addEditActions(actions);
+    }
     view.render(new J2clToolbarSurfaceModel(actions));
   }
 

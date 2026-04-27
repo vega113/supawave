@@ -381,4 +381,123 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Preview route must hide the legacy search card via the same data-marker as the root shell",
         html.contains("data-j2cl-legacy-search-card=\"hidden\""));
   }
+
+  // ---------------------------------------------------------------------
+  // F-2 follow-up (#1060) — visible-regression locks for the three gaps
+  // that survived the F-2 closeout (PR #1059, sha dc8ee6a3):
+  //
+  //   1. <wavy-search-rail> shadow DOM exposed a default <slot></slot>,
+  //      which projected the SSR'd light-DOM rail under the rendered
+  //      shadow chrome. Live readers saw the rail twice.
+  //   2. The J2CL read renderer fell back to "Blip <id>" in the
+  //      posted-at slot when a blip had no real modified time, painting
+  //      as the entire header text on the live read surface.
+  //   3. The J2CL toolbar surface controller emitted the full edit-
+  //      formatting toolbar (Bold/Italic/.../attachment buttons) on
+  //      every render, causing a permanent editor-toolbar wall on the
+  //      right of the read surface even when no compose was active.
+  //
+  // These assertions are static-source pins so the regression cannot
+  // ship by going around the Lit-side jsdom fixture in
+  // j2cl/lit/test/visual-regression-1060.test.js.
+  // ---------------------------------------------------------------------
+
+  /** Reads a source file relative to the worktree root. */
+  private static String readSourceFile(String relativePath) {
+    Path candidate = Paths.get(relativePath);
+    if (!Files.isRegularFile(candidate)) {
+      candidate = Paths.get("../" + relativePath);
+    }
+    if (!Files.isRegularFile(candidate)) {
+      throw new AssertionError(
+          "source file not found at "
+              + relativePath
+              + " — run from the repo root or stage the file");
+    }
+    try {
+      return new String(Files.readAllBytes(candidate), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new AssertionError("Could not read " + candidate + ": " + e.getMessage(), e);
+    }
+  }
+
+  public void testWavySearchRailHasNoDefaultSlotInShadowDom() {
+    // Gap 1: a default <slot></slot> in the shadow DOM render projects
+    // the SSR'd light-DOM rail under the rendered chrome and paints the
+    // rail twice. Pin the static source so the regression cannot return.
+    String source = readSourceFile("j2cl/lit/src/elements/wavy-search-rail.js");
+    // Allow named slots (e.g. <slot name="..."></slot>) — those project
+    // only explicitly-slotted children — but reject the default
+    // unnamed <slot> form.
+    assertFalse(
+        "wavy-search-rail must not expose a default <slot></slot> "
+            + "(see #1060 — projects SSR'd light DOM as a duplicate rail)",
+        java.util.regex.Pattern.compile("<slot\\s*></slot>")
+            .matcher(source)
+            .find());
+    assertFalse(
+        "wavy-search-rail must not expose a default <slot> with a "
+            + "fallback body (see #1060)",
+        java.util.regex.Pattern.compile("<slot\\s*>(?![^<]*name=)")
+            .matcher(source)
+            .find());
+  }
+
+  public void testJ2clReadRendererDoesNotFallBackToBlipIdLabel() {
+    // Gap 2: the renderer used to set posted-at="Blip <id>" when a
+    // blip had no real modified time. The wave-blip element rendered
+    // that text inside the visible <time> element so every metadata-
+    // less blip painted as a flat card titled "Blip fN7oSXulpwB". Pin
+    // the static source so the regression cannot return.
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/read/"
+                + "J2clReadSurfaceDomRenderer.java");
+    assertFalse(
+        "J2clReadSurfaceDomRenderer must not set posted-at to the "
+            + "'Blip <id>' fallback (see #1060 — renders as the entire "
+            + "header text on the live read surface)",
+        source.contains(
+            "element.setAttribute(\"posted-at\", blipLabel(blip.getBlipId()));"));
+  }
+
+  public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {
+    // Gap 3: the toolbar controller used to call addEditActions on
+    // every render, regardless of editState.editable. The view's
+    // host.hidden = actions.isEmpty() guard then never fired and the
+    // full Bold/Italic/.../attachment toolbar painted as a permanent
+    // wall on the right of the read surface. Pin the static source.
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/toolbar/"
+                + "J2clToolbarSurfaceController.java");
+    // The fix: addEditActions must be inside an if (editState.editable)
+    // guard. We pin the regex shape so the regression cannot return by
+    // dropping the guard and re-introducing the wall.
+    assertTrue(
+        "J2clToolbarSurfaceController.render must gate addEditActions "
+            + "on editState.editable (see #1060 — otherwise the editor-"
+            + "toolbar wall paints permanently)",
+        java.util.regex.Pattern.compile(
+                "if\\s*\\(\\s*editState\\.editable\\s*\\)\\s*\\{\\s*"
+                    + "addEditActions\\s*\\(")
+            .matcher(source)
+            .find());
+  }
+
+  public void testComposerInlineReplyCollapsesUntilAvailable() {
+    // Gap 3 partner: <composer-inline-reply> rendered "Reply target: ..."
+    // + an empty Send-reply textarea on every selected wave even when
+    // no compose was active. Pin the :host(:not([available]))
+    // display:none rule in the Lit element source.
+    String source =
+        readSourceFile("j2cl/lit/src/elements/composer-inline-reply.js");
+    assertTrue(
+        "composer-inline-reply must collapse the host until the "
+            + "controller flips available=true (see #1060)",
+        java.util.regex.Pattern.compile(
+                ":host\\(:not\\(\\[available\\]\\)\\)\\s*\\{\\s*display\\s*:\\s*none\\s*;\\s*\\}")
+            .matcher(source)
+            .find());
+  }
 }

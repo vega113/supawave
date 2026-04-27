@@ -197,8 +197,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     String key = blipId == null ? "" : blipId;
     if (inlineComposers.containsKey(key)) {
       HTMLElement cached = inlineComposers.get(key);
-      if (cached.isConnected()) {
-        // Already mounted; focus it.
+      if (cached.isConnected) {
+        // Already mounted; refresh the requested mode (Reply <-> Edit on
+        // the same blip must surface the new verb in the host chip and in
+        // emitted event details) and re-focus.
+        cached.setAttribute("mode", mode);
+        setProperty(cached, "mode", mode);
         cached.dispatchEvent(new Event("composer-focus-request"));
         activeInlineComposerKey = key;
         return;
@@ -209,10 +213,14 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         activeInlineComposerKey = "";
       }
     }
-    // Enforce single active inline composer. Close the previous active one
-    // (if it is for a different blip) before mounting a new one.
+    // Enforce single active inline composer. Close any previous active one
+    // (including the wave-root composer keyed by "") before mounting a new
+    // one for a different target. Using `containsKey` instead of an
+    // emptiness check keeps the wave-root composer (priorKey == "") from
+    // slipping past the guard while still skipping the no-op case where
+    // there is no prior composer at all.
     String priorKey = activeInlineComposerKey;
-    if (!priorKey.isEmpty() && !priorKey.equals(key)) {
+    if (!priorKey.equals(key) && inlineComposers.containsKey(priorKey)) {
       closeInlineComposer(priorKey);
     }
     HTMLElement composer = (HTMLElement) DomGlobal.document.createElement("wavy-composer");

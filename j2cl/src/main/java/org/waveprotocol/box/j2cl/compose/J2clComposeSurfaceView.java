@@ -168,7 +168,11 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           if (listener == null) return;
           String address = eventDetailString(event, "address");
           String displayName = eventDetailString(event, "displayName");
-          listener.onMentionPicked(address, displayName);
+          // PR #1066 review thread PRRT_kwDOBwxLXs593gTR: forward
+          // chip-text offset so the controller binds picked mentions
+          // by position rather than first-text-occurrence.
+          int chipTextOffset = eventDetailInt(event, "chipTextOffset", -1);
+          listener.onMentionPicked(address, displayName, chipTextOffset);
         });
     DomGlobal.document.body.addEventListener(
         "wavy-composer-mention-abandoned",
@@ -403,6 +407,23 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     }
     Object value = Js.asPropertyMap(detail).get(key);
     return value == null ? "" : String.valueOf(value);
+  }
+
+  private static int eventDetailInt(Event event, String key, int fallback) {
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return fallback;
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    if (value == null) return fallback;
+    if (value instanceof Number) return ((Number) value).intValue();
+    String stringValue = String.valueOf(value);
+    if (stringValue.isEmpty()) return fallback;
+    try {
+      return (int) Math.floor(Double.parseDouble(stringValue));
+    } catch (NumberFormatException ignored) {
+      return fallback;
+    }
   }
 
   private static boolean eventDetailBoolean(Event event, String key) {

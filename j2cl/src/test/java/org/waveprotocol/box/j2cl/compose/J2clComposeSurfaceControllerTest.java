@@ -2666,6 +2666,100 @@ public class J2clComposeSurfaceControllerTest {
     assertContains(delta, "\"2\":\"plain text only\"");
   }
 
+  // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — two picks with the
+  // same chipText (e.g. duplicate display names that resolve to
+  // distinct addresses) must both serialise as separate mention
+  // annotations, each pointing at its own address. The previous
+  // first-text-occurrence match collapsed both onto the leading
+  // chip and the second mention dropped its annotation.
+  @Test
+  public void duplicateDisplayNameMentionsBindByChipOffsetNotFirstMatch() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    // Two picks share the chipText "@Alice" but have distinct
+    // addresses; chipTextOffset reflects the chip insertion point in
+    // the body's plain text at pick time.
+    // Chip 1 sits at offset 0 ("@Alice" + " and "); chip 2 sits at
+    // offset 11 (right after " and "). Both share the chipText
+    // "@Alice" but resolve to distinct addresses.
+    controller.onMentionPicked("alice@a.example.com", "Alice", 0);
+    controller.onMentionPicked("alice@b.example.com", "Alice", 11);
+    controller.onReplySubmitted("@Alice and @Alice");
+
+    String delta = gateway.lastSubmitRequest.getDeltaJson();
+    // Both addresses must round-trip as link/manual annotations; the
+    // surrounding plain-text " and " run remains plain text.
+    assertContains(
+        delta,
+        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@a.example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@b.example.com\"}]}}",
+        "\"2\":\" and \"");
+  }
+
+  // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — when the user
+  // types `@Alice` plain text first and then picks a real `@Alice`
+  // chip after, the picked chip's offset must steer the binding to
+  // the second occurrence. Otherwise the plain literal swallows the
+  // annotation and the real chip is submitted as plain text.
+  @Test
+  public void mentionPickAfterPlainAtNameBindsToChipNotPlainOccurrence() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    // Draft has two `@Alice` substrings; only the second is a picked
+    // chip (offset 11 — past the literal occurrence at 0). The first
+    // `@Alice` must remain plain text in the outgoing delta.
+    controller.onMentionPicked("alice@example.com", "Alice", 11);
+    controller.onReplySubmitted("@Alice and @Alice");
+
+    String delta = gateway.lastSubmitRequest.getDeltaJson();
+    // The text run before the chip carries the literal `@Alice` plus
+    // the connector word; the annotation wraps only the chip
+    // occurrence. We assert the text run starts with `@Alice and `
+    // (the literal `@Alice` is part of plain-text payload, not an
+    // annotation).
+    assertContains(
+        delta,
+        "\"2\":\"@Alice and \"",
+        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@example.com\"}]}}",
+        "\"2\":\"@Alice\"",
+        "{\"1\":{\"2\":[\"link/manual\"]}}");
+    // Only ONE link/manual annotation start in the delta — the plain
+    // literal must NOT have been bound.
+    Assert.assertEquals(
+        "exactly one link/manual annotation must be emitted",
+        1,
+        countOccurrences(delta, "\"1\":\"link/manual\""));
+  }
+
+  private static int countOccurrences(String haystack, String needle) {
+    int count = 0;
+    int from = 0;
+    while (true) {
+      int idx = haystack.indexOf(needle, from);
+      if (idx < 0) return count;
+      count++;
+      from = idx + needle.length();
+    }
+  }
+
   @Test
   public void onMentionAbandonedRecordsTelemetry() {
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();

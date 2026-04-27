@@ -472,6 +472,72 @@ export class WavyComposer extends LitElement {
   }
 
   /**
+   * F-3.S2 (#1038, R-5.3) — PR #1066 review thread
+   * PRRT_kwDOBwxLXs593gTR. Compute the plain-text offset (using the
+   * same flattening rules as {@link #_serializeBodyText}) at which a
+   * just-inserted mention chip begins. Returns -1 when the chip is
+   * not a child of the composer body.
+   */
+  _computeChipPlainTextOffset(chip) {
+    if (!this._bodyElement || !chip) return -1;
+    let offset = 0;
+    let text = "";
+    for (const node of this._bodyElement.childNodes) {
+      if (node === chip) {
+        return offset;
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+        offset += node.textContent.length;
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      const tag = node.tagName.toLowerCase();
+      if (tag === "br") {
+        text += "\n";
+        offset += 1;
+        continue;
+      }
+      if (tag === "div" || tag === "p") {
+        if (text.length > 0 && !text.endsWith("\n")) {
+          text += "\n";
+          offset += 1;
+        }
+        // The chip lives on a flat body in the picker path, but if a
+        // host wraps lines in <div>/<p> blocks, walk into them so we
+        // still find the chip's offset deterministically.
+        const inner = this._findChipInside(node, chip);
+        if (inner.found) {
+          return offset + inner.offset;
+        }
+        text += node.textContent;
+        offset += node.textContent.length;
+        continue;
+      }
+      // Non-chip inline element: include its text in the offset count.
+      text += node.textContent;
+      offset += node.textContent.length;
+    }
+    return -1;
+  }
+
+  _findChipInside(container, chip) {
+    let offset = 0;
+    for (const node of container.childNodes) {
+      if (node === chip) {
+        return { found: true, offset };
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent.length;
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      offset += (node.textContent || "").length;
+    }
+    return { found: false, offset: 0 };
+  }
+
+  /**
    * F-3.S2 (#1038, R-5.3 step 4): rich component serializer used to
    * inspect the body's mixed text / annotation content at submit
    * time. Walks the body's immediate children and emits an array of
@@ -710,8 +776,16 @@ export class WavyComposer extends LitElement {
       sel.addRange(caretRange);
     }
     this._dismissMentionPopover("picked");
-    // Telemetry hook: emit a CustomEvent the controller listens for so
-    // the J2clComposeSurfaceController can record `compose.mention_picked`.
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — the controller
+    // serialises picked mentions by walking the plain-text draft and
+    // matching `indexOf(chipText)`. When the same chipText appears
+    // multiple times (duplicate display names, plain `@Name` typed
+    // before a picked chip with an identical label, etc.) it cannot
+    // distinguish which occurrence is the real chip. Snapshot the
+    // chip's plain-text offset within the body now and forward it on
+    // the picked event so the controller can bind by position rather
+    // than by leftmost match.
+    const chipTextOffset = this._computeChipPlainTextOffset(chip);
     this.dispatchEvent(
       new CustomEvent("wavy-composer-mention-picked", {
         bubbles: true,
@@ -719,6 +793,7 @@ export class WavyComposer extends LitElement {
         detail: {
           address: candidate.address,
           displayName: candidate.displayName || candidate.address,
+          chipTextOffset: chipTextOffset,
           replyTargetBlipId: this.replyTargetBlipId
         }
       })

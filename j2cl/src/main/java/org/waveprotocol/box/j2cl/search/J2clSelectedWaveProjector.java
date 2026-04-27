@@ -46,15 +46,14 @@ public final class J2clSelectedWaveProjector {
       int reconnectCount,
       SidecarSelectedWaveReadState readState,
       boolean readStateStale) {
-    List<String> participantIds = update.getParticipantIds();
-    if (participantIds.isEmpty() && previous != null) {
-      participantIds = previous.getParticipantIds();
-    }
-
     boolean previousMatchesWave =
         previous != null
             && selectedWaveId != null
             && selectedWaveId.equals(previous.getSelectedWaveId());
+    List<String> participantIds = update.getParticipantIds();
+    if (participantIds.isEmpty() && previousMatchesWave) {
+      participantIds = previous.getParticipantIds();
+    }
     J2clSelectedWaveViewportState viewportState =
         projectViewportState(update, previousMatchesWave, previous);
     boolean hasViewportWindow = !viewportState.isEmpty();

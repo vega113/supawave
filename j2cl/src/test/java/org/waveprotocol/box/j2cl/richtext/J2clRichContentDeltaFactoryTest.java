@@ -436,6 +436,9 @@ public class J2clRichContentDeltaFactoryTest {
 
   // F-3.S2 (#1038, R-5.4 step 5): metadata request emits both
   // task/assignee and task/dueTs annotations bracketing the blip body.
+  // PR #1066 review thread PRRT_kwDOBwxLXs593gTP — task/dueTs must be
+  // serialised as the millisecond timestamp the reader path expects,
+  // not the raw `YYYY-MM-DD` form value.
   @Test
   public void taskMetadataRequestEmitsOwnerAndDueAnnotations() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
@@ -449,8 +452,61 @@ public class J2clRichContentDeltaFactoryTest {
         deltaJson,
         "\"1\":\"b+root\"",
         "{\"1\":\"task/assignee\",\"3\":\"alice@example.com\"}",
-        "{\"1\":\"task/dueTs\",\"3\":\"2026-05-15\"}",
+        "{\"1\":\"task/dueTs\",\"3\":\"1778803200000\"}",
         "{\"1\":{\"2\":[\"task/assignee\",\"task/dueTs\"]}}");
+  }
+
+  // PR #1066 review thread PRRT_kwDOBwxLXs593gTP — explicit
+  // round-trip assertion: the value written by the metadata writer
+  // must parse back via the same Long.parseLong contract the reader
+  // path uses, otherwise refresh drops the due date.
+  @Test
+  public void taskMetadataRequestRoundTripsThroughLongParseLong() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+    SidecarSubmitRequest request =
+        factory.taskMetadataRequest(
+            "user@example.com", session, "b+root", "alice@example.com", "2026-05-15");
+    String deltaJson = request.getDeltaJson();
+    String marker = "\"1\":\"task/dueTs\",\"3\":\"";
+    int start = deltaJson.indexOf(marker) + marker.length();
+    int end = deltaJson.indexOf('"', start);
+    String value = deltaJson.substring(start, end);
+    long parsed = Long.parseLong(value);
+    Assert.assertEquals(1778803200000L, parsed);
+  }
+
+  // Numeric inputs are passed through unchanged so callers that
+  // already supply epoch-millis keep working alongside the date-input
+  // form.
+  @Test
+  public void taskMetadataRequestPassesThroughNumericDueTimestamps() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+    SidecarSubmitRequest request =
+        factory.taskMetadataRequest(
+            "user@example.com", session, "b+root", "alice@example.com", "1714000000000");
+    String deltaJson = request.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":\"task/dueTs\",\"3\":\"1714000000000\"}");
+  }
+
+  // Unparseable dates coerce to the empty-string "unset" sentinel
+  // rather than writing a value the reader silently drops as
+  // unknown after refresh.
+  @Test
+  public void taskMetadataRequestCoercesUnparseableDueDateToUnset() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+    SidecarSubmitRequest request =
+        factory.taskMetadataRequest(
+            "user@example.com", session, "b+root", "alice@example.com", "tomorrow");
+    String deltaJson = request.getDeltaJson();
+    assertContains(deltaJson, "{\"1\":\"task/dueTs\",\"3\":\"\"}");
   }
 
   @Test

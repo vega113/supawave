@@ -63,10 +63,17 @@ public final class J2clComposeSurfaceController {
      * `pendingMentions` so the next reply submit splits the plain
      * draft at chip-text occurrences and emits `link/manual`
      * annotated components carrying the participant address.
+     * {@code chipTextOffset} is the chip's plain-text offset within
+     * the composer body at pick time (-1 when unavailable). The
+     * controller uses the offset to disambiguate duplicate chip texts
+     * (PR #1066 review thread PRRT_kwDOBwxLXs593gTR) so picks that
+     * share a display name, or follow a manually typed `@Name`
+     * substring, are bound to the correct chip on submit.
      * Default implementation is a no-op so existing test doubles
      * continue to compile without changes.
      */
-    default void onMentionPicked(String participantAddress, String displayName) {}
+    default void onMentionPicked(
+        String participantAddress, String displayName, int chipTextOffset) {}
 
     /**
      * F-3.S2 (#1038, R-5.3): the user dismissed the mention popover
@@ -256,12 +263,29 @@ public final class J2clComposeSurfaceController {
     final String address;
     final String displayName;
     final String chipText;
+    /**
+     * Plain-text offset of the chip within the composer body at pick
+     * time (using {@code _serializeBodyText}'s flattening rules).
+     * {@link #UNKNOWN_CHIP_OFFSET} when the lit picker did not surface
+     * an offset (e.g. legacy callers, tests using the two-arg
+     * overload). PR #1066 review thread PRRT_kwDOBwxLXs593gTR — the
+     * offset is the primary disambiguator for duplicate chip texts on
+     * submit serialisation.
+     */
+    final int chipTextOffset;
+
+    static final int UNKNOWN_CHIP_OFFSET = -1;
 
     PendingMention(String address, String displayName) {
+      this(address, displayName, UNKNOWN_CHIP_OFFSET);
+    }
+
+    PendingMention(String address, String displayName, int chipTextOffset) {
       this.address = address == null ? "" : address.trim();
       String label = displayName == null ? "" : displayName.trim();
       this.displayName = label.isEmpty() ? this.address : label;
       this.chipText = "@" + this.displayName;
+      this.chipTextOffset = chipTextOffset;
     }
   }
 
@@ -386,8 +410,10 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
-          public void onMentionPicked(String participantAddress, String displayName) {
-            J2clComposeSurfaceController.this.onMentionPicked(participantAddress, displayName);
+          public void onMentionPicked(
+              String participantAddress, String displayName, int chipTextOffset) {
+            J2clComposeSurfaceController.this.onMentionPicked(
+                participantAddress, displayName, chipTextOffset);
           }
 
           @Override
@@ -626,9 +652,15 @@ public final class J2clComposeSurfaceController {
    * the pending entry unmatched and dropped at submit time.
    */
   public void onMentionPicked(String participantAddress, String displayName) {
+    onMentionPicked(participantAddress, displayName, PendingMention.UNKNOWN_CHIP_OFFSET);
+  }
+
+  public void onMentionPicked(
+      String participantAddress, String displayName, int chipTextOffset) {
     if (signedOut) return;
     if (participantAddress != null && !participantAddress.trim().isEmpty()) {
-      pendingMentions.add(new PendingMention(participantAddress, displayName));
+      pendingMentions.add(
+          new PendingMention(participantAddress, displayName, chipTextOffset));
     }
     try {
       telemetrySink.record(J2clClientTelemetry.event("compose.mention_picked").build());
@@ -1113,18 +1145,36 @@ public final class J2clComposeSurfaceController {
       }
     }
     if (!anyMatch) return false;
-    // Sort by first occurrence in draftText (document order) so that mentions
-    // inserted out of pick order (e.g. caret moved earlier before second pick)
-    // are still serialised correctly. Unmatched entries sort to the end and
-    // are silently skipped.
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — sort pending
+    // mentions by their recorded chip offset (document order) so
+    // duplicate display names and `@Name` plain-text duplicates
+    // bind to the correct chip on submit. Mentions whose offset is
+    // unknown (legacy callers / two-arg overload used in tests)
+    // sort to the end and fall back to first-occurrence matching;
+    // entries whose chipText no longer appears in the draft are
+    // silently skipped (chip deleted on the lit side).
     List<PendingMention> inDocOrder = new ArrayList<>(pendingMentions);
-    inDocOrder.sort(Comparator.comparingInt(m -> {
-      int pos = draftText.indexOf(m.chipText);
-      return pos < 0 ? Integer.MAX_VALUE : pos;
-    }));
+    inDocOrder.sort(
+        Comparator.comparingInt(m -> sortKey(m, draftText)));
     int cursor = 0;
     for (PendingMention mention : inDocOrder) {
-      int idx = draftText.indexOf(mention.chipText, cursor);
+      int searchStart = cursor;
+      if (mention.chipTextOffset >= 0 && mention.chipTextOffset > cursor) {
+        // Skip ahead to the chip's recorded position so a plain `@Name`
+        // typed before a same-text picked chip is left as plain text
+        // rather than swallowing the chip's annotation.
+        searchStart = mention.chipTextOffset;
+      }
+      int idx = draftText.indexOf(mention.chipText, searchStart);
+      if (idx < 0) {
+        // The recorded offset may be stale (text deleted before the
+        // chip on the lit side). Re-search from the running cursor as
+        // a last resort to preserve the chip annotation when the
+        // chipText still occurs later in the draft.
+        if (searchStart > cursor) {
+          idx = draftText.indexOf(mention.chipText, cursor);
+        }
+      }
       if (idx < 0) continue;
       if (idx > cursor) {
         appendTextRun(builder, draftText.substring(cursor, idx), annotationKey, annotationValue);
@@ -1136,6 +1186,14 @@ public final class J2clComposeSurfaceController {
       appendTextRun(builder, draftText.substring(cursor), annotationKey, annotationValue);
     }
     return true;
+  }
+
+  private static int sortKey(PendingMention mention, String draftText) {
+    if (mention.chipTextOffset >= 0) {
+      return mention.chipTextOffset;
+    }
+    int pos = draftText.indexOf(mention.chipText);
+    return pos < 0 ? Integer.MAX_VALUE : pos;
   }
 
   private static void appendTextRun(

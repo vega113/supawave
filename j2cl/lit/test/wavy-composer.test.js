@@ -385,6 +385,11 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     const event = await pickedPromise;
     expect(event.detail.address).to.equal("alice@example.com");
     expect(event.detail.displayName).to.equal("Alice Adams");
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR: the picked event
+    // must carry the chip's plain-text offset so the controller can
+    // bind picks by position rather than first-text-occurrence.
+    expect(event.detail.chipTextOffset).to.be.a("number");
+    expect(event.detail.chipTextOffset).to.equal(0);
     await el.updateComplete;
     const chip = getBody(el).querySelector(".wavy-mention-chip");
     expect(chip).to.exist;
@@ -394,6 +399,32 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     // The popover should be closed after pick.
     await el.updateComplete;
     expect(el.renderRoot.querySelector("mention-suggestion-popover")).to.equal(null);
+    el.remove();
+  });
+
+  it("emits a chipTextOffset reflecting the chip position when @ is preceded by text", async () => {
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — when the user
+    // has already typed plain text before triggering the popover,
+    // chipTextOffset must point at the chip's plain-text offset (not
+    // 0). This is the disambiguator the controller uses to bind
+    // duplicate-display-name picks to the right occurrence.
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b1" .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "Hi @al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    const pickedPromise = oneEvent(el, "wavy-composer-mention-picked");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    const event = await pickedPromise;
+    expect(event.detail.chipTextOffset).to.equal(3);
     el.remove();
   });
 

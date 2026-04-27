@@ -326,6 +326,13 @@ export class WaveBlip extends LitElement {
     );
   }
 
+  _onTaskToggled(event) {
+    // Optimistically mirror the affordance toggle into the blip's own
+    // taskCompleted property so the strikethrough CSS updates immediately
+    // without waiting for the model to round-trip through the server.
+    this.taskCompleted = event.detail.completed;
+  }
+
   _buildPermalink() {
     if (typeof window === "undefined" || !window.location) {
       return "";
@@ -407,6 +414,7 @@ export class WaveBlip extends LitElement {
               data-task-assignee=${this.taskAssignee || ""}
               data-task-due-date=${this.taskDueDate || ""}
               .participants=${this._participants}
+              @wave-blip-task-toggled=${this._onTaskToggled}
             ></wavy-task-affordance>
           </span>
         </div>

@@ -187,4 +187,33 @@ describe("<wavy-confirm-dialog>", () => {
     expect(a).to.equal(b);
     expect(document.body.querySelectorAll("wavy-confirm-dialog").length).to.equal(1);
   });
+
+  // review-1077 Bug 7: when a second wavy-confirm-requested arrives
+  // while a prior request is still open, the prior request must
+  // resolve as cancelled (confirmed=false) so its caller's promise
+  // settles, instead of being silently overwritten.
+  it("resolves a superseded request as cancelled before opening the next", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "first", message: "First?" }
+      })
+    );
+    await el.updateComplete;
+    expect(el.requestId).to.equal("first");
+    const eventPromise = oneEvent(document.body, "wavy-confirm-resolved");
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "second", message: "Second?" }
+      })
+    );
+    const supersededEv = await eventPromise;
+    expect(supersededEv.detail.requestId).to.equal("first");
+    expect(supersededEv.detail.confirmed).to.equal(false);
+    await el.updateComplete;
+    expect(el.requestId).to.equal("second");
+    expect(el.open).to.equal(true);
+    el.remove();
+  });
 });

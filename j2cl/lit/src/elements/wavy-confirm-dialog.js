@@ -139,11 +139,35 @@ export class WavyConfirmDialog extends LitElement {
       this._resolve(false);
     }
     const detail = event.detail || {};
+    const nextRequestId = detail.requestId || "";
+    // review-1077 Bug 7: if the dialog is already open for a prior
+    // request, resolve that request as cancelled before swapping in
+    // the new payload. Without this, the prior caller's
+    // wavy-confirm-resolved promise would never settle and the
+    // ACTIVE_REQUESTS map would leak the stale entry. Compare by
+    // requestId so back-to-back requests with the same id (e.g. a
+    // Lit re-render) do not cancel themselves.
+    if (this.open && this.requestId && this.requestId !== nextRequestId) {
+      const supersededRequestId = this.requestId;
+      ACTIVE_REQUESTS.delete(supersededRequestId);
+      try {
+        document.body.dispatchEvent(
+          new CustomEvent("wavy-confirm-resolved", {
+            bubbles: true,
+            composed: true,
+            detail: { requestId: supersededRequestId, confirmed: false }
+          })
+        );
+      } catch (ignored) {
+        // Resolution dispatch is observational; swallow errors so the
+        // new request still opens cleanly even if the body is gone.
+      }
+    }
     this.message = detail.message || "Are you sure?";
     this.confirmLabel = detail.confirmLabel || "Confirm";
     this.cancelLabel = detail.cancelLabel || "Cancel";
     this.tone = detail.tone === "destructive" ? "destructive" : "default";
-    this.requestId = detail.requestId || "";
+    this.requestId = nextRequestId;
     this.open = true;
     if (this.requestId) {
       ACTIVE_REQUESTS.set(this.requestId, true);

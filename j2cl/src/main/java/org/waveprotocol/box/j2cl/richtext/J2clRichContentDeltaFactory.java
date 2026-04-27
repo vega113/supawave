@@ -153,9 +153,13 @@ public final class J2clRichContentDeltaFactory {
    * Writes a {@code tombstone/deleted=true} annotation across the blip
    * body so downstream deletion handling can mirror the tombstone to
    * other subscribers via the existing server-side delta replay /
-   * supplement path. This factory only emits the annotation delta; it
-   * does not implement client-side read-renderer filtering for deleted
-   * blips.
+   * supplement path. The J2CL read surface skips blips carrying this
+   * annotation
+   * ({@link org.waveprotocol.box.j2cl.read.J2clReadBlip#isDeleted()}
+   * is wired through {@code J2clSelectedWaveProjector.documentIsDeleted}
+   * and dropped by
+   * {@code J2clReadSurfaceDomRenderer.normalizeBlips}) so the user sees
+   * an immediate disappearance after the delta lands.
    *
    * <p>The annotation-based deletion mirrors the existing GWT
    * "tombstone" semantic; full conversation-manifest manipulation

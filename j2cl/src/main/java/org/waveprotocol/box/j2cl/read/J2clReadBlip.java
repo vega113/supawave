@@ -37,6 +37,17 @@ public final class J2clReadBlip {
   private final String threadId;
   private final boolean unread;
   private final boolean hasMention;
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6 — review-1077 Bug 1): blips carrying the
+   * {@code tombstone/deleted=true} annotation written by
+   * {@link org.waveprotocol.box.j2cl.richtext.J2clRichContentDeltaFactory#blipDeleteRequest}
+   * are filtered out of the read surface by
+   * {@link J2clReadSurfaceDomRenderer} so the user sees an immediate
+   * disappearance after the delete delta lands.  The factory only
+   * emits the annotation; this flag is what makes the read renderer
+   * actually skip the blip.
+   */
+  private final boolean deleted;
 
   public J2clReadBlip(String blipId, String text) {
     this(blipId, text, Collections.<J2clAttachmentRenderModel>emptyList());
@@ -54,7 +65,8 @@ public final class J2clReadBlip {
         /* parentBlipId= */ "",
         /* threadId= */ "",
         /* unread= */ false,
-        /* hasMention= */ false);
+        /* hasMention= */ false,
+        /* deleted= */ false);
   }
 
   public J2clReadBlip(
@@ -68,6 +80,32 @@ public final class J2clReadBlip {
       String threadId,
       boolean unread,
       boolean hasMention) {
+    this(
+        blipId,
+        text,
+        attachments,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        /* deleted= */ false);
+  }
+
+  public J2clReadBlip(
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean deleted) {
     this.blipId = blipId == null ? "" : blipId;
     this.text = text == null ? "" : text;
     this.attachments =
@@ -81,6 +119,7 @@ public final class J2clReadBlip {
     this.threadId = threadId == null ? "" : threadId;
     this.unread = unread;
     this.hasMention = hasMention;
+    this.deleted = deleted;
   }
 
   /** Builder-style copy that flips the unread flag without re-typing the rest. */
@@ -98,7 +137,8 @@ public final class J2clReadBlip {
         parentBlipId,
         threadId,
         nextUnread,
-        hasMention);
+        hasMention,
+        deleted);
   }
 
   public String getBlipId() {
@@ -140,5 +180,16 @@ public final class J2clReadBlip {
 
   public boolean hasMention() {
     return hasMention;
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6 — review-1077 Bug 1): blip carries the
+   * {@code tombstone/deleted=true} annotation written by the F.6 delete
+   * delta. {@link J2clReadSurfaceDomRenderer} filters these out so the
+   * deleted blip disappears from the read surface as soon as the delta
+   * lands.
+   */
+  public boolean isDeleted() {
+    return deleted;
   }
 }

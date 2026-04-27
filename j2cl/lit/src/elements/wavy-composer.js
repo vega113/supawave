@@ -675,22 +675,39 @@ export class WavyComposer extends LitElement {
           }
           continue;
         }
-        // F-3.S4 (#1038, R-5.7): inline link. Anchor elements emit a
-        // `link/manual` component carrying the href as the annotation
-        // value. The mention-chip path above handles links injected
-        // via the `@` autocompleter; this path covers links inserted
-        // via the H.17 link modal.
+        // F-3.S4 (#1038, R-5.7 — review-1077 Bug 3): inline link.
+        // Anchor elements emit a `link/manual` component carrying the
+        // href as the annotation value. The mention-chip path above
+        // handles links injected via the `@` autocompleter; this path
+        // covers links inserted via the H.17 link modal.  Walk
+        // descendants recursively (instead of taking textContent) so
+        // mention chips / formatting nested inside the anchor survive
+        // round-trip serialization: plain text inside the <a> is
+        // promoted to the link annotation; rich components inside it
+        // (e.g. a mention chip) flow through unchanged.
         if (tag === "a") {
           flushText();
           const href = node.getAttribute("href") || "";
-          const text = node.textContent || "";
-          if (href && text.length > 0) {
-            components.push({
-              type: "annotated",
-              text,
-              annotationKey: "link/manual",
-              annotationValue: href
-            });
+          if (href) {
+            const snapLen = components.length;
+            const snapPending = pending;
+            pending = "";
+            walk(node.childNodes);
+            flushText();
+            const aComps = components.splice(snapLen);
+            pending = snapPending;
+            for (const c of aComps) {
+              if (c.type === "text") {
+                components.push({
+                  type: "annotated",
+                  text: c.text,
+                  annotationKey: "link/manual",
+                  annotationValue: href
+                });
+              } else {
+                components.push(c);
+              }
+            }
             continue;
           }
         }
@@ -1173,13 +1190,13 @@ export class WavyComposer extends LitElement {
    * controller can produce a download chip on the originating blip.
    */
   _onBodyDrop(event) {
+    if (this._bodyElement) {
+      this._bodyElement.removeAttribute("data-droptarget");
+    }
     if (!event.dataTransfer) return;
     const files = Array.from(event.dataTransfer.files || []);
     if (files.length === 0) return;
     event.preventDefault();
-    if (this._bodyElement) {
-      this._bodyElement.removeAttribute("data-droptarget");
-    }
     this.dispatchEvent(
       new CustomEvent("wavy-composer-attachment-dropped", {
         detail: { files, replyTargetBlipId: this.replyTargetBlipId },

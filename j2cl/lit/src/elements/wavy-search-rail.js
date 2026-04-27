@@ -378,7 +378,6 @@ export class WavySearchRail extends LitElement {
         })}
       </ul>
       <p class="result-count" aria-live="polite">${this.resultCount || ""}</p>
-      <slot></slot>
     `;
   }
 }

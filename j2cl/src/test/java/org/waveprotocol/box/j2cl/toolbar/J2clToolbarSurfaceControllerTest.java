@@ -166,6 +166,21 @@ public class J2clToolbarSurfaceControllerTest {
   }
 
   @Test
+  public void editStateNotEditableProducesNoEditActions() {
+    FakeView view = new FakeView();
+    J2clToolbarSurfaceController controller = new J2clToolbarSurfaceController(view, action -> { });
+
+    controller.start();
+    controller.onEditStateChanged(new J2clToolbarSurfaceController.EditState(false));
+
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.ITALIC));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.UNDERLINE));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.ATTACHMENT_INSERT));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.ATTACHMENT_UPLOAD_QUEUE));
+  }
+
+  @Test
   public void unavailableActionSurfacesExplicitErrorText() {
     FakeView view = new FakeView();
     J2clToolbarSurfaceController controller = new J2clToolbarSurfaceController(view, action -> { });

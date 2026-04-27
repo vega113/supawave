@@ -196,10 +196,18 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private void openInlineComposer(String blipId, String mode) {
     String key = blipId == null ? "" : blipId;
     if (inlineComposers.containsKey(key)) {
-      // Already mounted; focus it.
-      inlineComposers.get(key).dispatchEvent(new Event("composer-focus-request"));
-      activeInlineComposerKey = key;
-      return;
+      HTMLElement cached = inlineComposers.get(key);
+      if (cached.isConnected()) {
+        // Already mounted; focus it.
+        cached.dispatchEvent(new Event("composer-focus-request"));
+        activeInlineComposerKey = key;
+        return;
+      }
+      // Cached entry is detached (blip DOM was rebuilt); evict and remount.
+      inlineComposers.remove(key);
+      if (key.equals(activeInlineComposerKey)) {
+        activeInlineComposerKey = null;
+      }
     }
     HTMLElement composer = (HTMLElement) DomGlobal.document.createElement("wavy-composer");
     composer.setAttribute("data-inline-composer", "true");

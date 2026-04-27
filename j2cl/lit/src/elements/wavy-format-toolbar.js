@@ -103,6 +103,7 @@ export class WavyFormatToolbar extends LitElement {
     this.hidden = true;
     this.selectionDescriptor = {};
     this._frameHandle = 0;
+    this._cachedRange = null;
     this._handleScroll = () => this._scheduleRepositionFromCachedRect();
     this._handleResize = () => this._scheduleRepositionFromCachedRect();
   }
@@ -125,6 +126,16 @@ export class WavyFormatToolbar extends LitElement {
 
   updated(changed) {
     if (changed.has("selectionDescriptor")) {
+      // Cache the live Range when the selection becomes non-collapsed so that
+      // scroll/resize repositioning re-reads the updated viewport rect of the
+      // *same* range rather than whatever happens to be selected elsewhere.
+      const descriptor = this.selectionDescriptor || {};
+      if (descriptor.collapsed === false) {
+        const sel = typeof document !== "undefined" ? document.getSelection() : null;
+        this._cachedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      } else {
+        this._cachedRange = null;
+      }
       this._scheduleReposition();
     }
   }
@@ -138,30 +149,20 @@ export class WavyFormatToolbar extends LitElement {
   }
 
   _scheduleRepositionFromCachedRect() {
-    // Only re-read the live selection when the toolbar is already visible.
-    // If it is hidden there is no active composer selection to track,
-    // and re-reading document.getSelection() here would anchor the toolbar
-    // to whatever happens to be selected elsewhere on the page.
-    if (!this.hidden) {
-      const selection = typeof document !== "undefined" ? document.getSelection() : null;
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+    // Re-read the position from the cached (composer-owned) Range rather than
+    // document.getSelection(), which may point to an unrelated selection.
+    if (this._frameHandle) return;
+    this._frameHandle = requestAnimationFrame(() => {
+      this._frameHandle = 0;
+      if (!this.hidden && this._cachedRange) {
+        const rect = this._cachedRange.getBoundingClientRect();
         if (rect.width > 0 || rect.height > 0) {
-          this.selectionDescriptor = {
-            ...(this.selectionDescriptor || {}),
-            collapsed: range.collapsed,
-            boundingRect: {
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height
-            }
-          };
+          this._repositionToRect(rect);
+          return;
         }
       }
-    }
-    this._scheduleReposition();
+      this._reposition();
+    });
   }
 
   _reposition() {
@@ -173,6 +174,10 @@ export class WavyFormatToolbar extends LitElement {
       this.style.transform = "translate(-9999px, -9999px)";
       return;
     }
+    this._repositionToRect(rect);
+  }
+
+  _repositionToRect(rect) {
     this.hidden = false;
     // Position above the selection rect, anchor center horizontally.
     const x = Math.max(8, rect.left + rect.width / 2 - this.offsetWidth / 2);

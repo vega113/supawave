@@ -206,13 +206,13 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       // Cached entry is detached (blip DOM was rebuilt); evict and remount.
       inlineComposers.remove(key);
       if (key.equals(activeInlineComposerKey)) {
-        activeInlineComposerKey = null;
+        activeInlineComposerKey = "";
       }
     }
     // Enforce single active inline composer. Close the previous active one
     // (if it is for a different blip) before mounting a new one.
     String priorKey = activeInlineComposerKey;
-    if (priorKey != null && !priorKey.isEmpty() && !priorKey.equals(key)) {
+    if (!priorKey.isEmpty() && !priorKey.equals(key)) {
       closeInlineComposer(priorKey);
     }
     HTMLElement composer = (HTMLElement) DomGlobal.document.createElement("wavy-composer");
@@ -241,6 +241,15 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
             listener.onPastedImage(eventDetailProperty(event, "file"));
           }
         });
+
+    // Mount a <wavy-format-toolbar> into the composer's toolbar slot and wire
+    // selection-change events so the toolbar tracks the active composer.
+    HTMLElement formatToolbar = (HTMLElement) DomGlobal.document.createElement("wavy-format-toolbar");
+    formatToolbar.setAttribute("slot", "toolbar");
+    composer.appendChild(formatToolbar);
+    composer.addEventListener(
+        "wavy-composer-selection-change",
+        event -> setProperty(formatToolbar, "selectionDescriptor", eventDetail(event)));
 
     HTMLElement mountPoint = locateInlineMountPoint(key);
     if (mountPoint != null) {
@@ -342,6 +351,10 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private static Object eventDetailProperty(Event event, String propertyName) {
     Object detail = Js.asPropertyMap(event).get("detail");
     return detail == null ? null : Js.asPropertyMap(detail).get(propertyName);
+  }
+
+  private static Object eventDetail(Event event) {
+    return Js.asPropertyMap(event).get("detail");
   }
 
   private static List<J2clComposeSurfaceController.AttachmentFileSelection> fileSelections(

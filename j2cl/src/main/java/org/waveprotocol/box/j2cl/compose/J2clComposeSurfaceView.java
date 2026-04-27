@@ -1,5 +1,7 @@
 package org.waveprotocol.box.j2cl.compose;
 
+import elemental2.core.JsArray;
+import elemental2.core.JsDate;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Event;
 import elemental2.dom.File;
@@ -13,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import jsinterop.base.Js;
+import jsinterop.base.JsPropertyMap;
 
 /**
  * J2CL view that wires the compose-controller events to the lit
@@ -140,6 +143,43 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     DomGlobal.document.body.addEventListener(
         "wavy-composer-cancelled",
         event -> closeInlineComposer(eventDetailString(event, "replyTargetBlipId")));
+
+    // F-3.S2 (#1038): mention popover + per-blip task affordance events.
+    DomGlobal.document.body.addEventListener(
+        "wave-blip-task-toggled",
+        event -> {
+          if (listener == null) return;
+          String blipId = eventDetailString(event, "blipId");
+          boolean completed = eventDetailBoolean(event, "completed");
+          listener.onTaskToggled(blipId, completed);
+        });
+    DomGlobal.document.body.addEventListener(
+        "wave-blip-task-metadata-changed",
+        event -> {
+          if (listener == null) return;
+          String blipId = eventDetailString(event, "blipId");
+          String assignee = eventDetailString(event, "assigneeAddress");
+          String due = dueDateToEpochMs(eventDetailString(event, "dueDate"));
+          listener.onTaskMetadataChanged(blipId, assignee, due);
+        });
+    DomGlobal.document.body.addEventListener(
+        "wavy-composer-mention-picked",
+        event -> {
+          if (listener == null) return;
+          String address = eventDetailString(event, "address");
+          String displayName = eventDetailString(event, "displayName");
+          // PR #1066 review thread PRRT_kwDOBwxLXs593gTR: forward
+          // chip-text offset so the controller binds picked mentions
+          // by position rather than first-text-occurrence.
+          int chipTextOffset = eventDetailInt(event, "chipTextOffset", -1);
+          listener.onMentionPicked(address, displayName, chipTextOffset);
+        });
+    DomGlobal.document.body.addEventListener(
+        "wavy-composer-mention-abandoned",
+        event -> {
+          if (listener == null) return;
+          listener.onMentionAbandoned();
+        });
   }
 
   @Override
@@ -166,6 +206,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(replyElement, "activeCommand", model.getActiveCommandId());
     setProperty(replyElement, "commandStatus", model.getCommandStatusText());
     setProperty(replyElement, "commandError", model.getCommandErrorText());
+    setProperty(replyElement, "participants", buildParticipantsArray(model.getParticipantAddresses()));
 
     // Mirror reply state only into the currently active inline composer.
     // The model carries a single reply/edit target and draft, so pushing
@@ -308,6 +349,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(composer, "activeCommand", model.getActiveCommandId());
     setProperty(composer, "commandStatus", model.getCommandStatusText());
     setProperty(composer, "commandError", model.getCommandErrorText());
+    setProperty(composer, "participants", buildParticipantsArray(model.getParticipantAddresses()));
   }
 
   private void mirrorComposerStateFromReplyElement(HTMLElement composer) {
@@ -320,6 +362,17 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(composer, "activeCommand", propertyString(replyElement, "activeCommand"));
     setProperty(composer, "commandStatus", propertyString(replyElement, "commandStatus"));
     setProperty(composer, "commandError", propertyString(replyElement, "commandError"));
+  }
+
+  private static JsArray<Object> buildParticipantsArray(List<String> addresses) {
+    JsArray<Object> arr = JsArray.of();
+    for (String address : addresses) {
+      JsPropertyMap<Object> entry = JsPropertyMap.of();
+      entry.set("address", address);
+      entry.set("displayName", address);
+      arr.push(entry);
+    }
+    return arr;
   }
 
   private static void setProperty(HTMLElement element, String name, Object value) {
@@ -356,6 +409,34 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     return value == null ? "" : String.valueOf(value);
   }
 
+  private static int eventDetailInt(Event event, String key, int fallback) {
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return fallback;
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    if (value == null) return fallback;
+    if (value instanceof Number) return ((Number) value).intValue();
+    String stringValue = String.valueOf(value);
+    if (stringValue.isEmpty()) return fallback;
+    try {
+      return (int) Math.floor(Double.parseDouble(stringValue));
+    } catch (NumberFormatException ignored) {
+      return fallback;
+    }
+  }
+
+  private static boolean eventDetailBoolean(Event event, String key) {
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return false;
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    if (value == null) return false;
+    if (value instanceof Boolean) return (Boolean) value;
+    return "true".equals(String.valueOf(value));
+  }
+
   private static Object eventDetailProperty(Event event, String propertyName) {
     Object detail = Js.asPropertyMap(event).get("detail");
     return detail == null ? null : Js.asPropertyMap(detail).get(propertyName);
@@ -363,6 +444,22 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   private static Object eventDetail(Event event) {
     return Js.asPropertyMap(event).get("detail");
+  }
+
+  /**
+   * Converts a YYYY-MM-DD date string (from an HTML date input) to a UTC midnight epoch-millis
+   * string so that the written task/dueTs annotation is a numeric timestamp that
+   * J2clInteractionBlipModel#parseLong can round-trip.  Returns "" for blank or unparseable input.
+   */
+  private static String dueDateToEpochMs(String yyyyMmDd) {
+    if (yyyyMmDd == null || yyyyMmDd.trim().isEmpty()) {
+      return "";
+    }
+    double ms = new JsDate(yyyyMmDd.trim()).getTime();
+    if (Double.isNaN(ms)) {
+      return "";
+    }
+    return String.valueOf((long) ms);
   }
 
   private static List<J2clComposeSurfaceController.AttachmentFileSelection> fileSelections(

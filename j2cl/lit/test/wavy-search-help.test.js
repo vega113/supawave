@@ -151,4 +151,28 @@ describe("<wavy-search-help>", () => {
     expect(row).to.exist;
     expect(row.textContent).to.include("free text");
   });
+
+  // F-3.S2 (#1038, R-5.4 step 8): C.13-C.15 task-search filter
+  // discoverability — example chips carry data-filter-token so the
+  // parity fixture can locate the rows without depending on copy.
+  it("each example chip carries a data-filter-token attribute", async () => {
+    const el = await fixture(html`<wavy-search-help open></wavy-search-help>`);
+    await el.updateComplete;
+    const examples = el.renderRoot.querySelectorAll(".example[data-filter-token]");
+    expect(examples.length).to.be.greaterThan(20);
+    const tokens = Array.from(examples).map((e) => e.getAttribute("data-filter-token"));
+    expect(tokens).to.include("tasks:all");
+    expect(tokens).to.include("tasks:me");
+    // The tasks:user@domain row's example uses a concrete address;
+    // assert at least one example token starts with `tasks:`.
+    expect(tokens.some((t) => t.startsWith("tasks:"))).to.equal(true);
+  });
+
+  it("the tasks:user@domain code element carries data-filter-token=tasks:user@domain", async () => {
+    const el = await fixture(html`<wavy-search-help open></wavy-search-help>`);
+    await el.updateComplete;
+    const code = el.renderRoot.querySelector('code[data-filter-token="tasks:user@domain"]');
+    expect(code).to.exist;
+    expect(code.textContent).to.equal("tasks:user@domain");
+  });
 });

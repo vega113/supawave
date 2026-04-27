@@ -1,5 +1,8 @@
 package org.waveprotocol.box.j2cl.compose;
 
+import java.util.Collections;
+import java.util.List;
+
 public final class J2clComposeSurfaceModel {
   private final boolean createEnabled;
   private final String createDraft;
@@ -16,6 +19,7 @@ public final class J2clComposeSurfaceModel {
   private final String activeCommandId;
   private final String commandStatusText;
   private final String commandErrorText;
+  private final List<String> participantAddresses;
 
   public J2clComposeSurfaceModel(
       boolean createEnabled,
@@ -33,6 +37,29 @@ public final class J2clComposeSurfaceModel {
       String activeCommandId,
       String commandStatusText,
       String commandErrorText) {
+    this(createEnabled, createDraft, createSubmitting, createStatusText, createErrorText,
+        replyAvailable, replyTargetLabel, replyDraft, replySubmitting, replyStaleBasis,
+        replyStatusText, replyErrorText, activeCommandId, commandStatusText, commandErrorText,
+        Collections.emptyList());
+  }
+
+  public J2clComposeSurfaceModel(
+      boolean createEnabled,
+      String createDraft,
+      boolean createSubmitting,
+      String createStatusText,
+      String createErrorText,
+      boolean replyAvailable,
+      String replyTargetLabel,
+      String replyDraft,
+      boolean replySubmitting,
+      boolean replyStaleBasis,
+      String replyStatusText,
+      String replyErrorText,
+      String activeCommandId,
+      String commandStatusText,
+      String commandErrorText,
+      List<String> participantAddresses) {
     this.createEnabled = createEnabled;
     this.createDraft = nullToEmpty(createDraft);
     this.createSubmitting = createSubmitting;
@@ -48,6 +75,10 @@ public final class J2clComposeSurfaceModel {
     this.activeCommandId = nullToEmpty(activeCommandId);
     this.commandStatusText = nullToEmpty(commandStatusText);
     this.commandErrorText = nullToEmpty(commandErrorText);
+    this.participantAddresses =
+        participantAddresses == null
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(participantAddresses);
   }
 
   public boolean isCreateEnabled() {
@@ -108,6 +139,10 @@ public final class J2clComposeSurfaceModel {
 
   public String getCommandErrorText() {
     return commandErrorText;
+  }
+
+  public List<String> getParticipantAddresses() {
+    return participantAddresses;
   }
 
   private static String nullToEmpty(String value) {

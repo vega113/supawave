@@ -72,6 +72,12 @@ import "./elements/wavy-format-toolbar.js";
 import "./elements/wavy-link-modal.js";
 import "./elements/wavy-tags-row.js";
 import "./elements/wavy-wave-root-reply-trigger.js";
+// F-3.S2 (#1038): mentions + tasks —
+// <wavy-task-affordance> mounts on every <wave-blip> next to the toolbar;
+// reuses the F-1 <task-metadata-popover> for owner + due-date editing.
+// The mention popover (<mention-suggestion-popover>) is reused as-is
+// from F-1 and consumed by <wavy-composer>'s @-trigger.
+import "./elements/wavy-task-affordance.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

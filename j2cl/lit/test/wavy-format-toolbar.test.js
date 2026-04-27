@@ -48,9 +48,41 @@ describe("<wavy-format-toolbar>", () => {
       "rtl",
       "link",
       "unlink",
-      "clear-formatting"
+      "clear-formatting",
+      // F-3.S2 (#1038, R-5.4 step 6 + H.20)
+      "insert-task"
     ]);
     expect(actionIds.length).to.equal(DAILY_RICH_EDIT_ACTION_IDS.length);
+  });
+
+  // F-3.S2 (#1038, R-5.4 step 6): the H.20 Insert-task button is
+  // present and emits wavy-format-toolbar-action with the matching id.
+  it("includes the H.20 Insert-task button (R-5.4 step 6)", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    const button = el.renderRoot.querySelector('[data-toolbar-action="insert-task"]');
+    expect(button).to.exist;
+    expect(button.getAttribute("label")).to.equal("Insert task");
+  });
+
+  it("re-dispatches the insert-task action via wavy-format-toolbar-action", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+    const button = el.renderRoot.querySelector('[data-toolbar-action="insert-task"]');
+    const trigger = oneEvent(el, "wavy-format-toolbar-action");
+    button.dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        detail: { action: "insert-task" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    const evt = await trigger;
+    expect(evt.detail.actionId).to.equal("insert-task");
   });
 
   it("hides itself when selection descriptor is collapsed", async () => {

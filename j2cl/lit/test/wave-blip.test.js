@@ -315,4 +315,46 @@ describe("<wave-blip>", () => {
     await el.updateComplete;
     expect(el.hasAttribute("has-mention")).to.be.false;
   });
+
+  // F-3.S2 (#1038, R-5.4) per-blip task integration.
+  it("mounts <wavy-task-affordance> next to the toolbar in the metadata slot", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b20" data-wave-id="w20" author-name="A"></wave-blip>
+    `);
+    await el.updateComplete;
+    const slot = el.renderRoot.querySelector('[data-task-affordance-slot]');
+    expect(slot).to.exist;
+    const affordance = slot.querySelector("wavy-task-affordance");
+    expect(affordance).to.exist;
+    expect(affordance.getAttribute("data-blip-id")).to.equal("b20");
+    expect(affordance.getAttribute("data-wave-id")).to.equal("w20");
+  });
+
+  it("reflects taskCompleted as data-task-completed on the host", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b21" data-wave-id="w21" data-task-completed></wave-blip>
+    `);
+    await el.updateComplete;
+    expect(el.taskCompleted).to.equal(true);
+    expect(el.hasAttribute("data-task-completed")).to.equal(true);
+    el.taskCompleted = false;
+    await el.updateComplete;
+    expect(el.hasAttribute("data-task-completed")).to.equal(false);
+  });
+
+  it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b22" data-wave-id="w22"></wave-blip>
+    `);
+    await el.updateComplete;
+    const affordance = el.renderRoot.querySelector("wavy-task-affordance");
+    const toggle = affordance.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    let captured = null;
+    el.addEventListener("wave-blip-task-toggled", (e) => {
+      captured = e.detail;
+    });
+    toggle.click();
+    await el.updateComplete;
+    expect(captured).to.deep.equal({ blipId: "b22", waveId: "w22", completed: true });
+  });
 });

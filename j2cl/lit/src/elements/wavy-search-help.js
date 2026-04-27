@@ -301,10 +301,15 @@ export class WavySearchHelp extends LitElement {
   }
 
   _example(query) {
+    // F-3.S2 (#1038, R-5.4 step 8): expose data-filter-token so parity
+    // fixtures can locate the C.13-C.15 task search filters without
+    // depending on the localised example text. Other rows reuse the
+    // same hook for downstream slices.
     return html`<span
       class="example"
       role="button"
       tabindex="0"
+      data-filter-token=${query}
       @click=${() => this._emitExample(query)}
       @keydown=${(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -416,7 +421,7 @@ export class WavySearchHelp extends LitElement {
                   <td>Waves with tasks assigned to you</td>
                 </tr>
                 <tr>
-                  <td><code>tasks:user@domain</code></td>
+                  <td><code data-filter-token="tasks:user@domain">tasks:user@domain</code></td>
                   <td>
                     Tasks assigned to someone specific — try:
                     ${this._example("tasks:alice@example.com")}

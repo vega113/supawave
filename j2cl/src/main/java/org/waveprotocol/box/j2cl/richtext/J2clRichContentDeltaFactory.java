@@ -59,6 +59,281 @@ public final class J2clRichContentDeltaFactory {
         new SidecarSubmitRequest(buildWaveletName(createdWaveId), deltaJson, null));
   }
 
+  /**
+   * F-3.S2 (#1038, R-5.3 step 4): sugar wrapper that appends a mention
+   * chip annotation to the supplied builder. Encodes a `link/manual`
+   * annotated-text component whose value is the participant address
+   * and whose display text is `@displayName`.
+   *
+   * <p>Usage from the composer surface:
+   * <pre>
+   *   J2clComposerDocument.Builder b = J2clComposerDocument.builder();
+   *   factory.appendMentionInsert(b, "alice@example.com", "Alice Adams");
+   *   J2clComposerDocument doc = b.build();
+   * </pre>
+   *
+   * <p>Address normalisation: the wrapper applies {@link #normalizeAddress}
+   * (trim + lowercase) and validates the address shape via
+   * {@link #extractDomain} so the surface gets a single error path on
+   * malformed input rather than discovering the issue at submit time.
+   */
+  public J2clComposerDocument.Builder appendMentionInsert(
+      J2clComposerDocument.Builder builder, String participantAddress, String displayName) {
+    requirePresent(builder, "Missing composer document builder.");
+    String normalizedAddress = normalizeAddress(participantAddress);
+    extractDomain(normalizedAddress);
+    String label = displayName == null || displayName.trim().isEmpty()
+        ? normalizedAddress
+        : displayName.trim();
+    builder.annotatedText("link/manual", normalizedAddress, "@" + label);
+    return builder;
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.4 step 3): build a stand-alone toggle delta that
+   * sets the `task/done` annotation on the entire blip body. The op
+   * opens the annotation at offset 0 (with the new boolean value) and
+   * closes it at the end of the document so the supplement live-update
+   * on the GWT path mirrors the existing `task/done` writer shape.
+   *
+   * <p>The returned request is independent of any reply draft so a
+   * task toggle on blip B does not clobber an in-flight reply on
+   * blip A.
+   */
+  public SidecarSubmitRequest taskToggleRequest(
+      String address, J2clSidecarWriteSession session, String blipId, boolean completed) {
+    return buildBlipAnnotationRequest(
+        address,
+        session,
+        blipId,
+        new String[] {"task/done"},
+        new String[] {completed ? "true" : "false"});
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.4 step 5): build a stand-alone delta that
+   * writes the `task/assignee` and `task/dueTs` annotations on the blip.
+   * Either value may be empty, in which case the annotation start
+   * still serialises with an empty-string value field
+   * (`{"1":"task/assignee","3":""}`) and the GWT reader treats the
+   * empty string as the "unset" sentinel.
+   *
+   * <p>The reader path for `task/dueTs` ({@code
+   * J2clInteractionBlipModel#parseLong}) treats the annotation value
+   * as a millisecond timestamp. The composer surface, however,
+   * receives the raw `YYYY-MM-DD` string from a native HTML date
+   * input. To make metadata round-trip after submit/refresh we
+   * convert that ISO date to UTC-midnight millis here. Numeric
+   * values pass through unchanged so legacy callers and explicit
+   * timestamp UIs keep working. Unparseable values are coerced to
+   * the empty-string "unset" sentinel rather than written as a
+   * non-numeric annotation that the reader silently drops.
+   * (PR #1066 review thread PRRT_kwDOBwxLXs593gTP.)
+   */
+  public SidecarSubmitRequest taskMetadataRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String assigneeAddress,
+      String dueDate) {
+    String assignee = assigneeAddress == null ? "" : assigneeAddress.trim();
+    String due = normalizeDueTimestamp(dueDate);
+    return buildBlipAnnotationRequest(
+        address,
+        session,
+        blipId,
+        new String[] {"task/assignee", "task/dueTs"},
+        new String[] {assignee, due});
+  }
+
+  /**
+   * Convert a task due-date input to the millisecond-timestamp string
+   * format the GWT/J2CL reader path expects for `task/dueTs`.
+   *
+   * <ul>
+   *   <li>{@code null} or blank → empty string (unset sentinel).
+   *   <li>All-digit string → returned as-is (already an epoch-millis
+   *       value from a legacy or explicit-timestamp caller).
+   *   <li>{@code YYYY-MM-DD} (with optional trailing time component
+   *       separated by `T`) → parsed as UTC midnight on that calendar
+   *       date and serialised as decimal millis since 1970-01-01Z.
+   *   <li>Anything else → empty string (the reader treats
+   *       unparseable annotation values as "unknown due date" today,
+   *       so coercing here matches the existing graceful-degradation
+   *       contract instead of writing a value that always reads as
+   *       unknown after refresh).
+   * </ul>
+   */
+  static String normalizeDueTimestamp(String rawDue) {
+    if (rawDue == null) {
+      return "";
+    }
+    String trimmed = rawDue.trim();
+    if (trimmed.isEmpty()) {
+      return "";
+    }
+    if (isAllDigits(trimmed)) {
+      return trimmed;
+    }
+    String datePart = trimmed;
+    int tIndex = datePart.indexOf('T');
+    if (tIndex >= 0) {
+      datePart = datePart.substring(0, tIndex);
+    }
+    if (datePart.length() != 10
+        || datePart.charAt(4) != '-'
+        || datePart.charAt(7) != '-') {
+      return "";
+    }
+    int year = parsePositiveInt(datePart.substring(0, 4));
+    int month = parsePositiveInt(datePart.substring(5, 7));
+    int day = parsePositiveInt(datePart.substring(8, 10));
+    if (year < 0 || month < 1 || month > 12 || day < 1 || day > 31) {
+      return "";
+    }
+    long epochDays = computeEpochDays(year, month, day);
+    if (epochDays == Long.MIN_VALUE) {
+      return "";
+    }
+    long millis = epochDays * 86_400_000L;
+    return Long.toString(millis);
+  }
+
+  private static boolean isAllDigits(String value) {
+    if (value.isEmpty()) {
+      return false;
+    }
+    int start = value.charAt(0) == '-' ? 1 : 0;
+    if (start == value.length()) {
+      return false;
+    }
+    for (int i = start; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static int parsePositiveInt(String value) {
+    int result = 0;
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c < '0' || c > '9') {
+        return -1;
+      }
+      result = result * 10 + (c - '0');
+    }
+    return result;
+  }
+
+  /**
+   * Days from 1970-01-01 (UTC) to the given proleptic-Gregorian date
+   * using Howard Hinnant's `days_from_civil` algorithm. Returns
+   * {@link Long#MIN_VALUE} when the day number is invalid for the
+   * supplied month (e.g. day=31 in April, day=29 in a non-leap
+   * February). The algorithm itself accepts any
+   * (year, month, day-in-1..31) triple but does not validate the
+   * day-in-month bound; we re-derive the calendar date and reject
+   * mismatches to avoid writing a silently-shifted timestamp.
+   */
+  private static long computeEpochDays(int year, int month, int day) {
+    int adjustedYear = month <= 2 ? year - 1 : year;
+    int era = (adjustedYear >= 0 ? adjustedYear : adjustedYear - 399) / 400;
+    int yoe = adjustedYear - era * 400;
+    int monthOffset = month + (month > 2 ? -3 : 9);
+    int doy = (153 * monthOffset + 2) / 5 + day - 1;
+    int doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    long epochDays = (long) era * 146097L + doe - 719468L;
+    if (!matchesCivilDate(epochDays, year, month, day)) {
+      return Long.MIN_VALUE;
+    }
+    return epochDays;
+  }
+
+  private static boolean matchesCivilDate(long epochDays, int year, int month, int day) {
+    // Inverse of computeEpochDays — derive (y,m,d) from the day number
+    // and compare to detect day-of-month overflow (April 31, Feb 29 in
+    // non-leap years, etc.).
+    long z = epochDays + 719468L;
+    long era = (z >= 0 ? z : z - 146096L) / 146097L;
+    long doe = z - era * 146097L;
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    long y = yoe + era * 400L;
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    long mp = (5 * doy + 2) / 153;
+    long d = doy - (153 * mp + 2) / 5 + 1;
+    long m = mp + (mp < 10 ? 3 : -9);
+    long civilYear = y + (m <= 2 ? 1 : 0);
+    return civilYear == year && m == month && d == day;
+  }
+
+  /**
+   * Shared helper that builds a delta whose ops set 1+ annotations on
+   * the entire body of the named blip. Used by both task-toggle and
+   * task-metadata writes; future S* slices can reuse the helper for
+   * other blip-level annotation flows (e.g. reactions, read-state)
+   * without re-deriving the annotation shape.
+   */
+  private SidecarSubmitRequest buildBlipAnnotationRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String[] keys,
+      String[] values) {
+    requirePresent(session, "Missing write session.");
+    if (keys == null || values == null || keys.length != values.length || keys.length == 0) {
+      throw new IllegalArgumentException("Mismatched annotation keys/values.");
+    }
+    String normalizedAddress = normalizeAddress(address);
+    extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId = requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    String documentId = requireNonEmpty(blipId, "Missing blip id.");
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
+    StringBuilder components = new StringBuilder();
+    components.append("{\"1\":{\"3\":[");
+    for (int i = 0; i < keys.length; i++) {
+      if (i > 0) components.append(",");
+      components
+          .append("{\"1\":\"")
+          .append(escapeJson(keys[i]))
+          .append("\",\"3\":\"")
+          .append(escapeJson(values[i]))
+          .append("\"}");
+    }
+    components.append("]}}");
+    appendComponentSeparator(components);
+    // No characters in between — the annotation brackets the empty
+    // body span. The supplement live-update interprets a no-text
+    // boundary as "apply this annotation to the whole body". Mirror
+    // the GWT supplement-writer shape here so the read-side parity
+    // assertion holds.
+    components.append("{\"1\":{\"2\":[");
+    for (int i = 0; i < keys.length; i++) {
+      if (i > 0) components.append(",");
+      components.append("\"").append(escapeJson(keys[i])).append("\"");
+    }
+    components.append("]}}");
+    StringBuilder operation = new StringBuilder(components.length() + documentId.length() + 32);
+    operation
+        .append("{\"3\":{\"1\":\"")
+        .append(escapeJson(documentId))
+        .append("\",\"2\":{\"1\":[")
+        .append(components)
+        .append("]}}}");
+    String deltaJson =
+        buildDeltaJson(baseVersion, historyHash, normalizedAddress, operation.toString());
+    return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
+  }
+
   public SidecarSubmitRequest createReplyRequest(
       String address, J2clSidecarWriteSession session, J2clComposerDocument document) {
     requirePresent(session, "Missing write session.");

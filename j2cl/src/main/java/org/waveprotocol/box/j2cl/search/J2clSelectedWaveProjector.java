@@ -46,15 +46,14 @@ public final class J2clSelectedWaveProjector {
       int reconnectCount,
       SidecarSelectedWaveReadState readState,
       boolean readStateStale) {
-    List<String> participantIds = update.getParticipantIds();
-    if (participantIds.isEmpty() && previous != null) {
-      participantIds = previous.getParticipantIds();
-    }
-
     boolean previousMatchesWave =
         previous != null
             && selectedWaveId != null
             && selectedWaveId.equals(previous.getSelectedWaveId());
+    List<String> participantIds = update.getParticipantIds();
+    if (participantIds.isEmpty() && previousMatchesWave) {
+      participantIds = previous.getParticipantIds();
+    }
     J2clSelectedWaveViewportState viewportState =
         projectViewportState(update, previousMatchesWave, previous);
     boolean hasViewportWindow = !viewportState.isEmpty();
@@ -85,7 +84,7 @@ public final class J2clSelectedWaveProjector {
     // documents list when the same wire payload carries both shapes. The
     // document path is still authoritative when it exists.
     readBlips = enrichReadBlipMetadata(readBlips, update.getDocuments());
-    J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous);
+    J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous, participantIds);
     boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
         extractInteractionBlips(update.getDocuments(), participantIds, interactionEditable);
@@ -222,7 +221,10 @@ public final class J2clSelectedWaveProjector {
   }
 
   private static J2clSidecarWriteSession buildWriteSession(
-      String selectedWaveId, SidecarSelectedWaveUpdate update, J2clSelectedWaveModel previous) {
+      String selectedWaveId,
+      SidecarSelectedWaveUpdate update,
+      J2clSelectedWaveModel previous,
+      List<String> participantIds) {
     if (selectedWaveId == null || selectedWaveId.isEmpty()) {
       return null;
     }
@@ -257,7 +259,7 @@ public final class J2clSelectedWaveProjector {
       return null;
     }
     return new J2clSidecarWriteSession(
-        selectedWaveId, channelId, baseVersion, historyHash, replyTargetBlipId);
+        selectedWaveId, channelId, baseVersion, historyHash, replyTargetBlipId, participantIds);
   }
 
   private static J2clSelectedWaveViewportState projectViewportState(

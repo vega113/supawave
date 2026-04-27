@@ -51,7 +51,11 @@ const ACTIVE_ANNOTATION_MAP = {
   "clear-formatting": [],
   indent: [],
   outdent: [],
-  heading: ["h1", "h2", "h3", "h4"]
+  heading: ["h1", "h2", "h3", "h4"],
+  // F-3.S2 (#1038, R-5.4 step 6): Insert-task is non-toggleable; the
+  // active state is owned by the per-blip task affordance, not the
+  // inline checkbox markup.
+  "insert-task": []
 };
 
 const DAILY_RICH_EDIT_ACTIONS = [
@@ -70,7 +74,11 @@ const DAILY_RICH_EDIT_ACTIONS = [
   { id: "rtl", label: "Right-to-left", group: "align", toggle: false },
   { id: "link", label: "Insert link", group: "link", toggle: false },
   { id: "unlink", label: "Remove link", group: "link", toggle: false },
-  { id: "clear-formatting", label: "Clear formatting", group: "format", toggle: false }
+  { id: "clear-formatting", label: "Clear formatting", group: "format", toggle: false },
+  // F-3.S2 (#1038, R-5.4 step 6 + H.20): inline task list insert.
+  // Display-only inside the body (the `<input type="checkbox">` is
+  // disabled — the per-blip task affordance owns model state).
+  { id: "insert-task", label: "Insert task", group: "insert", toggle: false }
 ];
 
 export class WavyFormatToolbar extends LitElement {

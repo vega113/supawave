@@ -1,6 +1,8 @@
 package org.waveprotocol.box.j2cl.compose;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,45 @@ public final class J2clComposeSurfaceController {
     void onAttachmentFilesSelected(List<AttachmentFileSelection> selections);
 
     void onPastedImage(Object imagePayload);
+
+    /**
+     * F-3.S2 (#1038, R-5.3): a participant was picked from the
+     * `<mention-suggestion-popover>` mounted by `<wavy-composer>`. The
+     * controller snapshots the participant address + display name in
+     * `pendingMentions` so the next reply submit splits the plain
+     * draft at chip-text occurrences and emits `link/manual`
+     * annotated components carrying the participant address.
+     * {@code chipTextOffset} is the chip's plain-text offset within
+     * the composer body at pick time (-1 when unavailable). The
+     * controller uses the offset to disambiguate duplicate chip texts
+     * (PR #1066 review thread PRRT_kwDOBwxLXs593gTR) so picks that
+     * share a display name, or follow a manually typed `@Name`
+     * substring, are bound to the correct chip on submit.
+     * Default implementation is a no-op so existing test doubles
+     * continue to compile without changes.
+     */
+    default void onMentionPicked(
+        String participantAddress, String displayName, int chipTextOffset) {}
+
+    /**
+     * F-3.S2 (#1038, R-5.3): the user dismissed the mention popover
+     * with a non-empty query (typed `@al` then Esc). Recorded as a
+     * telemetry event; no model state change.
+     */
+    default void onMentionAbandoned() {}
+
+    /**
+     * F-3.S2 (#1038, R-5.4): the per-blip task affordance was clicked.
+     * The controller emits a stand-alone `task/done` toggle delta.
+     */
+    default void onTaskToggled(String blipId, boolean completed) {}
+
+    /**
+     * F-3.S2 (#1038, R-5.4 step 5): the task-metadata popover emitted
+     * a submit. The controller emits a stand-alone delta carrying
+     * `task/assignee` + `task/dueTs` annotations.
+     */
+    default void onTaskMetadataChanged(String blipId, String assigneeAddress, String dueDate) {}
   }
 
   @FunctionalInterface
@@ -74,6 +115,34 @@ public final class J2clComposeSurfaceController {
         J2clSidecarWriteSession session,
         String draftText,
         J2clComposerDocument document);
+
+    /**
+     * F-3.S2 (#1038, R-5.4): build a stand-alone toggle request for a
+     * single blip. The plain-text fallback factory throws
+     * UnsupportedOperationException because plain-text submissions
+     * have no concept of blip-level annotations; the rich-content
+     * factory (default in production) handles this via
+     * {@link J2clRichContentDeltaFactory#taskToggleRequest}.
+     */
+    default SidecarSubmitRequest createTaskToggleRequest(
+        String address, J2clSidecarWriteSession session, String blipId, boolean completed) {
+      throw new UnsupportedOperationException(
+          "Task toggle is only available with the rich-content delta factory.");
+    }
+
+    /**
+     * F-3.S2 (#1038, R-5.4 step 5): build a stand-alone metadata
+     * request for a single blip carrying `task/assignee` + `task/dueTs`.
+     */
+    default SidecarSubmitRequest createTaskMetadataRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String assigneeAddress,
+        String dueDate) {
+      throw new UnsupportedOperationException(
+          "Task metadata is only available with the rich-content delta factory.");
+    }
   }
 
   public interface AttachmentControllerFactory {
@@ -172,8 +241,53 @@ public final class J2clComposeSurfaceController {
   private J2clAttachmentComposerController attachmentController;
   private final List<J2clAttachmentComposerController.AttachmentInsertion> insertedAttachments =
       new ArrayList<J2clAttachmentComposerController.AttachmentInsertion>();
+  // F-3.S2 (#1038, R-5.3, PR #1066 review thread PRRT_kwDOBwxLXs592RVM):
+  // mention picks recorded between draft edits. Each pick becomes an
+  // annotated `link/manual` component on the next reply submit so the
+  // outgoing delta carries the participant address, not just plain
+  // `@DisplayName` text. Cleared on submit success, sign-out, and
+  // wave change (mirrors `insertedAttachments`).
+  private final List<PendingMention> pendingMentions = new ArrayList<PendingMention>();
   private J2clAttachmentComposerController.DisplaySize attachmentDisplaySize =
       J2clAttachmentComposerController.DisplaySize.MEDIUM;
+
+  /**
+   * F-3.S2 (#1038, R-5.3): a mention chip the user picked in the
+   * lit composer. The chip text is `@<displayName>` (or
+   * `@<address>` if the display name is blank); on submit the
+   * controller splits the plain reply draft at occurrences of this
+   * chip text and emits an annotated component keyed by `link/manual`
+   * carrying {@link #address} as the annotation value.
+   */
+  static final class PendingMention {
+    final String address;
+    final String displayName;
+    final String chipText;
+    /**
+     * Plain-text offset of the chip within the composer body at pick
+     * time (using {@code _serializeBodyText}'s flattening rules).
+     * {@link #UNKNOWN_CHIP_OFFSET} when the lit picker did not surface
+     * an offset (e.g. legacy callers, tests using the two-arg
+     * overload). PR #1066 review thread PRRT_kwDOBwxLXs593gTR — the
+     * offset is the primary disambiguator for duplicate chip texts on
+     * submit serialisation.
+     */
+    final int chipTextOffset;
+
+    static final int UNKNOWN_CHIP_OFFSET = -1;
+
+    PendingMention(String address, String displayName) {
+      this(address, displayName, UNKNOWN_CHIP_OFFSET);
+    }
+
+    PendingMention(String address, String displayName, int chipTextOffset) {
+      this.address = address == null ? "" : address.trim();
+      String label = displayName == null ? "" : displayName.trim();
+      this.displayName = label.isEmpty() ? this.address : label;
+      this.chipText = "@" + this.displayName;
+      this.chipTextOffset = chipTextOffset;
+    }
+  }
 
   public J2clComposeSurfaceController(
       Gateway gateway,
@@ -293,6 +407,30 @@ public final class J2clComposeSurfaceController {
           @Override
           public void onPastedImage(Object imagePayload) {
             J2clComposeSurfaceController.this.onPastedImage(imagePayload);
+          }
+
+          @Override
+          public void onMentionPicked(
+              String participantAddress, String displayName, int chipTextOffset) {
+            J2clComposeSurfaceController.this.onMentionPicked(
+                participantAddress, displayName, chipTextOffset);
+          }
+
+          @Override
+          public void onMentionAbandoned() {
+            J2clComposeSurfaceController.this.onMentionAbandoned();
+          }
+
+          @Override
+          public void onTaskToggled(String blipId, boolean completed) {
+            J2clComposeSurfaceController.this.onTaskToggled(blipId, completed);
+          }
+
+          @Override
+          public void onTaskMetadataChanged(
+              String blipId, String assigneeAddress, String dueDate) {
+            J2clComposeSurfaceController.this.onTaskMetadataChanged(
+                blipId, assigneeAddress, dueDate);
           }
         });
     render();
@@ -496,6 +634,167 @@ public final class J2clComposeSurfaceController {
     view.focusReplyComposer();
   }
 
+  /**
+   * F-3.S2 (#1038, R-5.3): a mention candidate was picked from the
+   * suggestion popover. The lit composer DOM already inserted the
+   * chip span; the controller snapshots the participant address +
+   * display name so the next reply submission carries a
+   * `link/manual` annotated component referencing the participant
+   * address (PR #1066 review thread PRRT_kwDOBwxLXs592RVM —
+   * mentions must round-trip through the model, not just emit
+   * literal `@DisplayName` text).
+   *
+   * <p>Picks are kept in insertion order. {@link #buildDocument}
+   * walks the plain reply draft and matches each pending mention's
+   * chip text (`@<displayName>`) as the leftmost occurrence at-or-
+   * after the running offset; deletions of the chip on the lit side
+   * therefore self-heal because the missing chip text simply leaves
+   * the pending entry unmatched and dropped at submit time.
+   */
+  public void onMentionPicked(String participantAddress, String displayName) {
+    onMentionPicked(participantAddress, displayName, PendingMention.UNKNOWN_CHIP_OFFSET);
+  }
+
+  public void onMentionPicked(
+      String participantAddress, String displayName, int chipTextOffset) {
+    if (signedOut) return;
+    if (participantAddress != null && !participantAddress.trim().isEmpty()) {
+      pendingMentions.add(
+          new PendingMention(participantAddress, displayName, chipTextOffset));
+    }
+    try {
+      telemetrySink.record(J2clClientTelemetry.event("compose.mention_picked").build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.3): the user dismissed the mention popover
+   * with a non-empty query. Records telemetry only.
+   */
+  public void onMentionAbandoned() {
+    if (signedOut) return;
+    try {
+      telemetrySink.record(J2clClientTelemetry.event("compose.mention_abandoned").build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.4): the per-blip task affordance was clicked.
+   * Emits a stand-alone toggle delta against the supplied blip
+   * without touching the active reply draft. The bootstrap callback
+   * bails out if the user has signed out or switched waves since the
+   * click, preventing stale-session writes.
+   */
+  public void onTaskToggled(final String blipId, final boolean completed) {
+    if (signedOut) return;
+    if (blipId == null || blipId.trim().isEmpty()) return;
+    if (!hasSelectedWave(writeSession)) return;
+    final J2clSidecarWriteSession submitSession = writeSession;
+    final String trimmedBlipId = blipId.trim();
+    gateway.fetchRootSessionBootstrap(
+        bootstrap -> {
+          if (signedOut || writeSession != submitSession) {
+            return;
+          }
+          SidecarSubmitRequest request;
+          try {
+            request =
+                deltaFactory.createTaskToggleRequest(
+                    bootstrap.getAddress(), submitSession, trimmedBlipId, completed);
+          } catch (RuntimeException e) {
+            // Toggling a task is best-effort; log telemetry and return.
+            recordTaskToggleTelemetry(completed, "failure-build");
+            return;
+          }
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> {
+                if (response != null && !response.getErrorMessage().isEmpty()) {
+                  recordTaskToggleTelemetry(completed, "failure-submit");
+                  return;
+                }
+                recordTaskToggleTelemetry(completed, "success");
+              },
+              error -> recordTaskToggleTelemetry(completed, "failure-submit"));
+        },
+        error -> recordTaskToggleTelemetry(completed, "failure-bootstrap"));
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.4 step 5): the task-metadata popover was
+   * submitted with a new owner + due date. Emits a stand-alone delta
+   * carrying both annotations.
+   */
+  public void onTaskMetadataChanged(
+      final String blipId, final String assigneeAddress, final String dueDate) {
+    if (signedOut) return;
+    if (blipId == null || blipId.trim().isEmpty()) return;
+    if (!hasSelectedWave(writeSession)) return;
+    final J2clSidecarWriteSession submitSession = writeSession;
+    final String trimmedBlipId = blipId.trim();
+    final String normalizedAssignee = assigneeAddress == null ? "" : assigneeAddress.trim();
+    final String normalizedDue = dueDate == null ? "" : dueDate.trim();
+    gateway.fetchRootSessionBootstrap(
+        bootstrap -> {
+          if (signedOut || writeSession != submitSession) {
+            return;
+          }
+          SidecarSubmitRequest request;
+          try {
+            request =
+                deltaFactory.createTaskMetadataRequest(
+                    bootstrap.getAddress(),
+                    submitSession,
+                    trimmedBlipId,
+                    normalizedAssignee,
+                    normalizedDue);
+          } catch (RuntimeException e) {
+            recordTaskMetadataTelemetry("failure-build");
+            return;
+          }
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> {
+                if (response != null && !response.getErrorMessage().isEmpty()) {
+                  recordTaskMetadataTelemetry("failure-submit");
+                  return;
+                }
+                recordTaskMetadataTelemetry("success");
+              },
+              error -> recordTaskMetadataTelemetry("failure-submit"));
+        },
+        error -> recordTaskMetadataTelemetry("failure-bootstrap"));
+  }
+
+  private void recordTaskMetadataTelemetry(String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.task_metadata_changed")
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
+  private void recordTaskToggleTelemetry(boolean completed, String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.task_toggled")
+              .field("state", completed ? "completed" : "open")
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
   public void onWriteSessionChanged(J2clSidecarWriteSession nextWriteSession) {
     if (signedOut) {
       return;
@@ -669,7 +968,7 @@ public final class J2clComposeSurfaceController {
                     bootstrap.getAddress(),
                     submitSession,
                     submittedDraft,
-                    buildDocument(submittedDraft, true, submittedAnnotationCommandId));
+                    buildDocument(submittedDraft, true, submittedAnnotationCommandId, true));
           } catch (RuntimeException e) {
             handleReplyFailure(generation, messageOrDefault(e, "Unable to build the reply request."));
             return;
@@ -697,6 +996,10 @@ public final class J2clComposeSurfaceController {
     replySubmitting = false;
     replyDraft = "";
     insertedAttachments.clear();
+    // F-3.S2 (#1038, R-5.3, PR #1066 review thread PRRT_kwDOBwxLXs592RVM):
+    // a successful submit consumes pending mention picks; failures
+    // preserve the list so a retry submits the same chips.
+    pendingMentions.clear();
     // A sent reply closes the attachment batch; failures preserve size and attachments for retry.
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
@@ -757,17 +1060,35 @@ public final class J2clComposeSurfaceController {
             replyErrorText,
             activeCommandId,
             commandStatusText,
-            commandErrorText));
+            commandErrorText,
+            replyAvailable ? writeSession.getParticipantIds() : Collections.emptyList()));
   }
 
   private J2clComposerDocument buildDocument(
       String draftText, boolean includeAttachments, String submittedAnnotationCommandId) {
+    return buildDocument(draftText, includeAttachments, submittedAnnotationCommandId, false);
+  }
+
+  private J2clComposerDocument buildDocument(
+      String draftText,
+      boolean includeAttachments,
+      String submittedAnnotationCommandId,
+      boolean includeMentions) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
     // Reply submits pass the snapshotted command id; create submits pass an empty id.
     J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(submittedAnnotationCommandId);
     String annotationKey = annotationKey(action);
     String annotationValue = annotationValue(action);
-    if (annotationKey != null
+    // F-3.S2 (#1038, R-5.3): when mention picks are pending and their chip text
+    // occurs in the draft, split into alternating text + `link/manual` components.
+    // Only reply submits carry mention annotations; create-wave submits pass
+    // includeMentions=false so a mention picked in a reply context can never
+    // pollute a concurrent create-wave document that happens to contain the
+    // same @DisplayName text.
+    boolean appendedMentions = includeMentions && appendMentionedComponents(builder, draftText, annotationKey, annotationValue);
+    if (appendedMentions) {
+      // No-op: mentions already populated the builder.
+    } else if (annotationKey != null
         && annotationValue != null
         && draftText != null
         && !draftText.trim().isEmpty()) {
@@ -784,6 +1105,105 @@ public final class J2clComposeSurfaceController {
       }
     }
     return builder.build();
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.3): emit text + `link/manual` annotated
+   * components for each pending mention whose chip text still
+   * occurs in {@code draftText}. Returns true when at least one
+   * mention was appended (callers then skip the plain-text or
+   * toolbar-formatted fallback). Mentions consumed in this pass
+   * are not removed from {@link #pendingMentions}; the list is
+   * cleared on submit success / wave change / sign-out so a
+   * failed submit can retry with the same chip set.
+   *
+   * <p>Algorithm: sort pending mentions by their first occurrence
+   * in {@code draftText} (document order) so that chips inserted
+   * out of pick order are serialised correctly. Then walk in
+   * document order, emitting alternating text runs and annotated
+   * chip spans. Non-mention text runs are emitted via
+   * {@link #appendTextRun}: when {@code annotationKey} and
+   * {@code annotationValue} are non-null they are wrapped in the
+   * active toolbar annotation so surrounding formatted text (e.g.
+   * bold, italic) is preserved alongside the mention chips.
+   * Mentions whose chip text is not found (e.g. the user deleted
+   * the chip via Backspace after picking) are silently skipped.
+   */
+  private boolean appendMentionedComponents(
+      J2clComposerDocument.Builder builder, String draftText,
+      String annotationKey, String annotationValue) {
+    if (pendingMentions.isEmpty()) return false;
+    if (draftText == null || draftText.isEmpty()) return false;
+    // Check whether ANY pending mention is still represented in the draft
+    // before mutating the builder; if none match (user deleted every chip),
+    // fall back to the plain-text path so existing tests keep their shape.
+    boolean anyMatch = false;
+    for (PendingMention mention : pendingMentions) {
+      if (draftText.contains(mention.chipText)) {
+        anyMatch = true;
+        break;
+      }
+    }
+    if (!anyMatch) return false;
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — sort pending
+    // mentions by their recorded chip offset (document order) so
+    // duplicate display names and `@Name` plain-text duplicates
+    // bind to the correct chip on submit. Mentions whose offset is
+    // unknown (legacy callers / two-arg overload used in tests)
+    // sort to the end and fall back to first-occurrence matching;
+    // entries whose chipText no longer appears in the draft are
+    // silently skipped (chip deleted on the lit side).
+    List<PendingMention> inDocOrder = new ArrayList<>(pendingMentions);
+    inDocOrder.sort(
+        Comparator.comparingInt(m -> sortKey(m, draftText)));
+    int cursor = 0;
+    for (PendingMention mention : inDocOrder) {
+      int searchStart = cursor;
+      if (mention.chipTextOffset >= 0 && mention.chipTextOffset > cursor) {
+        // Skip ahead to the chip's recorded position so a plain `@Name`
+        // typed before a same-text picked chip is left as plain text
+        // rather than swallowing the chip's annotation.
+        searchStart = mention.chipTextOffset;
+      }
+      int idx = draftText.indexOf(mention.chipText, searchStart);
+      if (idx < 0) {
+        // The recorded offset may be stale (text deleted before the
+        // chip on the lit side). Re-search from the running cursor as
+        // a last resort to preserve the chip annotation when the
+        // chipText still occurs later in the draft.
+        if (searchStart > cursor) {
+          idx = draftText.indexOf(mention.chipText, cursor);
+        }
+      }
+      if (idx < 0) continue;
+      if (idx > cursor) {
+        appendTextRun(builder, draftText.substring(cursor, idx), annotationKey, annotationValue);
+      }
+      builder.annotatedText("link/manual", mention.address, mention.chipText);
+      cursor = idx + mention.chipText.length();
+    }
+    if (cursor < draftText.length()) {
+      appendTextRun(builder, draftText.substring(cursor), annotationKey, annotationValue);
+    }
+    return true;
+  }
+
+  private static int sortKey(PendingMention mention, String draftText) {
+    if (mention.chipTextOffset >= 0) {
+      return mention.chipTextOffset;
+    }
+    int pos = draftText.indexOf(mention.chipText);
+    return pos < 0 ? Integer.MAX_VALUE : pos;
+  }
+
+  private static void appendTextRun(
+      J2clComposerDocument.Builder builder, String text,
+      String annotationKey, String annotationValue) {
+    if (annotationKey != null && annotationValue != null) {
+      builder.annotatedText(annotationKey, annotationValue, text);
+    } else {
+      builder.text(text);
+    }
   }
 
   public static DeltaFactory richContentDeltaFactory(String sessionSeed) {
@@ -868,6 +1288,22 @@ public final class J2clComposeSurfaceController {
           String draftText,
           J2clComposerDocument document) {
         return factory.createReplyRequest(address, session, document);
+      }
+
+      @Override
+      public SidecarSubmitRequest createTaskToggleRequest(
+          String address, J2clSidecarWriteSession session, String blipId, boolean completed) {
+        return factory.taskToggleRequest(address, session, blipId, completed);
+      }
+
+      @Override
+      public SidecarSubmitRequest createTaskMetadataRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String blipId,
+          String assigneeAddress,
+          String dueDate) {
+        return factory.taskMetadataRequest(address, session, blipId, assigneeAddress, dueDate);
       }
     };
   }
@@ -1102,6 +1538,10 @@ public final class J2clComposeSurfaceController {
     J2clAttachmentComposerController previousController = attachmentController;
     attachmentController = null;
     insertedAttachments.clear();
+    // F-3.S2 (#1038, R-5.3): mention picks live alongside attachment
+    // state; sign-out and wave-change resets must drop them so a
+    // mention picked on wave A cannot leak into a reply on wave B.
+    pendingMentions.clear();
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
     annotationCommandId = "";

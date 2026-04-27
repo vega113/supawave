@@ -300,3 +300,368 @@ describe("<wavy-composer>", () => {
     el.remove();
   });
 });
+
+describe("<wavy-composer> R-5.3 mentions", () => {
+  const sampleParticipants = [
+    { address: "alice@example.com", displayName: "Alice Adams" },
+    { address: "bob@example.com", displayName: "Bob Brown" },
+    { address: "yuri@example.com", displayName: "Юра" },
+    { address: "ilker@example.com", displayName: "İlker" }
+  ];
+
+  function setBodyText(el, text) {
+    const body = getBody(el);
+    body.textContent = text;
+    // Place caret at end of the text node.
+    const range = document.createRange();
+    range.setStart(body.firstChild, text.length);
+    range.setEnd(body.firstChild, text.length);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    body.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  }
+
+  it("opens the mention popover when @ is typed at start-of-line", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    expect(popover).to.exist;
+    expect(popover.hasAttribute("open")).to.equal(true);
+    expect(popover.candidates.length).to.equal(sampleParticipants.length);
+    el.remove();
+  });
+
+  it("opens the popover when @ follows whitespace, but NOT inside an email", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    // Inside an email: alice@example.com — should NOT trigger.
+    setBodyText(el, "Email me at alice@example");
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector("mention-suggestion-popover")).to.equal(null);
+    // Reset and try after a space.
+    setBodyText(el, "Hi @");
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector("mention-suggestion-popover")).to.exist;
+    el.remove();
+  });
+
+  it("filters candidates by the typed query (substring, locale-aware)", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    expect(popover).to.exist;
+    expect(popover.candidates.length).to.equal(1);
+    expect(popover.candidates[0].address).to.equal("alice@example.com");
+    el.remove();
+  });
+
+  it("inserts a violet mention chip with data-mention-id when a candidate is picked", async () => {
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b1" .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    const pickedPromise = oneEvent(el, "wavy-composer-mention-picked");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    const event = await pickedPromise;
+    expect(event.detail.address).to.equal("alice@example.com");
+    expect(event.detail.displayName).to.equal("Alice Adams");
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR: the picked event
+    // must carry the chip's plain-text offset so the controller can
+    // bind picks by position rather than first-text-occurrence.
+    expect(event.detail.chipTextOffset).to.be.a("number");
+    expect(event.detail.chipTextOffset).to.equal(0);
+    await el.updateComplete;
+    const chip = getBody(el).querySelector(".wavy-mention-chip");
+    expect(chip).to.exist;
+    expect(chip.getAttribute("data-mention-id")).to.equal("alice@example.com");
+    expect(chip.getAttribute("contenteditable")).to.equal("false");
+    expect(chip.textContent).to.equal("@Alice Adams");
+    // The popover should be closed after pick.
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector("mention-suggestion-popover")).to.equal(null);
+    el.remove();
+  });
+
+  it("emits a chipTextOffset reflecting the chip position when @ is preceded by text", async () => {
+    // PR #1066 review thread PRRT_kwDOBwxLXs593gTR — when the user
+    // has already typed plain text before triggering the popover,
+    // chipTextOffset must point at the chip's plain-text offset (not
+    // 0). This is the disambiguator the controller uses to bind
+    // duplicate-display-name picks to the right occurrence.
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b1" .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "Hi @al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    const pickedPromise = oneEvent(el, "wavy-composer-mention-picked");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    const event = await pickedPromise;
+    expect(event.detail.chipTextOffset).to.equal(3);
+    el.remove();
+  });
+
+  it("preserves the literal @query text on Esc dismissal", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    expect(popover).to.exist;
+    const abandonedPromise = oneEvent(el, "wavy-composer-mention-abandoned");
+    popover.dispatchEvent(
+      new CustomEvent("overlay-close", {
+        bubbles: true,
+        composed: true,
+        detail: { reason: "escape" }
+      })
+    );
+    await abandonedPromise;
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector("mention-suggestion-popover")).to.equal(null);
+    expect(getBody(el).textContent).to.equal("@al");
+    el.remove();
+  });
+
+  it("locale-aware filter matches Cyrillic 'юр' against 'Юра' under lang=ru", async () => {
+    const previousLang = document.documentElement.lang;
+    document.documentElement.lang = "ru";
+    try {
+      const el = await fixture(html`
+        <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+      `);
+      document.body.appendChild(el);
+      setBodyText(el, "@юр");
+      await el.updateComplete;
+      const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+      expect(popover).to.exist;
+      const addrs = popover.candidates.map((c) => c.address);
+      expect(addrs).to.include("yuri@example.com");
+      el.remove();
+    } finally {
+      document.documentElement.lang = previousLang;
+    }
+  });
+
+  it("locale-aware filter matches Turkish 'ilk' against 'İlker' under lang=tr", async () => {
+    const previousLang = document.documentElement.lang;
+    document.documentElement.lang = "tr";
+    try {
+      const el = await fixture(html`
+        <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+      `);
+      document.body.appendChild(el);
+      setBodyText(el, "@ilk");
+      await el.updateComplete;
+      const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+      expect(popover).to.exist;
+      const addrs = popover.candidates.map((c) => c.address);
+      expect(addrs).to.include("ilker@example.com");
+      el.remove();
+    } finally {
+      document.documentElement.lang = previousLang;
+    }
+  });
+
+  it("ArrowDown/ArrowUp navigates candidates and Enter inserts the chip", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@");
+    await el.updateComplete;
+    const body = getBody(el);
+    body.focus();
+    body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })
+    );
+    await el.updateComplete;
+    body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })
+    );
+    await el.updateComplete;
+    const pickedPromise = oneEvent(el, "wavy-composer-mention-picked");
+    body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })
+    );
+    const event = await pickedPromise;
+    expect(event.detail.address).to.equal(sampleParticipants[2].address);
+    el.remove();
+  });
+
+  it("Backspace immediately after a chip removes the chip atomically", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    await el.updateComplete;
+    const body = getBody(el);
+    expect(body.querySelector(".wavy-mention-chip")).to.exist;
+    // Caret is now after the chip on the trailing-space text node.
+    const sel = document.getSelection();
+    expect(sel.rangeCount).to.be.greaterThan(0);
+    const beforeKey = new KeyboardEvent("keydown", {
+      key: "Backspace",
+      bubbles: true,
+      cancelable: true
+    });
+    body.dispatchEvent(beforeKey);
+    await el.updateComplete;
+    expect(body.querySelector(".wavy-mention-chip")).to.equal(null);
+    el.remove();
+  });
+
+  it("rich serializer emits annotated component for each chip", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    await el.updateComplete;
+    const components = el.serializeRichComponents();
+    const annotated = components.find(
+      (c) => c.type === "annotated" && c.annotationKey === "link/manual"
+    );
+    expect(annotated).to.exist;
+    expect(annotated.annotationValue).to.equal("alice@example.com");
+    expect(annotated.text).to.equal("@Alice Adams");
+    el.remove();
+  });
+
+  // F-3.S2 (#1038, PR #1066 review thread PRRT_kwDOBwxLXs592RVT) —
+  // controller-driven resets (draft prop transitioning to empty after
+  // submit/cancel/wave change) MUST clear the body even when rich
+  // content (mention chips, task lists) is present. Without this,
+  // stale chips remain visible and can be re-submitted.
+  it("controller-driven reset clears body even when a mention chip is present", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    await el.updateComplete;
+    const body = getBody(el);
+    expect(body.querySelector(".wavy-mention-chip")).to.exist;
+    // Move selection out of the body so the synchronous reset path runs
+    // (mirrors what the Java view does when it focuses elsewhere after
+    // submit), then trigger a controller-driven reset by clearing draft.
+    document.getSelection().removeAllRanges();
+    document.body.focus();
+    el.draft = "";
+    await el.updateComplete;
+    expect(body.querySelector(".wavy-mention-chip")).to.equal(null);
+    expect(body.textContent).to.equal("");
+    el.remove();
+  });
+
+  it("controller-driven reset clears body even when a task list is present", async () => {
+    const el = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
+    document.body.appendChild(el);
+    const body = getBody(el);
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    range.collapse(false);
+    document.getSelection().removeAllRanges();
+    document.getSelection().addRange(range);
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        bubbles: true,
+        composed: true,
+        detail: { actionId: "insert-task" }
+      })
+    );
+    await el.updateComplete;
+    expect(body.querySelector("ul.wavy-task-list")).to.exist;
+    document.getSelection().removeAllRanges();
+    document.body.focus();
+    el.draft = "";
+    await el.updateComplete;
+    expect(body.querySelector("ul.wavy-task-list")).to.equal(null);
+    expect(body.textContent).to.equal("");
+    el.remove();
+  });
+
+  it("Insert-task toolbar action inserts a wavy-task-list at the caret", async () => {
+    const el = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
+    document.body.appendChild(el);
+    const body = getBody(el);
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    range.collapse(false);
+    document.getSelection().removeAllRanges();
+    document.getSelection().addRange(range);
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        bubbles: true,
+        composed: true,
+        detail: { actionId: "insert-task" }
+      })
+    );
+    await el.updateComplete;
+    const list = body.querySelector("ul.wavy-task-list");
+    expect(list).to.exist;
+    const checkbox = list.querySelector("input[type='checkbox']");
+    expect(checkbox).to.exist;
+    expect(checkbox.disabled).to.equal(true);
+    el.remove();
+  });
+});

@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
+import "./wavy-task-affordance.js";
 
 /**
  * <wave-blip> — F-2 (#1037, R-3.1) read-surface wrapper around the F-0
@@ -63,7 +64,15 @@ export class WaveBlip extends LitElement {
     unread: { type: Boolean, reflect: true },
     hasMention: { type: Boolean, attribute: "has-mention", reflect: true },
     replyCount: { type: Number, attribute: "reply-count", reflect: true },
-    livePulse: { type: Boolean, attribute: "live-pulse", reflect: true }
+    livePulse: { type: Boolean, attribute: "live-pulse", reflect: true },
+    // F-3.S2 (#1038, R-5.4): per-blip task state. Reflected to
+    // data-task-completed so wave-blip[data-task-completed="true"] can
+    // be targeted by external CSS hooks (mark-read pipeline, search
+    // filter highlights). The values are sourced from the supplement
+    // live-update path (task/done annotation on the blip body).
+    taskCompleted: { type: Boolean, attribute: "data-task-completed", reflect: true },
+    taskAssignee: { type: String, attribute: "data-task-assignee", reflect: true },
+    taskDueDate: { type: String, attribute: "data-task-due-date", reflect: true }
   };
 
   static styles = css`
@@ -156,6 +165,21 @@ export class WaveBlip extends LitElement {
     :host([has-mention]) {
       position: relative;
     }
+    /* F-3.S2 (#1038, R-5.4 step 4): completed tasks fade the body via
+     * the F-0 quiet text token and apply a strikethrough so the blip
+     * card visually communicates the closed state without re-painting
+     * the wavy envelope. The strikethrough lives on the body wrapper
+     * inside the host so the metadata header (author + timestamp)
+     * stays legible. */
+    :host([data-task-completed]) .body {
+      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      text-decoration: line-through;
+      text-decoration-color: var(--wavy-signal-amber, #f59e0b);
+    }
+    .task-affordance-slot {
+      display: inline-flex;
+      align-items: center;
+    }
   `;
 
   constructor() {
@@ -172,6 +196,24 @@ export class WaveBlip extends LitElement {
     this.hasMention = false;
     this.replyCount = 0;
     this.livePulse = false;
+    this.taskCompleted = false;
+    this.taskAssignee = "";
+    this.taskDueDate = "";
+    this._participants = [];
+  }
+
+  /**
+   * Optional Array<{address, displayName}> used as the participant
+   * candidate list for the inner <wavy-task-affordance>'s details
+   * popover. Set as a JS property by the Java view; absent in unit
+   * fixtures (the affordance falls back to "Unassigned" only).
+   */
+  get participants() {
+    return this._participants;
+  }
+  set participants(value) {
+    this._participants = Array.isArray(value) ? value : [];
+    this.requestUpdate();
   }
 
   /** Lazy frozen read-only snapshot for plugin consumers. */
@@ -284,6 +326,13 @@ export class WaveBlip extends LitElement {
     );
   }
 
+  _onTaskToggled(event) {
+    // Optimistically mirror the affordance toggle into the blip's own
+    // taskCompleted property so the strikethrough CSS updates immediately
+    // without waiting for the model to round-trip through the server.
+    this.taskCompleted = event.detail.completed;
+  }
+
   _buildPermalink() {
     if (typeof window === "undefined" || !window.location) {
       return "";
@@ -357,6 +406,17 @@ export class WaveBlip extends LitElement {
             @wave-blip-toolbar-edit=${this._onEditClick}
             @wave-blip-toolbar-link=${this._onLinkClick}
           ></wave-blip-toolbar>
+          <span class="task-affordance-slot" data-task-affordance-slot>
+            <wavy-task-affordance
+              data-blip-id=${this.blipId}
+              data-wave-id=${this.waveId}
+              ?data-task-completed=${this.taskCompleted}
+              data-task-assignee=${this.taskAssignee || ""}
+              data-task-due-date=${this.taskDueDate || ""}
+              .participants=${this._participants}
+              @wave-blip-task-toggled=${this._onTaskToggled}
+            ></wavy-task-affordance>
+          </span>
         </div>
         <div class="body">
           <slot></slot>

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentComposerController;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentIdGenerator;
@@ -16,6 +17,7 @@ import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.richtext.J2clComposerDocument;
 import org.waveprotocol.box.j2cl.richtext.J2clRichContentDeltaFactory;
 import org.waveprotocol.box.j2cl.toolbar.J2clDailyToolbarAction;
+import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitResponse;
@@ -94,6 +96,26 @@ public final class J2clComposeSurfaceController {
      * `task/assignee` + `task/dueTs` annotations.
      */
     default void onTaskMetadataChanged(String blipId, String assigneeAddress, String dueDate) {}
+
+    /**
+     * F-3.S3 (#1038, R-5.5): the user picked a reaction emoji in the
+     * picker, or clicked an existing reaction chip. The controller
+     * computes whether this is an add-or-remove from its cached
+     * reaction snapshot and emits the corresponding delta against the
+     * `react+<blipId>` data document. {@code emoji} is the literal
+     * emoji glyph; {@code blipId} is the blip the reaction targets.
+     * Default no-op so existing test doubles compile unchanged.
+     */
+    default void onReactionToggled(String blipId, String emoji) {}
+
+    /**
+     * F-3.S3 (#1038, R-5.5): returns the cached reaction snapshot for
+     * the given blip so the view can populate the authors popover.
+     * Default returns an empty list so existing test doubles compile.
+     */
+    default List<SidecarReactionEntry> getReactionSnapshot(String blipId) {
+      return Collections.<SidecarReactionEntry>emptyList();
+    }
   }
 
   @FunctionalInterface
@@ -142,6 +164,25 @@ public final class J2clComposeSurfaceController {
         String dueDate) {
       throw new UnsupportedOperationException(
           "Task metadata is only available with the rich-content delta factory.");
+    }
+
+    /**
+     * F-3.S3 (#1038, R-5.5): build a reaction-toggle request against
+     * the `react+<blipId>` data document. {@code currentSnapshot} is
+     * the most recent per-blip {@link SidecarReactionEntry} list the
+     * controller has; {@code adding} is true when the user is not yet
+     * a reactor under {@code emoji}. Plain-text fallback throws
+     * because reactions are rich-only.
+     */
+    default SidecarSubmitRequest createReactionToggleRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String emoji,
+        List<SidecarReactionEntry> currentSnapshot,
+        boolean adding) {
+      throw new UnsupportedOperationException(
+          "Reaction toggle is only available with the rich-content delta factory.");
     }
   }
 
@@ -216,7 +257,24 @@ public final class J2clComposeSurfaceController {
   private final CreateSuccessHandler createSuccessHandler;
   private final ReplySuccessHandler replySuccessHandler;
   private final J2clClientTelemetry.Sink telemetrySink;
+  // F-3.S3 (#1038, R-5.5): listener invoked after each successful
+  // bootstrap with the resolved signed-in address. The root shell uses
+  // this to set the selected-wave view's current-user address so the
+  // chip aria-pressed state reflects "this is your own reaction." Null
+  // means no listener installed.
+  private CurrentUserAddressListener currentUserAddressListener;
   private String createDraft = "";
+
+  /**
+   * F-3.S3 (#1038, R-5.5): callback fired after each successful
+   * gateway bootstrap with the signed-in user's address. Idempotent:
+   * the controller invokes the listener every bootstrap so the view's
+   * cached address survives reconnects without churn.
+   */
+  @FunctionalInterface
+  public interface CurrentUserAddressListener {
+    void onCurrentUserAddress(String address);
+  }
   private boolean createSubmitting;
   private String createStatusText = "Create a self-owned wave inside the root shell.";
   private String createErrorText = "";
@@ -248,6 +306,16 @@ public final class J2clComposeSurfaceController {
   // `@DisplayName` text. Cleared on submit success, sign-out, and
   // wave change (mirrors `insertedAttachments`).
   private final List<PendingMention> pendingMentions = new ArrayList<PendingMention>();
+  // F-3.S3 (#1038, R-5.5): per-blip reaction snapshot kept in sync via
+  // setReactionSnapshot(blipId, entries). The controller uses the
+  // snapshot at click time to decide whether the toggle adds or
+  // removes the user's <user/> element under the chosen emoji.
+  private final Map<String, List<SidecarReactionEntry>> reactionSnapshotsByBlip =
+      new HashMap<String, List<SidecarReactionEntry>>();
+  // Last successfully resolved user address from a gateway bootstrap.
+  // Used to derive the toggle direction on bootstrap-failure telemetry paths
+  // where bootstrap.getAddress() is unavailable.
+  private String lastKnownAddress = "";
   private J2clAttachmentComposerController.DisplaySize attachmentDisplaySize =
       J2clAttachmentComposerController.DisplaySize.MEDIUM;
 
@@ -432,6 +500,21 @@ public final class J2clComposeSurfaceController {
             J2clComposeSurfaceController.this.onTaskMetadataChanged(
                 blipId, assigneeAddress, dueDate);
           }
+
+          @Override
+          public void onReactionToggled(String blipId, String emoji) {
+            J2clComposeSurfaceController.this.onReactionToggled(blipId, emoji);
+          }
+
+          @Override
+          public List<SidecarReactionEntry> getReactionSnapshot(String blipId) {
+            if (blipId == null || blipId.isEmpty()) {
+              return Collections.<SidecarReactionEntry>emptyList();
+            }
+            List<SidecarReactionEntry> s = reactionSnapshotsByBlip.get(blipId.trim());
+            return s != null ? new ArrayList<SidecarReactionEntry>(s)
+                : Collections.<SidecarReactionEntry>emptyList();
+          }
         });
     render();
   }
@@ -452,6 +535,12 @@ public final class J2clComposeSurfaceController {
     commandStatusText = "";
     commandErrorText = "";
     resetAttachmentState();
+    // F-3.S3 (#1038, R-5.5): drop cached reaction snapshots so a
+    // post-sign-out toggle cannot project against the prior session's
+    // state. Clear the published user address so the view's aria-pressed
+    // state resets immediately on sign-out.
+    reactionSnapshotsByBlip.clear();
+    notifyCurrentUserAddress("");
     createStatusText = "Sign in to create or reply in the J2CL root shell.";
     replyStatusText = createStatusText;
     render();
@@ -704,6 +793,7 @@ public final class J2clComposeSurfaceController {
           if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             return;
           }
+          notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
             request =
@@ -751,6 +841,7 @@ public final class J2clComposeSurfaceController {
           if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             return;
           }
+          notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
             request =
@@ -787,6 +878,145 @@ public final class J2clComposeSurfaceController {
               .build());
     } catch (Exception ignored) {
       // Telemetry must never affect composer behavior.
+    }
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): root shell installs this hook to learn the
+   * signed-in user's address as soon as the first bootstrap completes
+   * and after every reconnect. Used to colour the active-for-current-
+   * user chip pressed state. Idempotent — passing {@code null}
+   * disables the listener.
+   */
+  public void setCurrentUserAddressListener(CurrentUserAddressListener listener) {
+    this.currentUserAddressListener = listener;
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): publish the latest per-blip reaction
+   * snapshot from the model. The controller uses this on each toggle
+   * click to decide whether the user is adding or removing their
+   * reaction. The map is keyed by blip id; an empty entry signals "no
+   * reactions yet" (the factory then emits the full envelope insert).
+   */
+  public void setReactionSnapshots(Map<String, List<SidecarReactionEntry>> snapshotsByBlip) {
+    reactionSnapshotsByBlip.clear();
+    if (snapshotsByBlip == null || snapshotsByBlip.isEmpty()) {
+      return;
+    }
+    for (Map.Entry<String, List<SidecarReactionEntry>> entry : snapshotsByBlip.entrySet()) {
+      String key = entry.getKey();
+      if (key == null) continue;
+      key = key.trim();
+      if (key.isEmpty()) continue;
+      List<SidecarReactionEntry> snapshot = entry.getValue();
+      reactionSnapshotsByBlip.put(
+          key,
+          snapshot == null
+              ? Collections.<SidecarReactionEntry>emptyList()
+              : new ArrayList<SidecarReactionEntry>(snapshot));
+    }
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): the user clicked an existing reaction chip
+   * or picked an emoji from the picker. The controller computes
+   * adding-vs-removing from {@link #reactionSnapshotsByBlip} and emits
+   * the corresponding delta against the `react+<blipId>` data
+   * document. Mirrors {@link #onTaskToggled}'s independent-bootstrap
+   * pattern so a reaction toggle on blip B does not clobber an
+   * in-flight reply on blip A.
+   */
+  public void onReactionToggled(final String blipId, final String emoji) {
+    if (signedOut) return;
+    if (blipId == null || blipId.trim().isEmpty()) return;
+    if (emoji == null || emoji.trim().isEmpty()) return;
+    if (!hasSelectedWave(writeSession)) return;
+    final J2clSidecarWriteSession submitSession = writeSession;
+    final String trimmedBlipId = blipId.trim();
+    final String trimmedEmoji = emoji.trim();
+    final List<SidecarReactionEntry> snapshot =
+        reactionSnapshotsByBlip.containsKey(trimmedBlipId)
+            ? new ArrayList<SidecarReactionEntry>(reactionSnapshotsByBlip.get(trimmedBlipId))
+            : Collections.<SidecarReactionEntry>emptyList();
+    gateway.fetchRootSessionBootstrap(
+        bootstrap -> {
+          if (signedOut || writeSession != submitSession) {
+            return;
+          }
+          notifyCurrentUserAddress(bootstrap.getAddress());
+          final boolean adding = !userHasReactedWithEmoji(snapshot, bootstrap.getAddress(), trimmedEmoji);
+          SidecarSubmitRequest request;
+          try {
+            request =
+                deltaFactory.createReactionToggleRequest(
+                    bootstrap.getAddress(),
+                    submitSession,
+                    trimmedBlipId,
+                    trimmedEmoji,
+                    snapshot,
+                    adding);
+          } catch (RuntimeException e) {
+            recordReactionToggleTelemetry(adding, "failure-build");
+            return;
+          }
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> {
+                if (response != null && !response.getErrorMessage().isEmpty()) {
+                  recordReactionToggleTelemetry(adding, "failure-submit");
+                  return;
+                }
+                recordReactionToggleTelemetry(adding, "success");
+              },
+              error -> recordReactionToggleTelemetry(adding, "failure-submit"));
+        },
+        // Bootstrap failure: derive direction from the last cached address so the telemetry
+        // reflects the user's actual intent rather than always emitting state="removed".
+        error -> recordReactionToggleTelemetry(
+            !userHasReactedWithEmoji(snapshot, lastKnownAddress, trimmedEmoji),
+            "failure-bootstrap"));
+  }
+
+  private static boolean userHasReactedWithEmoji(
+      List<SidecarReactionEntry> snapshot, String address, String emoji) {
+    if (snapshot == null || snapshot.isEmpty()) return false;
+    String normalizedAddress = address == null ? "" : address.trim().toLowerCase(Locale.ROOT);
+    for (SidecarReactionEntry entry : snapshot) {
+      if (entry == null || !emoji.equals(entry.getEmoji())) continue;
+      List<String> users = entry.getAddresses();
+      if (users == null) continue;
+      for (String user : users) {
+        if (user != null
+            && user.trim().toLowerCase(Locale.ROOT).equals(normalizedAddress)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private void recordReactionToggleTelemetry(boolean adding, String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.reaction_toggled")
+              .field("state", adding ? "added" : "removed")
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
+  private void notifyCurrentUserAddress(String address) {
+    String normalized = address == null ? "" : address;
+    lastKnownAddress = normalized;
+    if (currentUserAddressListener == null) return;
+    try {
+      currentUserAddressListener.onCurrentUserAddress(normalized);
+    } catch (Throwable ignored) {
+      // Listener errors must not affect compose behavior.
     }
   }
 
@@ -875,6 +1105,7 @@ public final class J2clComposeSurfaceController {
           if (generation != createGeneration) {
             return;
           }
+          notifyCurrentUserAddress(bootstrap.getAddress());
           CreateWaveRequest request;
           try {
             request =
@@ -968,6 +1199,7 @@ public final class J2clComposeSurfaceController {
           if (generation != replyGeneration) {
             return;
           }
+          notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
             request =
@@ -1312,6 +1544,18 @@ public final class J2clComposeSurfaceController {
           String dueDate) {
         return factory.taskMetadataRequest(address, session, blipId, assigneeAddress, dueDate);
       }
+
+      @Override
+      public SidecarSubmitRequest createReactionToggleRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String blipId,
+          String emoji,
+          List<SidecarReactionEntry> currentSnapshot,
+          boolean adding) {
+        return factory.reactionToggleRequest(
+            address, session, blipId, emoji, currentSnapshot, adding);
+      }
     };
   }
 
@@ -1549,6 +1793,9 @@ public final class J2clComposeSurfaceController {
     // state; sign-out and wave-change resets must drop them so a
     // mention picked on wave A cannot leak into a reply on wave B.
     pendingMentions.clear();
+    // F-3.S3 (#1038, R-5.5): same rule for reaction snapshots — wave
+    // change drops the prior wave's per-blip reaction state.
+    reactionSnapshotsByBlip.clear();
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
     annotationCommandId = "";

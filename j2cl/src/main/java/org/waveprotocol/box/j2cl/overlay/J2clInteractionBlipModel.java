@@ -110,6 +110,42 @@ public final class J2clInteractionBlipModel {
     return reactionSummaries;
   }
 
+  /**
+   * F-3.S3 (#1038, R-5.5): rebuild this blip's reaction summaries with
+   * {@code activeForCurrentUser} flags computed against the signed-in
+   * user's address. The model itself stays user-agnostic (constructed
+   * inside the projector before the bootstrap address is known); the
+   * view layer calls this helper to refresh the chip-pressed state on
+   * each render. Empty {@code currentUserAddress} returns the original
+   * (always-inactive) summaries unchanged.
+   */
+  public List<J2clReactionSummary> reactionSummariesForUser(String currentUserAddress) {
+    if (currentUserAddress == null || currentUserAddress.trim().isEmpty()) {
+      return reactionSummaries;
+    }
+    String normalized = currentUserAddress.trim();
+    List<J2clReactionSummary> rebuilt = new ArrayList<J2clReactionSummary>();
+    for (J2clReactionSummary summary : reactionSummaries) {
+      boolean active = false;
+      for (String address : summary.getParticipantAddresses()) {
+        if (address != null) {
+          String normalizedAddress = address.trim();
+          if (normalizedAddress.equalsIgnoreCase(normalized)) {
+            active = true;
+            break;
+          }
+        }
+      }
+      rebuilt.add(
+          new J2clReactionSummary(
+              summary.getEmoji(),
+              summary.getParticipantAddresses(),
+              active,
+              summary.getInspectLabel()));
+    }
+    return Collections.unmodifiableList(rebuilt);
+  }
+
   private static List<J2clMentionRange> refineMentionRanges(
       String text, List<SidecarAnnotationRange> annotationRanges) {
     if (annotationRanges == null || annotationRanges.isEmpty()) {
@@ -168,7 +204,10 @@ public final class J2clInteractionBlipModel {
       if (emoji.isEmpty()) {
         continue;
       }
-      // Slice 2 has no signed-in-user context; controllers will fill this later.
+      // F-3.S3 (#1038, R-5.5): the active-for-current-user flag is
+      // computed by the view layer via reactionSummariesForUser(addr)
+      // because the bootstrap address is not known when the projector
+      // builds this model. Initial summaries are always inactive.
       summaries.add(
           new J2clReactionSummary(emoji, entry.getAddresses(), false, ""));
     }

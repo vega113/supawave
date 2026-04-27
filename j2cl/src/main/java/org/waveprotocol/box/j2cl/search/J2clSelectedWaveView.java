@@ -3,17 +3,35 @@ package org.waveprotocol.box.j2cl.search;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import jsinterop.annotations.JsFunction;
 import jsinterop.base.Js;
+import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
+import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
+
+  /**
+   * F-3.S3 (#1038, R-5.5): hook the root-shell installs to forward
+   * the latest per-blip reaction snapshots to the compose
+   * controller. Called once per {@link #render(J2clSelectedWaveModel)}
+   * pass after the model's interaction blips have been published to
+   * the read renderer's binder.
+   */
+  @FunctionalInterface
+  public interface ReactionSnapshotPublisher {
+    void publish(Map<String, List<SidecarReactionEntry>> snapshotsByBlip);
+  }
+
   private final HTMLElement title;
   private final HTMLElement unread;
   private final HTMLElement status;
@@ -40,6 +58,13 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private String serverFirstMode;
   private double serverFirstMountedAtMs;
   private String lastRenderedWaveId = "";
+  // F-3.S3 (#1038, R-5.5): publisher installed by the root shell to
+  // forward per-blip reaction snapshots to the compose controller.
+  private ReactionSnapshotPublisher reactionSnapshotPublisher;
+  // F-3.S3 (#1038, R-5.5): signed-in user address — used to mark the
+  // user's own chip as aria-pressed=true. Updated by the root shell
+  // after each bootstrap response; empty when no user is signed in.
+  private String currentUserAddress = "";
 
   public J2clSelectedWaveView(HTMLElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -296,6 +321,27 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     void setAttribute(String name, String value);
   }
 
+  /**
+   * F-3.S3 (#1038, R-5.5): root-shell installs this hook so each
+   * {@link #render(J2clSelectedWaveModel)} pass forwards the latest
+   * per-blip reaction snapshots to the compose controller (which uses
+   * them to compute toggle direction at click time). Idempotent —
+   * passing {@code null} disables the forwarding.
+   */
+  public void setReactionSnapshotPublisher(ReactionSnapshotPublisher publisher) {
+    this.reactionSnapshotPublisher = publisher;
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): publishes the signed-in user's address to
+   * the view so the per-chip aria-pressed flag reflects "this is your
+   * own reaction." Mirrored into the read renderer's binder on each
+   * subsequent {@link #render(J2clSelectedWaveModel)} pass.
+   */
+  public void setCurrentUserAddress(String currentUserAddress) {
+    this.currentUserAddress = currentUserAddress == null ? "" : currentUserAddress;
+  }
+
   @Override
   public void render(J2clSelectedWaveModel model) {
     String renderedWaveId = model.getSelectedWaveId() == null ? "" : model.getSelectedWaveId();
@@ -303,6 +349,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       readSurface.clearViewportScrollMemory();
       lastRenderedWaveId = renderedWaveId;
     }
+    publishReactionState(model);
     // F-2 (#1037, R-3.1) — surface the wave id on the content host so the
     // <wave-blip> renderer can lift it onto each rendered card without
     // changing the renderer signature. Cleared explicitly when no wave is
@@ -622,6 +669,44 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     RootShellStatFn rootShellStatFn = Js.uncheckedCast(statFn);
     rootShellStatFn.accept(
         "shell_swap", reason, Math.max(0, now() - serverFirstMountedAtMs), !serverFirstWaveId.isEmpty());
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): project the model's interaction-blip list
+   * onto the read renderer (per-blip `<reaction-row>`) and the compose
+   * controller (per-blip snapshot for toggle-direction computation).
+   * Both consumers see the same source of truth so the chip aria-pressed
+   * state and the outgoing delta agree on what's currently in the
+   * `react+<blipId>` data document.
+   */
+  private void publishReactionState(J2clSelectedWaveModel model) {
+    final List<J2clInteractionBlipModel> interactionBlips =
+        model == null ? null : model.getInteractionBlips();
+    if (interactionBlips == null || interactionBlips.isEmpty()) {
+      readSurface.setReactionBinder(blipId -> null);
+      if (reactionSnapshotPublisher != null) {
+        reactionSnapshotPublisher.publish(java.util.Collections.<String, List<SidecarReactionEntry>>emptyMap());
+      }
+      return;
+    }
+    final Map<String, List<J2clReactionSummary>> summariesByBlip =
+        new LinkedHashMap<String, List<J2clReactionSummary>>();
+    final Map<String, List<SidecarReactionEntry>> entriesByBlip =
+        new LinkedHashMap<String, List<SidecarReactionEntry>>();
+    for (J2clInteractionBlipModel blip : interactionBlips) {
+      if (blip == null) continue;
+      String blipId = blip.getBlipId();
+      if (blipId == null || blipId.isEmpty()) continue;
+      // Reactions are user-aware on the chip side; rebuild active
+      // flags against the signed-in user before publishing to the
+      // renderer.
+      summariesByBlip.put(blipId, blip.reactionSummariesForUser(currentUserAddress));
+      entriesByBlip.put(blipId, blip.getReactionEntries());
+    }
+    readSurface.setReactionBinder(summariesByBlip::get);
+    if (reactionSnapshotPublisher != null) {
+      reactionSnapshotPublisher.publish(entriesByBlip);
+    }
   }
 
   private static double now() {

@@ -21,6 +21,7 @@ import java.util.Set;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
@@ -61,6 +62,19 @@ public final class J2clReadSurfaceDomRenderer {
     void markBlipRead(String blipId, Runnable onError);
   }
 
+  /**
+   * F-3.S3 (#1038, R-5.5): seam used by the view layer to project the
+   * per-blip reaction summary list onto each rendered `<wave-blip>`.
+   * Returning {@code null} or an empty list still mounts the row so
+   * the F.8 add-reaction button is always visible. The renderer calls
+   * this once per blip during {@link #renderBlip}; the binder is
+   * expected to be a fast lookup against an in-memory map.
+   */
+  @FunctionalInterface
+  public interface ReactionBinder {
+    List<J2clReactionSummary> reactionsFor(String blipId);
+  }
+
   /** Test seam for the dwell-timer scheduler so unit tests can swap a fake clock. */
   public interface DwellTimerScheduler {
     /**
@@ -90,6 +104,10 @@ public final class J2clReadSurfaceDomRenderer {
   private DwellTimerScheduler dwellTimerScheduler = defaultDwellTimerScheduler();
   private final Map<String, Object> dwellTimers = new HashMap<String, Object>();
   private final Set<String> markBlipReadInFlight = new HashSet<String>();
+  // F-3.S3 (#1038, R-5.5): per-blip reaction summaries injected by the
+  // view layer (J2clSelectedWaveView). Null binder means "no reactions
+  // wiring yet" — the row is still mounted as an empty add-only state.
+  private ReactionBinder reactionBinder;
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -118,6 +136,16 @@ public final class J2clReadSurfaceDomRenderer {
 
   public void clearViewportScrollMemory() {
     lastScrollDirection = null;
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): registers the per-blip reaction binder so
+   * subsequent {@link #renderBlip} calls mount a `<reaction-row>` with
+   * the live reaction summaries. Pass {@code null} to disable
+   * reaction rendering (the row is then mounted empty).
+   */
+  public void setReactionBinder(ReactionBinder binder) {
+    this.reactionBinder = binder;
   }
 
   /**
@@ -636,7 +664,52 @@ public final class J2clReadSurfaceDomRenderer {
       }
       element.appendChild(attachments);
     }
+
+    // F-3.S3 (#1038, R-5.5, F.8 + F.9): mount a <reaction-row> in the
+    // wave-blip's `reactions` slot. The row is always mounted (even
+    // with an empty reactions list) so the F.8 add-reaction button is
+    // always visible. The row's `.reactions` JS property is set from
+    // the binder's per-blip lookup.
+    HTMLElement reactionRow =
+        (HTMLElement) DomGlobal.document.createElement("reaction-row");
+    reactionRow.setAttribute("slot", "reactions");
+    reactionRow.setAttribute("data-blip-id", blip.getBlipId());
+    setProperty(reactionRow, "blipId", blip.getBlipId());
+    setProperty(reactionRow, "reactions", buildReactionsArray(blip.getBlipId()));
+    element.appendChild(reactionRow);
     return element;
+  }
+
+  private static void setProperty(HTMLElement element, String name, Object value) {
+    Js.asPropertyMap(element).set(name, value);
+  }
+
+  /**
+   * F-3.S3: convert the binder result into a JS-friendly array of
+   * `{emoji, count, active, inspectLabel}` records so the lit
+   * `<reaction-row>` element can render them via its existing
+   * `reactions` property contract. Returns an empty array when the
+   * binder is null or the blip has no reactions yet.
+   */
+  private elemental2.core.JsArray<Object> buildReactionsArray(String blipId) {
+    elemental2.core.JsArray<Object> arr = elemental2.core.JsArray.of();
+    if (reactionBinder == null || blipId == null || blipId.isEmpty()) {
+      return arr;
+    }
+    List<J2clReactionSummary> summaries = reactionBinder.reactionsFor(blipId);
+    if (summaries == null || summaries.isEmpty()) {
+      return arr;
+    }
+    for (J2clReactionSummary summary : summaries) {
+      if (summary == null) continue;
+      JsPropertyMap<Object> entry = JsPropertyMap.of();
+      entry.set("emoji", summary.getEmoji());
+      entry.set("count", summary.getCount());
+      entry.set("active", summary.isActiveForCurrentUser());
+      entry.set("inspectLabel", summary.getInspectLabel());
+      arr.push(entry);
+    }
+    return arr;
   }
 
   /**

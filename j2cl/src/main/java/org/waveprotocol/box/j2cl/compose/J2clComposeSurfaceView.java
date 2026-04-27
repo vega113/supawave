@@ -11,9 +11,11 @@ import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLTextAreaElement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
 
@@ -52,6 +54,17 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private J2clComposeSurfaceController.Listener listener;
   private final Map<String, HTMLElement> inlineComposers = new HashMap<>();
   private String activeInlineComposerKey = "";
+  // F-3.S3 (#1038, R-5.5): currently open reaction picker / authors
+  // popover instances, mounted body-level so the read renderer's
+  // surface rebuild does not tear them down. Keyed by blip id.
+  private HTMLElement activeReactionPicker;
+  private String activeReactionPickerBlipId = "";
+  private HTMLElement activeReactionAuthorsPopover;
+  // F-3.S3: GWT-parity reaction emoji set, matching
+  // org.waveprotocol.wave.client.wavepanel.impl.reactions.ReactionPickerPopup.EMOJI_OPTIONS.
+  static final String[] DEFAULT_REACTION_EMOJIS = {
+    "👍", "❤️", "😂", "🎉", "😮", "👀"
+  };
 
   public J2clComposeSurfaceView(HTMLElement createHost, HTMLElement replyHost) {
     createHost.innerHTML = "";
@@ -179,6 +192,53 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         event -> {
           if (listener == null) return;
           listener.onMentionAbandoned();
+        });
+
+    // F-3.S3 (#1038, R-5.5): reaction events from the per-blip
+    // <reaction-row> + <reaction-picker-popover>. Both `reaction-pick`
+    // (from the picker) and `reaction-toggle` (from a chip) route to
+    // the same controller listener — the controller decides
+    // adding-vs-removing from its cached snapshot. `reaction-add`
+    // mounts a <reaction-picker-popover> next to the row;
+    // `reaction-inspect` mounts a <reaction-authors-popover>.
+    DomGlobal.document.body.addEventListener(
+        "reaction-pick",
+        event -> {
+          if (listener == null) return;
+          String blipId = eventDetailString(event, "blipId");
+          String emoji = eventDetailString(event, "emoji");
+          listener.onReactionToggled(blipId, emoji);
+          closeReactionPicker(blipId);
+        });
+    DomGlobal.document.body.addEventListener(
+        "reaction-toggle",
+        event -> {
+          if (listener == null) return;
+          String blipId = eventDetailString(event, "blipId");
+          String emoji = eventDetailString(event, "emoji");
+          listener.onReactionToggled(blipId, emoji);
+        });
+    DomGlobal.document.body.addEventListener(
+        "reaction-add",
+        event -> {
+          String blipId = eventDetailString(event, "blipId");
+          openReactionPicker(blipId);
+        });
+    DomGlobal.document.body.addEventListener(
+        "reaction-inspect",
+        event -> {
+          String blipId = eventDetailString(event, "blipId");
+          String emoji = eventDetailString(event, "emoji");
+          openReactionAuthorsPopover(blipId, emoji);
+        });
+    DomGlobal.document.body.addEventListener(
+        "overlay-close",
+        event -> {
+          // The picker / authors popover both emit overlay-close on
+          // Escape or outside-click; we drop the open instance so the
+          // next `reaction-add` can mount fresh.
+          closeReactionPicker(null);
+          closeReactionAuthorsPopover();
         });
   }
 
@@ -362,6 +422,102 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(composer, "activeCommand", propertyString(replyElement, "activeCommand"));
     setProperty(composer, "commandStatus", propertyString(replyElement, "commandStatus"));
     setProperty(composer, "commandError", propertyString(replyElement, "commandError"));
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): mount a `<reaction-picker-popover>` next to
+   * the originating blip's reaction row. Body-level mount keeps the
+   * popover alive across the read-renderer's surface rebuilds. The
+   * picker emits `reaction-pick` (handled at body level) and
+   * `overlay-close` on Escape / outside-click.
+   */
+  private void openReactionPicker(String blipId) {
+    if (blipId == null || blipId.trim().isEmpty()) return;
+    String key = blipId;
+    closeReactionPicker(null);
+    HTMLElement picker =
+        (HTMLElement) DomGlobal.document.createElement("reaction-picker-popover");
+    picker.setAttribute("data-j2cl-reaction-picker", "true");
+    picker.setAttribute("blip-id", key);
+    setProperty(picker, "blipId", key);
+    setProperty(picker, "emojis", buildEmojiArray(DEFAULT_REACTION_EMOJIS));
+    setProperty(picker, "open", true);
+    DomGlobal.document.body.appendChild(picker);
+    activeReactionPicker = picker;
+    activeReactionPickerBlipId = key;
+  }
+
+  private void closeReactionPicker(String blipIdOrNull) {
+    if (activeReactionPicker == null) {
+      return;
+    }
+    if (blipIdOrNull != null
+        && !blipIdOrNull.isEmpty()
+        && !blipIdOrNull.equals(activeReactionPickerBlipId)) {
+      // Picker was opened for a different blip; leave it.
+      return;
+    }
+    if (activeReactionPicker.parentNode != null) {
+      activeReactionPicker.parentNode.removeChild(activeReactionPicker);
+    }
+    activeReactionPicker = null;
+    activeReactionPickerBlipId = "";
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): mount a `<reaction-authors-popover>` for an
+   * inspect click on a chip. The popover's authors property is
+   * populated with `{address, displayName}` records derived from the
+   * existing participant list — display-name resolution falls back to
+   * the address when no friendly name is known.
+   */
+  private void openReactionAuthorsPopover(String blipId, String emoji) {
+    closeReactionAuthorsPopover();
+    if (blipId == null || blipId.isEmpty() || emoji == null || emoji.isEmpty()) {
+      return;
+    }
+    List<String> addresses = Collections.<String>emptyList();
+    if (listener != null) {
+      List<SidecarReactionEntry> snapshot = listener.getReactionSnapshot(blipId);
+      if (snapshot == null) {
+        snapshot = Collections.<SidecarReactionEntry>emptyList();
+      }
+      for (SidecarReactionEntry entry : snapshot) {
+        if (entry != null && emoji.equals(entry.getEmoji()) && entry.getAddresses() != null) {
+          addresses = entry.getAddresses();
+          break;
+        }
+      }
+    }
+    HTMLElement popover =
+        (HTMLElement) DomGlobal.document.createElement("reaction-authors-popover");
+    popover.setAttribute("data-j2cl-reaction-authors", "true");
+    popover.setAttribute("blip-id", blipId);
+    popover.setAttribute("emoji", emoji);
+    setProperty(popover, "emoji", emoji);
+    setProperty(popover, "reactionLabel", emoji + " reactions");
+    setProperty(popover, "authors", buildParticipantsArray(addresses));
+    setProperty(popover, "open", true);
+    DomGlobal.document.body.appendChild(popover);
+    activeReactionAuthorsPopover = popover;
+  }
+
+  private void closeReactionAuthorsPopover() {
+    if (activeReactionAuthorsPopover == null) {
+      return;
+    }
+    if (activeReactionAuthorsPopover.parentNode != null) {
+      activeReactionAuthorsPopover.parentNode.removeChild(activeReactionAuthorsPopover);
+    }
+    activeReactionAuthorsPopover = null;
+  }
+
+  private static JsArray<Object> buildEmojiArray(String[] emojis) {
+    JsArray<Object> arr = JsArray.of();
+    for (String emoji : emojis) {
+      arr.push(emoji);
+    }
+    return arr;
   }
 
   private static JsArray<Object> buildParticipantsArray(List<String> addresses) {

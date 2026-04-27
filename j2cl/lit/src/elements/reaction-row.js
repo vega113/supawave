@@ -6,6 +6,12 @@ export class ReactionRow extends LitElement {
     reactions: { type: Array }
   };
 
+  // F-3.S3 (#1038, R-5.5): chips and the add button adopt the F-0
+  // wavy design tokens — `--wavy-signal-violet` border + soft fill
+  // for the active-pressed state, `--wavy-radius-pill` for the full
+  // pill chips, and `--wavy-pulse-ring` for the count-up pulse.
+  // Falls back to the F-1 shell tokens when the wavy stylesheet is
+  // not loaded so legacy fixtures keep rendering.
   static styles = css`
     :host {
       display: block;
@@ -19,16 +25,49 @@ export class ReactionRow extends LitElement {
     }
 
     button {
-      border: 1px solid var(--shell-color-divider-subtle, #d8e3ee);
-      border-radius: 999px;
+      border: 1px solid var(--wavy-signal-violet-soft, var(--shell-color-divider-subtle, #d8e3ee));
+      border-radius: var(--wavy-radius-pill, 999px);
       padding: 5px 9px;
-      background: #fff;
+      background: transparent;
+      color: var(--wavy-text-body, inherit);
       font: inherit;
+      cursor: pointer;
+      transition: background-color 180ms ease-out, border-color 180ms ease-out,
+        box-shadow 180ms ease-out;
+    }
+
+    button:hover {
+      border-color: var(--wavy-signal-violet, #7c3aed);
     }
 
     [aria-pressed="true"] {
-      background: var(--shell-color-accent-selection, #e4f1fb);
-      border-color: var(--shell-color-accent-focus, #206ea6);
+      background: var(--wavy-signal-violet-soft, var(--shell-color-accent-selection, #e4f1fb));
+      border-color: var(--wavy-signal-violet, var(--shell-color-accent-focus, #206ea6));
+    }
+
+    button:focus-visible {
+      outline: none;
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+    }
+
+    /* F-3.S3 (#1038, R-5.5 step 14): one-shot pulse animation when a
+     * chip's count increases via supplement live-update. The
+     * --wavy-pulse-ring token defines the ring; the animation class
+     * is set and removed by updated() below. */
+    button[data-live-pulse="true"] {
+      animation: wavyChipPulse 700ms ease-out;
+    }
+
+    @keyframes wavyChipPulse {
+      0% {
+        box-shadow: 0 0 0 0 var(--wavy-signal-violet-soft, rgba(124, 58, 237, 0.22));
+      }
+      40% {
+        box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(124, 58, 237, 0.22));
+      }
+      100% {
+        box-shadow: 0 0 0 0 transparent;
+      }
     }
 
     .sr-only {
@@ -44,6 +83,9 @@ export class ReactionRow extends LitElement {
     super();
     this.blipId = "";
     this.reactions = [];
+    // F-3.S3: track previous counts so updated() can fire a one-shot
+    // pulse when a chip's count increases via live-update.
+    this._previousCountByEmoji = new Map();
   }
 
   render() {
@@ -61,6 +103,45 @@ export class ReactionRow extends LitElement {
       </div>
       <span class="sr-only" aria-live="polite">${this.liveText()}</span>
     `;
+  }
+
+  updated(changed) {
+    if (!changed.has("reactions")) {
+      this._refreshPreviousCounts();
+      return;
+    }
+    // F-3.S3 (#1038, R-5.5 step 14): pulse chips whose count has gone
+    // up since the last render. Single-pass: read prev counts, set
+    // data-live-pulse on the matching chip, schedule an attribute
+    // removal so the animation can re-trigger on the next update.
+    const next = this.safeReactions();
+    for (const reaction of next) {
+      const emoji = reaction.emoji || "";
+      if (!emoji) continue;
+      const prev = this._previousCountByEmoji.get(emoji);
+      const count = this.safeCount(reaction.count);
+      if (prev !== undefined && count > prev) {
+        const chip = this.renderRoot.querySelector(
+          `[data-reaction-chip][data-emoji="${emoji}"]`
+        );
+        if (chip) {
+          chip.setAttribute("data-live-pulse", "true");
+          // Remove on the next tick so the animation can re-arm on
+          // another count-up after this one finishes.
+          setTimeout(() => chip.removeAttribute("data-live-pulse"), 720);
+        }
+      }
+    }
+    this._refreshPreviousCounts();
+  }
+
+  _refreshPreviousCounts() {
+    this._previousCountByEmoji.clear();
+    for (const reaction of this.safeReactions()) {
+      const emoji = reaction.emoji || "";
+      if (!emoji) continue;
+      this._previousCountByEmoji.set(emoji, this.safeCount(reaction.count));
+    }
   }
 
   renderReaction(reaction) {

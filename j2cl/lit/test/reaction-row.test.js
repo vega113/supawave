@@ -123,4 +123,64 @@ describe("<reaction-row>", () => {
     const el = await fixture(html`<reaction-row blip-id="b+non-array" .reactions=${"not-an-array"}></reaction-row>`);
     expect(el.renderRoot.querySelectorAll("[data-reaction-chip]").length).to.equal(0);
   });
+
+  // F-3.S3 (#1038, R-5.5 step 13): active chips adopt the wavy violet
+  // tokens. The CSS uses `--wavy-signal-violet` for the border and
+  // `--wavy-signal-violet-soft` for the fill — the tokens may not be
+  // resolved in the test harness, so we assert the source carries the
+  // tokens instead of the resolved colour. (Pinned at the source-level
+  // by the parity fixture.)
+  it("includes wavy signal-violet tokens for the active-pressed state", async () => {
+    const el = await fixture(html`
+      <reaction-row
+        blip-id="b+violet"
+        .reactions=${[{ emoji: "👍", count: 1, active: true }]}
+      ></reaction-row>
+    `);
+    const styles = String(
+      (el.constructor.styles && el.constructor.styles.cssText) || ""
+    );
+    expect(styles.indexOf("--wavy-signal-violet")).to.be.greaterThanOrEqual(0);
+    expect(styles.indexOf("--wavy-signal-violet-soft")).to.be.greaterThanOrEqual(0);
+    expect(styles.indexOf("--wavy-radius-pill")).to.be.greaterThanOrEqual(0);
+    expect(styles.indexOf("--wavy-pulse-ring")).to.be.greaterThanOrEqual(0);
+  });
+
+  // F-3.S3 (#1038, R-5.5 step 14): a chip whose count increases via
+  // live-update fires a one-shot `data-live-pulse` attribute that the
+  // CSS pulse animation hooks into.
+  it("pulses chips whose count increases between renders", async () => {
+    const el = await fixture(html`
+      <reaction-row
+        blip-id="b+pulse"
+        .reactions=${[{ emoji: "🎉", count: 1 }]}
+      ></reaction-row>
+    `);
+
+    // First render establishes the baseline.
+    el.reactions = [{ emoji: "🎉", count: 2 }];
+    await el.updateComplete;
+    const chip = el.renderRoot.querySelector(
+      "[data-reaction-chip][data-emoji='🎉']"
+    );
+    expect(chip).to.exist;
+    expect(chip.getAttribute("data-live-pulse")).to.equal("true");
+  });
+
+  // F-3.S3: counts that go DOWN do NOT trigger the pulse (avoids
+  // flashing when other users remove their reactions).
+  it("does not pulse when a chip's count decreases", async () => {
+    const el = await fixture(html`
+      <reaction-row
+        blip-id="b+nopulse"
+        .reactions=${[{ emoji: "❤", count: 3 }]}
+      ></reaction-row>
+    `);
+    el.reactions = [{ emoji: "❤", count: 2 }];
+    await el.updateComplete;
+    const chip = el.renderRoot.querySelector(
+      "[data-reaction-chip][data-emoji='❤']"
+    );
+    expect(chip.hasAttribute("data-live-pulse")).to.equal(false);
+  });
 });

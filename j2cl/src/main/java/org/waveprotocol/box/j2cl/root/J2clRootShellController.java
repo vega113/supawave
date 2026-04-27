@@ -134,6 +134,17 @@ public final class J2clRootShellController {
             });
     routeControllerRef[0] = routeController;
     searchView.setSessionSummary("Mounted inside the J2CL root shell.");
+    // F-3.S3 (#1038, R-5.5): forward per-blip reaction snapshots from
+    // the selected-wave view's render path to the compose controller
+    // so the toggle handler can compute adding-vs-removing direction
+    // against the same data the chips render from.
+    selectedWaveView.setReactionSnapshotPublisher(composeController::setReactionSnapshots);
+    // F-3.S3 (#1038, R-5.5): the compose controller learns the
+    // signed-in address as soon as the first bootstrap completes;
+    // forward it to the selected-wave view so the per-chip
+    // aria-pressed state ("this is your own reaction") tracks the
+    // signed-in user without a separate gateway round-trip.
+    composeController.setCurrentUserAddressListener(selectedWaveView::setCurrentUserAddress);
     composeController.start();
     toolbarController.start();
     toolbarController.onEditStateChanged(new J2clToolbarSurfaceController.EditState(false));

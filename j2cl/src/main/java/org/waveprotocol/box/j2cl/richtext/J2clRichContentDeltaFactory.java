@@ -1,7 +1,9 @@
 package org.waveprotocol.box.j2cl.richtext;
 
+import java.util.List;
 import java.util.Locale;
 import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
+import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 
 /**
@@ -144,6 +146,322 @@ public final class J2clRichContentDeltaFactory {
         blipId,
         new String[] {"task/assignee", "task/dueTs"},
         new String[] {assignee, due});
+  }
+
+  /**
+   * F-3.S3 (#1038, R-5.5): build a stand-alone toggle delta against the
+   * `react+<blipId>` data document. Adds (when the user is not already
+   * a reactor under {@code emoji}) or removes (when they are) the
+   * user's `<user address=Y/>` element. When the toggled emoji had only
+   * one reactor and that reactor is being removed, also drop the empty
+   * `<reaction emoji=X>` wrapper so the reader doesn't render an empty
+   * chip.
+   *
+   * <p>The {@code currentSnapshot} list MUST be the most recent
+   * per-blip {@link SidecarReactionEntry} aggregate the J2CL client has
+   * (drawn from {@link J2clInteractionBlipModel#getReactionEntries()}).
+   * The factory uses it to compute element-tree retain offsets without
+   * round-tripping the live document.
+   *
+   * <p>Snapshot semantics:
+   * <ul>
+   *   <li>{@code null} or empty → the document has no `<reactions>`
+   *       root yet. The factory emits the full envelope insert
+   *       ({@code <reactions><reaction emoji=X><user address=Y/>}…)
+   *       which the server applies against an empty document at base
+   *       version. Only valid for {@code adding=true}.
+   *   <li>Non-empty list → the root exists; the factory emits a
+   *       retain over the existing element-tree items and either
+   *       appends a sibling `<reaction>` (toggle on for an emoji not
+   *       yet owned by this user) or deletes the user's existing
+   *       `<user>` element (toggle off).
+   * </ul>
+   */
+  public SidecarSubmitRequest reactionToggleRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String emoji,
+      List<SidecarReactionEntry> currentSnapshot,
+      boolean adding) {
+    requirePresent(session, "Missing write session.");
+    String normalizedAddress = normalizeAddress(address);
+    extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId = requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    String trimmedBlipId = requireNonEmpty(blipId, "Missing blip id.");
+    String trimmedEmoji = requireNonEmpty(emoji, "Missing reaction emoji.");
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
+
+    String reactionDocumentId = "react+" + trimmedBlipId;
+    StringBuilder components = new StringBuilder();
+    if (adding) {
+      buildAddingComponents(components, currentSnapshot, trimmedEmoji, normalizedAddress);
+    } else {
+      buildRemovingComponents(components, currentSnapshot, trimmedEmoji, normalizedAddress);
+    }
+    StringBuilder operation = new StringBuilder(components.length() + reactionDocumentId.length() + 32);
+    operation
+        .append("{\"3\":{\"1\":\"")
+        .append(escapeJson(reactionDocumentId))
+        .append("\",\"2\":{\"1\":[")
+        .append(components)
+        .append("]}}}");
+    String deltaJson =
+        buildDeltaJson(baseVersion, historyHash, normalizedAddress, operation.toString());
+    return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
+  }
+
+  /**
+   * Compute the document item count (count of element-start, element-end,
+   * character, and annotation-boundary positions) that a `<reactions>`
+   * data document occupies given the supplied per-emoji snapshot.
+   *
+   * <p>An empty snapshot returns 0 (no `<reactions>` root yet); a
+   * single emoji with one user returns 6 (root start + reaction start +
+   * user start + 3 ends). Each additional user adds 2 items
+   * (start + end); each additional emoji adds 2 + 2*users items.
+   * Package-private for the unit-test offset assertions.
+   */
+  static int reactionsRootItemCount(List<SidecarReactionEntry> snapshot) {
+    if (snapshot == null || snapshot.isEmpty()) {
+      return 0;
+    }
+    int count = 0;
+    for (SidecarReactionEntry entry : snapshot) {
+      if (entry == null) continue;
+      if (count == 0) {
+        count = 2; // <reactions> open + close — only once a real entry exists
+      }
+      List<String> users = entry.getAddresses();
+      int userCount = users == null ? 0 : users.size();
+      count += 2 + (2 * userCount); // <reaction> open + close + 2 per <user/>
+    }
+    return count;
+  }
+
+  /**
+   * F-3.S3: append toggle-ON ops to {@code components}. When the
+   * snapshot is empty, emit the full root envelope (the server creates
+   * the data document on demand). Otherwise emit a retain spanning the
+   * existing element tree minus the closing `</reactions>` tag, then a
+   * new `<reaction emoji=X><user address=Y/></reaction>` sibling. The
+   * reader's `LinkedHashMap`-based decoder merges duplicate emoji
+   * elements, so re-toggling an emoji owned by another user simply adds
+   * another `<reaction>` sibling that the read codec collapses.
+   */
+  private static void buildAddingComponents(
+      StringBuilder components,
+      List<SidecarReactionEntry> currentSnapshot,
+      String emoji,
+      String normalizedAddress) {
+    int rootItemCount = reactionsRootItemCount(currentSnapshot);
+    if (rootItemCount == 0) {
+      // No <reactions> root yet — emit the full envelope.
+      appendElementStartReactions(components);
+      appendComponentSeparator(components);
+      appendElementStartReaction(components, emoji);
+      appendComponentSeparator(components);
+      appendElementStartUser(components, normalizedAddress);
+      appendComponentSeparator(components);
+      appendElementEnd(components);
+      appendComponentSeparator(components);
+      appendElementEnd(components);
+      appendComponentSeparator(components);
+      appendElementEnd(components);
+      return;
+    }
+    // Retain the existing root open + all reactions, but stop just
+    // before the closing </reactions> tag so the new <reaction> lands
+    // inside the root.
+    appendRetain(components, rootItemCount - 1);
+    appendComponentSeparator(components);
+    appendElementStartReaction(components, emoji);
+    appendComponentSeparator(components);
+    appendElementStartUser(components, normalizedAddress);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    appendComponentSeparator(components);
+    // Trailing retain over the closing </reactions> end tag (1 item).
+    appendRetain(components, 1);
+  }
+
+  /**
+   * F-3.S3: append toggle-OFF ops to {@code components}. Walks
+   * {@code currentSnapshot} to compute the item offset of the user's
+   * `<user address=Y/>` element under the matching `<reaction emoji=X>`
+   * element. When the user was the only reactor under that emoji, the
+   * factory ALSO drops the now-empty `<reaction>` wrapper so the read
+   * side doesn't render an empty chip. Throws when the snapshot does
+   * not list the address under the emoji (the controller MUST gate this
+   * with an active-for-current-user check; an unguarded call indicates a
+   * stale snapshot bug).
+   */
+  private static void buildRemovingComponents(
+      StringBuilder components,
+      List<SidecarReactionEntry> currentSnapshot,
+      String emoji,
+      String normalizedAddress) {
+    if (currentSnapshot == null || currentSnapshot.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Cannot remove reaction: snapshot empty for emoji " + emoji);
+    }
+    // Walk emojis until we find the matching one; track running offset.
+    // Offset starts at 1 (skip the <reactions> root open).
+    int offset = 1;
+    SidecarReactionEntry matched = null;
+    int userIndexInMatch = -1;
+    for (SidecarReactionEntry entry : currentSnapshot) {
+      if (entry == null) continue;
+      List<String> users = entry.getAddresses();
+      int userCount = users == null ? 0 : users.size();
+      if (emoji.equals(entry.getEmoji())) {
+        // Check whether this user is in this entry.
+        if (users != null) {
+          for (int i = 0; i < users.size(); i++) {
+            if (normalizedAddress.equalsIgnoreCase(users.get(i))) {
+              matched = entry;
+              userIndexInMatch = i;
+              break;
+            }
+          }
+        }
+        if (matched != null) {
+          break;
+        }
+      }
+      // Skip past this <reaction>...</reaction>.
+      offset += 2 + (2 * userCount);
+    }
+    if (matched == null) {
+      throw new IllegalArgumentException(
+          "Cannot remove reaction: snapshot does not list "
+              + normalizedAddress
+              + " under "
+              + emoji);
+    }
+    int rootItemCount = reactionsRootItemCount(currentSnapshot);
+    boolean isLastUser = matched.getAddresses().size() == 1;
+    int reactionEntryCount = 0;
+    for (SidecarReactionEntry entry : currentSnapshot) {
+      if (entry != null) {
+        reactionEntryCount++;
+      }
+    }
+    boolean isLastReaction = reactionEntryCount == 1;
+    if (isLastUser && isLastReaction) {
+      // Last user of the only remaining reaction: delete the entire
+      // <reactions> document (root open + reaction + user + 3 ends).
+      // No retains — the document becomes empty on the server.
+      appendDeleteElementStartNoAttrs(components, "reactions");
+      appendComponentSeparator(components);
+      appendDeleteElementStart(components, "reaction", "emoji", emoji);
+      appendComponentSeparator(components);
+      appendDeleteElementStart(components, "user", "address", normalizedAddress);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+      return;
+    }
+    if (isLastUser) {
+      // Delete the entire <reaction emoji=X></reaction> wrapper plus
+      // its single <user/> child; other reactions remain so we retain
+      // the surrounding root items. offset currently points at the
+      // <reaction> element start; the wrapper occupies 4 items
+      // (reaction start + user start + user end + reaction end).
+      if (offset > 0) {
+        appendRetain(components, offset);
+        appendComponentSeparator(components);
+      }
+      appendDeleteElementStart(components, "reaction", "emoji", emoji);
+      appendComponentSeparator(components);
+      appendDeleteElementStart(components, "user", "address", normalizedAddress);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+      int deleted = 4;
+      int trailing = rootItemCount - offset - deleted;
+      if (trailing > 0) {
+        appendComponentSeparator(components);
+        appendRetain(components, trailing);
+      }
+      return;
+    }
+    // Single-user delete: skip past the <reaction emoji=X> open and
+    // any prior <user/> siblings, then delete just the user pair.
+    int userOffset = offset + 1 + (2 * userIndexInMatch);
+    if (userOffset > 0) {
+      appendRetain(components, userOffset);
+      appendComponentSeparator(components);
+    }
+    appendDeleteElementStart(components, "user", "address", normalizedAddress);
+    appendComponentSeparator(components);
+    appendDeleteElementEnd(components);
+    int trailing = rootItemCount - userOffset - 2;
+    if (trailing > 0) {
+      appendComponentSeparator(components);
+      appendRetain(components, trailing);
+    }
+  }
+
+  private static void appendElementStartReactions(StringBuilder builder) {
+    builder.append("{\"3\":{\"1\":\"reactions\",\"2\":[]}}");
+  }
+
+  private static void appendElementStartReaction(StringBuilder builder, String emoji) {
+    builder
+        .append("{\"3\":{\"1\":\"reaction\",\"2\":[{\"1\":\"emoji\",\"2\":\"")
+        .append(escapeJson(emoji))
+        .append("\"}]}}");
+  }
+
+  private static void appendElementStartUser(StringBuilder builder, String address) {
+    builder
+        .append("{\"3\":{\"1\":\"user\",\"2\":[{\"1\":\"address\",\"2\":\"")
+        .append(escapeJson(address))
+        .append("\"}]}}");
+  }
+
+  private static void appendDeleteElementStartNoAttrs(StringBuilder builder, String type) {
+    builder
+        .append("{\"7\":{\"1\":\"")
+        .append(escapeJson(type))
+        .append("\",\"2\":[]}}");
+  }
+
+  private static void appendDeleteElementStart(
+      StringBuilder builder, String type, String attrKey, String attrValue) {
+    builder
+        .append("{\"7\":{\"1\":\"")
+        .append(escapeJson(type))
+        .append("\",\"2\":[{\"1\":\"")
+        .append(escapeJson(attrKey))
+        .append("\",\"2\":\"")
+        .append(escapeJson(attrValue))
+        .append("\"}]}}");
+  }
+
+  private static void appendDeleteElementEnd(StringBuilder builder) {
+    builder.append("{\"8\":true}");
+  }
+
+  private static void appendRetain(StringBuilder builder, int itemCount) {
+    if (itemCount <= 0) {
+      throw new IllegalArgumentException("retain item count must be positive: " + itemCount);
+    }
+    builder.append("{\"5\":").append(itemCount).append("}");
   }
 
   /**

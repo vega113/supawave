@@ -4,6 +4,7 @@ import com.google.j2cl.junit.apt.J2clTestInput;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
@@ -3094,6 +3095,186 @@ public class J2clComposeSurfaceControllerTest {
         "task-toggle write must NOT submit after a real wave switch",
         beforeSubmits,
         gateway.submitCalls);
+  }
+
+  // F-3.S4 (#1038, R-5.6 step 1): drag-drop telemetry path. The
+  // controller routes onDroppedFiles through the same upload plumbing
+  // as the H.19 paperclip path, but emits a separate
+  // compose.attachment_dropped telemetry event with the file kind.
+  @Test
+  public void onDroppedFilesEmitsDroppedTelemetryAndDelegatesToAttachmentSelection() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+    java.util.List<J2clComposeSurfaceController.AttachmentFileSelection> selections =
+        java.util.Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection("payload-1", "photo.png"));
+    controller.onDroppedFiles(selections);
+    Assert.assertTrue(
+        "compose.attachment_dropped telemetry must record kind=image for .png",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.attachment_dropped".equals(e.getName())
+                        && "image".equals(e.getFields().get("kind"))
+                        && "queued".equals(e.getFields().get("outcome"))
+                        && "1".equals(e.getFields().get("count"))));
+  }
+
+  @Test
+  public void onDroppedFilesRecordsEmptyOutcomeForEmptyDrop() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+    controller.onDroppedFiles(Collections.<J2clComposeSurfaceController.AttachmentFileSelection>emptyList());
+    Assert.assertTrue(
+        "empty-drop telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.attachment_dropped".equals(e.getName())
+                        && "empty".equals(e.getFields().get("outcome"))));
+  }
+
+  // F-3.S4 (#1038, R-5.6 F.6): blip-delete gateway wiring. The
+  // controller fetches the bootstrap, calls
+  // DeltaFactory.createBlipDeleteRequest, and submits the result.
+  @Test
+  public void onDeleteBlipRequestedSubmitsTombstoneDelta() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+    int beforeSubmits = gateway.submitCalls;
+    controller.onDeleteBlipRequested("b+target");
+    Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
+    String deltaJson = gateway.lastSubmitRequest.getDeltaJson();
+    Assert.assertTrue(
+        "delta must target the deleted blip document",
+        deltaJson.contains("\"1\":\"b+target\""));
+    Assert.assertTrue(
+        "delta must carry tombstone/deleted=true annotation",
+        deltaJson.contains("tombstone/deleted")
+            && deltaJson.contains("\"3\":\"true\""));
+    Assert.assertTrue(
+        "success telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.blip_deleted".equals(e.getName())
+                        && "success".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void onDeleteBlipRequestedIgnoresWhenSignedOut() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+    controller.onSignedOut();
+    int beforeFetches = gateway.fetchBootstrapCalls;
+    controller.onDeleteBlipRequested("b+target");
+    Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
+    Assert.assertTrue(
+        "signed-out telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.blip_deleted".equals(e.getName())
+                        && "signed-out".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void onDeleteBlipRequestedIgnoresBlankBlipId() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+    int beforeFetches = gateway.fetchBootstrapCalls;
+    controller.onDeleteBlipRequested("");
+    controller.onDeleteBlipRequested("   ");
+    controller.onDeleteBlipRequested(null);
+    Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
+    Assert.assertTrue(
+        "missing-blip telemetry recorded for empty inputs",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.blip_deleted".equals(e.getName())
+                        && "missing-blip".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void onDeleteBlipRequestedIgnoresWhenNoSelectedWave() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    int beforeFetches = gateway.fetchBootstrapCalls;
+    controller.onDeleteBlipRequested("b+target");
+    Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
+    Assert.assertTrue(
+        "no-selected-wave telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.blip_deleted".equals(e.getName())
+                        && "no-selected-wave".equals(e.getFields().get("outcome"))));
   }
 
   private static J2clComposeSurfaceController newControllerWithTelemetry(

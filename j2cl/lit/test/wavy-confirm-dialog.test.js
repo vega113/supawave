@@ -1,0 +1,101 @@
+import { fixture, expect, html, oneEvent } from "@open-wc/testing";
+import "../src/elements/wavy-confirm-dialog.js";
+import { ensureWavyConfirmDialogMounted } from "../src/elements/wavy-confirm-dialog.js";
+
+function ensureWavyTokensLoaded() {
+  if (document.querySelector('link[data-wavy-tokens-test]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/src/design/wavy-tokens.css";
+  link.dataset.wavyTokensTest = "true";
+  document.head.appendChild(link);
+}
+
+before(async () => {
+  ensureWavyTokensLoaded();
+});
+
+afterEach(() => {
+  // Clean up any body-level dialogs left behind by ensureMounted tests.
+  const lingering = document.body.querySelectorAll("wavy-confirm-dialog");
+  lingering.forEach((node) => node.remove());
+});
+
+describe("<wavy-confirm-dialog>", () => {
+  it("registers the custom element", () => {
+    expect(customElements.get("wavy-confirm-dialog")).to.exist;
+  });
+
+  it("opens on wavy-confirm-requested with the supplied message", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          requestId: "q1",
+          message: "Delete this blip?",
+          confirmLabel: "Delete",
+          cancelLabel: "Cancel",
+          tone: "destructive"
+        }
+      })
+    );
+    await el.updateComplete;
+    expect(el.open).to.equal(true);
+    const title = el.renderRoot.querySelector("h2.title");
+    expect(title.textContent.trim()).to.equal("Delete this blip?");
+    const confirmBtn = el.renderRoot.querySelector(
+      'button[data-confirm-action="confirm"]'
+    );
+    expect(confirmBtn.textContent.trim()).to.equal("Delete");
+    expect(confirmBtn.getAttribute("data-confirm-tone")).to.equal("destructive");
+    el.remove();
+  });
+
+  it("emits wavy-confirm-resolved with confirmed=true on confirm click", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "q2", message: "Proceed?" }
+      })
+    );
+    await el.updateComplete;
+    const eventPromise = oneEvent(document.body, "wavy-confirm-resolved");
+    el.renderRoot
+      .querySelector('button[data-confirm-action="confirm"]')
+      .click();
+    const ev = await eventPromise;
+    expect(ev.detail.requestId).to.equal("q2");
+    expect(ev.detail.confirmed).to.equal(true);
+    expect(el.open).to.equal(false);
+    el.remove();
+  });
+
+  it("emits wavy-confirm-resolved with confirmed=false on cancel click", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "q3" }
+      })
+    );
+    await el.updateComplete;
+    const eventPromise = oneEvent(document.body, "wavy-confirm-resolved");
+    el.renderRoot
+      .querySelector('button[data-confirm-action="cancel"]')
+      .click();
+    const ev = await eventPromise;
+    expect(ev.detail.confirmed).to.equal(false);
+    el.remove();
+  });
+
+  it("ensureWavyConfirmDialogMounted is idempotent", () => {
+    const a = ensureWavyConfirmDialogMounted();
+    const b = ensureWavyConfirmDialogMounted();
+    expect(a).to.equal(b);
+    expect(document.body.querySelectorAll("wavy-confirm-dialog").length).to.equal(1);
+  });
+});

@@ -78,6 +78,9 @@ import "./elements/wavy-wave-root-reply-trigger.js";
 // The mention popover (<mention-suggestion-popover>) is reused as-is
 // from F-1 and consumed by <wavy-composer>'s @-trigger.
 import "./elements/wavy-task-affordance.js";
+// F-3.S4 (#1038): attachments + F.6 Delete confirm dialog. The dialog
+// is body-mounted once; consumers dispatch wavy-confirm-requested.
+import "./elements/wavy-confirm-dialog.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

@@ -664,4 +664,146 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     expect(checkbox.disabled).to.equal(true);
     el.remove();
   });
+
+  // F-3.S4 (#1038, R-5.6 step 1): drag-drop end-to-end tests.
+  describe("drag-and-drop attachments (F-3.S4 R-5.6 step 1)", () => {
+    function makeFile(name, type = "image/png") {
+      return new File(["data"], name, { type });
+    }
+
+    function makeDataTransferLike(files) {
+      // Some browsers' DataTransfer constructor accepts no arguments;
+      // mock the bits we touch (types + files) with a plain object.
+      return {
+        types: ["Files"],
+        files: files,
+        dropEffect: ""
+      };
+    }
+
+    it("flags the body with data-droptarget on dragover", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      const dragover = new Event("dragover", { bubbles: true, cancelable: true });
+      Object.defineProperty(dragover, "dataTransfer", {
+        value: makeDataTransferLike([])
+      });
+      body.dispatchEvent(dragover);
+      expect(body.getAttribute("data-droptarget")).to.equal("true");
+      el.remove();
+    });
+
+    it("clears data-droptarget on dragleave when relatedTarget is outside the body", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.setAttribute("data-droptarget", "true");
+      const dragleave = new Event("dragleave", { bubbles: true });
+      Object.defineProperty(dragleave, "relatedTarget", {
+        value: document.body
+      });
+      body.dispatchEvent(dragleave);
+      expect(body.getAttribute("data-droptarget")).to.equal(null);
+      el.remove();
+    });
+
+    it("dispatches wavy-composer-attachment-dropped with the dropped File array", async () => {
+      const el = await fixture(html`
+        <wavy-composer available reply-target-blip-id="b42"></wavy-composer>
+      `);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      const file = makeFile("photo.png");
+      const eventPromise = oneEvent(el, "wavy-composer-attachment-dropped");
+      const drop = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, "dataTransfer", {
+        value: makeDataTransferLike([file])
+      });
+      body.dispatchEvent(drop);
+      const event = await eventPromise;
+      expect(event.detail.files).to.have.lengthOf(1);
+      expect(event.detail.files[0].name).to.equal("photo.png");
+      expect(event.detail.replyTargetBlipId).to.equal("b42");
+      // The body's drop-hint clears after the drop fires.
+      expect(body.getAttribute("data-droptarget")).to.equal(null);
+      el.remove();
+    });
+
+    it("ignores drops without files (e.g. drag-text from another tab)", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      let fired = false;
+      el.addEventListener(
+        "wavy-composer-attachment-dropped",
+        () => { fired = true; }
+      );
+      const drop = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, "dataTransfer", {
+        value: { types: ["text/plain"], files: [] }
+      });
+      body.dispatchEvent(drop);
+      expect(fired).to.equal(false);
+      el.remove();
+    });
+  });
+
+  // F-3.S4 (#1038, R-5.7): rich-component round-trip serializer arms.
+  describe("serializeRichComponents (F-3.S4 R-5.7)", () => {
+    it("emits a list/unordered component per <li> inside <ul>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<ul><li>Item one</li><li>Item two</li></ul>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(2);
+      expect(annotated[0].annotationKey).to.equal("list/unordered");
+      expect(annotated[0].text).to.equal("Item one");
+      expect(annotated[1].annotationKey).to.equal("list/unordered");
+      expect(annotated[1].text).to.equal("Item two");
+      el.remove();
+    });
+
+    it("emits a list/ordered component per <li> inside <ol>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<ol><li>First</li><li>Second</li></ol>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(2);
+      expect(annotated[0].annotationKey).to.equal("list/ordered");
+      expect(annotated[1].annotationKey).to.equal("list/ordered");
+      el.remove();
+    });
+
+    it("emits a block/quote component for <blockquote>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<blockquote>quoted text</blockquote>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(1);
+      expect(annotated[0].annotationKey).to.equal("block/quote");
+      expect(annotated[0].text).to.equal("quoted text");
+      el.remove();
+    });
+
+    it("emits a link/manual component carrying href for <a>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = '<a href="https://example.com">Example</a>';
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(1);
+      expect(annotated[0].annotationKey).to.equal("link/manual");
+      expect(annotated[0].annotationValue).to.equal("https://example.com");
+      expect(annotated[0].text).to.equal("Example");
+      el.remove();
+    });
+  });
 });

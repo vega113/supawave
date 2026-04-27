@@ -161,6 +161,15 @@ export class WavyComposer extends LitElement {
       border-color: var(--wavy-signal-cyan, #22d3ee);
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
     }
+    /* F-3.S4 (#1038, R-5.6 step 1): drop-target hint while a file is
+     * being dragged over the composer body. The CSS uses /* ... *\/
+     * style comments only — no back-tick characters appear inside the
+     * css\` ... \` template literal (the F-3.S3 footgun called out in
+     * the slice plan risk list). */
+    [data-composer-body][data-droptarget="true"] {
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.12));
+    }
     :host([submitting]) [data-composer-body] {
       opacity: 0.6;
       pointer-events: none;
@@ -367,6 +376,14 @@ export class WavyComposer extends LitElement {
       body.addEventListener("input", (event) => this._onBodyInput(event));
       body.addEventListener("keydown", (event) => this._onBodyKeydown(event));
       body.addEventListener("paste", (event) => this._onBodyPaste(event));
+      // F-3.S4 (#1038, R-5.6 step 1): drag-drop support. The body
+      // accepts file drops and reflects a data-droptarget attribute so
+      // CSS can show a hint state. The drop handler dispatches a single
+      // wavy-composer-attachment-dropped event the view forwards to the
+      // controller's onDroppedFiles listener (mirrors the paste path).
+      body.addEventListener("dragover", (event) => this._onBodyDragOver(event));
+      body.addEventListener("dragleave", (event) => this._onBodyDragLeave(event));
+      body.addEventListener("drop", (event) => this._onBodyDrop(event));
       this._bodyElement = body;
     }
     // Reflect external draft changes ONLY when the body does not own
@@ -585,6 +602,90 @@ export class WavyComposer extends LitElement {
             annotationValue: node.getAttribute("data-mention-id") || ""
           });
           continue;
+        }
+        // F-3.S4 (#1038, R-5.7): bulleted list. Each <li> contributes
+        // an annotated component keyed by `list/unordered`; the
+        // annotation value is the literal "true" so the controller's
+        // delta-builder writes a list-item annotation start/end pair.
+        if (tag === "ul") {
+          flushText();
+          for (const itemNode of node.childNodes) {
+            if (
+              itemNode.nodeType === Node.ELEMENT_NODE &&
+              itemNode.tagName &&
+              itemNode.tagName.toLowerCase() === "li"
+            ) {
+              const text = itemNode.textContent || "";
+              if (text.length > 0) {
+                components.push({
+                  type: "annotated",
+                  text,
+                  annotationKey: "list/unordered",
+                  annotationValue: "true"
+                });
+              }
+            }
+          }
+          continue;
+        }
+        // F-3.S4 (#1038, R-5.7): numbered list — same structure as
+        // <ul>, keyed by `list/ordered`.
+        if (tag === "ol") {
+          flushText();
+          for (const itemNode of node.childNodes) {
+            if (
+              itemNode.nodeType === Node.ELEMENT_NODE &&
+              itemNode.tagName &&
+              itemNode.tagName.toLowerCase() === "li"
+            ) {
+              const text = itemNode.textContent || "";
+              if (text.length > 0) {
+                components.push({
+                  type: "annotated",
+                  text,
+                  annotationKey: "list/ordered",
+                  annotationValue: "true"
+                });
+              }
+            }
+          }
+          continue;
+        }
+        // F-3.S4 (#1038, R-5.7): block quote. The wrapping <blockquote>
+        // emits one `block/quote` component carrying the inner text;
+        // the controller's delta-builder writes a quote-start /
+        // quote-end pair around the contents.
+        if (tag === "blockquote") {
+          flushText();
+          const text = node.textContent || "";
+          if (text.length > 0) {
+            components.push({
+              type: "annotated",
+              text,
+              annotationKey: "block/quote",
+              annotationValue: "true"
+            });
+          }
+          continue;
+        }
+        // F-3.S4 (#1038, R-5.7): inline link. Anchor elements emit a
+        // `link/manual` component carrying the href as the annotation
+        // value. The mention-chip path above handles links injected
+        // via the `@` autocompleter; this path covers links inserted
+        // via the H.17 link modal.
+        if (tag === "a") {
+          flushText();
+          const href = node.getAttribute("href") || "";
+          const text = node.textContent || "";
+          if (href && text.length > 0) {
+            components.push({
+              type: "annotated",
+              text,
+              annotationKey: "link/manual",
+              annotationValue: href
+            });
+            continue;
+          }
         }
         if (tag === "div" || tag === "p") {
           flushText();
@@ -997,6 +1098,88 @@ export class WavyComposer extends LitElement {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drag-over handler. Indicates the
+   * composer body accepts file drops by calling preventDefault and
+   * setting data-droptarget on the body so CSS can show a hint.
+   * The dropEffect is forced to "copy" so the OS cursor matches the
+   * composer's affordance (drag-to-attach, not drag-to-move).
+   */
+  _onBodyDragOver(event) {
+    if (!event.dataTransfer) return;
+    const types = event.dataTransfer.types;
+    let hasFiles = false;
+    if (types) {
+      // DataTransferItemList carries a `Files` entry when the drag
+      // payload contains files. Dragging text from another tab does
+      // not — leave the default behaviour for that case so the user
+      // can paste text via the normal contenteditable path.
+      if (typeof types.contains === "function") {
+        hasFiles = types.contains("Files");
+      } else if (typeof types.includes === "function") {
+        hasFiles = types.includes("Files");
+      } else if (types.length !== undefined) {
+        for (let i = 0; i < types.length; i++) {
+          if (types[i] === "Files") {
+            hasFiles = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!hasFiles) return;
+    event.preventDefault();
+    try {
+      event.dataTransfer.dropEffect = "copy";
+    } catch {
+      // Some browsers throw when dropEffect is set on a synthetic
+      // event; ignore so the drop path still works in tests.
+    }
+    if (this._bodyElement) {
+      this._bodyElement.setAttribute("data-droptarget", "true");
+    }
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drag-leave handler. Clears the
+   * data-droptarget attribute when the cursor leaves the body — but
+   * NOT when it enters a nested child (relatedTarget would be a
+   * descendant of the body in that case). This guards against the
+   * naive flicker described in the slice plan's risk #3.
+   */
+  _onBodyDragLeave(event) {
+    if (!this._bodyElement) return;
+    const related = event.relatedTarget;
+    if (related && this._bodyElement.contains(related)) return;
+    this._bodyElement.removeAttribute("data-droptarget");
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drop handler. Collects every File
+   * from the drag payload (filtering empty drops) and dispatches a
+   * single wavy-composer-attachment-dropped event the view routes
+   * through the existing selectFiles plumbing. Image files dropped
+   * here travel the same code path as files chosen via the H.19
+   * paperclip picker; non-image files are also forwarded so the
+   * controller can produce a download chip on the originating blip.
+   */
+  _onBodyDrop(event) {
+    if (!event.dataTransfer) return;
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    if (this._bodyElement) {
+      this._bodyElement.removeAttribute("data-droptarget");
+    }
+    this.dispatchEvent(
+      new CustomEvent("wavy-composer-attachment-dropped", {
+        detail: { files, replyTargetBlipId: this.replyTargetBlipId },
+        bubbles: true,
+        composed: true
+      })
+    );
   }
 
   _submit() {

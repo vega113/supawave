@@ -2,8 +2,13 @@ import { LitElement, css, html } from "lit";
 
 /**
  * <wave-blip-toolbar> — F-2 (#1037, R-3.1) per-blip action toolbar that
- * surfaces Reply (F.4), Edit (F.5), Link (F.7), and the overflow trigger
- * (F.6 Delete + future F-3 actions live behind it).
+ * surfaces Reply (F.4), Edit (F.5), Link (F.7), Delete (F.6), and the
+ * overflow trigger (future F-3 actions).
+ *
+ * F-3.S4 (#1038, R-5.6): the Delete button now emits a dedicated
+ * `wave-blip-toolbar-delete` event so the compose surface can route
+ * through a styled wavy confirm dialog and the new
+ * `J2clRichContentDeltaFactory.blipDeleteRequest` factory method.
  *
  * The toolbar is structurally inside `<wave-blip>`'s `metadata` slot so
  * the F-0 `<wavy-blip-card>` recipe envelope stays in charge of focus +
@@ -89,6 +94,14 @@ export class WaveBlipToolbar extends LitElement {
         @click=${() => this._emit("wave-blip-toolbar-link")}
       >
         Link
+      </button>
+      <button
+        type="button"
+        data-toolbar-action="delete"
+        aria-label="Delete this blip"
+        @click=${() => this._emit("wave-blip-toolbar-delete")}
+      >
+        Delete
       </button>
       <button
         type="button"

@@ -44,6 +44,11 @@ import "./wavy-task-affordance.js";
  *   (compose) listens.
  * - `wave-blip-edit-requested` — `{detail: {blipId, waveId}}`. F-3 owns
  *   the edit surface; F-2 only emits the request.
+ * - `wave-blip-delete-requested` — `{detail: {blipId, waveId}}`. F-3.S4
+ *   (#1038, R-5.6) listens; the compose view shows a styled wavy
+ *   confirm dialog and on confirm calls the controller's
+ *   onDeleteBlipRequested listener which builds the deletion delta
+ *   via `J2clRichContentDeltaFactory.blipDeleteRequest`.
  * - `wave-blip-link-copied` — `{detail: {blipId, waveId, url}}`. F-2
  *   handles the clipboard write itself before emitting.
  * - `wave-blip-profile-requested` — `{detail: {blipId, authorId}}`.
@@ -294,6 +299,27 @@ export class WaveBlip extends LitElement {
     );
   }
 
+  /**
+   * F-3.S4 (#1038, R-5.6): Delete affordance. Re-emits a public
+   * `wave-blip-delete-requested` CustomEvent so the J2CL compose
+   * surface can route through a styled wavy confirm dialog (no
+   * Window.confirm per the project memory rule
+   * `feedback_no_browser_popups.md`) and then call the new
+   * `J2clComposeSurfaceController.Listener.onDeleteBlipRequested`
+   * listener which builds the deletion delta via
+   * `J2clRichContentDeltaFactory.blipDeleteRequest`.
+   */
+  _onDeleteClick(event) {
+    event.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent("wave-blip-delete-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { blipId: this.blipId, waveId: this.waveId }
+      })
+    );
+  }
+
   async _onLinkClick(event) {
     event.stopPropagation();
     const url = this._buildPermalink();
@@ -405,6 +431,7 @@ export class WaveBlip extends LitElement {
             @wave-blip-toolbar-reply=${this._onReplyClick}
             @wave-blip-toolbar-edit=${this._onEditClick}
             @wave-blip-toolbar-link=${this._onLinkClick}
+            @wave-blip-toolbar-delete=${this._onDeleteClick}
           ></wave-blip-toolbar>
           <span class="task-affordance-slot" data-task-affordance-slot>
             <wavy-task-affordance

@@ -50,9 +50,35 @@ describe("<wavy-format-toolbar>", () => {
       "unlink",
       "clear-formatting",
       // F-3.S2 (#1038, R-5.4 step 6 + H.20)
-      "insert-task"
+      "insert-task",
+      // F-3.S4 (#1038, R-5.6 step 3 + H.19)
+      "attachment-insert"
     ]);
     expect(actionIds.length).to.equal(DAILY_RICH_EDIT_ACTION_IDS.length);
+  });
+
+  // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is
+  // present and emits wavy-format-toolbar-action with actionId
+  // "attachment-insert" so the controller's
+  // handleAttachmentToolbarAction path opens the picker.
+  it("includes the H.19 attachment paperclip button (R-5.6 step 3)", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    const button = el.renderRoot.querySelector(
+      'toolbar-button[data-toolbar-action="attachment-insert"]'
+    );
+    expect(button, "attachment-insert button must render").to.exist;
+    expect(button.getAttribute("label")).to.equal("Attach file");
+
+    const eventPromise = oneEvent(el, "wavy-format-toolbar-action");
+    button.dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        bubbles: true,
+        composed: true,
+        detail: { action: "attachment-insert" }
+      })
+    );
+    const event = await eventPromise;
+    expect(event.detail.actionId).to.equal("attachment-insert");
   });
 
   // F-3.S2 (#1038, R-5.4 step 6): the H.20 Insert-task button is

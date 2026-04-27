@@ -3452,6 +3452,23 @@ public final class HtmlRenderer {
       appendRootShellWorkflowMarkup(sb, resolvedSnapshotResult, true);
       sb.append("    </section>\n");
       sb.append("  </shell-main-region>\n");
+      // F-4 (#1039 / R-4.7): production rail-extension landing zone.
+      // Empty by default; plugins (assistant, tasks roll-up, integrations
+      // status) target the inner <slot name="rail-extension"> on this
+      // <wavy-rail-panel>, which inherits the M.4 plugin contract from F-0.
+      // The data-active-* attributes reflect the rendered URL state so
+      // plugins can scope their payload (per F-0's plugin context spec).
+      // The selected wave id comes from the snapshot result when present;
+      // otherwise empty. The active folder derives from the SSR query.
+      String safeRailWaveId =
+          escapeHtml(resolvedSnapshotResult.getWaveId() == null
+              ? "" : resolvedSnapshotResult.getWaveId());
+      String safeRailFolder = escapeHtml(deriveActiveFolder(resolvedInitialQuery));
+      sb.append("  <wavy-rail-panel slot=\"rail-extension\" panel-title=\"Plugins\" data-active-wave-id=\"")
+          .append(safeRailWaveId)
+          .append("\" data-active-folder=\"")
+          .append(safeRailFolder)
+          .append("\" data-j2cl-rail-extension=\"true\"></wavy-rail-panel>\n");
       sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
@@ -3978,8 +3995,48 @@ public final class HtmlRenderer {
     sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"").append("archive".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Archive</span></button></li>\n");
     sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"").append("pinned".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Pinned</span></button></li>\n");
     sb.append("      </ul>\n");
+    // F-4 (#1039 / R-4.7): SSR filter chip strip. Mirrors
+    // WavySearchRail.FILTERS so the strip exists pre-upgrade and the
+    // J2CL upgrade is content-preserving. aria-pressed is derived from
+    // the initial query using the same case-insensitive token-equality
+    // rule the Lit element applies (NOT substring), so the SSR'd state
+    // matches what render() would compute on first paint.
+    boolean unreadActive = isFilterTokenActive(safeInitialQuery, "is:unread");
+    boolean attachmentsActive = isFilterTokenActive(safeInitialQuery, "has:attachment");
+    boolean fromMeActive = isFilterTokenActive(safeInitialQuery, "from:me");
+    sb.append("      <details class=\"filters\" data-j2cl-filter-strip>\n");
+    sb.append("        <summary>Filters</summary>\n");
+    sb.append("        <div class=\"filter-chips\" role=\"group\" aria-label=\"Search filters\">\n");
+    sb.append("          <button type=\"button\" class=\"filter-chip\" data-filter-id=\"unread\" data-filter-token=\"is:unread\" aria-pressed=\"")
+        .append(unreadActive ? "true" : "false").append("\">Unread only</button>\n");
+    sb.append("          <button type=\"button\" class=\"filter-chip\" data-filter-id=\"attachments\" data-filter-token=\"has:attachment\" aria-pressed=\"")
+        .append(attachmentsActive ? "true" : "false").append("\">With attachments</button>\n");
+    sb.append("          <button type=\"button\" class=\"filter-chip\" data-filter-id=\"from-me\" data-filter-token=\"from:me\" aria-pressed=\"")
+        .append(fromMeActive ? "true" : "false").append("\">From me</button>\n");
+    sb.append("        </div>\n");
+    sb.append("      </details>\n");
     sb.append("      <p class=\"result-count\" aria-live=\"polite\"></p>\n");
     sb.append("    </wavy-search-rail>\n");
+  }
+
+  /**
+   * F-4 (#1039 / R-4.7) SSR helper: case-insensitive whole-token match
+   * mirroring {@code WavySearchRail#_isTokenActive}. Returns true iff
+   * the query, split on whitespace, contains a token equal to {@code
+   * needle} (case-insensitive). NOT substring — so {@code is:unread}
+   * does not match {@code is:unread-foo}.
+   */
+  private static boolean isFilterTokenActive(String query, String needle) {
+    if (query == null || query.isEmpty()) {
+      return false;
+    }
+    String wanted = needle.toLowerCase(java.util.Locale.ROOT);
+    for (String raw : query.split("\\s+")) {
+      if (raw.toLowerCase(java.util.Locale.ROOT).equals(wanted)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

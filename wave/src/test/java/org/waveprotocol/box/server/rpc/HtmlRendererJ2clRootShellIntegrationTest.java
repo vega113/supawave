@@ -574,7 +574,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             .find());
   }
 
-  public void testWavyComposerRetiredFromShellBundleEntryPoint() {
+  public void testWavyComposerElementsRegisteredInShellBundleEntryPoint() {
     // F-3.S1 (#1038): the lit shell bundle index registers the new
     // F-3.S1 elements alongside the legacy <composer-inline-reply>.
     // The new elements MUST be imported so the shell.js bundle defines

@@ -94,7 +94,7 @@ export class WavyFormatToolbar extends LitElement {
     :host([hidden]) {
       opacity: 0;
       pointer-events: none;
-      display: block; /* keep present for transition end events */
+      display: none;
     }
   `;
 

@@ -167,9 +167,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(replyElement, "commandStatus", model.getCommandStatusText());
     setProperty(replyElement, "commandError", model.getCommandErrorText());
 
-    // F-3.S1 mirror: project the same property set onto every active
-    // inline composer so the model is the single source of truth.
-    for (HTMLElement composer : inlineComposers.values()) {
+    // Mirror reply state only into the currently active inline composer.
+    // The model carries a single reply/edit target and draft, so pushing
+    // that state into every mounted inline composer can make stale
+    // composers display and submit against the wrong target.
+    HTMLElement composer = activeInlineComposer();
+    if (composer != null) {
       mirrorComposerState(composer, model);
     }
   }
@@ -184,6 +187,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     HTMLElement target = activeInlineComposer();
     if (target != null) {
       target.dispatchEvent(new Event("composer-focus-request"));
+      return;
     }
     replyElement.dispatchEvent(new Event("composer-focus-request"));
   }

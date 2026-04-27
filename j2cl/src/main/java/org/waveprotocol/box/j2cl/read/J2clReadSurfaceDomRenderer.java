@@ -172,6 +172,9 @@ public final class J2clReadSurfaceDomRenderer {
       if (blip == null) {
         continue;
       }
+      if (isHiddenByCollapsedThread(blip)) {
+        continue;
+      }
       if (!blip.hasAttribute("unread")) {
         continue;
       }
@@ -1025,6 +1028,7 @@ public final class J2clReadSurfaceDomRenderer {
     } catch (Throwable ignored) {
       // Telemetry is observational.
     }
+    evaluateDwellTimers();
   }
 
   private void onBlipFocus(Event event) {

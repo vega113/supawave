@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.compose;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -715,11 +716,33 @@ public final class J2clComposeSurfaceController {
                     normalizedAssignee,
                     normalizedDue);
           } catch (RuntimeException e) {
+            recordTaskMetadataTelemetry("failure-build");
             return;
           }
-          gateway.submit(bootstrap, request, response -> {}, error -> {});
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> {
+                if (response != null && !response.getErrorMessage().isEmpty()) {
+                  recordTaskMetadataTelemetry("failure-submit");
+                  return;
+                }
+                recordTaskMetadataTelemetry("success");
+              },
+              error -> recordTaskMetadataTelemetry("failure-submit"));
         },
-        error -> {});
+        error -> recordTaskMetadataTelemetry("failure-bootstrap"));
+  }
+
+  private void recordTaskMetadataTelemetry(String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.task_metadata_changed")
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
   }
 
   private void recordTaskToggleTelemetry(boolean completed, String outcome) {
@@ -1051,33 +1074,40 @@ public final class J2clComposeSurfaceController {
    * cleared on submit success / wave change / sign-out so a
    * failed submit can retry with the same chip set.
    *
-   * <p>Algorithm: walk through pending mentions in insertion
-   * order, searching for each chip text as the leftmost match
-   * at-or-after the running offset. Mentions whose chip text is
-   * not found (e.g. the user deleted the chip via Backspace
-   * after picking) are silently skipped, mirroring the lit
-   * composer's atomic chip-delete UX.
+   * <p>Algorithm: sort pending mentions by their first occurrence
+   * in {@code draftText} (document order) so that chips inserted
+   * out of pick order are serialised correctly. Then walk in
+   * document order, emitting alternating plain-text runs and
+   * annotated chip spans. Mentions whose chip text is not found
+   * (e.g. the user deleted the chip via Backspace after picking)
+   * are silently skipped.
    */
   private boolean appendMentionedComponents(
       J2clComposerDocument.Builder builder, String draftText) {
     if (pendingMentions.isEmpty()) return false;
     if (draftText == null || draftText.isEmpty()) return false;
-    // Probe whether ANY pending mention is still represented in the
-    // draft before mutating the builder; if none match (user deleted
-    // every chip), fall back to the legacy text/annotatedText path
-    // so existing tests keep their plain-text shape.
-    int probe = 0;
+    // Check whether ANY pending mention is still represented in the draft
+    // before mutating the builder; if none match (user deleted every chip),
+    // fall back to the plain-text path so existing tests keep their shape.
     boolean anyMatch = false;
     for (PendingMention mention : pendingMentions) {
-      int idx = draftText.indexOf(mention.chipText, probe);
-      if (idx >= 0) {
+      if (draftText.contains(mention.chipText)) {
         anyMatch = true;
-        probe = idx + mention.chipText.length();
+        break;
       }
     }
     if (!anyMatch) return false;
+    // Sort by first occurrence in draftText (document order) so that mentions
+    // inserted out of pick order (e.g. caret moved earlier before second pick)
+    // are still serialised correctly. Unmatched entries sort to the end and
+    // are silently skipped.
+    List<PendingMention> inDocOrder = new ArrayList<>(pendingMentions);
+    inDocOrder.sort(Comparator.comparingInt(m -> {
+      int pos = draftText.indexOf(m.chipText);
+      return pos < 0 ? Integer.MAX_VALUE : pos;
+    }));
     int cursor = 0;
-    for (PendingMention mention : pendingMentions) {
+    for (PendingMention mention : inDocOrder) {
       int idx = draftText.indexOf(mention.chipText, cursor);
       if (idx < 0) continue;
       if (idx > cursor) {

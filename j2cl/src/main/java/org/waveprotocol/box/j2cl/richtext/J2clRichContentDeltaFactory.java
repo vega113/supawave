@@ -112,10 +112,10 @@ public final class J2clRichContentDeltaFactory {
 
   /**
    * F-3.S2 (#1038, R-5.4 step 5): build a stand-alone delta that
-   * writes the `task/owner` and `task/due` annotations on the blip.
+   * writes the `task/assignee` and `task/dueTs` annotations on the blip.
    * Either value may be empty, in which case the annotation start
    * still serialises with an empty-string value field
-   * (`{"1":"task/owner","3":""}`) and the GWT reader treats the
+   * (`{"1":"task/assignee","3":""}`) and the GWT reader treats the
    * empty string as the "unset" sentinel.
    */
   public SidecarSubmitRequest taskMetadataRequest(
@@ -130,7 +130,7 @@ public final class J2clRichContentDeltaFactory {
         address,
         session,
         blipId,
-        new String[] {"task/owner", "task/due"},
+        new String[] {"task/assignee", "task/dueTs"},
         new String[] {assignee, due});
   }
 

@@ -804,8 +804,10 @@ export class WavyComposer extends LitElement {
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Caret between elements; check the element immediately before
-      // range.startOffset.
-      const prev = node.childNodes[Math.max(0, range.startOffset - 1)];
+      // range.startOffset. When startOffset is 0 the caret is before
+      // all children so there is no preceding element to delete.
+      if (range.startOffset === 0) return false;
+      const prev = node.childNodes[range.startOffset - 1];
       if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.classList && prev.classList.contains("wavy-mention-chip")) {
         chip = prev;
       }

@@ -477,6 +477,17 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
                     + "addEditActions\\s*\\(")
             .matcher(source)
             .find());
+    // Also verify no unconditional addEditActions call exists outside the guard.
+    String sourceWithoutEditableGuard =
+        source.replaceFirst(
+            "if\\s*\\(\\s*editState\\.editable\\s*\\)\\s*\\{[\\s\\S]*?addEditActions\\s*\\(\\s*actions\\s*\\)\\s*;[\\s\\S]*?\\}",
+            "");
+    assertFalse(
+        "J2clToolbarSurfaceController.render must not call addEditActions "
+            + "outside the editState.editable guard (see #1060)",
+        java.util.regex.Pattern.compile("addEditActions\\s*\\([^;]*\\)\\s*;")
+            .matcher(sourceWithoutEditableGuard)
+            .find());
   }
 
   public void testComposerInlineReplyCollapsesUntilAvailable() {

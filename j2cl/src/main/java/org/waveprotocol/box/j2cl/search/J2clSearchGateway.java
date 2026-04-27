@@ -156,6 +156,105 @@ public final class J2clSearchGateway
   }
 
   @Override
+  public void markBlipRead(
+      String waveId,
+      String blipId,
+      J2clSearchPanelController.SuccessCallback<Integer> onSuccess,
+      J2clSearchPanelController.ErrorCallback onError) {
+    // F-4 (#1039 / R-4.4 / subsumes #1056): POST to the new
+    // /j2cl/mark-blip-read endpoint, parse the unreadCount field from the
+    // JSON response and dispatch to the success callback.
+    if (waveId == null || waveId.isEmpty() || blipId == null || blipId.isEmpty()) {
+      onError.accept("Wave id and blip id are required for markBlipRead.");
+      return;
+    }
+    String body = buildMarkBlipReadBody(waveId, blipId);
+    XMLHttpRequest request = new XMLHttpRequest();
+    request.open("POST", "/j2cl/mark-blip-read");
+    request.setRequestHeader("Content-Type", "application/json");
+    request.onload =
+        event -> {
+          if (request.status >= 200 && request.status < 300) {
+            try {
+              Map<String, Object> json = SidecarTransportCodec.parseJsonObject(request.responseText);
+              Object rawCount = json == null ? null : json.get("unreadCount");
+              int unreadCount = -1;
+              if (rawCount instanceof Number) {
+                unreadCount = ((Number) rawCount).intValue();
+              } else if (rawCount instanceof String) {
+                try {
+                  unreadCount = Integer.parseInt((String) rawCount);
+                } catch (NumberFormatException ignored) {
+                  unreadCount = -1;
+                }
+              }
+              // The "alreadyRead" flag from the helper is informational —
+              // currently routed only through the success Integer because
+              // the controller doesn't need to distinguish "OK" from
+              // "ALREADY_READ" for live-decrement purposes (both converge
+              // on the same unreadCount). Expose it as an extra signal in
+              // a follow-up if telemetry buckets demand finer breakdown.
+              onSuccess.accept(Integer.valueOf(unreadCount));
+            } catch (RuntimeException e) {
+              onError.accept(messageOrDefault(e, "Unable to decode the markBlipRead response."));
+            }
+          } else {
+            onError.accept("HTTP " + request.status + " for /j2cl/mark-blip-read");
+          }
+        };
+    request.onerror =
+        event -> {
+          onError.accept("Network failure for /j2cl/mark-blip-read");
+          return null;
+        };
+    request.send(body);
+  }
+
+  static String buildMarkBlipReadBody(String waveId, String blipId) {
+    StringBuilder out = new StringBuilder(64);
+    out.append("{\"waveId\":\"")
+        .append(jsonEscape(waveId))
+        .append("\",\"blipId\":\"")
+        .append(jsonEscape(blipId))
+        .append("\"}");
+    return out.toString();
+  }
+
+  private static String jsonEscape(String value) {
+    if (value == null) {
+      return "";
+    }
+    StringBuilder out = new StringBuilder(value.length() + 4);
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      switch (c) {
+        case '"': out.append("\\\""); break;
+        case '\\': out.append("\\\\"); break;
+        case '\n': out.append("\\n"); break;
+        case '\r': out.append("\\r"); break;
+        case '\t': out.append("\\t"); break;
+        default:
+          if (c < 0x20) {
+            // Hex-escape control chars.
+            out.append("\\u").append(zeroPad(Integer.toHexString(c), 4));
+          } else {
+            out.append(c);
+          }
+      }
+    }
+    return out.toString();
+  }
+
+  private static String zeroPad(String value, int width) {
+    StringBuilder padded = new StringBuilder(width);
+    for (int i = value.length(); i < width; i++) {
+      padded.append('0');
+    }
+    padded.append(value);
+    return padded.toString();
+  }
+
+  @Override
   public void fetchFragments(
       String waveId,
       String startBlipId,

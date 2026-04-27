@@ -68,4 +68,33 @@ public final class J2clSearchResultModel {
     }
     return null;
   }
+
+  /**
+   * F-4 (#1039 / R-4.4): returns a model with the matching digest's unread
+   * count replaced. When no digest matches the supplied waveId, this is the
+   * identity. Used by the live-decrement path to keep the cached model in
+   * sync with the live read-state without rerunning the search.
+   */
+  public J2clSearchResultModel withUpdatedUnreadCount(String waveId, int newUnreadCount) {
+    if (waveId == null || waveId.isEmpty() || digestItems.isEmpty()) {
+      return this;
+    }
+    List<J2clSearchDigestItem> next = new ArrayList<J2clSearchDigestItem>(digestItems.size());
+    boolean changed = false;
+    for (J2clSearchDigestItem item : digestItems) {
+      if (waveId.equals(item.getWaveId())) {
+        J2clSearchDigestItem updated = item.withUnreadCount(newUnreadCount);
+        next.add(updated);
+        if (updated != item) {
+          changed = true;
+        }
+      } else {
+        next.add(item);
+      }
+    }
+    if (!changed) {
+      return this;
+    }
+    return new J2clSearchResultModel(next, waveCountText, showMoreVisible, emptyMessage);
+  }
 }

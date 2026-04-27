@@ -12,8 +12,12 @@ import elemental2.dom.KeyboardEvent;
 import elemental2.dom.NodeList;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import jsinterop.base.Js;
 import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
@@ -25,9 +29,48 @@ public final class J2clReadSurfaceDomRenderer {
   private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
   private static final String ATTACHMENT_TELEMETRY_BOUND = "data-attachment-telemetry-bound";
 
+  /**
+   * F-4 (#1039 / R-4.4 / subsumes #1056): how long an unread blip must dwell
+   * inside the viewport before we treat it as "the user actually read it".
+   * 1.5 s (the spec from #1056) is short enough to feel responsive when
+   * users genuinely linger and long enough that scroll-through traffic
+   * doesn't fire mark-as-read.
+   */
+  public static final int VIEWPORT_DWELL_DEBOUNCE_MS = 1500;
+
+  /**
+   * F-4 (#1039 / R-4.4 / subsumes #1056): an unread blip is considered "in
+   * the viewport" when at least this fraction of its area is visible OR the
+   * intersection rect fills at least this fraction of the viewport (the
+   * second clause covers blips taller than the viewport, which can never
+   * reach the first threshold).
+   */
+  public static final double VIEWPORT_INTERSECTION_THRESHOLD = 0.5;
+
   @FunctionalInterface
   public interface ViewportEdgeListener {
     void onViewportEdge(String anchorBlipId, String direction);
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4 / subsumes #1056): listener invoked when an unread
+   * blip has been in the viewport for {@link #VIEWPORT_DWELL_DEBOUNCE_MS}.
+   */
+  @FunctionalInterface
+  public interface MarkBlipReadListener {
+    void markBlipRead(String blipId);
+  }
+
+  /** Test seam for the dwell-timer scheduler so unit tests can swap a fake clock. */
+  public interface DwellTimerScheduler {
+    /**
+     * Schedules {@code action} to run after {@code delayMs}. Returns a handle
+     * that {@link #cancel(Object)} accepts.
+     */
+    Object schedule(int delayMs, Runnable action);
+
+    /** Cancels a previously scheduled action; idempotent for unknown handles. */
+    void cancel(Object handle);
   }
 
   private final HTMLDivElement host;
@@ -42,6 +85,11 @@ public final class J2clReadSurfaceDomRenderer {
   private ViewportEdgeListener viewportEdgeListener;
   private boolean scrollListenerBound;
   private String lastScrollDirection;
+  // F-4 (#1039 / R-4.4): mark-as-read state — listener, dwell timers, in-flight set.
+  private MarkBlipReadListener markBlipReadListener;
+  private DwellTimerScheduler dwellTimerScheduler = defaultDwellTimerScheduler();
+  private final Map<String, Object> dwellTimers = new HashMap<String, Object>();
+  private final Set<String> markBlipReadInFlight = new HashSet<String>();
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -72,10 +120,209 @@ public final class J2clReadSurfaceDomRenderer {
     lastScrollDirection = null;
   }
 
+  /**
+   * F-4 (#1039 / R-4.4): registers the mark-blip-read listener that fires when
+   * an unread blip has dwelt in the viewport for at least
+   * {@link #VIEWPORT_DWELL_DEBOUNCE_MS}. Idempotent — passing null disables
+   * the listener but leaves the scroll wiring intact.
+   */
+  public void setMarkBlipReadListener(MarkBlipReadListener listener) {
+    this.markBlipReadListener = listener;
+    if (!scrollListenerBound) {
+      host.addEventListener("scroll", this::onHostScroll);
+      scrollListenerBound = true;
+    }
+  }
+
+  /**
+   * Test seam — replaces the dwell-timer scheduler with a fake. Must be set
+   * before the first render so any timers scheduled use the supplied scheduler.
+   */
+  public void setDwellTimerSchedulerForTesting(DwellTimerScheduler scheduler) {
+    this.dwellTimerScheduler = scheduler == null ? defaultDwellTimerScheduler() : scheduler;
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4): walks rendered blips and arms / cancels per-blip
+   * dwell timers based on viewport intersection. Called on every scroll and
+   * every render rebuild. Already-fired blips (in {@link #markBlipReadInFlight})
+   * and read blips (no {@code unread} attribute) are skipped.
+   */
+  void evaluateDwellTimers() {
+    if (markBlipReadListener == null) {
+      return;
+    }
+    if (renderedBlips.isEmpty()) {
+      cancelAllDwellTimers();
+      return;
+    }
+    DOMRect hostRect = host.getBoundingClientRect();
+    double viewportHeight = hostRect.height;
+    if (viewportHeight <= 0) {
+      // Off-screen / detached host — no point scheduling.
+      cancelAllDwellTimers();
+      return;
+    }
+    Set<String> visibleUnreadIds = new HashSet<String>();
+    for (HTMLElement blip : renderedBlips) {
+      if (blip == null) {
+        continue;
+      }
+      if (!blip.hasAttribute("unread")) {
+        continue;
+      }
+      String blipId = blip.getAttribute("data-blip-id");
+      if (blipId == null || blipId.isEmpty()) {
+        continue;
+      }
+      if (markBlipReadInFlight.contains(blipId)) {
+        continue;
+      }
+      if (!isBlipInViewport(blip, hostRect)) {
+        continue;
+      }
+      visibleUnreadIds.add(blipId);
+      if (!dwellTimers.containsKey(blipId)) {
+        // Snapshot the blip id; the timer fires only if the listener is
+        // still installed and the in-flight gate hasn't already taken it.
+        final String pendingBlipId = blipId;
+        Object handle =
+            dwellTimerScheduler.schedule(
+                VIEWPORT_DWELL_DEBOUNCE_MS, () -> fireDwellTimer(pendingBlipId));
+        dwellTimers.put(blipId, handle);
+      }
+    }
+    // Cancel timers for blips that left the viewport (or were cleared).
+    if (dwellTimers.size() > visibleUnreadIds.size()) {
+      List<String> stale = new ArrayList<String>(dwellTimers.keySet());
+      for (String pendingId : stale) {
+        if (!visibleUnreadIds.contains(pendingId)) {
+          Object handle = dwellTimers.remove(pendingId);
+          if (handle != null) {
+            dwellTimerScheduler.cancel(handle);
+          }
+        }
+      }
+    }
+  }
+
+  private void fireDwellTimer(String blipId) {
+    dwellTimers.remove(blipId);
+    if (markBlipReadListener == null) {
+      return;
+    }
+    if (blipId == null || blipId.isEmpty()) {
+      return;
+    }
+    if (!markBlipReadInFlight.add(blipId)) {
+      // Already in flight — defence-in-depth.
+      return;
+    }
+    try {
+      markBlipReadListener.markBlipRead(blipId);
+    } catch (Throwable t) {
+      // Listener errors must not break the renderer; clear the in-flight
+      // gate so a later re-arm can retry.
+      markBlipReadInFlight.remove(blipId);
+    }
+  }
+
+  /**
+   * Visibility predicate used by {@link #evaluateDwellTimers}. A blip is
+   * considered visible when the intersection rectangle covers ≥ 50 % of the
+   * blip OR (for blips taller than the viewport) ≥ 50 % of the viewport.
+   */
+  private static boolean isBlipInViewport(HTMLElement blip, DOMRect hostRect) {
+    DOMRect blipRect = blip.getBoundingClientRect();
+    double blipHeight = blipRect.height;
+    double blipWidth = blipRect.width;
+    if (blipHeight <= 0 || blipWidth <= 0) {
+      return false;
+    }
+    double intersectTop = Math.max(blipRect.top, hostRect.top);
+    double intersectBottom = Math.min(blipRect.bottom, hostRect.bottom);
+    double intersectHeight = intersectBottom - intersectTop;
+    if (intersectHeight <= 0) {
+      return false;
+    }
+    double intersectLeft = Math.max(blipRect.left, hostRect.left);
+    double intersectRight = Math.min(blipRect.right, hostRect.right);
+    double intersectWidth = intersectRight - intersectLeft;
+    if (intersectWidth <= 0) {
+      return false;
+    }
+    double intersectArea = intersectHeight * intersectWidth;
+    double blipArea = blipHeight * blipWidth;
+    double hostHeight = hostRect.height;
+    if (intersectArea / blipArea >= VIEWPORT_INTERSECTION_THRESHOLD) {
+      return true;
+    }
+    // Tall-blip exception: a blip taller than the viewport can never reach
+    // the area-ratio threshold. Treat "the visible slice fills ≥ 50% of the
+    // viewport" as visible too.
+    if (hostHeight > 0 && intersectHeight / hostHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
+      return true;
+    }
+    return false;
+  }
+
+  private void cancelAllDwellTimers() {
+    if (dwellTimers.isEmpty()) {
+      return;
+    }
+    for (Object handle : dwellTimers.values()) {
+      if (handle != null) {
+        dwellTimerScheduler.cancel(handle);
+      }
+    }
+    dwellTimers.clear();
+  }
+
+  /** Drops in-flight ids for blips that are no longer rendered. */
+  private void pruneStaleInFlightOnRebuild() {
+    if (markBlipReadInFlight.isEmpty()) {
+      return;
+    }
+    Set<String> renderedIds = new HashSet<String>();
+    for (HTMLElement blip : renderedBlips) {
+      if (blip == null) {
+        continue;
+      }
+      String id = blip.getAttribute("data-blip-id");
+      if (id != null && !id.isEmpty()) {
+        renderedIds.add(id);
+      }
+    }
+    markBlipReadInFlight.retainAll(renderedIds);
+  }
+
+  private static DwellTimerScheduler defaultDwellTimerScheduler() {
+    return new DwellTimerScheduler() {
+      @Override
+      public Object schedule(int delayMs, Runnable action) {
+        return DomGlobal.setTimeout(ignored -> action.run(), delayMs);
+      }
+
+      @Override
+      public void cancel(Object handle) {
+        if (handle == null) {
+          return;
+        }
+        try {
+          DomGlobal.clearTimeout(((Number) handle).doubleValue());
+        } catch (Throwable ignored) {
+          // The handle may be opaque in test fakes; cancellation is best-effort.
+        }
+      }
+    };
+  }
+
   public boolean render(List<J2clReadBlip> blips, List<String> fallbackEntries) {
     List<J2clReadBlip> effectiveBlips = normalizeBlips(blips, fallbackEntries);
     if (effectiveBlips.isEmpty()) {
       clearViewportScrollMemory();
+      cancelAllDwellTimers();
+      markBlipReadInFlight.clear();
       host.innerHTML = "";
       renderedBlips.clear();
       renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
@@ -89,10 +336,15 @@ public final class J2clReadSurfaceDomRenderer {
     List<String> previouslyCollapsedThreadIds = captureCollapsedThreadIds();
     if (matchesRenderedBlips(effectiveBlips)) {
       restoreFocusedBlipById(focusedBlipId);
+      // F-4 (#1039 / R-4.4): even on a no-op match, viewport dwell may
+      // have changed since last evaluation (e.g. focus restoration moved
+      // scroll position).
+      evaluateDwellTimers();
       return true;
     }
 
     clearViewportScrollMemory();
+    cancelAllDwellTimers();
     host.innerHTML = "";
     renderedBlips.clear();
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
@@ -121,12 +373,16 @@ public final class J2clReadSurfaceDomRenderer {
     enhanceSurface(surface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
+    pruneStaleInFlightOnRebuild();
+    evaluateDwellTimers();
     return true;
   }
 
   public boolean renderWindow(List<J2clReadWindowEntry> entries) {
     if (entries == null || entries.isEmpty()) {
       clearViewportScrollMemory();
+      cancelAllDwellTimers();
+      markBlipReadInFlight.clear();
       host.innerHTML = "";
       renderedBlips.clear();
       renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
@@ -142,9 +398,11 @@ public final class J2clReadSurfaceDomRenderer {
     List<String> previouslyCollapsedThreadIds = captureCollapsedThreadIds();
     if (matchesRenderedWindowEntries(entries)) {
       restoreFocusedBlipById(focusedBlipId);
+      evaluateDwellTimers();
       return true;
     }
 
+    cancelAllDwellTimers();
     host.innerHTML = "";
     renderedBlips.clear();
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
@@ -202,6 +460,8 @@ public final class J2clReadSurfaceDomRenderer {
     restoreFocusedBlipById(focusedBlipId);
     restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
     requestReachablePlaceholderAfterRender();
+    pruneStaleInFlightOnRebuild();
+    evaluateDwellTimers();
     return true;
   }
 
@@ -256,8 +516,11 @@ public final class J2clReadSurfaceDomRenderer {
     renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
     renderedSurface = surface;
     focusedBlip = null;
+    cancelAllDwellTimers();
     enhanceSurface(surface);
     restoreFocusedBlip(previousFocusedBlip);
+    pruneStaleInFlightOnRebuild();
+    evaluateDwellTimers();
     // A zero-blip surface is still valid no-wave/empty markup, but callers use
     // the boolean to know whether focusable read content was found.
     return !renderedBlips.isEmpty();
@@ -900,6 +1163,12 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private void onHostScroll(Event event) {
+    // F-4 (#1039 / R-4.4): every scroll event rearms / cancels per-blip
+    // dwell timers so the user actually has to dwell on a blip rather than
+    // scroll through it. Cheap because getBoundingClientRect is O(1) per
+    // node and the rendered list is small (viewport-scoped).
+    evaluateDwellTimers();
+
     if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
       return;
     }

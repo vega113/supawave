@@ -407,6 +407,15 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   }
 
   @Override
+  public void setMarkBlipReadHandler(J2clSelectedWaveController.MarkBlipReadHandler handler) {
+    // F-4 (#1039 / R-4.4): forward through to the renderer's per-blip dwell
+    // tracker. Passing null disables the listener but leaves the scroll
+    // hook in place so re-installation on visibility change works.
+    readSurface.setMarkBlipReadListener(
+        handler == null ? null : handler::markBlipRead);
+  }
+
+  @Override
   public SidecarViewportHints initialViewportHints(String selectedWaveId) {
     return resolveInitialViewportHints(
         serverFirstActive, serverFirstWaveId, selectedWaveId, serverFirstBlipAnchor());

@@ -110,6 +110,10 @@ public final class J2clRootShellController {
                 (state, digestItem, userNavigation) ->
                     routeControllerRef[0].onRouteStateChanged(state, digestItem, userNavigation)),
             resolveViewportWidth());
+    // F-4 (#1039 / R-4.4): bridge the selected-wave controller's live read
+    // state into the search panel so the matching digest's unread badge
+    // decrements without re-rendering the whole list.
+    selectedWaveController.setReadStateListener(controller::onReadStateChanged);
     J2clSidecarRouteController routeController =
         new J2clSidecarRouteController(
             new J2clSidecarRouteController.BrowserHistoryAdapter(),

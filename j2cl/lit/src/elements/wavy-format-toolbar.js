@@ -140,8 +140,25 @@ export class WavyFormatToolbar extends LitElement {
   _scheduleRepositionFromCachedRect() {
     // The cached selectionDescriptor's boundingRect is in viewport
     // coordinates, captured at the moment of the last selectionchange.
-    // On scroll/resize we re-read the live selection rect when the body
-    // still owns selection.
+    // On scroll / resize we re-read the live selection rect so the
+    // toolbar tracks the active range as the page scrolls.
+    const selection = typeof document !== "undefined" ? document.getSelection() : null;
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width > 0 || rect.height > 0) {
+        this.selectionDescriptor = {
+          ...(this.selectionDescriptor || {}),
+          collapsed: range.collapsed,
+          boundingRect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height
+          }
+        };
+      }
+    }
     this._scheduleReposition();
   }
 

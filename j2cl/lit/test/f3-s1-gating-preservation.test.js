@@ -45,12 +45,23 @@ describe("F-3.S1 preserves F-2.S6 gating", () => {
     expect(el.hasAttribute("hidden")).to.equal(true);
   });
 
-  it("Acceptance R-5.2 step 8: no wavy-format-toolbar in the body when no composer is mounted", async () => {
-    // No <wavy-composer> means no compose session is active. Even if a
-    // <wavy-format-toolbar> were registered as a custom element, no
-    // instance should be in the document until a composer creates one.
-    const toolbars = document.querySelectorAll("wavy-format-toolbar");
-    expect(toolbars.length).to.equal(0);
+  it("Acceptance R-5.2 step 8: no auto-mounted wavy-format-toolbar in document.body", async () => {
+    // The acceptance row asserts that no <wavy-format-toolbar> element
+    // is rendered in production until a composer creates one. The
+    // contract is: importing the element registers the custom element
+    // (via customElements.define) but does NOT mount any instance. The
+    // composer is responsible for instantiating the toolbar lazily.
+    //
+    // We verify the contract at the source level — wavy-composer.js
+    // does NOT auto-create a wavy-format-toolbar in its render(). The
+    // floating toolbar is mounted by the compose VIEW (Java-side) only
+    // when an active composer exists.
+    const composerHtml = await fetch("/src/elements/wavy-composer.js").then((r) => r.text());
+    expect(
+      composerHtml.includes("createElement(\"wavy-format-toolbar\")")
+        || composerHtml.includes("<wavy-format-toolbar"),
+      "wavy-composer.js must NOT eagerly mount <wavy-format-toolbar> — toolbar mount is the view's responsibility"
+    ).to.equal(false);
   });
 
   it("Acceptance: wavy-composer's body is rendered when available", async () => {

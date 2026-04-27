@@ -50,7 +50,7 @@ import "./composer-submit-affordance.js";
  *   `composerState` and `activeSelection` JS properties on the host.
  *
  * Caret survival contract (R-5.1 step 2):
- * - The contenteditable body element is created once in `firstUpdated`
+ * - The contenteditable body element is created once in `_ensureBody`
  *   and is NEVER replaced by a Lit re-render. Lit re-renders only the
  *   header chip, the save indicator, the hint strip, and the Send
  *   affordance — none of which steal selection from the body.
@@ -58,6 +58,18 @@ import "./composer-submit-affordance.js";
  *   the host without touching the body element, so the caret position
  *   inside the body survives across `view.render(model)` calls in the
  *   Java view layer.
+ *
+ * Plain-text scope for S1:
+ * - The composer body's `textContent` is the source of truth for the
+ *   `draft` property in S1. External `draft` writes via the `draft`
+ *   property setter overwrite the body's textContent ONLY when the body
+ *   does not own selection — see `_ensureBody`. This means S1's compose
+ *   surface ships PLAIN TEXT through the existing controller; rich-text
+ *   formatting (Bold / Italic / etc.) wraps DOM nodes inside the body,
+ *   but the controller's `J2clRichContentDeltaFactory` path consumes
+ *   the body's textContent for delta generation. Mention chips, task
+ *   checkboxes, attachment thumbs, and the full DocOp-driven incremental
+ *   patching land in S2 / S3 / S4 when the corresponding rows ship.
  */
 export class WavyComposer extends LitElement {
   static properties = {

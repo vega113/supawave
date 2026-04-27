@@ -9,15 +9,46 @@ import elemental2.dom.HTMLInputElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.HTMLTextAreaElement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import jsinterop.base.Js;
 
+/**
+ * J2CL view that wires the compose-controller events to the lit
+ * primitives.
+ *
+ * F-3.S1 (#1038, R-5.1) extends the legacy view with an inline
+ * `<wavy-composer>` mounted at the originating `<wave-blip>` whenever
+ * the user clicks Reply / Edit. The `<composer-inline-reply>` element
+ * remains the single source of truth for reply state (what the
+ * controller renders into); the inline composer is a paint-only mirror
+ * that:
+ *
+ * - mirrors property updates from the legacy element on every render,
+ * - re-fires user input events (draft-change, reply-submit,
+ *   attachment-paste-image, composer-focus-request) so the controller
+ *   sees the same events regardless of which composer surface the user
+ *   actually typed into,
+ * - listens for `wave-blip-reply-requested` / `wave-blip-edit-requested`
+ *   CustomEvents from F-2's `<wave-blip>` toolbar and mounts the inline
+ *   composer at the originating blip,
+ * - listens for `wavy-composer-cancelled` to remove the inline composer
+ *   (the legacy reply target stays unchanged).
+ *
+ * This keeps S1's blast radius bounded: the controller, model, and
+ * existing tests stay unchanged. Subsequent slices migrate the
+ * controller to per-composer state (S4 closeout) once mention/task/
+ * reaction wiring is in place.
+ */
 public final class J2clComposeSurfaceView implements J2clComposeSurfaceController.View {
   private final HTMLTextAreaElement createInput;
   private final HTMLElement createSubmit;
   private final HTMLElement replyElement;
   private final HTMLInputElement attachmentInput;
   private J2clComposeSurfaceController.Listener listener;
+  private final Map<String, HTMLElement> inlineComposers = new HashMap<>();
+  private String activeInlineComposerKey = "";
 
   public J2clComposeSurfaceView(HTMLElement createHost, HTMLElement replyHost) {
     createHost.innerHTML = "";
@@ -95,6 +126,20 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           attachmentInput.value = "";
           return null;
         };
+
+    // F-3.S1: listen for inline-composer requests from F-2's <wave-blip>.
+    DomGlobal.document.body.addEventListener(
+        "wave-blip-reply-requested",
+        event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
+    DomGlobal.document.body.addEventListener(
+        "wave-blip-edit-requested",
+        event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
+    DomGlobal.document.body.addEventListener(
+        "wave-root-reply-requested",
+        event -> openInlineComposer("", "wave-root"));
+    DomGlobal.document.body.addEventListener(
+        "wavy-composer-cancelled",
+        event -> closeInlineComposer(eventDetailString(event, "replyTargetBlipId")));
   }
 
   @Override
@@ -121,6 +166,15 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(replyElement, "activeCommand", model.getActiveCommandId());
     setProperty(replyElement, "commandStatus", model.getCommandStatusText());
     setProperty(replyElement, "commandError", model.getCommandErrorText());
+
+    // Mirror reply state only into the currently active inline composer.
+    // The model carries a single reply/edit target and draft, so pushing
+    // that state into every mounted inline composer can make stale
+    // composers display and submit against the wrong target.
+    HTMLElement composer = activeInlineComposer();
+    if (composer != null) {
+      mirrorComposerState(composer, model);
+    }
   }
 
   @Override
@@ -130,7 +184,142 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   @Override
   public void focusReplyComposer() {
+    HTMLElement target = activeInlineComposer();
+    if (target != null) {
+      target.dispatchEvent(new Event("composer-focus-request"));
+      return;
+    }
     replyElement.dispatchEvent(new Event("composer-focus-request"));
+  }
+
+  /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */
+  private void openInlineComposer(String blipId, String mode) {
+    String key = blipId == null ? "" : blipId;
+    if (inlineComposers.containsKey(key)) {
+      HTMLElement cached = inlineComposers.get(key);
+      if (cached.isConnected) {
+        // Already mounted; refresh the requested mode (Reply <-> Edit on
+        // the same blip must surface the new verb in the host chip and in
+        // emitted event details) and re-focus.
+        cached.setAttribute("mode", mode);
+        setProperty(cached, "mode", mode);
+        cached.dispatchEvent(new Event("composer-focus-request"));
+        activeInlineComposerKey = key;
+        return;
+      }
+      // Cached entry is detached (blip DOM was rebuilt); evict and remount.
+      inlineComposers.remove(key);
+      if (key.equals(activeInlineComposerKey)) {
+        activeInlineComposerKey = "";
+      }
+    }
+    // Enforce single active inline composer. Close any previous active one
+    // (including the wave-root composer keyed by "") before mounting a new
+    // one for a different target. Using `containsKey` instead of an
+    // emptiness check keeps the wave-root composer (priorKey == "") from
+    // slipping past the guard while still skipping the no-op case where
+    // there is no prior composer at all.
+    String priorKey = activeInlineComposerKey;
+    if (!priorKey.equals(key) && inlineComposers.containsKey(priorKey)) {
+      closeInlineComposer(priorKey);
+    }
+    HTMLElement composer = (HTMLElement) DomGlobal.document.createElement("wavy-composer");
+    composer.setAttribute("data-inline-composer", "true");
+    composer.setAttribute("reply-target-blip-id", key);
+    composer.setAttribute("mode", mode);
+    setProperty(composer, "available", true);
+    composer.addEventListener(
+        "draft-change",
+        event -> {
+          if (listener != null) {
+            listener.onReplyDraftChanged(eventDetailValue(event));
+          }
+        });
+    composer.addEventListener(
+        "reply-submit",
+        event -> {
+          if (listener != null) {
+            listener.onReplySubmitted(propertyString(composer, "draft"));
+          }
+        });
+    composer.addEventListener(
+        "attachment-paste-image",
+        event -> {
+          if (listener != null) {
+            listener.onPastedImage(eventDetailProperty(event, "file"));
+          }
+        });
+
+    // Mount a <wavy-format-toolbar> into the composer's toolbar slot and wire
+    // selection-change events so the toolbar tracks the active composer.
+    HTMLElement formatToolbar = (HTMLElement) DomGlobal.document.createElement("wavy-format-toolbar");
+    formatToolbar.setAttribute("slot", "toolbar");
+    composer.appendChild(formatToolbar);
+    composer.addEventListener(
+        "wavy-composer-selection-change",
+        event -> setProperty(formatToolbar, "selectionDescriptor", eventDetail(event)));
+
+    HTMLElement mountPoint = locateInlineMountPoint(key);
+    if (mountPoint != null) {
+      mountPoint.appendChild(composer);
+    } else {
+      // Fall back to the reply host if the blip is not currently
+      // rendered (e.g. a wave-root reply or out-of-viewport blip).
+      replyElement.parentNode.appendChild(composer);
+    }
+    inlineComposers.put(key, composer);
+    activeInlineComposerKey = key;
+    // Project current model state onto the new composer.
+    mirrorComposerStateFromReplyElement(composer);
+    composer.dispatchEvent(new Event("composer-focus-request"));
+  }
+
+  private void closeInlineComposer(String blipId) {
+    String key = blipId == null ? "" : blipId;
+    HTMLElement composer = inlineComposers.remove(key);
+    if (composer != null && composer.parentNode != null) {
+      composer.parentNode.removeChild(composer);
+    }
+    if (key.equals(activeInlineComposerKey)) {
+      activeInlineComposerKey = "";
+    }
+  }
+
+  private HTMLElement activeInlineComposer() {
+    return inlineComposers.get(activeInlineComposerKey);
+  }
+
+  private HTMLElement locateInlineMountPoint(String blipId) {
+    if (blipId == null || blipId.isEmpty()) {
+      return null;
+    }
+    return (HTMLElement)
+        DomGlobal.document.querySelector("wave-blip[data-blip-id=\"" + blipId + "\"]");
+  }
+
+  private void mirrorComposerState(HTMLElement composer, J2clComposeSurfaceModel model) {
+    setProperty(composer, "available", model.isReplyAvailable());
+    setProperty(composer, "targetLabel", model.getReplyTargetLabel());
+    setProperty(composer, "draft", model.getReplyDraft());
+    setProperty(composer, "submitting", model.isReplySubmitting());
+    setProperty(composer, "staleBasis", model.isReplyStaleBasis());
+    setProperty(composer, "status", model.getReplyStatusText());
+    setProperty(composer, "error", model.getReplyErrorText());
+    setProperty(composer, "activeCommand", model.getActiveCommandId());
+    setProperty(composer, "commandStatus", model.getCommandStatusText());
+    setProperty(composer, "commandError", model.getCommandErrorText());
+  }
+
+  private void mirrorComposerStateFromReplyElement(HTMLElement composer) {
+    setProperty(composer, "targetLabel", propertyString(replyElement, "targetLabel"));
+    setProperty(composer, "draft", propertyString(replyElement, "draft"));
+    setProperty(composer, "submitting", propertyBoolean(replyElement, "submitting"));
+    setProperty(composer, "staleBasis", propertyBoolean(replyElement, "staleBasis"));
+    setProperty(composer, "status", propertyString(replyElement, "status"));
+    setProperty(composer, "error", propertyString(replyElement, "error"));
+    setProperty(composer, "activeCommand", propertyString(replyElement, "activeCommand"));
+    setProperty(composer, "commandStatus", propertyString(replyElement, "commandStatus"));
+    setProperty(composer, "commandError", propertyString(replyElement, "commandError"));
   }
 
   private static void setProperty(HTMLElement element, String name, Object value) {
@@ -142,6 +331,13 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     return value == null ? "" : String.valueOf(value);
   }
 
+  private static boolean propertyBoolean(HTMLElement element, String name) {
+    Object value = Js.asPropertyMap(element).get(name);
+    if (value == null) return false;
+    if (value instanceof Boolean) return (Boolean) value;
+    return "true".equals(String.valueOf(value));
+  }
+
   private static String eventDetailValue(Event event) {
     Object detail = Js.asPropertyMap(event).get("detail");
     if (detail == null) {
@@ -151,9 +347,22 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     return value == null ? "" : String.valueOf(value);
   }
 
+  private static String eventDetailString(Event event, String key) {
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return "";
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    return value == null ? "" : String.valueOf(value);
+  }
+
   private static Object eventDetailProperty(Event event, String propertyName) {
     Object detail = Js.asPropertyMap(event).get("detail");
     return detail == null ? null : Js.asPropertyMap(detail).get(propertyName);
+  }
+
+  private static Object eventDetail(Event event) {
+    return Js.asPropertyMap(event).get("detail");
   }
 
   private static List<J2clComposeSurfaceController.AttachmentFileSelection> fileSelections(

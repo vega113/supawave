@@ -61,6 +61,17 @@ import "./elements/wavy-nav-drawer-toggle.js";
 import "./elements/wavy-profile-overlay.js";
 import "./elements/wavy-version-history.js";
 import "./elements/wavy-wave-controls-toggle.js";
+// F-3.S1 (#1038): inline rich-text composer foundation —
+// <wavy-composer> mounts inline at the chosen reply position attached
+// to a <wave-blip>; <wavy-format-toolbar> floats anchored to the active
+// selection; <wavy-link-modal> handles H.17 Insert link;
+// <wavy-tags-row> covers I.1-I.6 tag editing affordances;
+// <wavy-wave-root-reply-trigger> covers J.1 click-to-reply.
+import "./elements/wavy-composer.js";
+import "./elements/wavy-format-toolbar.js";
+import "./elements/wavy-link-modal.js";
+import "./elements/wavy-tags-row.js";
+import "./elements/wavy-wave-root-reply-trigger.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

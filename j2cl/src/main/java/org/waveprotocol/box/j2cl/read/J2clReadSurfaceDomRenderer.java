@@ -300,11 +300,16 @@ public final class J2clReadSurfaceDomRenderer {
       // in the posted-at slot, which painted as the entire header text
       // on the live read surface (no author, no avatar — just the raw
       // id). Leave posted-at empty so the visible <time> element does
-      // not show an internal token, but expose the AT-friendly label on
-      // the host's aria-label so screen readers can still announce the
-      // blip.
+      // not show an internal token. Only set aria-label when there is no
+      // author info to announce — otherwise it would override the richer
+      // accessible name composed from author-name/author-id content.
       element.setAttribute("posted-at", "");
-      element.setAttribute("aria-label", blipLabel(blip.getBlipId()));
+      boolean hasAuthor =
+          (displayName != null && !displayName.isEmpty())
+              || (blip.getAuthorId() != null && !blip.getAuthorId().isEmpty());
+      if (!hasAuthor) {
+        element.setAttribute("aria-label", blipLabel(blip.getBlipId()));
+      }
     }
     if (blip.isUnread()) {
       element.setAttribute("unread", "");

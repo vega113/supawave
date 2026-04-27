@@ -3,24 +3,22 @@ import "../src/elements/wavy-search-rail.js";
 import "../src/elements/composer-inline-reply.js";
 
 /**
- * F-2 follow-up (#1060) — visible-regression locks for the three gaps
- * that survived the F-2 closeout (PR #1059, sha dc8ee6a3):
+ * F-2 follow-up (#1060) — visible-regression locks for the gaps covered
+ * in this file that survived the F-2 closeout (PR #1059, sha dc8ee6a3):
  *
  *   1. <wavy-search-rail> shadow DOM exposed a default <slot></slot>,
  *      which projected the SSR'd light-DOM rail (search box + folder
  *      list + "Saved searches" header) under the rendered shadow chrome.
  *      Live readers saw the rail twice — dark wavy on top + light
  *      legacy below.
- *   2. The J2CL read renderer fell back to "Blip <id>" in the posted-at
- *      slot when a blip had no real modified time. The user-visible
- *      result was a flat blip card titled "Blip fN7oSXulpwB" with no
- *      author / avatar / timestamp / per-blip toolbar.
- *   3. <composer-inline-reply> rendered "Reply target: ..." + an empty
+ *   2. <composer-inline-reply> rendered "Reply target: ..." + an empty
  *      Send-reply textarea on every selected wave, even when no compose
  *      was active, painting as a permanent editor-toolbar wall.
  *
  * These assertions FAIL on origin/main HEAD before the fix and PASS
- * after, so the regression cannot ship a third time.
+ * after, so these covered regressions cannot ship a third time.
+ * (The J2CL read-renderer fallback-to-blip-id fix is regression-locked
+ * in HtmlRendererJ2clRootShellIntegrationTest.)
  */
 
 describe("F-2 follow-up #1060 — no duplicate rail / no flat blip-id / no toolbar wall", () => {

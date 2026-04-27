@@ -149,6 +149,40 @@ public final class J2clRichContentDeltaFactory {
   }
 
   /**
+   * F-3.S4 (#1038, R-5.6 F.6): build a stand-alone blip-deletion delta.
+   * Writes a {@code tombstone/deleted=true} annotation across the blip
+   * body so downstream deletion handling can mirror the tombstone to
+   * other subscribers via the existing server-side delta replay /
+   * supplement path. The J2CL read surface skips blips carrying this
+   * annotation
+   * ({@link org.waveprotocol.box.j2cl.read.J2clReadBlip#isDeleted()}
+   * is wired through {@code J2clSelectedWaveProjector.documentIsDeleted}
+   * and dropped by
+   * {@code J2clReadSurfaceDomRenderer.normalizeBlips}) so the user sees
+   * an immediate disappearance after the delta lands.
+   *
+   * <p>The annotation-based deletion mirrors the existing GWT
+   * "tombstone" semantic; full conversation-manifest manipulation
+   * (which removes the blip entry from the parent thread) is owned by
+   * the server-side delta replayer and is not required for the
+   * client-visible deletion contract here.
+   *
+   * <p>The op shape mirrors the existing {@link #taskToggleRequest}
+   * single-key writer so the delta JSON envelope is identical except
+   * for the annotation key + value. Any future server-side migration
+   * to a manifest-edit op only needs to swap this one method.
+   */
+  public SidecarSubmitRequest blipDeleteRequest(
+      String address, J2clSidecarWriteSession session, String blipId) {
+    return buildBlipAnnotationRequest(
+        address,
+        session,
+        blipId,
+        new String[] {"tombstone/deleted"},
+        new String[] {"true"});
+  }
+
+  /**
    * F-3.S3 (#1038, R-5.5): build a stand-alone toggle delta against the
    * `react+<blipId>` data document. Adds (when the user is not already
    * a reactor under {@code emoji}) or removes (when they are) the

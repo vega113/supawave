@@ -121,6 +121,28 @@ describe("<wave-blip>", () => {
     expect(ev.detail.blipId).to.equal("b5");
   });
 
+  // F-3.S4 (#1038, R-5.6 F.6): the Delete button on the per-blip
+  // toolbar bubbles wave-blip-toolbar-delete; wave-blip re-emits
+  // wave-blip-delete-requested with {blipId, waveId} so the J2CL
+  // compose view can route through the wavy confirm dialog and the
+  // controller's onDeleteBlipRequested listener.
+  it("re-emits wave-blip-delete-requested when toolbar Delete fires", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b9" data-wave-id="w9" author-name="A"></wave-blip>
+    `);
+    await el.updateComplete;
+    const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+    await toolbar.updateComplete;
+    const deleteBtn = toolbar.renderRoot.querySelector("[data-toolbar-action='delete']");
+    expect(deleteBtn).to.exist;
+    setTimeout(() => deleteBtn.click(), 0);
+    const ev = await oneEvent(el, "wave-blip-delete-requested");
+    expect(ev.detail.blipId).to.equal("b9");
+    expect(ev.detail.waveId).to.equal("w9");
+    expect(ev.bubbles).to.be.true;
+    expect(ev.composed).to.be.true;
+  });
+
   it("renders the inline-reply chip only when reply-count > 0", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b6" data-wave-id="w6" author-name="A">x</wave-blip>

@@ -799,6 +799,144 @@ public class J2clRichContentDeltaFactoryTest {
     assertContains(request.getDeltaJson(), "\"1\":\"b+seedA\"");
   }
 
+  // F-3.S4 (#1038, R-5.7): the daily rich-edit affordances (bulleted
+  // list / numbered list / block quote / inline link) must round-trip
+  // through the model. The factory wraps annotated-text components
+  // produced by the lit composer's serializeRichComponents walker; these
+  // tests assert the resulting JSON delta carries the expected
+  // annotation key + value at the right offsets.
+
+  @Test
+  public void createReplyRequestRoundTripsBulletedListAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-1", 7L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("list/unordered", "true", "Item one")
+            .annotatedText("list/unordered", "true", "Item two")
+            .build();
+    SidecarSubmitRequest request =
+        factory.createReplyRequest("user@example.com", session, document);
+    String deltaJson = request.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"list/unordered\",\"3\":\"true\"}]}}",
+        "\"2\":\"Item one\"",
+        "{\"1\":{\"2\":[\"list/unordered\"]}}",
+        "\"2\":\"Item two\"");
+    // Both <li> items must carry the annotation-start fragment — a
+    // regression that emits the second item as plain text would still
+    // satisfy the assertContains call above.
+    Assert.assertTrue(
+        "second list item must also be annotated as list/unordered",
+        countOccurrences(
+                deltaJson, "{\"1\":{\"3\":[{\"1\":\"list/unordered\",\"3\":\"true\"}]}}")
+            >= 2);
+  }
+
+  @Test
+  public void createReplyRequestRoundTripsNumberedListAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-1", 0L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("list/ordered", "true", "First")
+            .annotatedText("list/ordered", "true", "Second")
+            .build();
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"list/ordered\",\"3\":\"true\"}]}}",
+        "\"2\":\"First\"",
+        "{\"1\":{\"2\":[\"list/ordered\"]}}",
+        "\"2\":\"Second\"");
+    Assert.assertTrue(
+        "second list item must also be annotated as list/ordered",
+        countOccurrences(
+                deltaJson, "{\"1\":{\"3\":[{\"1\":\"list/ordered\",\"3\":\"true\"}]}}")
+            >= 2);
+  }
+
+  @Test
+  public void createReplyRequestRoundTripsBlockQuoteAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-2", 1L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("block/quote", "true", "Quoted text")
+            .build();
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"block/quote\",\"3\":\"true\"}]}}",
+        "\"2\":\"Quoted text\"",
+        "{\"1\":{\"2\":[\"block/quote\"]}}");
+  }
+
+  @Test
+  public void createReplyRequestRoundTripsInlineLinkAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-3", 2L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .text("Visit ")
+            .annotatedText("link/manual", "https://example.com", "Example")
+            .text(" today")
+            .build();
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+    assertContains(
+        deltaJson,
+        "\"2\":\"Visit \"",
+        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"https://example.com\"}]}}",
+        "\"2\":\"Example\"",
+        "{\"1\":{\"2\":[\"link/manual\"]}}",
+        "\"2\":\" today\"");
+  }
+
+  // F-3.S4 (#1038, R-5.6 F.6): blip-delete request emits a
+  // tombstone/deleted=true annotation on the blip body. The op shape
+  // mirrors the existing taskToggleRequest single-key writer except for
+  // the annotation key + value.
+  @Test
+  public void blipDeleteRequestEmitsTombstoneDeletedAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-9", 13L, "HIST", "b+root");
+    SidecarSubmitRequest request =
+        factory.blipDeleteRequest("User@Example.COM", session, "b+target");
+    Assert.assertEquals("example.com/w+abc/~/conv+root", request.getWaveletName());
+    Assert.assertEquals("chan-9", request.getChannelId());
+    String deltaJson = request.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "\"1\":{\"1\":13,\"2\":\"HIST\"}",
+        "\"2\":\"user@example.com\"",
+        "\"1\":\"b+target\"",
+        "{\"1\":{\"3\":[{\"1\":\"tombstone/deleted\",\"3\":\"true\"}]}}",
+        "{\"1\":{\"2\":[\"tombstone/deleted\"]}}");
+  }
+
+  @Test
+  public void blipDeleteRequestRejectsBlankBlipId() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+    assertThrows(() -> factory.blipDeleteRequest("user@example.com", session, ""));
+    assertThrows(() -> factory.blipDeleteRequest("user@example.com", session, "   "));
+  }
+
   private static void assertThrows(ThrowingRunnable runnable) {
     try {
       runnable.run();

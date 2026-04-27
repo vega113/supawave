@@ -19,7 +19,7 @@ describe("<wave-blip-toolbar>", () => {
     expect(customElements.get("wave-blip-toolbar")).to.exist;
   });
 
-  it("renders Reply / Edit / Link / overflow buttons with stable data-toolbar-action keys", async () => {
+  it("renders Reply / Edit / Link / Delete / overflow buttons with stable data-toolbar-action keys", async () => {
     const el = await fixture(html`
       <wave-blip-toolbar data-blip-id="b1" data-wave-id="w1"></wave-blip-toolbar>
     `);
@@ -27,6 +27,8 @@ describe("<wave-blip-toolbar>", () => {
     expect(el.renderRoot.querySelector("[data-toolbar-action='reply']")).to.exist;
     expect(el.renderRoot.querySelector("[data-toolbar-action='edit']")).to.exist;
     expect(el.renderRoot.querySelector("[data-toolbar-action='link']")).to.exist;
+    // F-3.S4 (#1038, R-5.6 F.6)
+    expect(el.renderRoot.querySelector("[data-toolbar-action='delete']")).to.exist;
     expect(el.renderRoot.querySelector("[data-toolbar-action='overflow']")).to.exist;
   });
 
@@ -41,6 +43,8 @@ describe("<wave-blip-toolbar>", () => {
       .to.equal("Edit this blip");
     expect(el.renderRoot.querySelector("[data-toolbar-action='link']").getAttribute("aria-label"))
       .to.equal("Copy permalink to this blip");
+    expect(el.renderRoot.querySelector("[data-toolbar-action='delete']").getAttribute("aria-label"))
+      .to.equal("Delete this blip");
     expect(el.renderRoot.querySelector("[data-toolbar-action='overflow']").getAttribute("aria-label"))
       .to.equal("More blip actions");
   });
@@ -95,5 +99,22 @@ describe("<wave-blip-toolbar>", () => {
     setTimeout(() => el.renderRoot.querySelector("[data-toolbar-action='overflow']").click(), 0);
     const ev = await oneEvent(el, "wave-blip-toolbar-overflow");
     expect(ev.detail.blipId).to.equal("b7");
+  });
+
+  // F-3.S4 (#1038, R-5.6 F.6): the Delete button click emits a
+  // dedicated wave-blip-toolbar-delete event so the parent wave-blip
+  // can re-emit a public wave-blip-delete-requested CustomEvent the
+  // J2CL compose view listens for.
+  it("Delete button click emits wave-blip-toolbar-delete", async () => {
+    const el = await fixture(html`
+      <wave-blip-toolbar data-blip-id="b8" data-wave-id="w8"></wave-blip-toolbar>
+    `);
+    await el.updateComplete;
+    setTimeout(() => el.renderRoot.querySelector("[data-toolbar-action='delete']").click(), 0);
+    const ev = await oneEvent(el, "wave-blip-toolbar-delete");
+    expect(ev.detail.blipId).to.equal("b8");
+    expect(ev.detail.waveId).to.equal("w8");
+    expect(ev.bubbles).to.be.true;
+    expect(ev.composed).to.be.true;
   });
 });

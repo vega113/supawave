@@ -66,6 +66,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     "👍", "❤️", "😂", "🎉", "😮", "👀"
   };
 
+  // F-3.S4 (#1038, R-5.6 F.6): every wavy-confirm-requested event the
+  // view dispatches for a blip-delete is keyed by this prefix so the
+  // resolved-listener can extract the original blip id and route only
+  // delete-confirmations through onDeleteBlipRequested.
+  static final String BLIP_DELETE_REQUEST_PREFIX = "wavy-blip-delete:";
+
   public J2clComposeSurfaceView(HTMLElement createHost, HTMLElement replyHost) {
     createHost.innerHTML = "";
     replyHost.innerHTML = "";
@@ -239,6 +245,48 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           // next `reaction-add` can mount fresh.
           closeReactionPicker(null);
           closeReactionAuthorsPopover();
+        });
+
+    // F-3.S4 (#1038, R-5.6 step 1): listen for drag-drop file payloads
+    // emitted by `<wavy-composer>` when the user drops files on the
+    // composer body. Routed through `Listener.onDroppedFiles` so the
+    // controller can record drop-specific telemetry distinct from the
+    // explicit-picker path.
+    DomGlobal.document.body.addEventListener(
+        "wavy-composer-attachment-dropped",
+        event -> {
+          if (listener == null) return;
+          List<J2clComposeSurfaceController.AttachmentFileSelection> dropped =
+              fileSelectionsFromDroppedEvent(event);
+          listener.onDroppedFiles(dropped);
+        });
+
+    // F-3.S4 (#1038, R-5.6 F.6): listen for blip-delete requests from
+    // the per-blip toolbar. Each request triggers the wavy confirm
+    // dialog (no Window.confirm per project memory). When the user
+    // confirms, we route through `Listener.onDeleteBlipRequested`.
+    ensureWavyConfirmDialogMounted();
+    DomGlobal.document.body.addEventListener(
+        "wave-blip-delete-requested",
+        event -> {
+          String blipId = eventDetailString(event, "blipId");
+          if (blipId == null || blipId.trim().isEmpty()) return;
+          String waveId = eventDetailString(event, "waveId");
+          requestBlipDeleteConfirmation(blipId, waveId);
+        });
+    DomGlobal.document.body.addEventListener(
+        "wavy-confirm-resolved",
+        event -> {
+          String requestId = eventDetailString(event, "requestId");
+          boolean confirmed = eventDetailBoolean(event, "confirmed");
+          if (requestId == null || !requestId.startsWith(BLIP_DELETE_REQUEST_PREFIX)) return;
+          String suffix = requestId.substring(BLIP_DELETE_REQUEST_PREFIX.length());
+          int sep = suffix.indexOf('|');
+          String blipId = sep >= 0 ? suffix.substring(0, sep) : suffix;
+          String expectedWaveId = sep >= 0 ? suffix.substring(sep + 1) : "";
+          if (confirmed && listener != null && !blipId.isEmpty()) {
+            listener.onDeleteBlipRequested(blipId, expectedWaveId);
+          }
         });
   }
 
@@ -632,5 +680,75 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       }
     }
     return selections;
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): extract the File array from the
+   * `wavy-composer-attachment-dropped` CustomEvent's detail.files
+   * payload. The lit composer dispatches `Array.from(dataTransfer.files)`
+   * so the detail.files property is a JS array of File objects.
+   */
+  private static List<J2clComposeSurfaceController.AttachmentFileSelection>
+      fileSelectionsFromDroppedEvent(Event event) {
+    List<J2clComposeSurfaceController.AttachmentFileSelection> selections =
+        new ArrayList<J2clComposeSurfaceController.AttachmentFileSelection>();
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) return selections;
+    Object filesObj = Js.asPropertyMap(detail).get("files");
+    if (filesObj == null) return selections;
+    JsArray<?> jsFiles = Js.cast(filesObj);
+    int len = jsFiles.length;
+    for (int i = 0; i < len; i++) {
+      Object item = jsFiles.getAt(i);
+      if (item == null) continue;
+      File file = Js.cast(item);
+      String fileName = file.name == null ? "attachment" : file.name;
+      selections.add(
+          new J2clComposeSurfaceController.AttachmentFileSelection(file, fileName));
+    }
+    return selections;
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6): mount the body-level
+   * `<wavy-confirm-dialog>` element if not already present. The
+   * confirm dialog is shared across all consumers (the lit module's
+   * ensureWavyConfirmDialogMounted() helper does the JS-side mount;
+   * here we rely on the shell bundle having registered the element
+   * via index.js so we just create one if missing).
+   */
+  private void ensureWavyConfirmDialogMounted() {
+    if (DomGlobal.document.body.querySelector("wavy-confirm-dialog") != null) return;
+    HTMLElement dialog =
+        (HTMLElement) DomGlobal.document.createElement("wavy-confirm-dialog");
+    DomGlobal.document.body.appendChild(dialog);
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6): dispatch a `wavy-confirm-requested`
+   * CustomEvent that the body-mounted wavy-confirm-dialog catches.
+   * The dialog answers with `wavy-confirm-resolved` carrying the same
+   * requestId. The view caches no per-request state — the requestId
+   * encodes the blip id so the resolved-listener can route directly.
+   */
+  private void requestBlipDeleteConfirmation(String blipId, String waveId) {
+    String requestId = BLIP_DELETE_REQUEST_PREFIX + blipId + "|" + (waveId != null ? waveId : "");
+    JsPropertyMap<Object> detail = Js.uncheckedCast(JsPropertyMap.of());
+    detail.set("requestId", requestId);
+    detail.set("message", "Delete this blip?");
+    detail.set("confirmLabel", "Delete");
+    detail.set("cancelLabel", "Cancel");
+    detail.set("tone", "destructive");
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    init.setDetail(Js.cast(detail));
+    try {
+      DomGlobal.document.body.dispatchEvent(
+          new elemental2.dom.CustomEvent<Object>("wavy-confirm-requested", init));
+    } catch (Throwable ignored) {
+      // Event dispatch is observational; never let it break the
+      // surface state if the wavy-confirm-dialog is missing.
+    }
   }
 }

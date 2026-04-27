@@ -161,6 +161,15 @@ export class WavyComposer extends LitElement {
       border-color: var(--wavy-signal-cyan, #22d3ee);
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
     }
+    /* F-3.S4 (#1038, R-5.6 step 1): drop-target hint while a file is
+     * being dragged over the composer body. The CSS uses /* ... *\/
+     * style comments only — no back-tick characters appear inside the
+     * css\` ... \` template literal (the F-3.S3 footgun called out in
+     * the slice plan risk list). */
+    [data-composer-body][data-droptarget="true"] {
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.12));
+    }
     :host([submitting]) [data-composer-body] {
       opacity: 0.6;
       pointer-events: none;
@@ -367,6 +376,14 @@ export class WavyComposer extends LitElement {
       body.addEventListener("input", (event) => this._onBodyInput(event));
       body.addEventListener("keydown", (event) => this._onBodyKeydown(event));
       body.addEventListener("paste", (event) => this._onBodyPaste(event));
+      // F-3.S4 (#1038, R-5.6 step 1): drag-drop support. The body
+      // accepts file drops and reflects a data-droptarget attribute so
+      // CSS can show a hint state. The drop handler dispatches a single
+      // wavy-composer-attachment-dropped event the view forwards to the
+      // controller's onDroppedFiles listener (mirrors the paste path).
+      body.addEventListener("dragover", (event) => this._onBodyDragOver(event));
+      body.addEventListener("dragleave", (event) => this._onBodyDragLeave(event));
+      body.addEventListener("drop", (event) => this._onBodyDrop(event));
       this._bodyElement = body;
     }
     // Reflect external draft changes ONLY when the body does not own
@@ -585,6 +602,114 @@ export class WavyComposer extends LitElement {
             annotationValue: node.getAttribute("data-mention-id") || ""
           });
           continue;
+        }
+        // F-3.S4 (#1038, R-5.7): list helpers.  Each <li> is walked
+        // recursively so that mention chips inside list items survive
+        // round-trip serialization.  Plain text items are promoted to
+        // the list annotation; rich components (mention/link) are
+        // passed through unchanged so their own annotation is preserved.
+        const walkListItems = (listNode, annotationKey) => {
+          flushText();
+          for (const itemNode of listNode.childNodes) {
+            if (
+              itemNode.nodeType === Node.ELEMENT_NODE &&
+              itemNode.tagName &&
+              itemNode.tagName.toLowerCase() === "li"
+            ) {
+              const snapLen = components.length;
+              const snapPending = pending;
+              pending = "";
+              walk(itemNode.childNodes);
+              flushText();
+              const itemComps = components.splice(snapLen);
+              pending = snapPending;
+              for (const c of itemComps) {
+                if (c.type === "text") {
+                  components.push({
+                    type: "annotated",
+                    text: c.text,
+                    annotationKey,
+                    annotationValue: "true"
+                  });
+                } else {
+                  components.push(c);
+                }
+              }
+            }
+          }
+        };
+        if (tag === "ul") {
+          if (node.classList && node.classList.contains("wavy-task-list")) {
+            walk(node.childNodes);
+            continue;
+          }
+          walkListItems(node, "list/unordered");
+          continue;
+        }
+        if (tag === "ol") {
+          walkListItems(node, "list/ordered");
+          continue;
+        }
+        // F-3.S4 (#1038, R-5.7): block quote — walk children so that
+        // mention chips inside a <blockquote> are not silently dropped.
+        if (tag === "blockquote") {
+          flushText();
+          const snapLen = components.length;
+          const snapPending = pending;
+          pending = "";
+          walk(node.childNodes);
+          flushText();
+          const bqComps = components.splice(snapLen);
+          pending = snapPending;
+          for (const c of bqComps) {
+            if (c.type === "text") {
+              components.push({
+                type: "annotated",
+                text: c.text,
+                annotationKey: "block/quote",
+                annotationValue: "true"
+              });
+            } else {
+              components.push(c);
+            }
+          }
+          continue;
+        }
+        // F-3.S4 (#1038, R-5.7 — review-1077 Bug 3): inline link.
+        // Anchor elements emit a `link/manual` component carrying the
+        // href as the annotation value. The mention-chip path above
+        // handles links injected via the `@` autocompleter; this path
+        // covers links inserted via the H.17 link modal.  Walk
+        // descendants recursively (instead of taking textContent) so
+        // mention chips / formatting nested inside the anchor survive
+        // round-trip serialization: plain text inside the <a> is
+        // promoted to the link annotation; rich components inside it
+        // (e.g. a mention chip) flow through unchanged.
+        if (tag === "a") {
+          flushText();
+          const href = node.getAttribute("href") || "";
+          if (href) {
+            const snapLen = components.length;
+            const snapPending = pending;
+            pending = "";
+            walk(node.childNodes);
+            flushText();
+            const aComps = components.splice(snapLen);
+            pending = snapPending;
+            for (const c of aComps) {
+              if (c.type === "text") {
+                components.push({
+                  type: "annotated",
+                  text: c.text,
+                  annotationKey: "link/manual",
+                  annotationValue: href
+                });
+              } else {
+                components.push(c);
+              }
+            }
+            continue;
+          }
         }
         if (tag === "div" || tag === "p") {
           flushText();
@@ -997,6 +1122,88 @@ export class WavyComposer extends LitElement {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drag-over handler. Indicates the
+   * composer body accepts file drops by calling preventDefault and
+   * setting data-droptarget on the body so CSS can show a hint.
+   * The dropEffect is forced to "copy" so the OS cursor matches the
+   * composer's affordance (drag-to-attach, not drag-to-move).
+   */
+  _onBodyDragOver(event) {
+    if (!event.dataTransfer) return;
+    const types = event.dataTransfer.types;
+    let hasFiles = false;
+    if (types) {
+      // DataTransferItemList carries a `Files` entry when the drag
+      // payload contains files. Dragging text from another tab does
+      // not — leave the default behaviour for that case so the user
+      // can paste text via the normal contenteditable path.
+      if (typeof types.contains === "function") {
+        hasFiles = types.contains("Files");
+      } else if (typeof types.includes === "function") {
+        hasFiles = types.includes("Files");
+      } else if (types.length !== undefined) {
+        for (let i = 0; i < types.length; i++) {
+          if (types[i] === "Files") {
+            hasFiles = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!hasFiles) return;
+    event.preventDefault();
+    try {
+      event.dataTransfer.dropEffect = "copy";
+    } catch {
+      // Some browsers throw when dropEffect is set on a synthetic
+      // event; ignore so the drop path still works in tests.
+    }
+    if (this._bodyElement) {
+      this._bodyElement.setAttribute("data-droptarget", "true");
+    }
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drag-leave handler. Clears the
+   * data-droptarget attribute when the cursor leaves the body — but
+   * NOT when it enters a nested child (relatedTarget would be a
+   * descendant of the body in that case). This guards against the
+   * naive flicker described in the slice plan's risk #3.
+   */
+  _onBodyDragLeave(event) {
+    if (!this._bodyElement) return;
+    const related = event.relatedTarget;
+    if (related && this._bodyElement.contains(related)) return;
+    this._bodyElement.removeAttribute("data-droptarget");
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): drop handler. Collects every File
+   * from the drag payload (filtering empty drops) and dispatches a
+   * single wavy-composer-attachment-dropped event the view routes
+   * through the existing selectFiles plumbing. Image files dropped
+   * here travel the same code path as files chosen via the H.19
+   * paperclip picker; non-image files are also forwarded so the
+   * controller can produce a download chip on the originating blip.
+   */
+  _onBodyDrop(event) {
+    if (this._bodyElement) {
+      this._bodyElement.removeAttribute("data-droptarget");
+    }
+    if (!event.dataTransfer) return;
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    this.dispatchEvent(
+      new CustomEvent("wavy-composer-attachment-dropped", {
+        detail: { files, replyTargetBlipId: this.replyTargetBlipId },
+        bubbles: true,
+        composed: true
+      })
+    );
   }
 
   _submit() {

@@ -55,7 +55,11 @@ const ACTIVE_ANNOTATION_MAP = {
   // F-3.S2 (#1038, R-5.4 step 6): Insert-task is non-toggleable; the
   // active state is owned by the per-blip task affordance, not the
   // inline checkbox markup.
-  "insert-task": []
+  "insert-task": [],
+  // F-3.S4 (#1038, R-5.6 H.19): attachment paperclip is non-toggleable;
+  // clicking it opens the existing hidden file input via the view's
+  // openAttachmentPicker path.
+  "attachment-insert": []
 };
 
 const DAILY_RICH_EDIT_ACTIONS = [
@@ -78,7 +82,12 @@ const DAILY_RICH_EDIT_ACTIONS = [
   // F-3.S2 (#1038, R-5.4 step 6 + H.20): inline task list insert.
   // Display-only inside the body (the `<input type="checkbox">` is
   // disabled — the per-blip task affordance owns model state).
-  { id: "insert-task", label: "Insert task", group: "insert", toggle: false }
+  { id: "insert-task", label: "Insert task", group: "insert", toggle: false },
+  // F-3.S4 (#1038, R-5.6 H.19): attachment paperclip. Clicking emits
+  // wavy-format-toolbar-action with actionId "attachment-insert"; the
+  // controller maps that to view.openAttachmentPicker() via the
+  // existing handleAttachmentToolbarAction path.
+  { id: "attachment-insert", label: "Attach file", group: "insert", toggle: false }
 ];
 
 export class WavyFormatToolbar extends LitElement {

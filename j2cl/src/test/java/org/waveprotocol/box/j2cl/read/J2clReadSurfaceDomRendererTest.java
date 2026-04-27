@@ -149,6 +149,59 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertFalse(new J2clReadSurfaceDomRenderer(createHost()).enhanceExistingSurface());
   }
 
+  // F-3.S4 (#1038, R-5.6 F.6 — review-1077 Bug 1): blips carrying the
+  // tombstone/deleted=true annotation written by
+  // J2clRichContentDeltaFactory.blipDeleteRequest must be skipped by the
+  // read surface so the user sees the deletion immediately when the
+  // delta lands. The flag flows through J2clSelectedWaveProjector
+  // (documentIsDeleted) onto J2clReadBlip.isDeleted(); this test
+  // exercises the renderer's filter directly.
+  @Test
+  public void renderSkipsBlipsCarryingTombstoneDeletedAnnotation() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip live =
+        new J2clReadBlip(
+            "b+live",
+            "Visible",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "",
+            /* threadId= */ "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+    J2clReadBlip tombstoned =
+        new J2clReadBlip(
+            "b+tombstoned",
+            "Should be hidden",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "",
+            /* threadId= */ "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ true);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(live, tombstoned), Collections.<String>emptyList()));
+
+    Assert.assertNotNull(
+        "live blip must remain in the read surface", blip(host, "b+live"));
+    Assert.assertNull(
+        "tombstoned blip must NOT render on the read surface",
+        blip(host, "b+tombstoned"));
+    Assert.assertEquals(
+        "exactly one blip should be mounted after filtering",
+        1,
+        host.querySelectorAll("[data-j2cl-read-blip='true']").length);
+  }
+
   @Test
   public void collapsingWithoutFocusedBlipSanitizesHiddenTabStop() {
     assumeBrowserDom();

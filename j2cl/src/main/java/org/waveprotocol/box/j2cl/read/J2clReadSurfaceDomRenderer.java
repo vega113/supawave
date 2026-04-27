@@ -1802,7 +1802,19 @@ public final class J2clReadSurfaceDomRenderer {
   private static List<J2clReadBlip> normalizeBlips(
       List<J2clReadBlip> blips, List<String> fallbackEntries) {
     if (blips != null && !blips.isEmpty()) {
-      return blips;
+      // F-3.S4 (#1038, R-5.6 F.6 — review-1077 Bug 1): drop blips
+      // carrying the F.6 tombstone/deleted=true annotation so the read
+      // surface mirrors the deletion as soon as the delta replays.
+      // Filtering here (rather than at renderBlip) keeps the
+      // matchesRenderedBlips diff and dwell-timer bookkeeping aligned
+      // with the visible blip set.
+      List<J2clReadBlip> filtered = new ArrayList<J2clReadBlip>(blips.size());
+      for (J2clReadBlip blip : blips) {
+        if (blip != null && !blip.isDeleted()) {
+          filtered.add(blip);
+        }
+      }
+      return filtered;
     }
     if (fallbackEntries == null || fallbackEntries.isEmpty()) {
       return Collections.emptyList();

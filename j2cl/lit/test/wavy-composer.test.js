@@ -664,4 +664,222 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     expect(checkbox.disabled).to.equal(true);
     el.remove();
   });
+
+  // F-3.S4 (#1038, R-5.6 step 1): drag-drop end-to-end tests.
+  describe("drag-and-drop attachments (F-3.S4 R-5.6 step 1)", () => {
+    function makeFile(name, type = "image/png") {
+      return new File(["data"], name, { type });
+    }
+
+    function makeDataTransferLike(files) {
+      // Some browsers' DataTransfer constructor accepts no arguments;
+      // mock the bits we touch (types + files) with a plain object.
+      return {
+        types: ["Files"],
+        files: files,
+        dropEffect: ""
+      };
+    }
+
+    it("flags the body with data-droptarget on dragover", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      const dragover = new Event("dragover", { bubbles: true, cancelable: true });
+      Object.defineProperty(dragover, "dataTransfer", {
+        value: makeDataTransferLike([])
+      });
+      body.dispatchEvent(dragover);
+      expect(body.getAttribute("data-droptarget")).to.equal("true");
+      el.remove();
+    });
+
+    it("clears data-droptarget on dragleave when relatedTarget is outside the body", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.setAttribute("data-droptarget", "true");
+      const dragleave = new Event("dragleave", { bubbles: true });
+      Object.defineProperty(dragleave, "relatedTarget", {
+        value: document.body
+      });
+      body.dispatchEvent(dragleave);
+      expect(body.getAttribute("data-droptarget")).to.equal(null);
+      el.remove();
+    });
+
+    it("dispatches wavy-composer-attachment-dropped with the dropped File array", async () => {
+      const el = await fixture(html`
+        <wavy-composer available reply-target-blip-id="b42"></wavy-composer>
+      `);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      const file = makeFile("photo.png");
+      const eventPromise = oneEvent(el, "wavy-composer-attachment-dropped");
+      const drop = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, "dataTransfer", {
+        value: makeDataTransferLike([file])
+      });
+      body.dispatchEvent(drop);
+      const event = await eventPromise;
+      expect(event.detail.files).to.have.lengthOf(1);
+      expect(event.detail.files[0].name).to.equal("photo.png");
+      expect(event.detail.replyTargetBlipId).to.equal("b42");
+      // The body's drop-hint clears after the drop fires.
+      expect(body.getAttribute("data-droptarget")).to.equal(null);
+      el.remove();
+    });
+
+    it("ignores drops without files (e.g. drag-text from another tab)", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      let fired = false;
+      el.addEventListener(
+        "wavy-composer-attachment-dropped",
+        () => { fired = true; }
+      );
+      const drop = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(drop, "dataTransfer", {
+        value: { types: ["text/plain"], files: [] }
+      });
+      body.dispatchEvent(drop);
+      expect(fired).to.equal(false);
+      el.remove();
+    });
+  });
+
+  // F-3.S4 (#1038, R-5.7): rich-component round-trip serializer arms.
+  describe("serializeRichComponents (F-3.S4 R-5.7)", () => {
+    it("emits a list/unordered component per <li> inside <ul>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<ul><li>Item one</li><li>Item two</li></ul>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(2);
+      expect(annotated[0].annotationKey).to.equal("list/unordered");
+      expect(annotated[0].text).to.equal("Item one");
+      expect(annotated[1].annotationKey).to.equal("list/unordered");
+      expect(annotated[1].text).to.equal("Item two");
+      el.remove();
+    });
+
+    it("emits a list/ordered component per <li> inside <ol>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<ol><li>First</li><li>Second</li></ol>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(2);
+      expect(annotated[0].annotationKey).to.equal("list/ordered");
+      expect(annotated[1].annotationKey).to.equal("list/ordered");
+      el.remove();
+    });
+
+    it("emits a block/quote component for <blockquote>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = "<blockquote>quoted text</blockquote>";
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(1);
+      expect(annotated[0].annotationKey).to.equal("block/quote");
+      expect(annotated[0].text).to.equal("quoted text");
+      el.remove();
+    });
+
+    it("preserves mention chip inside a <ul> list item", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<ul><li>Hello <span class="wavy-mention-chip" data-mention-id="u1">@Alice</span> world</li></ul>';
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      // The mention chip must survive as a link/manual component, not be
+      // swallowed by the list's textContent serialization.
+      const mention = annotated.find(c => c.annotationKey === "link/manual");
+      expect(mention).to.exist;
+      expect(mention.text).to.equal("@Alice");
+      expect(mention.annotationValue).to.equal("u1");
+      el.remove();
+    });
+
+    it("preserves mention chip inside a <blockquote>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<blockquote>See <span class="wavy-mention-chip" data-mention-id="u2">@Bob</span></blockquote>';
+      const components = el.serializeRichComponents();
+      const mention = components.find(
+        c => c.type === "annotated" && c.annotationKey === "link/manual"
+      );
+      expect(mention).to.exist;
+      expect(mention.annotationValue).to.equal("u2");
+      el.remove();
+    });
+
+    it("emits a link/manual component carrying href for <a>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML = '<a href="https://example.com">Example</a>';
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      expect(annotated).to.have.lengthOf(1);
+      expect(annotated[0].annotationKey).to.equal("link/manual");
+      expect(annotated[0].annotationValue).to.equal("https://example.com");
+      expect(annotated[0].text).to.equal("Example");
+      el.remove();
+    });
+
+    // review-1077 Bug 3: mention chips nested inside an <a> must not
+    // be swallowed into the link's textContent.  Walking children
+    // recursively keeps the chip as its own annotated component while
+    // surrounding plain text inside the <a> is promoted to the link
+    // annotation.
+    it("preserves mention chip inside an <a>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<a href="https://example.com">See '
+        + '<span class="wavy-mention-chip" data-mention-id="u3">@Carol</span>'
+        + ' here</a>';
+      const components = el.serializeRichComponents();
+      const annotated = components.filter(c => c.type === "annotated");
+      const mention = annotated.find(c => c.annotationValue === "u3");
+      expect(mention, "mention chip survives as its own component").to.exist;
+      expect(mention.annotationKey).to.equal("link/manual");
+      expect(mention.text).to.equal("@Carol");
+      const linkParts = annotated.filter(
+        c => c.annotationKey === "link/manual" && c.annotationValue === "https://example.com"
+      );
+      expect(linkParts.length, "surrounding link text emits link/manual parts").to.be.greaterThan(0);
+      el.remove();
+    });
+
+    // F-3.S4 (#1038): a wavy-task-list <ul> is inserted by the toolbar
+    // and represents an interactive list, not a bulleted list. It must
+    // round-trip as plain text rather than as list/unordered annotated
+    // components.
+    it("does NOT emit list/unordered for <ul class=wavy-task-list>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<ul class="wavy-task-list"><li>Task one</li><li>Task two</li></ul>';
+      const components = el.serializeRichComponents();
+      const listAnnotated = components.filter(
+        c => c.type === "annotated" && c.annotationKey === "list/unordered"
+      );
+      expect(listAnnotated).to.have.lengthOf(0);
+      el.remove();
+    });
+  });
 });

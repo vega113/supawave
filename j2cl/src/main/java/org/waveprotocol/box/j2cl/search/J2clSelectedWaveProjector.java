@@ -375,7 +375,8 @@ public final class J2clSelectedWaveProjector {
               /* parentBlipId= */ "",
               /* threadId= */ "",
               /* unread= */ false,
-              /* hasMention= */ documentHasMention(document)));
+              /* hasMention= */ documentHasMention(document),
+              /* deleted= */ documentIsDeleted(document)));
     }
     return blips;
   }
@@ -428,7 +429,8 @@ public final class J2clSelectedWaveProjector {
               /* parentBlipId= */ blip.getParentBlipId(),
               /* threadId= */ blip.getThreadId(),
               blip.isUnread(),
-              documentHasMention(doc)));
+              documentHasMention(doc),
+              /* deleted= */ documentIsDeleted(doc) || blip.isDeleted()));
     }
     return enriched;
   }
@@ -446,6 +448,31 @@ public final class J2clSelectedWaveProjector {
     }
     for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
       if (range != null && range.isMention()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6 — review-1077 Bug 1): a blip is "deleted"
+   * when its annotation ranges include a {@code tombstone/deleted=true}
+   * span (the F.6 delete annotation written by
+   * {@link org.waveprotocol.box.j2cl.richtext.J2clRichContentDeltaFactory#blipDeleteRequest}).
+   * The read renderer filters tombstoned blips out of the surface so
+   * deletes propagate visually as soon as the delta replays. Falsy /
+   * empty annotation values count as not-deleted to keep the predicate
+   * conservative; only an explicit {@code "true"} value tombstones.
+   */
+  static boolean documentIsDeleted(SidecarSelectedWaveDocument document) {
+    if (document == null || document.getAnnotationRanges() == null) {
+      return false;
+    }
+    for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
+      if (range == null) {
+        continue;
+      }
+      if ("tombstone/deleted".equals(range.getKey()) && "true".equals(range.getValue())) {
         return true;
       }
     }

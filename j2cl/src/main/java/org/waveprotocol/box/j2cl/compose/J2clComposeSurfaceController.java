@@ -116,6 +116,26 @@ public final class J2clComposeSurfaceController {
     default List<SidecarReactionEntry> getReactionSnapshot(String blipId) {
       return Collections.<SidecarReactionEntry>emptyList();
     }
+
+    /**
+     * F-3.S4 (#1038, R-5.6 step 1): the user dropped files into the
+     * composer body. The controller routes through the same plumbing
+     * as {@link #onAttachmentFilesSelected} (default delegates) so
+     * existing test doubles compile. Implementations may override to
+     * record a separate `compose.attachment_dropped` telemetry event.
+     */
+    default void onDroppedFiles(List<AttachmentFileSelection> selections) {
+      onAttachmentFilesSelected(selections);
+    }
+
+    /**
+     * F-3.S4 (#1038, R-5.6 F.6): the user confirmed deletion of a
+     * blip in the wavy confirm dialog. The controller builds a
+     * {@link J2clRichContentDeltaFactory#blipDeleteRequest} delta and
+     * submits it via the gateway. Default no-op so existing test
+     * doubles compile unchanged.
+     */
+    default void onDeleteBlipRequested(String blipId, String expectedWaveId) {}
   }
 
   @FunctionalInterface
@@ -183,6 +203,18 @@ public final class J2clComposeSurfaceController {
         boolean adding) {
       throw new UnsupportedOperationException(
           "Reaction toggle is only available with the rich-content delta factory.");
+    }
+
+    /**
+     * F-3.S4 (#1038, R-5.6 F.6): build a stand-alone blip-deletion
+     * request. The plain-text fallback throws because deletions are
+     * rich-only; the rich-content factory implements via
+     * {@link J2clRichContentDeltaFactory#blipDeleteRequest}.
+     */
+    default SidecarSubmitRequest createBlipDeleteRequest(
+        String address, J2clSidecarWriteSession session, String blipId) {
+      throw new UnsupportedOperationException(
+          "Blip delete is only available with the rich-content delta factory.");
     }
   }
 
@@ -515,6 +547,16 @@ public final class J2clComposeSurfaceController {
             return s != null ? new ArrayList<SidecarReactionEntry>(s)
                 : Collections.<SidecarReactionEntry>emptyList();
           }
+
+          @Override
+          public void onDroppedFiles(List<AttachmentFileSelection> selections) {
+            J2clComposeSurfaceController.this.onDroppedFiles(selections);
+          }
+
+          @Override
+          public void onDeleteBlipRequested(String blipId, String expectedWaveId) {
+            J2clComposeSurfaceController.this.onDeleteBlipRequested(blipId, expectedWaveId);
+          }
         });
     render();
   }
@@ -721,6 +763,136 @@ public final class J2clComposeSurfaceController {
     }
     render();
     view.focusReplyComposer();
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 step 1): the user dropped one or more files
+   * onto the composer body. Routes through the same upload plumbing as
+   * the H.19 paperclip path; emits a separate `compose.attachment_dropped`
+   * telemetry event so the analytics dashboards distinguish drag-drop
+   * from explicit selection.
+   */
+  public void onDroppedFiles(List<AttachmentFileSelection> selections) {
+    int count = selections == null ? 0 : selections.size();
+    String kind = "file";
+    if (count > 0) {
+      // Best-effort kind detection from the first selection's filename
+      // suffix. The actual MIME inspection happens in the upload client.
+      AttachmentFileSelection first = selections.get(0);
+      if (first != null) {
+        String name = first.getFileName();
+        if (name != null) {
+          String lower = name.toLowerCase(Locale.ROOT);
+          if (lower.endsWith(".png")
+              || lower.endsWith(".jpg")
+              || lower.endsWith(".jpeg")
+              || lower.endsWith(".gif")
+              || lower.endsWith(".webp")
+              || lower.endsWith(".bmp")
+              || lower.endsWith(".svg")) {
+            kind = "image";
+          }
+        }
+      }
+    }
+    // Determine the actual drop outcome by mirroring the acceptance
+    // gates inside onAttachmentFilesSelected — telemetry should reflect
+    // whether the drop was queued, rejected, or empty rather than
+    // optimistically labelling every drop "queued".
+    String outcome;
+    if (count == 0) {
+      outcome = "empty";
+    } else if (signedOut) {
+      outcome = "rejected-signed-out";
+    } else if (replySubmitting) {
+      outcome = "rejected-reply-submitting";
+    } else if (!hasSelectedWave(writeSession)) {
+      outcome = "rejected-no-wave";
+    } else {
+      outcome = "queued";
+    }
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.attachment_dropped")
+              .field("outcome", outcome)
+              .field("kind", kind)
+              .field("count", String.valueOf(count))
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+    onAttachmentFilesSelected(selections);
+  }
+
+  /**
+   * F-3.S4 (#1038, R-5.6 F.6): the user confirmed deletion of {@code
+   * blipId} via the wavy confirm dialog. Builds a delete delta via the
+   * configured {@link DeltaFactory} and submits it through the gateway.
+   * On signed-out, missing wave, or empty {@code blipId} the call is a
+   * no-op (with a telemetry event recording the reason).
+   */
+  public void onDeleteBlipRequested(final String blipId, final String expectedWaveId) {
+    if (signedOut) {
+      recordBlipDeleteTelemetry("signed-out");
+      return;
+    }
+    if (blipId == null || blipId.trim().isEmpty()) {
+      recordBlipDeleteTelemetry("missing-blip");
+      return;
+    }
+    if (expectedWaveId != null && !expectedWaveId.isEmpty()
+        && writeSession != null
+        && !expectedWaveId.equals(writeSession.getSelectedWaveId())) {
+      recordBlipDeleteTelemetry("wave-changed");
+      return;
+    }
+    if (!hasSelectedWave(writeSession)) {
+      recordBlipDeleteTelemetry("no-selected-wave");
+      return;
+    }
+    final String trimmed = blipId.trim();
+    final J2clSidecarWriteSession submitSession = writeSession;
+    gateway.fetchRootSessionBootstrap(
+        (SidecarSessionBootstrap bootstrap) -> {
+          if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
+            recordBlipDeleteTelemetry("session-changed");
+            return;
+          }
+          SidecarSubmitRequest request;
+          try {
+            request =
+                deltaFactory.createBlipDeleteRequest(
+                    bootstrap.getAddress(), writeSession, trimmed);
+          } catch (RuntimeException e) {
+            recordBlipDeleteTelemetry("failure-build");
+            return;
+          }
+          gateway.submit(
+              bootstrap,
+              request,
+              (SidecarSubmitResponse response) -> {
+                if (response != null
+                    && response.getErrorMessage() != null
+                    && !response.getErrorMessage().isEmpty()) {
+                  recordBlipDeleteTelemetry("failure-submit");
+                  return;
+                }
+                recordBlipDeleteTelemetry("success");
+              },
+              (String error) -> recordBlipDeleteTelemetry("failure-submit"));
+        },
+        (String error) -> recordBlipDeleteTelemetry("failure-bootstrap"));
+  }
+
+  private void recordBlipDeleteTelemetry(String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.blip_deleted")
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
   }
 
   /**
@@ -1555,6 +1727,12 @@ public final class J2clComposeSurfaceController {
           boolean adding) {
         return factory.reactionToggleRequest(
             address, session, blipId, emoji, currentSnapshot, adding);
+      }
+
+      @Override
+      public SidecarSubmitRequest createBlipDeleteRequest(
+          String address, J2clSidecarWriteSession session, String blipId) {
+        return factory.blipDeleteRequest(address, session, blipId);
       }
     };
   }

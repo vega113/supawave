@@ -163,6 +163,12 @@ export class WavyTaskAffordance extends LitElement {
     this.dueDate = due;
     this._popoverOpen = false;
     this.toggleAttribute("data-popover-open", false);
+    // F-3.S2 (#1068): _popoverOpen is internal state, not a Lit
+    // reactive property. When assignee/dueDate are unchanged, no
+    // observed property mutates and Lit otherwise skips the re-render
+    // that would tear down the inner <task-metadata-popover>. Force
+    // an update so the dialog actually closes on submit.
+    this.requestUpdate();
     this.dispatchEvent(
       new CustomEvent("wave-blip-task-metadata-changed", {
         bubbles: true,

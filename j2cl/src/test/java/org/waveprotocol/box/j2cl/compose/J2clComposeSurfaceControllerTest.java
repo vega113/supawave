@@ -2875,6 +2875,90 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
   }
 
+  // F-3.S2 (#1068): regression — a no-op session refresh (same wave id,
+  // new J2clSidecarWriteSession instance) used to break the deferred
+  // task-toggle write because the post-bootstrap guard compared
+  // sessions by reference. The fix compares by selected wave id, so
+  // the submit must still go through.
+  @Test
+  public void onTaskToggledSurvivesNoOpSessionRefresh() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    int beforeSubmits = gateway.submitCalls;
+    controller.onTaskToggled("b+root", true);
+    // Bootstrap is still pending — simulate a no-op session refresh on
+    // the same wave between the click and the bootstrap response.
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 45L, "EFGH", "b+root"));
+    gateway.resolveBootstrap();
+    Assert.assertEquals(
+        "task-toggle write must survive a no-op session refresh on the same wave",
+        beforeSubmits + 1,
+        gateway.submitCalls);
+  }
+
+  @Test
+  public void onTaskMetadataChangedSurvivesNoOpSessionRefresh() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    int beforeSubmits = gateway.submitCalls;
+    controller.onTaskMetadataChanged("b+root", "alice@example.com", "2026-05-15");
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 45L, "EFGH", "b+root"));
+    gateway.resolveBootstrap();
+    Assert.assertEquals(
+        "task-metadata write must survive a no-op session refresh on the same wave",
+        beforeSubmits + 1,
+        gateway.submitCalls);
+  }
+
+  @Test
+  public void onTaskToggledDropsWriteOnWaveSwitch() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    int beforeSubmits = gateway.submitCalls;
+    controller.onTaskToggled("b+root", true);
+    // Genuine wave switch — the captured session no longer matches the
+    // current selected wave; the write must be dropped.
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+2", "chan-2", 1L, "ZZZZ", "b+root"));
+    gateway.resolveBootstrap();
+    Assert.assertEquals(
+        "task-toggle write must NOT submit after a real wave switch",
+        beforeSubmits,
+        gateway.submitCalls);
+  }
+
   private static J2clComposeSurfaceController newControllerWithTelemetry(
       FakeView view, J2clClientTelemetry.Sink telemetrySink) {
     return new J2clComposeSurfaceController(

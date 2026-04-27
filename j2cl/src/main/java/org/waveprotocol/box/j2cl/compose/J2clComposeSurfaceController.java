@@ -697,7 +697,11 @@ public final class J2clComposeSurfaceController {
     final String trimmedBlipId = blipId.trim();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
-          if (signedOut || writeSession != submitSession) {
+          // F-3.S2 (#1068): a no-op session refresh on the same wave
+          // produces a new J2clSidecarWriteSession instance. We must not
+          // drop the write in that case — only bail when the user has
+          // signed out or actually switched waves.
+          if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             return;
           }
           SidecarSubmitRequest request;
@@ -741,7 +745,10 @@ public final class J2clComposeSurfaceController {
     final String normalizedDue = dueDate == null ? "" : dueDate.trim();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
-          if (signedOut || writeSession != submitSession) {
+          // F-3.S2 (#1068): tolerate no-op session refreshes on the same
+          // wave; only drop the write when sign-out or a real wave
+          // switch happens between click and bootstrap completion.
+          if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             return;
           }
           SidecarSubmitRequest request;
@@ -1620,6 +1627,21 @@ public final class J2clComposeSurfaceController {
 
   private static boolean hasSelectedWave(J2clSidecarWriteSession session) {
     return session != null && !isEmpty(session.getSelectedWaveId());
+  }
+
+  /**
+   * F-3.S2 (#1068): two write sessions describe the same logical wave
+   * when both are non-null and share the same selected wave id. This is
+   * looser than reference equality so that no-op session refreshes
+   * (same wave, new session object) do not silently drop deferred task
+   * writes that captured the prior session reference.
+   */
+  private static boolean sameLogicalSession(
+      J2clSidecarWriteSession captured, J2clSidecarWriteSession current) {
+    if (captured == null || current == null) {
+      return false;
+    }
+    return safeEquals(captured.getSelectedWaveId(), current.getSelectedWaveId());
   }
 
   private static String normalizeDraft(String draft) {

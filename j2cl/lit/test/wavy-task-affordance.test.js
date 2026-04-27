@@ -153,6 +153,44 @@ describe("<wavy-task-affordance>", () => {
     expect(el.hasAttribute("data-popover-open")).to.equal(false);
   });
 
+  // F-3.S2 (#1068): regression — the popover must close even when the
+  // submit doesn't change assignee or due date. Without a manual
+  // requestUpdate() call, _popoverOpen mutates but Lit skips the
+  // re-render that tears the popover down, leaving it visually open.
+  it("closes the popover on submit when fields are unchanged", async () => {
+    const el = await fixture(html`
+      <wavy-task-affordance
+        data-blip-id="b1"
+        data-task-assignee="alice@example.com"
+        data-task-due-date="2026-05-01"
+      ></wavy-task-affordance>
+    `);
+    const details = el.renderRoot.querySelector('[data-task-details-trigger="true"]');
+    details.click();
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("task-metadata-popover");
+    expect(popover).to.exist;
+
+    // Submit with the same assignee + due date that's already set.
+    popover.dispatchEvent(
+      new CustomEvent("task-metadata-submit", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          taskId: "b1",
+          assigneeAddress: "alice@example.com",
+          dueDate: "2026-05-01"
+        }
+      })
+    );
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector("task-metadata-popover")).to.equal(null);
+    expect(el.hasAttribute("data-popover-open")).to.equal(false);
+    const detailsAfter = el.renderRoot.querySelector('[data-task-details-trigger="true"]');
+    expect(detailsAfter.getAttribute("aria-expanded")).to.equal("false");
+  });
+
   it("does not bubble overlay-close past the affordance host", async () => {
     const el = await fixture(html`
       <wavy-task-affordance data-blip-id="b1"></wavy-task-affordance>

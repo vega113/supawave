@@ -148,6 +148,46 @@ public final class MarkBlipReadHelperTest extends TestCase {
     assertEquals(-1, result.getUnreadCountAfter());
   }
 
+  /**
+   * F-4 (#1039 / R-4.4) review-fix: a {@code null} return from
+   * {@link MarkBlipReadHelper#openWaveletViaContext} represents the
+   * not-found / access-denied path (the helper's
+   * {@code InvalidRequestException} catch collapses both into {@code null}),
+   * so the outcome must be {@link Outcome#NOT_FOUND} — not
+   * {@link Outcome#INTERNAL_ERROR}. Otherwise a missing conversational
+   * wavelet (or a racy disappearance after the access probe) would be
+   * reported as a 500 and encourage incorrect retry behaviour on the
+   * client.
+   */
+  public void testMarkBlipReadReturnsNotFoundWhenConvWaveletOpenReturnsNull() {
+    when(readStateHelper.computeReadState(USER, WAVE_ID))
+        .thenReturn(SelectedWaveReadStateHelper.Result.found(/* unreadCount= */ 1));
+
+    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    EventDataConverterManager converterManager = mock(EventDataConverterManager.class);
+    ConversationUtil conversationUtil = mock(ConversationUtil.class);
+    MarkBlipReadHelper helperWithMissingConv =
+        new MarkBlipReadHelper(
+            waveletProvider, converterManager, conversationUtil, readStateHelper) {
+          @Override
+          OpBasedWavelet openWaveletViaContext(
+              OperationContextImpl context,
+              WaveId waveId,
+              WaveletId waveletId,
+              ParticipantId user) {
+            // Production openWaveletViaContext returns null when the
+            // underlying openWavelet throws InvalidRequestException —
+            // i.e. the wavelet is missing or inaccessible.
+            return null;
+          }
+        };
+
+    MarkBlipReadHelper.Result result =
+        helperWithMissingConv.markBlipRead(USER, WAVE_ID, CONV_ROOT, BLIP_ID);
+    assertEquals(MarkBlipReadHelper.Outcome.NOT_FOUND, result.getOutcome());
+    assertEquals(-1, result.getUnreadCountAfter());
+  }
+
   public void testResultFactories() {
     MarkBlipReadHelper.Result ok = MarkBlipReadHelper.Result.ok(7);
     assertEquals(MarkBlipReadHelper.Outcome.OK, ok.getOutcome());

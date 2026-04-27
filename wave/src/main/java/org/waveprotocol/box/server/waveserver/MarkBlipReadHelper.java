@@ -211,9 +211,13 @@ public class MarkBlipReadHelper {
       return Result.internalError();
     }
     if (conv == null) {
-      LOG.warning("mark-blip-read: conversational wavelet unavailable "
-          + WaveletName.of(waveId, waveletId));
-      return Result.internalError();
+      // openWaveletViaContext returns null specifically when openWavelet
+      // throws InvalidRequestException — i.e. the wavelet is missing or the
+      // user lacks access. Both collapse to NOT_FOUND per the helper
+      // contract so non-participants cannot probe wavelet existence (the
+      // access probe at the top of this method already approved the wave;
+      // this guards against a racy disappearance or a stale cache).
+      return Result.notFound();
     }
 
     ObservableConversationView view = conversationUtil.buildConversation(conv);

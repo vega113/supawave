@@ -303,22 +303,27 @@ public final class J2clReadSurfaceDomRenderer {
     dwellTimers.clear();
   }
 
-  /** Drops in-flight ids for blips that are no longer rendered. */
+  /**
+   * Drops the renderer's in-flight gate entries whenever the surface is
+   * rebuilt with a different blip set. The gate is keyed by blipId only
+   * (the renderer has no wave concept), so retaining entries by blipId
+   * across rebuilds is unsafe: when the user switches waves and the new
+   * wave happens to contain the same blipId — a case the controller
+   * already documents as legitimate — the stale entry would suppress
+   * dwell-timer scheduling forever and prevent mark-read for the new wave.
+   *
+   * <p>By the time a full rebuild happens the surface is rendering content
+   * for a new context (different wave / different digest selection /
+   * different fragment window), so any still-pending dispatch from the
+   * previous context is already "for the old surface" — its outcome
+   * (success or failure) cannot meaningfully credit the new surface.
+   * Clearing the set unconditionally on rebuild keeps dwell-timer
+   * scheduling responsive for the new surface and lets the controller's
+   * own composite (waveId, blipId) gate be the source of truth for
+   * cross-wave de-dup.
+   */
   private void pruneStaleInFlightOnRebuild() {
-    if (markBlipReadInFlight.isEmpty()) {
-      return;
-    }
-    Set<String> renderedIds = new HashSet<String>();
-    for (HTMLElement blip : renderedBlips) {
-      if (blip == null) {
-        continue;
-      }
-      String id = blip.getAttribute("data-blip-id");
-      if (id != null && !id.isEmpty()) {
-        renderedIds.add(id);
-      }
-    }
-    markBlipReadInFlight.retainAll(renderedIds);
+    markBlipReadInFlight.clear();
   }
 
   private static DwellTimerScheduler defaultDwellTimerScheduler() {

@@ -303,6 +303,58 @@ public class J2clReadSurfaceDomRendererMarkReadTest {
   }
 
   /**
+   * F-4 (#1039 / R-4.4) review-fix: the renderer's in-flight gate
+   * ({@code markBlipReadInFlight}) is keyed by blipId only because the
+   * renderer has no wave concept — so it must be cleared on every full
+   * surface rebuild. Otherwise, when the user switches waves and the new
+   * wave happens to contain the same blipId, the stale in-flight entry
+   * suppresses dwell-timer scheduling forever and the new wave's blip is
+   * never marked read.
+   */
+  @Test
+  public void surfaceRebuildClearsRendererInFlightGate() {
+    HTMLDivElement host = createHost();
+    installViewport(host, 200);
+    installBlipLayout();
+    FakeScheduler scheduler = new FakeScheduler();
+    RecordingListener listener = new RecordingListener();
+
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setDwellTimerSchedulerForTesting(scheduler);
+    renderer.setMarkBlipReadListener(listener);
+
+    // First "wave": render an unread blip and let the dwell timer fire so
+    // the renderer adds the blipId to its own in-flight gate. The listener
+    // never calls back (simulating a still-pending controller dispatch),
+    // so the gate stays set.
+    List<J2clReadBlip> firstWave = new ArrayList<J2clReadBlip>();
+    firstWave.add(unreadBlip("b+shared", "first wave"));
+    renderer.render(firstWave, java.util.Collections.<String>emptyList());
+    Assert.assertEquals(1, scheduler.scheduled.size());
+    scheduler.fire(scheduler.scheduled.get(0).handle);
+    Assert.assertEquals(java.util.Arrays.asList("b+shared"), listener.fired);
+
+    // Second "wave": fully different content, but happens to share the
+    // same blipId. The full rebuild must drop the renderer's in-flight
+    // entry so a new dwell timer can arm for the new context.
+    List<J2clReadBlip> secondWave = new ArrayList<J2clReadBlip>();
+    secondWave.add(unreadBlip("b+shared", "second wave"));
+    secondWave.add(unreadBlip("b+other", "second wave other"));
+    renderer.render(secondWave, java.util.Collections.<String>emptyList());
+
+    int dwellTimers = 0;
+    for (Scheduled s : scheduler.scheduled) {
+      if (s.delayMs == J2clReadSurfaceDomRenderer.VIEWPORT_DWELL_DEBOUNCE_MS) {
+        dwellTimers++;
+      }
+    }
+    Assert.assertTrue(
+        "after rebuild for new wave, b+shared must be re-armed (gate cleared); "
+            + "expected at least 2 dwell timers across the lifecycle but found " + dwellTimers,
+        dwellTimers >= 2);
+  }
+
+  /**
    * F-4 (#1039 / R-4.4) review-fix: re-installing a non-null mark-read
    * listener (e.g. after a transient teardown) must arm dwell timers
    * immediately for any unread blips already in the viewport — without

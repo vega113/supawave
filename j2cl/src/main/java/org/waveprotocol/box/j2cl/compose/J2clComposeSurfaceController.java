@@ -1113,7 +1113,7 @@ public final class J2clComposeSurfaceController {
             : Collections.<SidecarReactionEntry>emptyList();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
-          if (signedOut || writeSession != submitSession) {
+          if (signedOut || !sameLogicalSession(submitSession, writeSession)) {
             return;
           }
           notifyCurrentUserAddress(bootstrap.getAddress());

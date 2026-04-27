@@ -265,6 +265,63 @@ public final class J2clSearchRailParityTest {
         html.contains("<ul class=\"folders\" aria-labelledby=\"folders-title\""));
   }
 
+  /**
+   * F-4 (#1039 / R-4.7) — the rail filter chip strip must SSR alongside
+   * the saved-searches list so the strip exists pre-upgrade and the
+   * J2CL upgrade is content-preserving (no flash where the strip
+   * appears only after the Lit element registers). Mirrors
+   * {@code WavySearchRail.FILTERS}: three chips (unread / attachments /
+   * from-me) inside a {@code <details data-j2cl-filter-strip>} block.
+   */
+  @Test
+  public void wavySearchRailInnerLightDomEmitsFilterChipStrip() throws Exception {
+    String html = renderJ2clRootShell();
+    assertTrue(
+        "Filter strip mounts as a <details data-j2cl-filter-strip> block",
+        html.contains("<details class=\"filters\" data-j2cl-filter-strip>"));
+    assertTrue(
+        "Filter strip carries a 'Filters' summary",
+        html.contains("<summary>Filters</summary>"));
+    assertTrue(
+        "Filter chips wrap in a role=\"group\" labelled \"Search filters\"",
+        html.contains("class=\"filter-chips\" role=\"group\" aria-label=\"Search filters\""));
+    String[][] chips = {
+      {"unread", "is:unread", "Unread only"},
+      {"attachments", "has:attachment", "With attachments"},
+      {"from-me", "from:me", "From me"}
+    };
+    for (String[] chip : chips) {
+      String id = chip[0];
+      String token = chip[1];
+      String label = chip[2];
+      assertTrue(
+          "Filter chip " + id + " carries data-filter-id=\"" + id + "\"",
+          html.contains("data-filter-id=\"" + id + "\""));
+      assertTrue(
+          "Filter chip " + id + " carries data-filter-token=\"" + token + "\"",
+          html.contains("data-filter-token=\"" + token + "\""));
+      assertTrue(
+          "Filter chip " + id + " label \"" + label + "\"",
+          html.contains(">" + label + "</button>"));
+    }
+    // Default query (in:inbox) does not contain any of the three filter
+    // tokens — every chip must SSR with aria-pressed=\"false\" so the
+    // pre-upgrade state matches the Lit render's first paint.
+    assertTrue(
+        "Default state renders the unread chip with aria-pressed=\"false\"",
+        html.contains(
+            "data-filter-id=\"unread\" data-filter-token=\"is:unread\" aria-pressed=\"false\""));
+    assertTrue(
+        "Default state renders the attachments chip with aria-pressed=\"false\"",
+        html.contains(
+            "data-filter-id=\"attachments\" data-filter-token=\"has:attachment\" "
+                + "aria-pressed=\"false\""));
+    assertTrue(
+        "Default state renders the from-me chip with aria-pressed=\"false\"",
+        html.contains(
+            "data-filter-id=\"from-me\" data-filter-token=\"from:me\" aria-pressed=\"false\""));
+  }
+
   // ---------- C.* search-help modal ----------
 
   /**

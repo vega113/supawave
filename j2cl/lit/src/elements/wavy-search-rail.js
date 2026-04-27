@@ -58,9 +58,16 @@ export class WavySearchRail extends LitElement {
    * F-4 (#1039 / R-4.7): filter chips that compose with the active query.
    * Each chip toggles a single search token; the query-composition rule
    * (see plan S2.1) preserves user-typed tokens and dedupes case-insensitively.
+   *
+   * Tokens MUST be recognised by `QueryHelper.parseQuery` (see
+   * `TokenQueryType` for the canonical prefix set). The `is`, `has`,
+   * and `from` prefixes were added to the parser specifically so these
+   * filter chips do not silently degrade to content searches.
    */
   static FILTERS = [
-    { id: "unread", label: "Unread only", token: "unread:true" }
+    { id: "unread", label: "Unread only", token: "is:unread" },
+    { id: "attachments", label: "With attachments", token: "has:attachment" },
+    { id: "from-me", label: "From me", token: "from:me" }
   ];
 
   static styles = css`

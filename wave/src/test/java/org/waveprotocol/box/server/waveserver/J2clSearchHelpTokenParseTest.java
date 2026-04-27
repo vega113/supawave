@@ -299,4 +299,56 @@ public class J2clSearchHelpTokenParseTest extends TestCase {
     Map<TokenQueryType, Set<String>> tokens = QueryHelper.parseQuery("bogus:value");
     assertTrue(tokens.get(TokenQueryType.CONTENT).contains("bogus:value"));
   }
+
+  // --- F-4 (#1039 / R-4.7) feature-activation filter tokens ---
+  //
+  // The <wavy-search-rail> filter chip strip emits three tokens:
+  // is:unread, has:attachment, from:me. Each MUST be recognised by
+  // QueryHelper.parseQuery so it does NOT silently fall through into
+  // the CONTENT bucket (which would translate the chip into a
+  // free-text search for the literal "is:unread" / "has:attachment"
+  // / "from:me" — the exact misclassification this test pins against).
+
+  /** F-4 chip — is:unread parses into the IS bucket. */
+  public void testParseIsUnreadFilterDepositsIsBucket() throws Exception {
+    Map<TokenQueryType, Set<String>> tokens = QueryHelper.parseQuery("is:unread");
+    assertNotNull("is:unread must populate the IS bucket", tokens.get(TokenQueryType.IS));
+    assertTrue(tokens.get(TokenQueryType.IS).contains("unread"));
+    assertNull(
+        "is:unread must NOT silently fall through into CONTENT",
+        tokens.get(TokenQueryType.CONTENT));
+  }
+
+  /** F-4 chip — has:attachment parses into the HAS bucket. */
+  public void testParseHasAttachmentFilterDepositsHasBucket() throws Exception {
+    Map<TokenQueryType, Set<String>> tokens = QueryHelper.parseQuery("has:attachment");
+    assertNotNull(
+        "has:attachment must populate the HAS bucket", tokens.get(TokenQueryType.HAS));
+    assertTrue(tokens.get(TokenQueryType.HAS).contains("attachment"));
+    assertNull(
+        "has:attachment must NOT silently fall through into CONTENT",
+        tokens.get(TokenQueryType.CONTENT));
+  }
+
+  /** F-4 chip — from:me parses into the FROM bucket. */
+  public void testParseFromMeFilterDepositsFromBucket() throws Exception {
+    Map<TokenQueryType, Set<String>> tokens = QueryHelper.parseQuery("from:me");
+    assertNotNull("from:me must populate the FROM bucket", tokens.get(TokenQueryType.FROM));
+    assertTrue(tokens.get(TokenQueryType.FROM).contains("me"));
+    assertNull(
+        "from:me must NOT silently fall through into CONTENT",
+        tokens.get(TokenQueryType.CONTENT));
+  }
+
+  /**
+   * F-4 — combination: the rail's typical compound query (saved-search
+   * folder + a filter chip) must parse cleanly. Mirrors the
+   * "in:inbox is:unread" string the rail emits when the user opens the
+   * Inbox folder and then clicks the Unread-only chip.
+   */
+  public void testParseCombinationInboxIsUnread() throws Exception {
+    Map<TokenQueryType, Set<String>> tokens = QueryHelper.parseQuery("in:inbox is:unread");
+    assertTrue(tokens.get(TokenQueryType.IN).contains("inbox"));
+    assertTrue(tokens.get(TokenQueryType.IS).contains("unread"));
+  }
 }

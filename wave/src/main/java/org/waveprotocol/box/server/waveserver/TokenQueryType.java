@@ -39,6 +39,18 @@ public enum TokenQueryType {
   TITLE("title"),
   MENTIONS("mentions"),
   TASKS("tasks"),
+  /**
+   * F-4 (#1039 / R-4.7) feature-activation filter tokens: {@code is:},
+   * {@code has:}, {@code from:}. These prefixes back the rail's filter
+   * chip strip ({@code is:unread}, {@code has:attachment}, {@code
+   * from:me}) so the parser does not silently misclassify them as
+   * {@link #CONTENT}. Server-side filter execution for these buckets is
+   * deferred — the parser contract is the immediate need so the chip
+   * tokens parse cleanly and round-trip through {@code QueryHelper}.
+   */
+  IS("is"),
+  HAS("has"),
+  FROM("from"),
   ;
 
   final String token;

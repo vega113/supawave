@@ -56,9 +56,14 @@ export class ShellRoot extends LitElement {
 
     @media (max-width: 1100px) {
       /* On mid-width viewports the rail collapses BELOW the main region
-       * so the content column keeps its readable width. */
+       * so the content column keeps its readable width. The
+       * grid-template-areas grow to 5 rows (skip / header / nav+main /
+       * nav+rail / status) so grid-template-rows must also expand to 5
+       * tracks; the 1fr stays on the main row so the content column
+       * still fills the viewport and the rail row stays auto-sized. */
       :host {
         grid-template-columns: minmax(190px, 220px) 1fr;
+        grid-template-rows: auto auto 1fr auto auto;
         grid-template-areas:
           "skip skip"
           "header header"
@@ -69,6 +74,11 @@ export class ShellRoot extends LitElement {
     }
 
     @media (max-width: 860px) {
+      /* Mobile: 6 single-column rows. The main row keeps the 1fr track
+       * so the content region still fills the viewport (without this
+       * the base "auto auto 1fr auto" track sizing would put the 1fr
+       * on the nav row and leave main auto-sized, pushing content
+       * below the fold). */
       :host {
         grid-template-columns: 1fr;
         grid-template-rows: auto auto auto 1fr auto auto;

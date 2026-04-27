@@ -751,6 +751,11 @@ public class J2clRichContentDeltaFactoryTest {
     Assert.assertEquals(0, J2clRichContentDeltaFactory.reactionsRootItemCount(null));
     Assert.assertEquals(
         0, J2clRichContentDeltaFactory.reactionsRootItemCount(Collections.emptyList()));
+    List<SidecarReactionEntry> allNulls = new ArrayList<>();
+    allNulls.add(null);
+    allNulls.add(null);
+    Assert.assertEquals(
+        0, J2clRichContentDeltaFactory.reactionsRootItemCount(allNulls));
     List<SidecarReactionEntry> single = new ArrayList<>();
     single.add(new SidecarReactionEntry("👍", Arrays.asList("alice@example.com")));
     Assert.assertEquals(6, J2clRichContentDeltaFactory.reactionsRootItemCount(single));

@@ -233,9 +233,12 @@ public final class J2clRichContentDeltaFactory {
     if (snapshot == null || snapshot.isEmpty()) {
       return 0;
     }
-    int count = 2; // <reactions> open + close
+    int count = 0;
     for (SidecarReactionEntry entry : snapshot) {
       if (entry == null) continue;
+      if (count == 0) {
+        count = 2; // <reactions> open + close — only once a real entry exists
+      }
       List<String> users = entry.getAddresses();
       int userCount = users == null ? 0 : users.size();
       count += 2 + (2 * userCount); // <reaction> open + close + 2 per <user/>

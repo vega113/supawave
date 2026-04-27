@@ -1,0 +1,23 @@
+{
+  "releaseId": "2026-04-27-issue-1038-s1-compose-surface",
+  "version": "F-3.S1 (#1038)",
+  "date": "2026-04-27",
+  "title": "F-3 Slice 1 — Inline rich-text composer foundation + selection-driven format toolbar",
+  "summary": "F-3.S1 ships the inline rich-text composer foundation (R-5.1 + R-5.2) for the J2CL StageThree compose surface. Replaces the bottom-of-rail plain-textarea reply with a `<wavy-composer>` Lit element mounted inline at the originating `<wave-blip>` whenever the user clicks Reply or Edit on F-2's per-blip toolbar. Adds a selection-driven floating `<wavy-format-toolbar>` that anchors above the active selection and applies the daily-rich-edit subset (Bold/Italic/Underline/Strikethrough/Heading/lists/indent/align/RTL/link/clear-formatting). Adds the `<wavy-link-modal>` for H.17 Insert link, `<wavy-tags-row>` for I.1-I.6 wave tag editing, and `<wavy-wave-root-reply-trigger>` for J.1 click-here-to-reply. Reserves the `compose-extension` and `toolbar-extension` plugin slots per F-0. Preserves the F-2.S6 visual fix: the composer collapses to display:none until [available] and the format toolbar hides itself with a collapsed selection.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "<wavy-composer> Lit element wraps the F-0 <wavy-compose-card> recipe with a contenteditable body. Caret survives across host attribute updates (R-5.1 step 2) — the body element is cached and only writes textContent when it does not own selection. Mode attribute carries 'reply' / 'edit' / 'create' / 'wave-root' so the chip + send button label adapt. Forwards compose-extension slot.",
+        "<wavy-format-toolbar> Lit element wraps the F-0 <wavy-edit-toolbar> recipe with the daily-rich-edit subset of H.* actions (H.1-H.4, H.9, H.12-H.18). Anchors via position:fixed + transform:translate keyed off `selection.getRangeAt(0).getBoundingClientRect()`, recomputed on selectionchange + scroll + resize through one rAF callback. Toggle state mirrors active annotations (Bold lit when selection is inside <strong>, etc.).",
+        "<wavy-link-modal> Lit element handles the H.17 Insert-link affordance with URL + display-text fields, URL validation (http/https/mailto), and an inline error region. Esc + backdrop click + Cancel button all dismiss.",
+        "<wavy-tags-row> Lit element ships I.3 Add-tag button, I.4 Add-tags textbox, I.5 Cancel-entry × button on top of F-2's read-only chip display. Enter in the textbox emits wave-tag-add-requested; × on a chip emits wave-tag-remove-requested.",
+        "<wavy-wave-root-reply-trigger> Lit element ships the J.1 'Click here to reply' affordance at the bottom of the wave panel. Click dispatches wave-root-reply-requested with the active wave id; the compose view listens and mounts a wavy-composer (no replyTargetBlipId) at the read-surface bottom.",
+        "J2clComposeSurfaceView listens for wave-blip-reply-requested + wave-blip-edit-requested CustomEvents emitted by F-2's <wave-blip-toolbar> Reply / Edit buttons and mounts a <wavy-composer> as a child of the originating blip. The legacy <composer-inline-reply> remains the canonical state mirror so the controller, model, and existing 95 controller tests stay unchanged. wavy-composer-cancelled (× / Esc) removes the inline composer.",
+        "F-2.S6 visual fix preserved: <wavy-composer> collapses to display:none when not [available], and <wavy-format-toolbar> hides itself with a collapsed selection. Five new static-source pins on HtmlRendererJ2clRootShellIntegrationTest assert the gating contracts cannot regress silently. F-3.S1 does NOT bring back the editor-toolbar wall or the always-visible reply textarea.",
+        "Plugin slot reservation: compose-extension on <wavy-composer> + toolbar-extension on <wavy-format-toolbar> per the F-0 contract (docs/j2cl-plugin-slots.md). composerState + activeSelection JS getters return frozen snapshots; the inner <wavy-compose-card> receives propagated state on every selection change.",
+        "Tests: 11 new lit elements ship 45 unit tests + a 5-test integration fixture asserting the inline-composer mount/cancel lifecycle. Total lit suite: 440/440 passing. Java tests: 28/28 HtmlRendererJ2clRootShellIntegrationTest cases (5 new F-3.S1 source-pins) + 95/95 J2clComposeSurfaceControllerTest cases."
+      ]
+    }
+  ]
+}

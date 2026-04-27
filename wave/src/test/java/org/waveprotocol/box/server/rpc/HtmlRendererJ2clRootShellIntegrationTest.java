@@ -510,4 +510,121 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             .matcher(source)
             .find());
   }
+
+  public void testWavyComposerCollapsesUntilAvailable() {
+    // F-3.S1 (#1038, R-5.2 step 8): the new <wavy-composer> Lit element
+    // must preserve the F-2.S6 fix (#1060) — collapse to display:none
+    // when not [available] so the wave panel does not paint a permanent
+    // editor surface pre-compose. If this rule regresses, the inline
+    // composer renders for every blip on every wave.
+    String source =
+        readSourceFile("j2cl/lit/src/elements/wavy-composer.js");
+    assertTrue(
+        "wavy-composer must collapse the host until the controller "
+            + "flips available=true (R-5.2 step 8 — preserves #1060)",
+        java.util.regex.Pattern.compile(
+                ":host\\(:not\\(\\[available\\]\\)\\)\\s*\\{\\s*display\\s*:\\s*none\\s*;\\s*\\}")
+            .matcher(source)
+            .find());
+  }
+
+  public void testWavyFormatToolbarHidesItselfWithCollapsedSelection() {
+    // F-3.S1 (#1038, R-5.2 steps 7 + 8): the floating <wavy-format-toolbar>
+    // must hide itself when the selection is collapsed OR the composer
+    // body has no selection at all. Pin the :host([hidden]) collapse rule
+    // and the _reposition guard that toggles the hidden attribute.
+    String source =
+        readSourceFile("j2cl/lit/src/elements/wavy-format-toolbar.js");
+    assertTrue(
+        "wavy-format-toolbar must collapse via :host([hidden]) when the "
+            + "selection is collapsed (R-5.2 step 7)",
+        java.util.regex.Pattern.compile(
+                ":host\\(\\[hidden\\]\\)\\s*\\{")
+            .matcher(source)
+            .find());
+    assertTrue(
+        "wavy-format-toolbar._reposition must set hidden=true on collapsed "
+            + "selection (R-5.2 step 7 — preserves the F-2.S6 toolbar-wall fix)",
+        java.util.regex.Pattern.compile(
+                "if\\s*\\(\\s*collapsed\\s*\\|\\|\\s*!rect")
+            .matcher(source)
+            .find());
+  }
+
+  public void testWavyComposerPreservesCaretAcrossRenders() {
+    // F-3.S1 (#1038, R-5.1 step 2): the contenteditable body must NOT be
+    // re-created on every Lit render — the composer caches the body in
+    // _bodyElement and only writes textContent when the body does NOT
+    // own selection. Pin both contracts in the source.
+    String source =
+        readSourceFile("j2cl/lit/src/elements/wavy-composer.js");
+    assertTrue(
+        "wavy-composer must cache the body element (R-5.1 step 2 — caret "
+            + "survival across renders)",
+        java.util.regex.Pattern.compile(
+                "if\\s*\\(\\s*!\\s*this\\._bodyElement\\s*\\)")
+            .matcher(source)
+            .find());
+    assertTrue(
+        "wavy-composer must guard textContent writes on _bodyOwnsSelection "
+            + "(R-5.1 step 2 — caret survival)",
+        java.util.regex.Pattern.compile(
+                "!\\s*this\\._bodyOwnsSelection\\s*\\(\\s*\\)")
+            .matcher(source)
+            .find());
+  }
+
+  public void testWavyComposerRetiredFromShellBundleEntryPoint() {
+    // F-3.S1 (#1038): the lit shell bundle index registers the new
+    // F-3.S1 elements alongside the legacy <composer-inline-reply>.
+    // The new elements MUST be imported so the shell.js bundle defines
+    // them in production.
+    String source = readSourceFile("j2cl/lit/src/index.js");
+    assertTrue(
+        "shell bundle must import wavy-composer (F-3.S1 #1038)",
+        source.contains("./elements/wavy-composer.js"));
+    assertTrue(
+        "shell bundle must import wavy-format-toolbar (F-3.S1 #1038)",
+        source.contains("./elements/wavy-format-toolbar.js"));
+    assertTrue(
+        "shell bundle must import wavy-link-modal (F-3.S1 #1038)",
+        source.contains("./elements/wavy-link-modal.js"));
+    assertTrue(
+        "shell bundle must import wavy-tags-row (F-3.S1 #1038)",
+        source.contains("./elements/wavy-tags-row.js"));
+    assertTrue(
+        "shell bundle must import wavy-wave-root-reply-trigger (F-3.S1 #1038, J.1)",
+        source.contains("./elements/wavy-wave-root-reply-trigger.js"));
+  }
+
+  public void testJ2clComposeSurfaceViewListensForBlipReplyEvents() {
+    // F-3.S1 (#1038, R-5.1 step 1): the Java compose view must subscribe
+    // to F-2's <wave-blip> Reply / Edit CustomEvents and mount an inline
+    // <wavy-composer> at the originating blip. Pin the listener wiring so
+    // the contract cannot regress silently.
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/compose/"
+                + "J2clComposeSurfaceView.java");
+    assertTrue(
+        "J2clComposeSurfaceView must listen for wave-blip-reply-requested "
+            + "(R-5.1 step 1 — inline composer mounts at the blip)",
+        source.contains("\"wave-blip-reply-requested\""));
+    assertTrue(
+        "J2clComposeSurfaceView must listen for wave-blip-edit-requested "
+            + "(R-5.1 step 1 — inline edit composer)",
+        source.contains("\"wave-blip-edit-requested\""));
+    assertTrue(
+        "J2clComposeSurfaceView must listen for wave-root-reply-requested "
+            + "(R-5.1 step 5 — J.1 click-here-to-reply)",
+        source.contains("\"wave-root-reply-requested\""));
+    assertTrue(
+        "J2clComposeSurfaceView must listen for wavy-composer-cancelled "
+            + "(R-5.1 step 7 — × close removes the inline composer)",
+        source.contains("\"wavy-composer-cancelled\""));
+    assertTrue(
+        "J2clComposeSurfaceView must mount the new <wavy-composer> "
+            + "element for inline composer surfaces (R-5.1 step 1)",
+        source.contains("createElement(\"wavy-composer\")"));
+  }
 }

@@ -3452,6 +3452,23 @@ public final class HtmlRenderer {
       appendRootShellWorkflowMarkup(sb, resolvedSnapshotResult, true);
       sb.append("    </section>\n");
       sb.append("  </shell-main-region>\n");
+      // F-4 (#1039 / R-4.7): production rail-extension landing zone.
+      // Empty by default; plugins (assistant, tasks roll-up, integrations
+      // status) target the inner <slot name="rail-extension"> on this
+      // <wavy-rail-panel>, which inherits the M.4 plugin contract from F-0.
+      // The data-active-* attributes reflect the rendered URL state so
+      // plugins can scope their payload (per F-0's plugin context spec).
+      // The selected wave id comes from the snapshot result when present;
+      // otherwise empty. The active folder derives from the SSR query.
+      String safeRailWaveId =
+          escapeHtml(resolvedSnapshotResult.getWaveId() == null
+              ? "" : resolvedSnapshotResult.getWaveId());
+      String safeRailFolder = escapeHtml(deriveActiveFolder(resolvedInitialQuery));
+      sb.append("  <wavy-rail-panel slot=\"rail-extension\" panel-title=\"Plugins\" data-active-wave-id=\"")
+          .append(safeRailWaveId)
+          .append("\" data-active-folder=\"")
+          .append(safeRailFolder)
+          .append("\" data-j2cl-rail-extension=\"true\"></wavy-rail-panel>\n");
       sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");

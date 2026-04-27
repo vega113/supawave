@@ -54,6 +54,17 @@ export class WavySearchRail extends LitElement {
     { id: "pinned", label: "Pinned", query: "in:pinned" }
   ];
 
+  /**
+   * F-4 (#1039 / R-4.7): filter chips that compose with the active query.
+   * Each chip toggles a single search token; the query-composition rule
+   * (see plan S2.1) preserves user-typed tokens and dedupes case-insensitively.
+   */
+  static FILTERS = [
+    { id: "unread", label: "Unread only", token: "is:unread" },
+    { id: "attachments", label: "With attachments", token: "has:attachment" },
+    { id: "from-me", label: "From me", token: "from:me" }
+  ];
+
   static styles = css`
     :host {
       display: block;
@@ -220,6 +231,50 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
     }
+    /* F-4 (#1039 / R-4.7): filter strip — chips that compose with the
+     * active query. Hidden inside <details> so the rail stays compact
+     * by default; the user opens "Filters" to see them. */
+    details.filters {
+      margin: 0 0 var(--wavy-spacing-3, 12px);
+    }
+    details.filters > summary {
+      cursor: pointer;
+      list-style: none;
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--wavy-spacing-1, 4px);
+    }
+    details.filters > summary::-webkit-details-marker {
+      display: none;
+    }
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--wavy-spacing-1, 4px);
+    }
+    .filter-chip {
+      background: transparent;
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      border-radius: var(--wavy-radius-pill, 9999px);
+      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
+      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      cursor: pointer;
+    }
+    .filter-chip:hover,
+    .filter-chip:focus-visible {
+      outline: none;
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-signal-cyan, #22d3ee);
+    }
+    .filter-chip[aria-pressed="true"] {
+      background: rgba(34, 211, 238, 0.12);
+      color: var(--wavy-signal-cyan, #22d3ee);
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      box-shadow: var(--wavy-pulse-ring, 0 0 0 2px rgba(34, 211, 238, 0.22));
+    }
   `;
 
   constructor() {
@@ -279,6 +334,49 @@ export class WavySearchRail extends LitElement {
       folderId: folder.id,
       query: folder.query
     });
+  }
+
+  /**
+   * F-4 (#1039 / R-4.7): query-composition rule (per plan S2.1).
+   * Toggling a filter chip on appends the token if absent; toggling off
+   * removes EVERY occurrence (case-insensitive token equality, NOT
+   * substring). User-typed tokens are preserved in their original
+   * position. Whitespace is normalised on the result.
+   */
+  _isTokenActive(token) {
+    return this._tokenize(this.query).some(
+      (t) => t.toLowerCase() === token.toLowerCase()
+    );
+  }
+
+  _toggleFilter(filter) {
+    const current = this._tokenize(this.query);
+    const lowered = filter.token.toLowerCase();
+    const isActive = current.some((t) => t.toLowerCase() === lowered);
+    let next;
+    if (isActive) {
+      next = current.filter((t) => t.toLowerCase() !== lowered);
+    } else {
+      next = current.slice();
+      next.push(filter.token);
+    }
+    const composed = next.join(" ").replace(/\s+/g, " ").trim();
+    this.query = composed;
+    this._emit("wavy-search-filter-toggled", {
+      filterId: filter.id,
+      token: filter.token,
+      active: !isActive,
+      query: composed
+    });
+    this._emit("wavy-search-submit", { query: composed });
+  }
+
+  _tokenize(q) {
+    if (!q) return [];
+    return q
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
   }
 
   render() {
@@ -377,6 +475,26 @@ export class WavySearchRail extends LitElement {
           `;
         })}
       </ul>
+      <details class="filters" data-j2cl-filter-strip>
+        <summary>Filters</summary>
+        <div class="filter-chips" role="group" aria-label="Search filters">
+          ${WavySearchRail.FILTERS.map((filter) => {
+            const active = this._isTokenActive(filter.token);
+            return html`
+              <button
+                type="button"
+                class="filter-chip"
+                data-filter-id=${filter.id}
+                data-filter-token=${filter.token}
+                aria-pressed=${active ? "true" : "false"}
+                @click=${() => this._toggleFilter(filter)}
+              >
+                ${filter.label}
+              </button>
+            `;
+          })}
+        </div>
+      </details>
       <p class="result-count" aria-live="polite">${this.resultCount || ""}</p>
     `;
   }

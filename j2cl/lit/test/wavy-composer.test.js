@@ -837,5 +837,23 @@ describe("<wavy-composer> R-5.3 mentions", () => {
       expect(annotated[0].text).to.equal("Example");
       el.remove();
     });
+
+    // F-3.S4 (#1038): a wavy-task-list <ul> is inserted by the toolbar
+    // and represents an interactive list, not a bulleted list. It must
+    // round-trip as plain text rather than as list/unordered annotated
+    // components.
+    it("does NOT emit list/unordered for <ul class=wavy-task-list>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      const body = getBody(el);
+      body.innerHTML =
+        '<ul class="wavy-task-list"><li>Task one</li><li>Task two</li></ul>';
+      const components = el.serializeRichComponents();
+      const listAnnotated = components.filter(
+        c => c.type === "annotated" && c.annotationKey === "list/unordered"
+      );
+      expect(listAnnotated).to.have.lengthOf(0);
+      el.remove();
+    });
   });
 });

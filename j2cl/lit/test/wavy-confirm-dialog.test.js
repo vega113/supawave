@@ -139,6 +139,48 @@ describe("<wavy-confirm-dialog>", () => {
     el.remove();
   });
 
+  // F-3.S4 (#1038): a second wavy-confirm-requested while a prior
+  // request is still pending must resolve the first request with
+  // confirmed=false rather than silently dropping it.
+  it("resolves a superseded request with confirmed=false before opening the next one", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { requestId: "first", message: "Delete A?" }
+      })
+    );
+    await el.updateComplete;
+    expect(el.open).to.equal(true);
+
+    const resolved = [];
+    const listener = (e) => resolved.push(e.detail);
+    document.body.addEventListener("wavy-confirm-resolved", listener);
+
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { requestId: "second", message: "Delete B?" }
+      })
+    );
+    await el.updateComplete;
+    document.body.removeEventListener("wavy-confirm-resolved", listener);
+
+    // The first request must have been resolved with confirmed=false
+    // before the second took over.
+    expect(resolved.length).to.be.greaterThan(0);
+    expect(resolved[0].requestId).to.equal("first");
+    expect(resolved[0].confirmed).to.equal(false);
+
+    // The dialog is now showing the second request.
+    expect(el.open).to.equal(true);
+    expect(el.requestId).to.equal("second");
+    el.remove();
+  });
+
   it("ensureWavyConfirmDialogMounted is idempotent", () => {
     const a = ensureWavyConfirmDialogMounted();
     const b = ensureWavyConfirmDialogMounted();

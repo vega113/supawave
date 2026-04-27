@@ -3175,7 +3175,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onDeleteBlipRequested("b+target");
+    controller.onDeleteBlipRequested("b+target", "example.com/w+1");
     Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
     String deltaJson = gateway.lastSubmitRequest.getDeltaJson();
     Assert.assertTrue(
@@ -3211,7 +3211,7 @@ public class J2clComposeSurfaceControllerTest {
     openWaveForReply(controller);
     controller.onSignedOut();
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("b+target");
+    controller.onDeleteBlipRequested("b+target", "example.com/w+1");
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "signed-out telemetry recorded",
@@ -3238,9 +3238,9 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("");
-    controller.onDeleteBlipRequested("   ");
-    controller.onDeleteBlipRequested(null);
+    controller.onDeleteBlipRequested("", "example.com/w+1");
+    controller.onDeleteBlipRequested("   ", "example.com/w+1");
+    controller.onDeleteBlipRequested(null, "example.com/w+1");
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "missing-blip telemetry recorded for empty inputs",
@@ -3266,7 +3266,7 @@ public class J2clComposeSurfaceControllerTest {
             telemetry);
     controller.start();
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("b+target");
+    controller.onDeleteBlipRequested("b+target", "");
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "no-selected-wave telemetry recorded",
@@ -3275,6 +3275,36 @@ public class J2clComposeSurfaceControllerTest {
                 e ->
                     "compose.blip_deleted".equals(e.getName())
                         && "no-selected-wave".equals(e.getFields().get("outcome"))));
+  }
+
+  // F-3.S4 (#1038): if the user navigates away from the wave between
+  // dispatching the confirm dialog and answering it, the controller
+  // must reject the delete and emit a `wave-changed` telemetry event.
+  @Test
+  public void onDeleteBlipRequestedIgnoresWhenWaveChanged() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller); // selected wave = example.com/w+1
+    int beforeFetches = gateway.fetchBootstrapCalls;
+    controller.onDeleteBlipRequested("b+target", "example.com/w+other");
+    Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
+    Assert.assertTrue(
+        "wave-changed telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.blip_deleted".equals(e.getName())
+                        && "wave-changed".equals(e.getFields().get("outcome"))));
   }
 
   private static J2clComposeSurfaceController newControllerWithTelemetry(

@@ -135,6 +135,9 @@ export class WavyConfirmDialog extends LitElement {
   }
 
   _onRequest(event) {
+    if (this.open && this.requestId) {
+      this._resolve(false);
+    }
     const detail = event.detail || {};
     this.message = detail.message || "Are you sure?";
     this.confirmLabel = detail.confirmLabel || "Confirm";

@@ -135,7 +135,7 @@ public final class J2clComposeSurfaceController {
      * submits it via the gateway. Default no-op so existing test
      * doubles compile unchanged.
      */
-    default void onDeleteBlipRequested(String blipId) {}
+    default void onDeleteBlipRequested(String blipId, String expectedWaveId) {}
   }
 
   @FunctionalInterface
@@ -554,8 +554,8 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
-          public void onDeleteBlipRequested(String blipId) {
-            J2clComposeSurfaceController.this.onDeleteBlipRequested(blipId);
+          public void onDeleteBlipRequested(String blipId, String expectedWaveId) {
+            J2clComposeSurfaceController.this.onDeleteBlipRequested(blipId, expectedWaveId);
           }
         });
     render();
@@ -774,12 +774,8 @@ public final class J2clComposeSurfaceController {
    */
   public void onDroppedFiles(List<AttachmentFileSelection> selections) {
     int count = selections == null ? 0 : selections.size();
-    String outcome;
     String kind = "file";
-    if (count == 0) {
-      outcome = "empty";
-    } else {
-      outcome = "queued";
+    if (count > 0) {
       // Best-effort kind detection from the first selection's filename
       // suffix. The actual MIME inspection happens in the upload client.
       AttachmentFileSelection first = selections.get(0);
@@ -798,6 +794,22 @@ public final class J2clComposeSurfaceController {
           }
         }
       }
+    }
+    // Determine the actual drop outcome by mirroring the acceptance
+    // gates inside onAttachmentFilesSelected — telemetry should reflect
+    // whether the drop was queued, rejected, or empty rather than
+    // optimistically labelling every drop "queued".
+    String outcome;
+    if (count == 0) {
+      outcome = "empty";
+    } else if (signedOut) {
+      outcome = "rejected-signed-out";
+    } else if (replySubmitting) {
+      outcome = "rejected-reply-submitting";
+    } else if (!hasSelectedWave(writeSession)) {
+      outcome = "rejected-no-wave";
+    } else {
+      outcome = "queued";
     }
     try {
       telemetrySink.record(
@@ -819,13 +831,19 @@ public final class J2clComposeSurfaceController {
    * On signed-out, missing wave, or empty {@code blipId} the call is a
    * no-op (with a telemetry event recording the reason).
    */
-  public void onDeleteBlipRequested(final String blipId) {
+  public void onDeleteBlipRequested(final String blipId, final String expectedWaveId) {
     if (signedOut) {
       recordBlipDeleteTelemetry("signed-out");
       return;
     }
     if (blipId == null || blipId.trim().isEmpty()) {
       recordBlipDeleteTelemetry("missing-blip");
+      return;
+    }
+    if (expectedWaveId != null && !expectedWaveId.isEmpty()
+        && writeSession != null
+        && !expectedWaveId.equals(writeSession.getSelectedWaveId())) {
+      recordBlipDeleteTelemetry("wave-changed");
       return;
     }
     if (!hasSelectedWave(writeSession)) {

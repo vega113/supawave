@@ -639,6 +639,10 @@ export class WavyComposer extends LitElement {
           }
         };
         if (tag === "ul") {
+          if (node.classList && node.classList.contains("wavy-task-list")) {
+            walk(node.childNodes);
+            continue;
+          }
           walkListItems(node, "list/unordered");
           continue;
         }

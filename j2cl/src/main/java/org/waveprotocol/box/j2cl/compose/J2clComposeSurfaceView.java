@@ -271,7 +271,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         event -> {
           String blipId = eventDetailString(event, "blipId");
           if (blipId == null || blipId.trim().isEmpty()) return;
-          requestBlipDeleteConfirmation(blipId);
+          String waveId = eventDetailString(event, "waveId");
+          requestBlipDeleteConfirmation(blipId, waveId);
         });
     DomGlobal.document.body.addEventListener(
         "wavy-confirm-resolved",
@@ -279,9 +280,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String requestId = eventDetailString(event, "requestId");
           boolean confirmed = eventDetailBoolean(event, "confirmed");
           if (requestId == null || !requestId.startsWith(BLIP_DELETE_REQUEST_PREFIX)) return;
-          String blipId = requestId.substring(BLIP_DELETE_REQUEST_PREFIX.length());
+          String suffix = requestId.substring(BLIP_DELETE_REQUEST_PREFIX.length());
+          int sep = suffix.indexOf('|');
+          String blipId = sep >= 0 ? suffix.substring(0, sep) : suffix;
+          String expectedWaveId = sep >= 0 ? suffix.substring(sep + 1) : "";
           if (confirmed && listener != null && !blipId.isEmpty()) {
-            listener.onDeleteBlipRequested(blipId);
+            listener.onDeleteBlipRequested(blipId, expectedWaveId);
           }
         });
   }
@@ -727,8 +731,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
    * requestId. The view caches no per-request state — the requestId
    * encodes the blip id so the resolved-listener can route directly.
    */
-  private void requestBlipDeleteConfirmation(String blipId) {
-    String requestId = BLIP_DELETE_REQUEST_PREFIX + blipId;
+  private void requestBlipDeleteConfirmation(String blipId, String waveId) {
+    String requestId = BLIP_DELETE_REQUEST_PREFIX + blipId + "|" + (waveId != null ? waveId : "");
     JsPropertyMap<Object> detail = Js.uncheckedCast(JsPropertyMap.of());
     detail.set("requestId", requestId);
     detail.set("message", "Delete this blip?");

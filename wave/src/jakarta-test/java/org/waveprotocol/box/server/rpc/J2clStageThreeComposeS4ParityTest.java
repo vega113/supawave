@@ -61,7 +61,8 @@ public final class J2clStageThreeComposeS4ParityTest {
         composer.contains("data-droptarget"));
     assertTrue(
         "wavy-composer must dispatch wavy-composer-attachment-dropped on drop",
-        composer.contains("\"wavy-composer-attachment-dropped\""));
+        composer.contains("\"wavy-composer-attachment-dropped\"")
+            || composer.contains("'wavy-composer-attachment-dropped'"));
   }
 
   @Test
@@ -172,7 +173,7 @@ public final class J2clStageThreeComposeS4ParityTest {
     String picker = readSource("j2cl/lit/src/elements/compose-attachment-picker.js");
     assertTrue(
         "picker must render role=alert for upload errors",
-        picker.contains("role=\"alert\"") || picker.contains("\"alert\""));
+        picker.contains("role=\"alert\"") || picker.contains("role='alert'"));
     assertTrue(
         "picker must expose data-state=attachment-error-state",
         picker.contains("attachment-error-state"));

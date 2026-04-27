@@ -826,6 +826,14 @@ public class J2clRichContentDeltaFactoryTest {
         "\"2\":\"Item one\"",
         "{\"1\":{\"2\":[\"list/unordered\"]}}",
         "\"2\":\"Item two\"");
+    // Both <li> items must carry the annotation-start fragment — a
+    // regression that emits the second item as plain text would still
+    // satisfy the assertContains call above.
+    Assert.assertTrue(
+        "second list item must also be annotated as list/unordered",
+        countOccurrences(
+                deltaJson, "{\"1\":{\"3\":[{\"1\":\"list/unordered\",\"3\":\"true\"}]}}")
+            >= 2);
   }
 
   @Test
@@ -847,6 +855,11 @@ public class J2clRichContentDeltaFactoryTest {
         "\"2\":\"First\"",
         "{\"1\":{\"2\":[\"list/ordered\"]}}",
         "\"2\":\"Second\"");
+    Assert.assertTrue(
+        "second list item must also be annotated as list/ordered",
+        countOccurrences(
+                deltaJson, "{\"1\":{\"3\":[{\"1\":\"list/ordered\",\"3\":\"true\"}]}}")
+            >= 2);
   }
 
   @Test

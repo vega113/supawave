@@ -1354,6 +1354,293 @@ public class J2clSelectedWaveControllerTest {
         statusCode);
   }
 
+  // F-4 (#1039 / R-4.4 / subsumes #1056) — mark-blip-read tests.
+
+  @Test
+  public void onMarkBlipReadDispatchesGatewayCall() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    int beforeAttempts = harness.markBlipReadAttempts.size();
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+
+    Assert.assertEquals(beforeAttempts + 1, harness.markBlipReadAttempts.size());
+    MarkBlipReadAttempt attempt =
+        harness.markBlipReadAttempts.get(harness.markBlipReadAttempts.size() - 1);
+    Assert.assertEquals("example.com/w+1", attempt.waveId);
+    Assert.assertEquals("b+abc", attempt.blipId);
+  }
+
+  @Test
+  public void onMarkBlipReadIgnoresEmptyBlipId() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    int beforeAttempts = harness.markBlipReadAttempts.size();
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "", (Runnable) () -> {});
+    onMarkBlipRead.invoke(controller, (String) null, (Runnable) () -> {});
+
+    Assert.assertEquals(
+        "empty / null blip ids must not dispatch",
+        beforeAttempts,
+        harness.markBlipReadAttempts.size());
+  }
+
+  @Test
+  public void onMarkBlipReadDeduplicatesInFlightDispatch() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+
+    Assert.assertEquals(
+        "second markBlipRead for same blipId must be dropped while first is in flight",
+        1,
+        harness.markBlipReadAttempts.size());
+  }
+
+  @Test
+  public void onMarkBlipReadSuccessReleasesInFlightSlotForLaterRetry() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    Assert.assertEquals(1, harness.markBlipReadAttempts.size());
+    harness.markBlipReadAttempts.get(0).success.accept(Integer.valueOf(2));
+
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    Assert.assertEquals(
+        "after success, the same blipId may be dispatched again",
+        2,
+        harness.markBlipReadAttempts.size());
+  }
+
+  @Test
+  public void onMarkBlipReadErrorReleasesInFlightSlotForLaterRetry() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    Assert.assertEquals(1, harness.markBlipReadAttempts.size());
+    harness.markBlipReadAttempts.get(0).error.accept("transient");
+
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    Assert.assertEquals(
+        "after error, the same blipId may be dispatched again",
+        2,
+        harness.markBlipReadAttempts.size());
+  }
+
+  @Test
+  public void onMarkBlipReadSuccessTriggersDebouncedReadStateFetch() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(true);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    int beforePending = harness.pendingReadStateDispatches.size();
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    harness.markBlipReadAttempts.get(0).success.accept(Integer.valueOf(0));
+
+    Assert.assertTrue(
+        "success path must schedule a read-state fetch through the debounce scheduler",
+        harness.pendingReadStateDispatches.size() > beforePending);
+  }
+
+  @Test
+  public void onMarkBlipReadIgnoredWhenNoWaveSelected() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+
+    Assert.assertTrue(harness.markBlipReadAttempts.isEmpty());
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4) review-fix: the in-flight de-dup must be keyed by the
+   * {@code (waveId, blipId)} pair, not the blipId alone. Two waves can
+   * legitimately share a blipId — without composite keying, a still-pending
+   * request from the previous wave would suppress a legitimate dispatch in
+   * the next selection.
+   */
+  @Test
+  public void onMarkBlipReadDoesNotCollideAcrossWavesWithSameBlipId() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello A");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+shared", (Runnable) () -> {});
+    Assert.assertEquals(1, harness.markBlipReadAttempts.size());
+    // Do NOT resolve the first attempt; switch waves while it is still in flight.
+
+    harness.selectWave(controller, "example.com/w+2", null);
+    harness.resolveBootstrap(harness.bootstrapAttempts.size() - 1);
+    harness.deliverUpdate(harness.openAttempts.size() - 1, "Hello B");
+
+    onMarkBlipRead.invoke(controller, "b+shared", (Runnable) () -> {});
+
+    Assert.assertEquals(
+        "second wave's dispatch for the same blipId must not be suppressed by "
+            + "the previous wave's in-flight entry",
+        2,
+        harness.markBlipReadAttempts.size());
+    Assert.assertEquals(
+        "second dispatch must target the new wave",
+        "example.com/w+2",
+        harness.markBlipReadAttempts.get(1).waveId);
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4) review-fix: the {@code skipped-in-flight} telemetry
+   * outcome must include {@code latency_ms} so downstream consumers see a
+   * uniform schema across success/error/skipped paths.
+   */
+  @Test
+  public void onMarkBlipReadSkippedInFlightEventCarriesLatencyField() throws Exception {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    Harness harness = new Harness(telemetry);
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+
+    J2clClientTelemetry.Event skipped = null;
+    for (J2clClientTelemetry.Event event : telemetry.events()) {
+      if ("j2cl.read.mark_blip_read".equals(event.getName())
+          && "skipped-in-flight".equals(event.getFields().get("outcome"))) {
+        skipped = event;
+        break;
+      }
+    }
+    Assert.assertNotNull("expected a skipped-in-flight outcome event", skipped);
+    Assert.assertEquals(
+        "skipped-in-flight outcome must include latency_ms=0 for schema parity",
+        "0",
+        skipped.getFields().get("latency_ms"));
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4) review-fix: when {@link #onMarkBlipRead} bails before
+   * the gateway dispatch (no wave selected, empty blipId, or skipped-as-
+   * already-in-flight), the renderer's per-blip in-flight gate must still be
+   * released — the renderer added the blip to its own
+   * {@code markBlipReadInFlight} set BEFORE invoking the controller, and
+   * skipping {@code rendererOnError} would leave that gate stuck so the
+   * dwell timer can never re-arm for that blip.
+   */
+  @Test
+  public void onMarkBlipReadReleasesRendererGateWhenNoWaveSelected() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    final boolean[] released = new boolean[] {false};
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> released[0] = true);
+
+    Assert.assertTrue(
+        "rendererOnError must run when no wave is selected so the renderer gate is released",
+        released[0]);
+    Assert.assertTrue(harness.markBlipReadAttempts.isEmpty());
+  }
+
+  @Test
+  public void onMarkBlipReadReleasesRendererGateForEmptyBlipId() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    final int[] releaseCount = new int[] {0};
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    onMarkBlipRead.invoke(controller, "", (Runnable) () -> releaseCount[0]++);
+    onMarkBlipRead.invoke(controller, (String) null, (Runnable) () -> releaseCount[0]++);
+
+    Assert.assertEquals(
+        "rendererOnError must run on every empty/null-blipId early return",
+        2,
+        releaseCount[0]);
+  }
+
+  @Test
+  public void onMarkBlipReadReleasesRendererGateOnSkippedInFlight() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello");
+
+    Method onMarkBlipRead =
+        controller.getClass().getDeclaredMethod("onMarkBlipRead", String.class, Runnable.class);
+    // First dispatch: succeeds at the gateway level, no skip — gate
+    // release happens in the success/error continuations, not in the
+    // synchronous early-return.
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> {});
+
+    // Second dispatch for the same (waveId, blipId) is the skipped-in-flight
+    // path. The renderer gate MUST still be released here, otherwise the
+    // renderer keeps treating the blip as in-flight forever.
+    final boolean[] released = new boolean[] {false};
+    onMarkBlipRead.invoke(controller, "b+abc", (Runnable) () -> released[0] = true);
+
+    Assert.assertTrue(
+        "skipped-in-flight early return must still release the renderer gate",
+        released[0]);
+  }
+
   private static final class Harness {
     private int openCount;
     private int closedCount;
@@ -1368,6 +1655,10 @@ public class J2clSelectedWaveControllerTest {
         new ArrayList<AttachmentMetadataAttempt>();
     private final List<Runnable> pendingReadStateDispatches = new ArrayList<Runnable>();
     private final List<Runnable> visibilityListeners = new ArrayList<Runnable>();
+    // F-4 (#1039 / R-4.4): captures markBlipRead dispatches issued through the
+    // controller's onMarkBlipRead path.
+    private final List<MarkBlipReadAttempt> markBlipReadAttempts =
+        new ArrayList<MarkBlipReadAttempt>();
     private SidecarViewportHints initialViewportHints;
     private Object lastModel;
     private Runnable onNextRender;
@@ -1482,6 +1773,19 @@ public class J2clSelectedWaveControllerTest {
                       (J2clAttachmentMetadataClient.MetadataCallback) args[1];
                   attachmentMetadataAttempts.add(
                       new AttachmentMetadataAttempt(attachmentIds, callback));
+                  return null;
+                }
+                if ("markBlipRead".equals(method.getName())) {
+                  // F-4 (#1039 / R-4.4): capture the dispatch so the test
+                  // controls success/error timing.
+                  @SuppressWarnings("unchecked")
+                  J2clSearchPanelController.SuccessCallback<Integer> success =
+                      (J2clSearchPanelController.SuccessCallback<Integer>) args[2];
+                  J2clSearchPanelController.ErrorCallback error =
+                      (J2clSearchPanelController.ErrorCallback) args[3];
+                  markBlipReadAttempts.add(
+                      new MarkBlipReadAttempt(
+                          (String) args[0], (String) args[1], success, error));
                   return null;
                 }
                 return null;
@@ -1884,6 +2188,25 @@ public class J2clSelectedWaveControllerTest {
         J2clSearchPanelController.SuccessCallback<SidecarSelectedWaveReadState> success,
         J2clSearchPanelController.ErrorCallback error) {
       this.waveId = waveId;
+      this.success = success;
+      this.error = error;
+    }
+  }
+
+  /** F-4 (#1039 / R-4.4): captured markBlipRead dispatch in the test harness. */
+  private static final class MarkBlipReadAttempt {
+    private final String waveId;
+    private final String blipId;
+    private final J2clSearchPanelController.SuccessCallback<Integer> success;
+    private final J2clSearchPanelController.ErrorCallback error;
+
+    private MarkBlipReadAttempt(
+        String waveId,
+        String blipId,
+        J2clSearchPanelController.SuccessCallback<Integer> success,
+        J2clSearchPanelController.ErrorCallback error) {
+      this.waveId = waveId;
+      this.blipId = blipId;
       this.success = success;
       this.error = error;
     }

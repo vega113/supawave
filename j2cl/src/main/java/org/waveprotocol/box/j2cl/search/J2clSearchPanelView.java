@@ -264,6 +264,18 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     }
   }
 
+  @Override
+  public boolean updateDigestUnread(String waveId, int unreadCount) {
+    if (waveId == null || waveId.isEmpty()) {
+      return false;
+    }
+    J2clDigestView digest = digestViews.get(waveId);
+    if (digest == null) {
+      return false;
+    }
+    return digest.setUnreadCount(unreadCount);
+  }
+
   public HTMLElement getSelectedWaveHost() {
     return selectedWaveHost;
   }

@@ -60,4 +60,19 @@ public final class J2clSearchDigestItem {
   public boolean isPinned() {
     return pinned;
   }
+
+  /**
+   * F-4 (#1039 / R-4.4): returns a copy with the unread count replaced.
+   * Used by the live-decrement path so the cached search result model
+   * stays in sync with the read-state controller without re-running the
+   * search.
+   */
+  public J2clSearchDigestItem withUnreadCount(int newUnreadCount) {
+    int normalized = Math.max(0, newUnreadCount);
+    if (normalized == this.unreadCount) {
+      return this;
+    }
+    return new J2clSearchDigestItem(
+        waveId, title, snippet, author, normalized, blipCount, lastModified, pinned);
+  }
 }

@@ -86,6 +86,9 @@ public final class SandboxEntryPoint {
               (state, digestItem, userNavigation) ->
                   routeControllerRef[0].onRouteStateChanged(state, digestItem, userNavigation),
               resolveViewportWidth());
+      // F-4 (#1039 / R-4.4): bridge live read-state changes into the
+      // search panel so digest unread badges update without full re-render.
+      selectedWaveController.setReadStateListener(controller::onReadStateChanged);
       J2clSidecarRouteController routeController =
           new J2clSidecarRouteController(
               new J2clSidecarRouteController.BrowserHistoryAdapter(),

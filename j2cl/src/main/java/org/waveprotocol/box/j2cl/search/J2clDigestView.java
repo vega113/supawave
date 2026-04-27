@@ -12,9 +12,14 @@ public final class J2clDigestView {
 
   private final String waveId;
   private final HTMLButtonElement root;
+  private final HTMLElement stats;
+  private int blipCount;
+  private int unreadCount;
 
   public J2clDigestView(J2clSearchDigestItem item, SelectionHandler selectionHandler) {
     this.waveId = item.getWaveId();
+    this.blipCount = item.getBlipCount();
+    this.unreadCount = item.getUnreadCount();
     this.root = (HTMLButtonElement) DomGlobal.document.createElement("button");
     root.type = "button";
     root.className = "sidecar-digest";
@@ -45,9 +50,9 @@ public final class J2clDigestView {
     snippet.textContent = item.getSnippet().isEmpty() ? "No snippet available." : item.getSnippet();
     root.appendChild(snippet);
 
-    HTMLElement stats = (HTMLElement) DomGlobal.document.createElement("div");
+    this.stats = (HTMLElement) DomGlobal.document.createElement("div");
     stats.className = "sidecar-digest-stats";
-    stats.textContent = buildStatsText(item);
+    stats.textContent = buildStatsText(item.getUnreadCount(), item.getBlipCount());
     root.appendChild(stats);
 
     root.onclick =
@@ -69,12 +74,32 @@ public final class J2clDigestView {
     root.className = selected ? "sidecar-digest sidecar-digest-selected" : "sidecar-digest";
   }
 
-  private static String buildStatsText(J2clSearchDigestItem item) {
-    StringBuilder text = new StringBuilder();
-    if (item.getUnreadCount() > 0) {
-      text.append(item.getUnreadCount()).append(" unread \u00b7 ");
+  /**
+   * F-4 (#1039 / R-4.4): updates the unread badge / stats text live without
+   * re-rendering the digest list. Returns true when the count actually
+   * changed (so callers can fire signal-pulse motion only on change).
+   */
+  public boolean setUnreadCount(int newUnreadCount) {
+    int normalized = Math.max(0, newUnreadCount);
+    if (normalized == this.unreadCount) {
+      return false;
     }
-    text.append(item.getBlipCount()).append(item.getBlipCount() == 1 ? " message" : " messages");
+    this.unreadCount = normalized;
+    stats.textContent = buildStatsText(unreadCount, blipCount);
+    return true;
+  }
+
+  /** Visible for parity tests so they can read back the rendered stats text. */
+  public String getStatsText() {
+    return stats == null || stats.textContent == null ? "" : stats.textContent;
+  }
+
+  private static String buildStatsText(int unreadCount, int blipCount) {
+    StringBuilder text = new StringBuilder();
+    if (unreadCount > 0) {
+      text.append(unreadCount).append(" unread \u00b7 ");
+    }
+    text.append(blipCount).append(blipCount == 1 ? " message" : " messages");
     return text.toString();
   }
 }

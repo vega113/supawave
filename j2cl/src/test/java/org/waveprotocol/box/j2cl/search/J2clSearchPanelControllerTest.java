@@ -206,6 +206,95 @@ public class J2clSearchPanelControllerTest {
   }
 
   @Test
+  public void onReadStateChangedUpdatesMatchingDigestUnreadCount() {
+    // F-4 (#1039 / R-4.4): a live read-state change for the selected wave
+    // must decrement the matching digest's unread badge in place — without
+    // re-running the search.
+    FakeGateway gateway =
+        new FakeGateway(
+            new SidecarSearchResponse(
+                "in:inbox",
+                1,
+                Collections.singletonList(
+                    new SidecarSearchResponse.Digest(
+                        "Live wave",
+                        "Snippet",
+                        "example.com/w+1",
+                        12345L,
+                        /* unread= */ 5,
+                        /* msg= */ 5,
+                        Collections.singletonList("teammate@example.com"),
+                        "user@example.com",
+                        false))));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start("in:inbox", null);
+
+    // Sanity check: model carries 5 unread for the wave.
+    Assert.assertEquals(5, controller.findDigestItem("example.com/w+1").getUnreadCount());
+
+    // Drive the read-state listener with a decremented count.
+    controller.onReadStateChanged("example.com/w+1", 3, /* stale= */ false);
+
+    Assert.assertEquals(
+        "live decrement must patch the cached model",
+        3,
+        controller.findDigestItem("example.com/w+1").getUnreadCount());
+    Assert.assertEquals(
+        "view's updateDigestUnread must have been called for the matching id",
+        Arrays.asList("example.com/w+1=3"),
+        view.updateDigestUnreadInvocations);
+  }
+
+  @Test
+  public void onReadStateChangedIgnoresMissingWaveId() {
+    FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start("in:inbox", null);
+
+    controller.onReadStateChanged("", 3, false);
+    controller.onReadStateChanged(null, 3, false);
+    controller.onReadStateChanged("example.com/w+absent", 0, false);
+
+    Assert.assertTrue(
+        "no view update for empty / null / unknown wave ids",
+        view.updateDigestUnreadInvocations.isEmpty());
+  }
+
+  @Test
+  public void onReadStateChangedClampsNegativeCountsToZero() {
+    FakeGateway gateway =
+        new FakeGateway(
+            new SidecarSearchResponse(
+                "in:inbox",
+                1,
+                Collections.singletonList(
+                    new SidecarSearchResponse.Digest(
+                        "Live wave",
+                        "Snippet",
+                        "example.com/w+1",
+                        12345L,
+                        /* unread= */ 4,
+                        /* msg= */ 4,
+                        Collections.singletonList("teammate@example.com"),
+                        "user@example.com",
+                        false))));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start("in:inbox", null);
+
+    controller.onReadStateChanged("example.com/w+1", -1, false);
+
+    Assert.assertEquals(0, controller.findDigestItem("example.com/w+1").getUnreadCount());
+    Assert.assertEquals(
+        Arrays.asList("example.com/w+1=0"), view.updateDigestUnreadInvocations);
+  }
+
+  @Test
   public void digestSelectionPublishesRouteStateAsUserNavigation() {
     FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
     FakeView view = new FakeView();
@@ -273,6 +362,7 @@ public class J2clSearchPanelControllerTest {
     private boolean error;
     private J2clSearchResultModel lastModel = J2clSearchResultModel.empty("");
     private String selectedWaveId;
+    private final List<String> updateDigestUnreadInvocations = new ArrayList<String>();
 
     @Override
     public void bind(J2clSearchViewListener listener) {
@@ -308,6 +398,17 @@ public class J2clSearchPanelControllerTest {
     @Override
     public void setSelectedWaveId(String waveId) {
       this.selectedWaveId = waveId;
+    }
+
+    @Override
+    public boolean updateDigestUnread(String waveId, int unreadCount) {
+      // F-4 (#1039 / R-4.4) — emulate the production view's contract:
+      // return true only when the wave id is known to the model.
+      if (lastModel.findDigestItem(waveId) == null) {
+        return false;
+      }
+      updateDigestUnreadInvocations.add(waveId + "=" + unreadCount);
+      return true;
     }
   }
 

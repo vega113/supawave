@@ -40,6 +40,16 @@ public final class J2clSearchPanelController
     void render(J2clSearchResultModel model);
 
     void setSelectedWaveId(String waveId);
+
+    /**
+     * F-4 (#1039 / R-4.4): updates the unread badge / stats text on the digest
+     * card matching {@code waveId} without re-rendering the whole list.
+     * Returns {@code true} when a matching card was found and updated.
+     * Default no-op for legacy presentations that do not surface live unread.
+     */
+    default boolean updateDigestUnread(String waveId, int unreadCount) {
+      return false;
+    }
   }
 
   public interface RouteStateHandler {
@@ -180,6 +190,31 @@ public final class J2clSearchPanelController
 
   public J2clSearchDigestItem findDigestItem(String waveId) {
     return lastModel.findDigestItem(waveId);
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4): bridges the
+   * {@link J2clSelectedWaveController.ReadStateListener} signal into the
+   * search panel so the matching digest card decrements its unread badge
+   * live without a full re-render. Idempotent — repeated calls with the
+   * same count are a cheap no-op at the view layer.
+   *
+   * <p>The {@code stale} flag is passed through to the model in case the
+   * view wants to dim the badge while the count is provisional; the
+   * default view ignores it for now.
+   */
+  public void onReadStateChanged(String waveId, int unreadCount, boolean stale) {
+    if (waveId == null || waveId.isEmpty()) {
+      return;
+    }
+    int safeUnread = Math.max(0, unreadCount);
+    boolean updated = view.updateDigestUnread(waveId, safeUnread);
+    if (!updated) {
+      return;
+    }
+    // Also patch the cached model so a re-render (e.g. on the next search
+    // refresh) starts from the live count rather than the stale snapshot.
+    lastModel = lastModel.withUpdatedUnreadCount(waveId, safeUnread);
   }
 
   private void publishRouteState(boolean userNavigation) {

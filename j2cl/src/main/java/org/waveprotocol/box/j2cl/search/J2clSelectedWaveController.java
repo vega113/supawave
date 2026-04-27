@@ -70,6 +70,26 @@ public final class J2clSelectedWaveController
     void fetchAttachmentMetadata(
         List<String> attachmentIds,
         J2clAttachmentMetadataClient.MetadataCallback callback);
+
+    /**
+     * Marks a single blip as read for the authenticated user (F-4 / R-4.4 /
+     * subsumes #1056). On success, {@code onSuccess.accept(unreadCountAfter)}
+     * delivers the post-op unread count. Errors must not terminate the
+     * selected-wave subscription — the caller is expected to back off or
+     * retry via the next IntersectionObserver dwell.
+     *
+     * <p>Idempotent at the supplement layer; the gateway should also drop
+     * duplicate in-flight requests for the same {@code (waveId, blipId)}
+     * pair as a defence-in-depth measure.
+     */
+    default void markBlipRead(
+        String waveId,
+        String blipId,
+        J2clSearchPanelController.SuccessCallback<Integer> onSuccess,
+        J2clSearchPanelController.ErrorCallback onError) {
+      // Default no-op so existing test gateways compile without changes.
+      onError.accept("markBlipRead is not wired in this gateway.");
+    }
   }
 
   public interface View {
@@ -80,6 +100,14 @@ public final class J2clSelectedWaveController
     }
 
     default void setViewportEdgeHandler(ViewportEdgeHandler handler) {
+    }
+
+    /**
+     * F-4 (#1039 / R-4.4): registers the per-blip mark-as-read handler so the
+     * read surface can fire the listener when an unread blip dwells in the
+     * viewport. Default is a no-op for legacy presentations.
+     */
+    default void setMarkBlipReadHandler(MarkBlipReadHandler handler) {
     }
 
     /**
@@ -113,6 +141,15 @@ public final class J2clSelectedWaveController
     void onViewportEdge(String anchorBlipId, String direction);
   }
 
+  /**
+   * F-4 (#1039 / R-4.4): handler invoked by the view when a blip has dwelt
+   * inside the viewport long enough to count as "read".
+   */
+  @FunctionalInterface
+  public interface MarkBlipReadHandler {
+    void markBlipRead(String blipId, Runnable onError);
+  }
+
   public interface RetryScheduler {
     void scheduleRetry(int delayMs, Runnable action);
   }
@@ -140,6 +177,17 @@ public final class J2clSelectedWaveController
     void onWriteSessionChanged(J2clSidecarWriteSession writeSession);
   }
 
+  /**
+   * F-4 (#1039 / R-4.4): listener invoked whenever the controller applies a
+   * fresh read state to the current model, so the search-panel surface can
+   * decrement the matching digest's unread badge live without a full re-render
+   * of the digest list.
+   */
+  @FunctionalInterface
+  public interface ReadStateListener {
+    void onReadStateChanged(String waveId, int unreadCount, boolean stale);
+  }
+
   private final Gateway gateway;
   private final View view;
   private final RetryScheduler retryScheduler;
@@ -161,6 +209,11 @@ public final class J2clSelectedWaveController
   private int pendingDebounceToken;
   private final Set<String> fragmentFetchesInFlight = new HashSet<String>();
   private final Set<String> attachmentMetadataFetchesInFlight = new HashSet<String>();
+  // F-4 (#1039 / R-4.4): blip ids the IntersectionObserver-equivalent has
+  // already submitted to the server; gates re-entry from re-rendering the
+  // surface or scrolling away and back.
+  private final Set<String> markBlipReadInFlight = new HashSet<String>();
+  private ReadStateListener readStateListener;
 
   public J2clSelectedWaveController(Gateway gateway, View view) {
     this(
@@ -288,6 +341,7 @@ public final class J2clSelectedWaveController
     this.currentModel = J2clSelectedWaveModel.empty();
     this.view.render(currentModel);
     this.view.setViewportEdgeHandler(this::onViewportEdge);
+    this.view.setMarkBlipReadHandler(this::onMarkBlipRead);
     publishWriteSession();
     if (visibilitySource != null) {
       visibilitySource.addVisibilityListener(this::onVisible);
@@ -306,6 +360,7 @@ public final class J2clSelectedWaveController
     closeSubscription();
     resetFragmentFetchTracking();
     resetAttachmentMetadataFetchTracking();
+    resetMarkBlipReadTracking();
     reconnectCount = 0;
     // A refresh happens after the reply already committed on the server, so transient bootstrap or
     // open failures should recover like a reconnect instead of strand the panel on stale content.
@@ -344,6 +399,7 @@ public final class J2clSelectedWaveController
     resetReadStateFetchTracking();
     resetFragmentFetchTracking();
     resetAttachmentMetadataFetchTracking();
+    resetMarkBlipReadTracking();
 
     if (waveId == null || waveId.isEmpty()) {
       selectedWaveId = null;
@@ -1035,6 +1091,28 @@ public final class J2clSelectedWaveController
             currentModel, selectedDigestItem, currentReadState, readStateStale);
     view.render(currentModel);
     publishWriteSession();
+    notifyReadStateListener();
+  }
+
+  /**
+   * Notifies the read-state listener (typically the search-panel controller)
+   * about the new unread count for the current wave so any matching digest
+   * card can decrement live without re-rendering the whole list. Idempotent —
+   * the listener is responsible for filtering trivial no-op updates if
+   * needed.
+   */
+  private void notifyReadStateListener() {
+    if (readStateListener == null) {
+      return;
+    }
+    if (selectedWaveId == null || selectedWaveId.isEmpty()) {
+      return;
+    }
+    if (currentReadState == null) {
+      return;
+    }
+    int unread = Math.max(0, currentReadState.getUnreadCount());
+    readStateListener.onReadStateChanged(selectedWaveId, unread, readStateStale);
   }
 
   private void resetReadStateFetchTracking() {
@@ -1051,6 +1129,163 @@ public final class J2clSelectedWaveController
     // UDW but never emits a conv+root update for this socket, so the per-update
     // refetch would never fire. Visibility-driven refresh catches it cheaply.
     scheduleReadStateFetch(requestGeneration);
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4): registers the read-state listener so the search panel
+   * can decrement digest unread badges live when the user opens a wave and
+   * dwells on its blips. Called once during shell wiring.
+   */
+  public void setReadStateListener(ReadStateListener listener) {
+    this.readStateListener = listener;
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4): invoked by the read-surface's
+   * IntersectionObserver-equivalent when an unread blip has been in the
+   * viewport for ≥1500 ms. Submits a markBlipRead to the gateway and, on
+   * success, schedules a read-state fetch through the existing debounced
+   * scheduler so concurrent supplement-bus updates coalesce instead of
+   * racing.
+   *
+   * <p>De-duplication is best-effort: a second call for the same blipId
+   * while the first is in flight is dropped. The renderer also tracks an
+   * `unread` attribute so already-read blips never reach this method, but
+   * we keep the in-flight set as defence-in-depth.
+   */
+  public void onMarkBlipRead(String blipId, Runnable rendererOnError) {
+    // The renderer adds the blip to its own in-flight gate before calling
+    // this method, so EVERY early-return path must release that gate via
+    // `rendererOnError` — otherwise the renderer keeps treating the blip
+    // as in-flight and never re-arms the dwell timer for it.
+    if (selectedWaveId == null || selectedWaveId.isEmpty()) {
+      releaseRendererGate(rendererOnError);
+      return;
+    }
+    if (blipId == null || blipId.isEmpty()) {
+      releaseRendererGate(rendererOnError);
+      return;
+    }
+    final String waveIdAtDispatch = selectedWaveId;
+    // F-4 (#1039 / R-4.4): in-flight de-dup is keyed by the (waveId, blipId)
+    // pair, not blipId alone. Two waves can legitimately share a blipId; the
+    // 0x00 separator keeps composite keys unambiguous (waveIds cannot contain
+    // a NUL byte by construction).
+    final String inFlightKey = markBlipReadInFlightKey(waveIdAtDispatch, blipId);
+    final double startMs = currentTimeMs();
+    if (!markBlipReadInFlight.add(inFlightKey)) {
+      // Already in flight for this (waveId, blipId); drop the duplicate.
+      // latency_ms=0 keeps the schema aligned with the success/error
+      // outcomes so downstream consumers don't need a special case.
+      // The renderer's gate is released so it can re-arm a dwell timer
+      // later — this controller-side de-dup means the original dispatch
+      // is already on its way; we do not want the renderer to lose its
+      // ability to retry if that original dispatch fails.
+      releaseRendererGate(rendererOnError);
+      emit(
+          J2clClientTelemetry.event("j2cl.read.mark_blip_read")
+              .field("outcome", "skipped-in-flight")
+              .field("blipId", blipId)
+              .field("latency_ms", "0")
+              .build());
+      return;
+    }
+    final int generation = requestGeneration;
+    gateway.markBlipRead(
+        waveIdAtDispatch,
+        blipId,
+        unreadCountAfter -> {
+          markBlipReadInFlight.remove(inFlightKey);
+          if (!isCurrentGeneration(generation)) {
+            return;
+          }
+          if (selectedWaveId == null || !selectedWaveId.equals(waveIdAtDispatch)) {
+            return;
+          }
+          // Route through the debounced fetch scheduler so concurrent
+          // supplement-bus updates coalesce; bypassing it would race the
+          // server-pushed update from the open subscription.
+          scheduleReadStateFetch(generation);
+          emit(
+              J2clClientTelemetry.event("j2cl.read.mark_blip_read")
+                  .field("outcome", "success")
+                  .field("blipId", blipId)
+                  .field(
+                      "unreadCountAfter",
+                      unreadCountAfter == null ? "" : Integer.toString(unreadCountAfter))
+                  .field("latency_ms", Long.toString((long) (currentTimeMs() - startMs)))
+                  .build());
+        },
+        error -> {
+          markBlipReadInFlight.remove(inFlightKey);
+          if (rendererOnError != null) {
+            rendererOnError.run();
+          }
+          if (!isCurrentGeneration(generation)) {
+            return;
+          }
+          emit(
+              J2clClientTelemetry.event("j2cl.read.mark_blip_read")
+                  .field("outcome", "error")
+                  .field("blipId", blipId)
+                  .field("error", error == null ? "" : error)
+                  .field("latency_ms", Long.toString((long) (currentTimeMs() - startMs)))
+                  .build());
+        });
+  }
+
+  /**
+   * Composite in-flight key for {@link #markBlipReadInFlight}. The 0x00
+   * separator is safe because participant-derived waveIds never contain a NUL
+   * byte; using a printable separator like ":" would risk false collisions
+   * when a waveId itself contains the chosen separator.
+   */
+  private static String markBlipReadInFlightKey(String waveId, String blipId) {
+    return nullToEmpty(waveId) + ' ' + nullToEmpty(blipId);
+  }
+
+  /**
+   * Releases the renderer's per-blip in-flight gate (its
+   * {@code markBlipReadInFlight} entry) when {@link #onMarkBlipRead} bails
+   * before the gateway dispatch succeeds. Renderer hooks must not propagate
+   * out of this controller — the renderer is observational here, so we
+   * swallow any throw to keep the mark-read pipeline robust.
+   */
+  private static void releaseRendererGate(Runnable rendererOnError) {
+    if (rendererOnError == null) {
+      return;
+    }
+    try {
+      rendererOnError.run();
+    } catch (Throwable ignored) {
+      // Renderer hooks must not break the controller's mark-read pipeline.
+    }
+  }
+
+  /**
+   * F-4 (#1039 / R-4.4): drops any in-flight markBlipRead bookkeeping. Called
+   * whenever the selection changes so a still-pending request from the
+   * previous wave cannot suppress a legitimate dispatch in the next selection.
+   * The composite (waveId, blipId) key already prevents cross-wave collisions
+   * for the contains-check; clearing here keeps the set bounded across long
+   * sessions.
+   */
+  private void resetMarkBlipReadTracking() {
+    markBlipReadInFlight.clear();
+  }
+
+  private static double currentTimeMs() {
+    // Telemetry-only timestamp source. We deliberately route through
+    // {@link System#currentTimeMillis()} rather than
+    // {@code performance.timeOrigin + performance.now()} or
+    // {@code new JsDate().getTime()} because:
+    // 1. Both alternatives are native, breaking JVM unit tests (the bytecode
+    //    has @JsType bindings with no Java implementation).
+    // 2. We use the value only for a coarse latency_ms histogram bucket;
+    //    monotonic precision is not required.
+    // 3. {@link System#currentTimeMillis()} compiles to {@code Date.now()}
+    //    in J2CL output, which is well-defined in browsers.
+    return (double) System.currentTimeMillis();
   }
 
   private static RetryScheduler defaultRetryScheduler() {

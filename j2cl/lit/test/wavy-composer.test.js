@@ -545,6 +545,69 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     el.remove();
   });
 
+  // F-3.S2 (#1038, PR #1066 review thread PRRT_kwDOBwxLXs592RVT) —
+  // controller-driven resets (draft prop transitioning to empty after
+  // submit/cancel/wave change) MUST clear the body even when rich
+  // content (mention chips, task lists) is present. Without this,
+  // stale chips remain visible and can be re-submitted.
+  it("controller-driven reset clears body even when a mention chip is present", async () => {
+    const el = await fixture(html`
+      <wavy-composer available .participants=${sampleParticipants}></wavy-composer>
+    `);
+    document.body.appendChild(el);
+    setBodyText(el, "@al");
+    await el.updateComplete;
+    const popover = el.renderRoot.querySelector("mention-suggestion-popover");
+    popover.dispatchEvent(
+      new CustomEvent("mention-select", {
+        bubbles: true,
+        composed: true,
+        detail: { address: "alice@example.com", displayName: "Alice Adams" }
+      })
+    );
+    await el.updateComplete;
+    const body = getBody(el);
+    expect(body.querySelector(".wavy-mention-chip")).to.exist;
+    // Move selection out of the body so the synchronous reset path runs
+    // (mirrors what the Java view does when it focuses elsewhere after
+    // submit), then trigger a controller-driven reset by clearing draft.
+    document.getSelection().removeAllRanges();
+    document.body.focus();
+    el.draft = "";
+    await el.updateComplete;
+    expect(body.querySelector(".wavy-mention-chip")).to.equal(null);
+    expect(body.textContent).to.equal("");
+    el.remove();
+  });
+
+  it("controller-driven reset clears body even when a task list is present", async () => {
+    const el = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
+    document.body.appendChild(el);
+    const body = getBody(el);
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    range.collapse(false);
+    document.getSelection().removeAllRanges();
+    document.getSelection().addRange(range);
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        bubbles: true,
+        composed: true,
+        detail: { actionId: "insert-task" }
+      })
+    );
+    await el.updateComplete;
+    expect(body.querySelector("ul.wavy-task-list")).to.exist;
+    document.getSelection().removeAllRanges();
+    document.body.focus();
+    el.draft = "";
+    await el.updateComplete;
+    expect(body.querySelector("ul.wavy-task-list")).to.equal(null);
+    expect(body.textContent).to.equal("");
+    el.remove();
+  });
+
   it("Insert-task toolbar action inserts a wavy-task-list at the caret", async () => {
     const el = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
     document.body.appendChild(el);

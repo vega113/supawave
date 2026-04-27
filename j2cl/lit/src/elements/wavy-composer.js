@@ -380,14 +380,36 @@ export class WavyComposer extends LitElement {
     // contains rich content the textual `draft` cannot represent;
     // otherwise the next render after a chip insert would silently
     // drop the chip.
+    //
+    // Exception (#1066 review): a controller-driven reset (the
+    // `draft` prop transitioning to empty after submit/cancel/wave
+    // change) MUST clear the body even when chips/task lists are
+    // present, otherwise stale rich content stays visible and can
+    // be re-submitted. `_isControllerReset` recognises that case.
     if (
       this._serializeBodyText() !== this.draft &&
       !this._bodyOwnsSelection() &&
-      !this._bodyHasRichContent()
+      (this._isControllerReset() || !this._bodyHasRichContent())
     ) {
       this._bodyElement.textContent = this.draft;
     }
     return this._bodyElement;
+  }
+
+  /**
+   * F-3.S2 (#1038, R-5.3, PR #1066 review): a controller-driven
+   * reset is an external `draft`-prop transition to the empty
+   * string while the rendered body still holds content. Resets
+   * fire after submit success, after cancel, and when the user
+   * navigates to a different wave; rich-content chips must clear
+   * with the rest of the body in that case. Mid-edit user input
+   * never triggers this branch because the user keeps the body
+   * non-empty and the prop tracks the last serialised value.
+   */
+  _isControllerReset() {
+    if (!this._bodyElement) return false;
+    if ((this.draft || "") !== "") return false;
+    return this._bodyElement.childNodes.length > 0;
   }
 
   /**
@@ -931,9 +953,15 @@ export class WavyComposer extends LitElement {
     // F-3.S2 (#1038, R-5.3): skip the overwrite when the body holds
     // rich content (chips, task lists) the plain-text draft cannot
     // round-trip — see `_bodyHasRichContent`.
+    //
+    // Exception (#1066 review): a controller-driven reset (deferred
+    // empty `draft` after submit/cancel) must still clear the body
+    // even when chips/task lists are present so rich content does
+    // not survive a reset.
+    const isReset = this._pendingDraftSync === "" && this._bodyElement.childNodes.length > 0;
     if (
       this._serializeBodyText() !== this._pendingDraftSync &&
-      !this._bodyHasRichContent()
+      (isReset || !this._bodyHasRichContent())
     ) {
       this._bodyElement.textContent = this._pendingDraftSync;
     }
@@ -1041,10 +1069,15 @@ export class WavyComposer extends LitElement {
       // F-3.S2 (#1038, R-5.3): skip the textContent overwrite when the
       // body has rich content (mention chips, task lists) the plain
       // `draft` property cannot represent.
+      //
+      // Exception (#1066 review): a controller-driven reset (the
+      // `draft` prop transitioning to empty after submit/cancel)
+      // bypasses the rich-content guard so chips/task lists clear
+      // along with text. See `_isControllerReset` for the predicate.
       if (!this._bodyOwnsSelection()) {
         if (
           this._serializeBodyText() !== this.draft &&
-          !this._bodyHasRichContent()
+          (this._isControllerReset() || !this._bodyHasRichContent())
         ) {
           this._bodyElement.textContent = this.draft;
         }

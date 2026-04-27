@@ -427,24 +427,12 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     // rail twice. Pin the static source so the regression cannot return.
     String source = readSourceFile("j2cl/lit/src/elements/wavy-search-rail.js");
     // Allow named slots (e.g. <slot name="..."></slot>) — those project
-    // only explicitly-slotted children — but reject any default
-    // unnamed <slot> form, including self-closing variants.
+    // only explicitly-slotted children — but reject any <slot ...> that
+    // lacks a name= attribute, including self-closing and attributed forms.
     assertFalse(
-        "wavy-search-rail must not expose a default <slot></slot> "
+        "wavy-search-rail must not expose any unnamed <slot ...> "
             + "(see #1060 — projects SSR'd light DOM as a duplicate rail)",
-        java.util.regex.Pattern.compile("<slot\\s*></slot>")
-            .matcher(source)
-            .find());
-    assertFalse(
-        "wavy-search-rail must not expose a self-closing default <slot/> "
-            + "(see #1060 — projects SSR'd light DOM as a duplicate rail)",
-        java.util.regex.Pattern.compile("<slot\\s*/>")
-            .matcher(source)
-            .find());
-    assertFalse(
-        "wavy-search-rail must not expose a default <slot> with a "
-            + "fallback body (see #1060)",
-        java.util.regex.Pattern.compile("<slot\\s*>(?![^<]*name=)")
+        java.util.regex.Pattern.compile("<slot(?![^>]*\\bname\\s*=)[^>]*>")
             .matcher(source)
             .find());
   }

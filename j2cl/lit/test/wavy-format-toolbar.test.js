@@ -179,4 +179,25 @@ describe("<wavy-format-toolbar>", () => {
     const slot = editToolbar.renderRoot.querySelector("slot[name='toolbar-extension']");
     expect(slot).to.exist;
   });
+
+  // V-3 (#1101): each daily-rich-edit toolbar button renders an icon
+  // glyph instead of a text label.
+  it("renders an SVG icon inside every toolbar-button (V-3 visual swap)", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    const buttons = el.renderRoot.querySelectorAll("toolbar-button");
+    expect(buttons.length).to.be.greaterThan(0);
+    buttons.forEach((b) => {
+      const svg = b.renderRoot.querySelector("svg");
+      expect(svg, `button ${b.getAttribute("data-toolbar-action")} must render an <svg>`).to.exist;
+    });
+  });
+
+  // V-3 (#1101): explicit toolbar-divider siblings between groups so
+  // the visual separator does not depend on a brittle ::slotted
+  // sibling selector.
+  it("emits at least one .toolbar-divider between groups", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    const dividers = el.renderRoot.querySelectorAll(".toolbar-divider");
+    expect(dividers.length).to.be.greaterThan(0);
+  });
 });

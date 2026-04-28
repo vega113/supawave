@@ -60,7 +60,12 @@ describe("<wavy-edit-toolbar>", () => {
     }
   });
 
-  it("dark / light / contrast variants flip the surface background", async () => {
+  // V-3 (#1101): the format-toolbar pill is intentionally theme-
+  // invariant — the Stitch/mockup pin keeps the dark pill across
+  // light/contrast modes so the cyan active-tile retains its contrast
+  // ratio. The toolbar reads --wavy-toolbar-pill-bg, defined only at
+  // :root; theme overrides do not flip it.
+  it("keeps the dark pill background across light / contrast theme variants (V-3 pin)", async () => {
     const variants = ["dark", "light", "contrast"];
     const surfaces = new Set();
     for (const v of variants) {
@@ -72,6 +77,6 @@ describe("<wavy-edit-toolbar>", () => {
       const tb = wrap.querySelector("wavy-edit-toolbar");
       surfaces.add(getComputedStyle(tb).backgroundColor);
     }
-    expect(surfaces.size).to.be.greaterThanOrEqual(2);
+    expect(surfaces.size).to.equal(1);
   });
 });

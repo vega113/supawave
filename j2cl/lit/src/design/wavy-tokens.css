@@ -79,6 +79,19 @@
   /* Shape */
   --wavy-radius-card: 12px;
   --wavy-radius-pill: 9999px;
+
+  /* V-3 (#1101) — format toolbar tokens. The pill stays dark across all
+   * theme variants per the Stitch/mockup pin (the surrounding tokens
+   * --wavy-bg-surface / --wavy-text-body flip in light/contrast modes
+   * and would otherwise wash the toolbar out). */
+  --wavy-toolbar-pill-bg: #0b1320;
+  --wavy-toolbar-pill-fg: rgba(255, 255, 255, 0.92);
+  --wavy-toolbar-tile-size: 32px;
+  --wavy-toolbar-tile-radius: 8px;
+  --wavy-toolbar-divider: rgba(255, 255, 255, 0.20);
+  --wavy-toolbar-tile-active-bg: var(--wavy-signal-cyan);
+  --wavy-toolbar-tile-active-fg: #0b1320;
+  --wavy-toolbar-tile-hover-bg: rgba(255, 255, 255, 0.08);
 }
 
 /* Light variant — applies under prefers-color-scheme: light unless an

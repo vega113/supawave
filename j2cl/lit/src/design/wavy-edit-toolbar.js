@@ -17,13 +17,30 @@ export class WavyEditToolbar extends LitElement {
     :host {
       display: inline-flex;
       align-items: center;
-      gap: var(--wavy-spacing-2, 8px);
-      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-3, 12px);
-      background: var(--wavy-bg-surface, #11192a);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border-radius: var(--wavy-radius-pill, 9999px);
+      gap: 0;
+      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-1, 4px);
+      background: var(--wavy-toolbar-pill-bg, #0b1320);
+      color: var(--wavy-toolbar-pill-fg, rgba(255, 255, 255, 0.92));
+      border-radius: var(--wavy-radius-card, 12px);
       border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
       font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      box-shadow: 0 8px 24px rgba(11, 19, 32, 0.20);
+    }
+    [role="toolbar"] {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+    }
+    /* V-3 (#1101): wavy-format-toolbar emits explicit
+     * <span class="toolbar-divider"> siblings between groups. Style
+     * via ::slotted on a class so it does not depend on slot sibling
+     * order. */
+    ::slotted(.toolbar-divider) {
+      width: 1px;
+      height: 24px;
+      background: var(--wavy-toolbar-divider, rgba(255, 255, 255, 0.20));
+      margin: 0 var(--wavy-spacing-2, 8px);
+      flex: 0 0 auto;
     }
     .ext-slot-wrapper {
       display: contents;

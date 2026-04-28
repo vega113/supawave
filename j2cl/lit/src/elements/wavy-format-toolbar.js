@@ -62,23 +62,32 @@ const ACTIVE_ANNOTATION_MAP = {
   "attachment-insert": []
 };
 
+/*
+ * V-3 (#1101): groups + ordering reflect the
+ * 03-inline-rich-text-composer.svg mockup left-to-right. Each group
+ * id is rendered as a <toolbar-group> wrapper, with explicit
+ * <span class="toolbar-divider"> siblings between groups. The action
+ * IDs are unchanged — wavy-format-toolbar-action subscribers (composer
+ * controller, etc.) see the same `actionId` payload. This is purely a
+ * visual structural change.
+ */
 const DAILY_RICH_EDIT_ACTIONS = [
-  { id: "bold", label: "Bold", group: "format", toggle: true },
-  { id: "italic", label: "Italic", group: "format", toggle: true },
-  { id: "underline", label: "Underline", group: "format", toggle: true },
-  { id: "strikethrough", label: "Strikethrough", group: "format", toggle: true },
-  { id: "heading", label: "Heading", group: "format", toggle: false },
-  { id: "unordered-list", label: "Bulleted list", group: "list", toggle: true },
-  { id: "ordered-list", label: "Numbered list", group: "list", toggle: true },
-  { id: "indent", label: "Indent", group: "indent", toggle: false },
-  { id: "outdent", label: "Outdent", group: "indent", toggle: false },
+  { id: "bold", label: "Bold", group: "text", toggle: true },
+  { id: "italic", label: "Italic", group: "text", toggle: true },
+  { id: "underline", label: "Underline", group: "text", toggle: true },
+  { id: "strikethrough", label: "Strikethrough", group: "text", toggle: true },
+  { id: "heading", label: "Heading", group: "block", toggle: false },
+  { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },
+  { id: "ordered-list", label: "Numbered list", group: "block", toggle: true },
+  { id: "indent", label: "Indent", group: "block", toggle: false },
+  { id: "outdent", label: "Outdent", group: "block", toggle: false },
   { id: "align-left", label: "Align left", group: "align", toggle: false },
   { id: "align-center", label: "Align center", group: "align", toggle: false },
   { id: "align-right", label: "Align right", group: "align", toggle: false },
   { id: "rtl", label: "Right-to-left", group: "align", toggle: false },
   { id: "link", label: "Insert link", group: "link", toggle: false },
   { id: "unlink", label: "Remove link", group: "link", toggle: false },
-  { id: "clear-formatting", label: "Clear formatting", group: "format", toggle: false },
+  { id: "clear-formatting", label: "Clear formatting", group: "link", toggle: false },
   // F-3.S2 (#1038, R-5.4 step 6 + H.20): inline task list insert.
   // Display-only inside the body (the `<input type="checkbox">` is
   // disabled — the per-blip task affordance owns model state).
@@ -89,6 +98,15 @@ const DAILY_RICH_EDIT_ACTIONS = [
   // existing handleAttachmentToolbarAction path.
   { id: "attachment-insert", label: "Attach file", group: "insert", toggle: false }
 ];
+
+const GROUP_ORDER = ["text", "block", "align", "link", "insert"];
+const GROUP_LABELS = {
+  text: "Text formatting",
+  block: "Block formatting",
+  align: "Alignment",
+  link: "Link",
+  insert: "Insert"
+};
 
 export class WavyFormatToolbar extends LitElement {
   static properties = {
@@ -229,18 +247,36 @@ export class WavyFormatToolbar extends LitElement {
     );
   }
 
+  _renderGroup(groupId) {
+    const actions = DAILY_RICH_EDIT_ACTIONS.filter((a) => a.group === groupId);
+    if (actions.length === 0) return null;
+    return html`<toolbar-group label=${GROUP_LABELS[groupId] || groupId}>
+      ${actions.map(
+        (action) => html`<toolbar-button
+          data-toolbar-action=${action.id}
+          action=${action.id}
+          icon=${action.id}
+          label=${action.label}
+          ?toggle=${action.toggle}
+          ?pressed=${this._isActionActive(action)}
+        ></toolbar-button>`
+      )}
+    </toolbar-group>`;
+  }
+
   render() {
+    const groups = [];
+    GROUP_ORDER.forEach((gid, idx) => {
+      const tpl = this._renderGroup(gid);
+      if (!tpl) return;
+      if (groups.length > 0) {
+        groups.push(html`<span class="toolbar-divider" aria-hidden="true"></span>`);
+      }
+      groups.push(tpl);
+    });
     return html`
       <wavy-edit-toolbar @toolbar-action=${this._onToolbarAction.bind(this)}>
-        ${DAILY_RICH_EDIT_ACTIONS.map(
-          (action) => html`<toolbar-button
-            data-toolbar-action=${action.id}
-            action=${action.id}
-            label=${action.label}
-            ?toggle=${action.toggle}
-            ?pressed=${this._isActionActive(action)}
-          ></toolbar-button>`
-        )}
+        ${groups}
         <slot name="toolbar-extension" slot="toolbar-extension"></slot>
       </wavy-edit-toolbar>
     `;

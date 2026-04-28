@@ -3331,6 +3331,8 @@ public final class HtmlRenderer {
         websocketAddress,
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
+        null,
+        false,
         false);
   }
 
@@ -3348,37 +3350,22 @@ public final class HtmlRenderer {
         websocketAddress,
         snapshotResult,
         false,
-        false);
-  }
-
-  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
-      String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
-      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
-      boolean railCardsEnabled) {
-    return renderJ2clRootShellPage(
-        sessionJson,
-        analyticsAccount,
-        buildCommit,
-        serverBuildTime,
-        currentReleaseId,
-        rootShellReturnTarget,
-        websocketAddress,
-        snapshotResult,
-        railCardsEnabled,
+        null,
+        false,
         false);
   }
 
   /**
-   * J-UI-1 (#1079): full overload that surfaces the
+   * J-UI-1 (#1079): overload that surfaces the
    * {@code j2cl-search-rail-cards} flag value to the SSR so the
    * {@code <wavy-search-rail>} element carries
    * {@code data-rail-cards-enabled="true"} when enabled. When the flag
    * is OFF the legacy plain-DOM digest rendering path stays in place.
    *
-   * <p>J-UI-5 (#1083): added {@code inlineRichComposerEnabled} so the
-   * J2CL view can mount the contenteditable {@code <wavy-composer>} at
-   * the chosen blip when the flag is on. Off ⇒ legacy textarea path.
+   * <p>J-UI-5 (#1083) note: callers that need the inline rich-composer
+   * gate must call the 12-arg overload below with
+   * {@code inlineRichComposerEnabled} set explicitly. This shorter
+   * overload keeps the J-UI-1 callers compiling unchanged.
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
@@ -3397,6 +3384,33 @@ public final class HtmlRenderer {
         railCardsEnabled,
         null,
         false,
+        false);
+  }
+
+  /**
+   * J-UI-8 (#1086) overload: surfaces the viewer's account locale and
+   * the server-first-paint flag without forcing every caller to also
+   * thread the J-UI-5 inline rich-composer flag.
+   */
+  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
+      String buildCommit, long serverBuildTime, String currentReleaseId,
+      String rootShellReturnTarget, String websocketAddress,
+      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
+      boolean railCardsEnabled,
+      String viewerLocale,
+      boolean serverFirstPaintEnabled) {
+    return renderJ2clRootShellPage(
+        sessionJson,
+        analyticsAccount,
+        buildCommit,
+        serverBuildTime,
+        currentReleaseId,
+        rootShellReturnTarget,
+        websocketAddress,
+        snapshotResult,
+        railCardsEnabled,
+        viewerLocale,
+        serverFirstPaintEnabled,
         false);
   }
 

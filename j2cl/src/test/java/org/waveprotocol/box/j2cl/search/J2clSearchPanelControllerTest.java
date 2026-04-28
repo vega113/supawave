@@ -929,6 +929,98 @@ public class J2clSearchPanelControllerTest {
         view.lastModel.findDigestItem("example.com/w+retry"));
   }
 
+  // J-UI-3 — codex P2 PRRT_kwDOBwxLXs5-DA7T: a failed create must not leave a stale
+  // submit-query stamp in the queue. Without cancelPendingCreateSubmit() the next
+  // successful create consumes the old stamp and scopes its stub to the wrong rail.
+  @Test
+  public void cancelPendingCreateSubmitClearsStaleQueueEntry() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Inbox wave", "Snippet", "example.com/w+inbox", 1L, 0, 1,
+                    Collections.singletonList("user@example.com"), "user@example.com", false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    // First submit on in:inbox stamps the queue, then the create fails.
+    controller.markCreateSubmitted();
+    controller.cancelPendingCreateSubmit();
+
+    // User switches to with:@me and submits successfully.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Mention", "Snippet", "example.com/w+mention", 2L, 0, 1,
+            Collections.singletonList("user@example.com"), "user@example.com", false));
+    controller.onQuerySubmitted("with:@me");
+    controller.markCreateSubmitted();
+    controller.onOptimisticDigest("example.com/w+new", "New wave");
+
+    // Stub must be scoped to with:@me (the submit-time query for the successful create).
+    Assert.assertNotNull(
+        "stub must appear in with:@me rail (the actual submit query)",
+        view.lastModel.findDigestItem("example.com/w+new"));
+
+    // Switching back to in:inbox must NOT show the stub.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Inbox wave", "Snippet", "example.com/w+inbox", 1L, 0, 1,
+            Collections.singletonList("user@example.com"), "user@example.com", false));
+    controller.onQuerySubmitted("in:inbox");
+    Assert.assertNull(
+        "stub must not leak into in:inbox (the stale failed-create query)",
+        view.lastModel.findDigestItem("example.com/w+new"));
+  }
+
+  // J-UI-3 — codex P2 PRRT_kwDOBwxLXs5-DA7V: if the user changes rail before
+  // the success callback fires, the immediate prepend in onOptimisticDigest must
+  // NOT inject the stub into the wrong rail's render.
+  @Test
+  public void onOptimisticDigestDoesNotImmediatelyPrependToWrongRail() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Inbox wave", "Snippet", "example.com/w+inbox", 1L, 0, 1,
+                    Collections.singletonList("user@example.com"), "user@example.com", false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    // User submits on in:inbox, stamps the query.
+    controller.markCreateSubmitted();
+
+    // Before the server responds, user navigates to with:@me.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Mention", "Snippet", "example.com/w+mention", 2L, 0, 1,
+            Collections.singletonList("user@example.com"), "user@example.com", false));
+    controller.onQuerySubmitted("with:@me");
+
+    // Success fires; the immediate render must NOT inject stub into with:@me.
+    controller.onOptimisticDigest("example.com/w+newwave", "New wave");
+    Assert.assertNull(
+        "stub belongs to in:inbox, must not appear in with:@me immediately",
+        view.lastModel.findDigestItem("example.com/w+newwave"));
+
+    // Navigating back to in:inbox should bring the stub forward.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Inbox wave", "Snippet", "example.com/w+inbox", 1L, 0, 1,
+            Collections.singletonList("user@example.com"), "user@example.com", false));
+    controller.onQuerySubmitted("in:inbox");
+    Assert.assertNotNull(
+        "stub reappears on the correct in:inbox rail",
+        view.lastModel.findDigestItem("example.com/w+newwave"));
+  }
+
   // J-UI-3 — when no markCreateSubmitted() stamp is queued (legacy path),
   // onOptimisticDigest falls back to the success-time query so existing
   // wiring continues to work.

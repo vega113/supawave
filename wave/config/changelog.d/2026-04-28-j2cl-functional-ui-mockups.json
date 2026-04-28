@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-28-j2cl-functional-ui-mockups",
+  "version": "PR #1087",
+  "date": "2026-04-28",
+  "title": "J2CL functional-UI Wavy mockups",
+  "summary": "Added eight Wavy-aesthetic SVG mockups plus a design memo grounding every slice of the J2CL functional-UI roadmap (J-UI-1..8) to the existing Lit components and Wavy Firefly Signal tokens.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added docs/superpowers/mockups/2026-04-28-j2cl-functional-ui/ with eight SVG surfaces covering shell+inbox, threaded reading, inline composer, task toggle states, new-wave flow, mobile, dark mode, and server-first paint",
+        "Added a design memo mapping each surface to its J-UI slice, parity-matrix rows, and existing Lit components in j2cl/lit/src/elements/ and j2cl/lit/src/design/"
+      ]
+    }
+  ]
+}

@@ -47,6 +47,11 @@ import jsinterop.base.JsPropertyMap;
  * reaction wiring is in place.
  */
 public final class J2clComposeSurfaceView implements J2clComposeSurfaceController.View {
+  // J-UI-3 (#1081, R-5.1): the title input precedes the body textarea inside
+  // the create form. Single-line input with Enter-to-submit semantics so a
+  // user who types just a title can ship the wave without reaching for the
+  // mouse.
+  private final HTMLInputElement createTitleInput;
   private final HTMLTextAreaElement createInput;
   private final HTMLElement createSubmit;
   private final HTMLElement replyElement;
@@ -84,6 +89,10 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     createForm.className = "j2cl-compose-create-form";
     shell.appendChild(createForm);
 
+    // J-UI-3 (#1081, R-5.1): single-line title input above the body textarea.
+    // Both inputs are labeled and reachable per the R-5.1 a11y clauses. Note
+    // we declare the body textarea first so the title-input's Enter handler
+    // can reference it without tripping definite-assignment.
     createInput = (HTMLTextAreaElement) DomGlobal.document.createElement("textarea");
     createInput.setAttribute("aria-label", "New wave content");
     createInput.setAttribute("placeholder", "Start a new wave");
@@ -95,6 +104,35 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           }
           return null;
         };
+
+    createTitleInput = (HTMLInputElement) DomGlobal.document.createElement("input");
+    createTitleInput.type = "text";
+    createTitleInput.className = "j2cl-compose-create-title";
+    createTitleInput.setAttribute("aria-label", "New wave title");
+    createTitleInput.setAttribute("placeholder", "Title");
+    createTitleInput.setAttribute("autocomplete", "off");
+    createTitleInput.setAttribute("maxlength", "240");
+    createTitleInput.oninput =
+        event -> {
+          if (listener != null) {
+            listener.onCreateTitleChanged(createTitleInput.value);
+          }
+          return null;
+        };
+    createTitleInput.onkeydown =
+        event -> {
+          String key = String.valueOf(Js.asPropertyMap(event).get("key"));
+          if ("Enter".equals(key)) {
+            event.preventDefault();
+            if (listener != null) {
+              listener.onCreateSubmittedWithTitle(createTitleInput.value, createInput.value);
+            }
+          }
+          return null;
+        };
+    // J-UI-3: title appears first in DOM order so the user reaches it before
+    // the body textarea on Tab/initial focus.
+    createForm.appendChild(createTitleInput);
     createForm.appendChild(createInput);
 
     createSubmit = (HTMLElement) DomGlobal.document.createElement("composer-submit-affordance");
@@ -104,7 +142,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         "submit-affordance",
         event -> {
           if (listener != null) {
-            listener.onCreateSubmitted(createInput.value);
+            listener.onCreateSubmittedWithTitle(createTitleInput.value, createInput.value);
           }
         });
 
@@ -297,6 +335,14 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   @Override
   public void render(J2clComposeSurfaceModel model) {
+    // J-UI-3 (#1081, R-5.1): only assign the title input value when it
+    // actually differs to avoid clobbering the caret position while the user
+    // is typing. The textarea below uses the same guard.
+    String modelTitle = model.getCreateTitleDraft();
+    if (!String.valueOf(createTitleInput.value).equals(modelTitle)) {
+      createTitleInput.value = modelTitle;
+    }
+    createTitleInput.disabled = !model.isCreateEnabled() || model.isCreateSubmitting();
     createInput.value = model.getCreateDraft();
     createInput.disabled = !model.isCreateEnabled() || model.isCreateSubmitting();
     setProperty(createSubmit, "busy", model.isCreateSubmitting());
@@ -339,6 +385,16 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       return;
     }
     replyElement.dispatchEvent(new Event("composer-focus-request"));
+  }
+
+  @Override
+  public void focusCreateSurface() {
+    // J-UI-3 (#1081, R-5.1): the rail's New Wave button drops the user into
+    // the title input; if the input is disabled (signed out / submitting)
+    // skip silently rather than throwing.
+    if (!createTitleInput.disabled) {
+      createTitleInput.focus();
+    }
   }
 
   /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */

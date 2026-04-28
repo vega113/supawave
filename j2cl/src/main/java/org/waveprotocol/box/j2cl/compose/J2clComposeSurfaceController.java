@@ -43,12 +43,36 @@ public final class J2clComposeSurfaceController {
     void openAttachmentPicker();
 
     void focusReplyComposer();
+
+    /**
+     * J-UI-3 (#1081, R-5.1): focus the title input on the create form so
+     * the rail's New Wave button gives the user an immediate place to type.
+     * Default no-op so existing test doubles compile unchanged.
+     */
+    default void focusCreateSurface() {}
   }
 
   public interface Listener {
     void onCreateDraftChanged(String draft);
 
+    /**
+     * J-UI-3 (#1081, R-5.1): the title input value changed.
+     * Default no-op so existing test doubles compile unchanged.
+     */
+    default void onCreateTitleChanged(String title) {}
+
     void onCreateSubmitted(String draft);
+
+    /**
+     * J-UI-3 (#1081, R-5.1): submit triggered from the create form with
+     * both title and body provided in a single event so the controller
+     * snapshots both at the same instant. Default delegates to
+     * {@link #onCreateSubmitted} so plain-text-only test doubles continue
+     * to work; production wires this directly.
+     */
+    default void onCreateSubmittedWithTitle(String title, String draft) {
+      onCreateSubmitted(draft);
+    }
 
     void onReplyDraftChanged(String draft);
 
@@ -296,6 +320,10 @@ public final class J2clComposeSurfaceController {
   // means no listener installed.
   private CurrentUserAddressListener currentUserAddressListener;
   private String createDraft = "";
+  // J-UI-3 (#1081, R-5.1): the title-input value separate from createDraft.
+  // Composed into the rich-content document on submit alongside the body so
+  // WaveDigester picks the conv/title annotation up server-side.
+  private String createTitleDraft = "";
 
   /**
    * F-3.S3 (#1038, R-5.5): callback fired after each successful
@@ -485,8 +513,18 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
+          public void onCreateTitleChanged(String title) {
+            J2clComposeSurfaceController.this.onCreateTitleChanged(title);
+          }
+
+          @Override
           public void onCreateSubmitted(String draft) {
             J2clComposeSurfaceController.this.onCreateSubmitted(draft);
+          }
+
+          @Override
+          public void onCreateSubmittedWithTitle(String title, String draft) {
+            J2clComposeSurfaceController.this.onCreateSubmittedWithTitle(title, draft);
           }
 
           @Override
@@ -594,9 +632,41 @@ public final class J2clComposeSurfaceController {
     render();
   }
 
+  /**
+   * J-UI-3 (#1081, R-5.1): the title input's value changed. Title is single
+   * line; we trim trailing whitespace/newlines (a paste with a trailing
+   * newline must not break the title annotation).
+   */
+  public void onCreateTitleChanged(String title) {
+    createTitleDraft = normalizeTitle(title);
+    createErrorText = "";
+    render();
+  }
+
   public void onCreateSubmitted(String draft) {
     createDraft = normalizeDraft(draft);
     submitCreate();
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): submit triggered from the title input (Enter key).
+   * Snapshots both title and body before submit so a stray draft-change after
+   * Enter does not race with submitCreate.
+   */
+  public void onCreateSubmittedWithTitle(String title, String draft) {
+    createTitleDraft = normalizeTitle(title);
+    createDraft = normalizeDraft(draft);
+    submitCreate();
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): focuses the title input on the create form.
+   * Public entrypoint for the rail's New Wave button via the root shell.
+   */
+  public void focusCreateSurface() {
+    if (started) {
+      view.focusCreateSurface();
+    }
   }
 
   public void onReplyDraftChanged(String draft) {
@@ -1260,7 +1330,10 @@ public final class J2clComposeSurfaceController {
       render();
       return;
     }
-    if (createDraft.trim().isEmpty()) {
+    // J-UI-3 (#1081, R-5.1): allow submit when EITHER title or body has text.
+    // The user story is "type a title and a message" so a body-only or
+    // title-only submission is still a valid create.
+    if (createDraft.trim().isEmpty() && createTitleDraft.trim().isEmpty()) {
       createStatusText = "";
       createErrorText = "Enter some text before creating a wave.";
       render();
@@ -1270,6 +1343,7 @@ public final class J2clComposeSurfaceController {
     createStatusText = "Bootstrapping the root-shell submit session.";
     createErrorText = "";
     final String submittedDraft = createDraft;
+    final String submittedTitle = createTitleDraft;
     final int generation = ++createGeneration;
     render();
     gateway.fetchRootSessionBootstrap(
@@ -1282,7 +1356,9 @@ public final class J2clComposeSurfaceController {
           try {
             request =
                 deltaFactory.createWaveRequest(
-                    bootstrap.getAddress(), submittedDraft, buildDocument(submittedDraft, false, ""));
+                    bootstrap.getAddress(),
+                    submittedDraft,
+                    buildDocument(submittedTitle, submittedDraft, false, ""));
           } catch (RuntimeException e) {
             handleCreateFailure(generation, messageOrDefault(e, "Unable to build the create request."));
             return;
@@ -1311,6 +1387,9 @@ public final class J2clComposeSurfaceController {
     }
     createSubmitting = false;
     createDraft = "";
+    // J-UI-3 (#1081, R-5.1): clear the title on success so the next New
+    // Wave click presents an empty title input.
+    createTitleDraft = "";
     activeCommandId = "";
     annotationCommandId = "";
     commandStatusText = "";
@@ -1459,6 +1538,7 @@ public final class J2clComposeSurfaceController {
         new J2clComposeSurfaceModel(
             !signedOut,
             createDraft,
+            createTitleDraft,
             createSubmitting,
             createStatusText,
             createErrorText,
@@ -1477,7 +1557,21 @@ public final class J2clComposeSurfaceController {
 
   private J2clComposerDocument buildDocument(
       String draftText, boolean includeAttachments, String submittedAnnotationCommandId) {
-    return buildDocument(draftText, includeAttachments, submittedAnnotationCommandId, false);
+    return buildDocument("", draftText, includeAttachments, submittedAnnotationCommandId, false);
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): create-flow overload that prepends the wave title
+   * as a {@code conv/title} annotated-text component. {@code titleText} is
+   * the trimmed title-input value; empty/null is a no-op so reply-paths that
+   * forward an empty title work unchanged.
+   */
+  private J2clComposerDocument buildDocument(
+      String titleText,
+      String draftText,
+      boolean includeAttachments,
+      String submittedAnnotationCommandId) {
+    return buildDocument(titleText, draftText, includeAttachments, submittedAnnotationCommandId, false);
   }
 
   private J2clComposerDocument buildDocument(
@@ -1485,7 +1579,19 @@ public final class J2clComposeSurfaceController {
       boolean includeAttachments,
       String submittedAnnotationCommandId,
       boolean includeMentions) {
+    return buildDocument("", draftText, includeAttachments, submittedAnnotationCommandId, includeMentions);
+  }
+
+  private J2clComposerDocument buildDocument(
+      String titleText,
+      String draftText,
+      boolean includeAttachments,
+      String submittedAnnotationCommandId,
+      boolean includeMentions) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
+    // J-UI-3: prepend the title annotation when a non-blank title was typed.
+    // titleText() is a no-op on null/empty so reply-paths pass through cleanly.
+    builder.titleText(titleText);
     // Reply submits pass the snapshotted command id; create submits pass an empty id.
     J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(submittedAnnotationCommandId);
     String annotationKey = annotationKey(action);
@@ -2071,6 +2177,21 @@ public final class J2clComposeSurfaceController {
 
   private static String normalizeDraft(String draft) {
     return draft == null ? "" : draft;
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): normalise a title-input value. Titles are
+   * single-line; we strip leading/trailing whitespace and any embedded
+   * newlines so a paste with a trailing newline does not turn the title
+   * annotation into a multi-line span (which would also pollute the
+   * digest snippet).
+   */
+  private static String normalizeTitle(String title) {
+    if (title == null) {
+      return "";
+    }
+    String stripped = title.replace('\n', ' ').replace('\r', ' ').trim();
+    return stripped;
   }
 
   private static String extractDomain(String waveId) {

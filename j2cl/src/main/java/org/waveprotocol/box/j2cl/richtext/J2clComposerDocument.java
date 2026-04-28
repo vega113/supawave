@@ -67,6 +67,32 @@ public final class J2clComposerDocument {
       return this;
     }
 
+    /**
+     * J-UI-3 (#1081, R-5.1): appends the wave title as an `ANNOTATED_TEXT`
+     * component using the canonical Wave title annotation
+     * (`conv/title` with the AUTO_VALUE empty-string sentinel from
+     * {@code TitleHelper.AUTO_VALUE}). The empty annotation value tells the
+     * server-side digest path to use the annotated text itself as the title.
+     *
+     * <p>Bypasses {@link #annotatedText}'s non-empty-value check because the
+     * AUTO_VALUE sentinel is exactly the empty string. No-op on null/blank
+     * input so callers can pass through an unset title cleanly.
+     */
+    public Builder titleText(String text) {
+      if (text == null || text.trim().isEmpty()) {
+        return this;
+      }
+      components.add(
+          new Component(
+              ComponentType.ANNOTATED_TEXT,
+              text,
+              "conv/title",
+              "",
+              "",
+              ""));
+      return this;
+    }
+
     /** Appends an image attachment element; caption text is preserved exactly when present. */
     public Builder imageAttachment(String attachmentId, String caption, String displaySize) {
       components.add(

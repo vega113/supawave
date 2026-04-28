@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">J-UI-4 — Open wave, threaded reading view with focus frame</title>
+  <desc id="desc">Selected wave with threaded blip rendering. Author avatar+name+timestamp per blip, two indent levels of replies, collapse chevrons, per-blip toolbar, and a cyan focus frame on one blip. Right-side keyboard hint.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f7fb"/>
+      <stop offset="100%" stop-color="#eef1f7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b1320" flood-opacity="0.06"/>
+    </filter>
+    <filter id="focus-ring" x="-10%" y="-20%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#22d3ee" flood-opacity="0.55"/>
+    </filter>
+    <symbol id="supawave-mark" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+    </symbol>
+  </defs>
+
+  <rect width="1440" height="900" fill="url(#bg)"/>
+
+  <!-- Header (compact) -->
+  <rect x="0" y="0" width="1440" height="56" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+  <use href="#supawave-mark" x="20" y="10" width="36" height="36"/>
+  <text x="64" y="34" font-size="18" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">SupaWave</text>
+  <text x="186" y="34" font-size="13" fill="rgba(11,19,32,0.62)">Inbox › Robot streaming follow-up — 4xx retries</text>
+  <rect x="1248" y="12" width="84" height="32" rx="16" fill="#22d3ee"/>
+  <text x="1290" y="32" text-anchor="middle" font-size="13" font-weight="600" fill="#0b1320">+ New Wave</text>
+
+  <!-- Left: collapsed nav rail strip (visual reminder) -->
+  <g transform="translate(0,56)">
+    <rect width="72" height="844" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <rect x="12" y="20" width="48" height="40" rx="12" fill="rgba(34,211,238,0.18)"/>
+    <text x="36" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">Inbox</text>
+    <text x="36" y="92" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.62)">@</text>
+    <text x="36" y="124" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.62)">✓</text>
+    <text x="36" y="156" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.62)">#</text>
+    <text x="36" y="188" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.62)">📥</text>
+    <text x="36" y="220" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.62)">📌</text>
+  </g>
+
+  <!-- Wave header -->
+  <g transform="translate(96,80)">
+    <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">WAVE · 7c4a91 · 5 PARTICIPANTS</text>
+    <text x="0" y="44" font-size="24" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Robot streaming follow-up — 4xx retries</text>
+
+    <!-- Action toolbar -->
+    <g transform="translate(0,64)">
+      <rect width="80" height="32" rx="16" fill="#0b1320"/>
+      <text x="40" y="20" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">Reply</text>
+      <rect x="88" y="0" width="64" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="120" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Pin</text>
+      <rect x="160" y="0" width="80" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="200" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Archive</text>
+      <rect x="248" y="0" width="92" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="294" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Mark read</text>
+      <rect x="348" y="0" width="60" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="378" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Tags</text>
+    </g>
+  </g>
+
+  <line x1="96" y1="200" x2="1080" y2="200" stroke="rgba(11,19,32,0.10)"/>
+
+  <!-- ============ THREADED BLIPS ============ -->
+  <!-- Indent guides -->
+  <g stroke="rgba(34,211,238,0.30)" stroke-width="2" fill="none">
+    <line x1="148" y1="320" x2="148" y2="780"/>
+    <line x1="220" y1="430" x2="220" y2="640"/>
+  </g>
+
+  <!-- Blip 1: Root -->
+  <g transform="translate(96,224)">
+    <g>
+      <text x="-12" y="20" font-size="14" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">▾</text>
+      <circle cx="20" cy="20" r="20" fill="#22d3ee"/>
+      <text x="20" y="25" text-anchor="middle" font-size="13" font-weight="700" fill="#0b1320">AT</text>
+      <text x="52" y="16" font-size="13" font-weight="700" fill="#0b1320">Anton T.</text>
+      <text x="120" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 hours ago · root</text>
+      <text x="52" y="38" font-size="14" fill="rgba(11,19,32,0.92)">Sasha — what's the actual retry budget after the F-3 cleanup? I'm seeing logs that look like</text>
+      <text x="52" y="56" font-size="14" fill="rgba(11,19,32,0.92)">we're doubling up between the streaming handler and the outer fetch. Repro is on prod-2 only.</text>
+
+      <!-- per-blip toolbar (wave-blip-toolbar) -->
+      <g transform="translate(52,68)">
+        <rect width="280" height="24" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+        <text x="14" y="16" font-size="11" font-weight="600" fill="#0b1320">↩ Reply</text>
+        <line x1="56" y1="6" x2="56" y2="18" stroke="rgba(11,19,32,0.10)"/>
+        <text x="68" y="16" font-size="11" fill="#0b1320">✎ Edit</text>
+        <line x1="106" y1="6" x2="106" y2="18" stroke="rgba(11,19,32,0.10)"/>
+        <text x="118" y="16" font-size="11" fill="#0b1320">🗑 Delete</text>
+        <line x1="166" y1="6" x2="166" y2="18" stroke="rgba(11,19,32,0.10)"/>
+        <text x="178" y="16" font-size="11" fill="#0b1320">🔗 Link</text>
+        <line x1="216" y1="6" x2="216" y2="18" stroke="rgba(11,19,32,0.10)"/>
+        <text x="228" y="16" font-size="11" fill="#0b1320">✓ Task</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Blip 2: Reply (indent 1) -->
+  <g transform="translate(168,344)">
+    <text x="-20" y="20" font-size="14" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">▾</text>
+    <circle cx="16" cy="20" r="16" fill="#7c3aed"/>
+    <text x="16" y="25" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">SK</text>
+    <text x="44" y="16" font-size="13" font-weight="700" fill="#0b1320">Sasha K.</text>
+    <text x="104" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">1 hour ago</text>
+    <text x="44" y="38" font-size="13" fill="rgba(11,19,32,0.92)">The budget is 3 retries with 200ms / 600ms / 1.4s backoff. Outer fetch should not retry —</text>
+    <text x="44" y="54" font-size="13" fill="rgba(11,19,32,0.92)">if it does, that's the duplicate you're seeing. Can you grab a request-id from prod-2?</text>
+  </g>
+
+  <!-- Blip 3: Reply-of-reply (indent 2) WITH FOCUS FRAME -->
+  <g transform="translate(240,440)" filter="url(#focus-ring)">
+    <rect x="-12" y="-8" width="800" height="92" rx="14" fill="#ffffff" stroke="#22d3ee" stroke-width="2"/>
+    <text x="-32" y="20" font-size="14" fill="#22d3ee" font-family="Geist, Inter, sans-serif" font-weight="700">▾</text>
+    <circle cx="16" cy="20" r="16" fill="#fb923c"/>
+    <text x="16" y="25" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">MR</text>
+    <text x="44" y="16" font-size="13" font-weight="700" fill="#0b1320">Marina R.</text>
+    <text x="116" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 min ago · focused</text>
+    <text x="44" y="38" font-size="13" fill="rgba(11,19,32,0.92)">request-id 6f1a-7cc4: outer fetch retried twice after a 502 from upstream. The handler</text>
+    <text x="44" y="54" font-size="13" fill="rgba(11,19,32,0.92)">retried 3 more times on top. So 5 total. Filed bug as #1081.</text>
+
+    <g transform="translate(44,66)">
+      <rect width="280" height="22" rx="11" fill="rgba(34,211,238,0.18)" stroke="#22d3ee"/>
+      <text x="14" y="14" font-size="11" font-weight="600" fill="#0b1320">↩ Reply</text>
+      <text x="68" y="14" font-size="11" fill="#0b1320">✎ Edit</text>
+      <text x="118" y="14" font-size="11" fill="#0b1320">🗑 Delete</text>
+      <text x="178" y="14" font-size="11" fill="#0b1320">🔗 #1081</text>
+      <text x="232" y="14" font-size="11" font-weight="600" fill="#0b1320">✓ Task</text>
+    </g>
+  </g>
+
+  <!-- Blip 4: Reply (indent 1) -->
+  <g transform="translate(168,560)">
+    <text x="-20" y="20" font-size="14" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">▸</text>
+    <circle cx="16" cy="20" r="16" fill="#7c3aed"/>
+    <text x="16" y="25" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">SK</text>
+    <text x="44" y="16" font-size="13" font-weight="700" fill="#0b1320">Sasha K.</text>
+    <text x="104" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">38 min ago</text>
+    <text x="44" y="38" font-size="13" fill="rgba(11,19,32,0.92)">Patch open — pinning outer fetch retry to 1, will land behind feature flag…</text>
+    <text x="44" y="56" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">3 collapsed replies</text>
+  </g>
+
+  <!-- Blip 5: Reply (indent 1) - newest -->
+  <g transform="translate(168,640)">
+    <text x="-20" y="20" font-size="14" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">▾</text>
+    <circle cx="16" cy="20" r="16" fill="#475569"/>
+    <text x="16" y="25" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">DK</text>
+    <text x="44" y="16" font-size="13" font-weight="700" fill="#0b1320">Dan K.</text>
+    <text x="92" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 min ago</text>
+    <rect x="156" y="4" width="56" height="18" rx="9" fill="#22d3ee"/>
+    <text x="184" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="#0b1320">NEW</text>
+    <text x="44" y="38" font-size="13" fill="rgba(11,19,32,0.92)">Confirmed on staging-3 too. Bumping severity. Looping in @yuri for the deploy gate.</text>
+  </g>
+
+  <!-- Compose at bottom (collapsed reply trigger - wavy-wave-root-reply-trigger) -->
+  <g transform="translate(96,760)">
+    <rect width="900" height="48" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)" stroke-dasharray="4 4"/>
+    <text x="20" y="30" font-size="13" fill="rgba(11,19,32,0.55)">Reply to wave… (R)</text>
+    <rect x="820" y="10" width="64" height="28" rx="14" fill="rgba(34,211,238,0.18)"/>
+    <text x="852" y="28" text-anchor="middle" font-size="11" font-weight="600" fill="#0b1320">Reply</text>
+  </g>
+
+  <!-- Right rail: keyboard hint -->
+  <g transform="translate(1100,80)">
+    <rect width="320" height="780" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+    <text x="20" y="32" font-size="14" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Keyboard</text>
+
+    <g font-family="Geist, Inter, sans-serif" font-size="12">
+      <g transform="translate(20,56)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">j / ↓</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Move focus to next blip</text>
+      </g>
+      <g transform="translate(20,86)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">k / ↑</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Move focus to previous blip</text>
+      </g>
+      <g transform="translate(20,116)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">o / ↵</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Open / focus blip</text>
+      </g>
+      <g transform="translate(20,146)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">r</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Reply to focused blip</text>
+      </g>
+      <g transform="translate(20,176)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">e</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Edit</text>
+      </g>
+      <g transform="translate(20,206)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">t</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Toggle task</text>
+      </g>
+      <g transform="translate(20,236)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">c</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Collapse / expand thread</text>
+      </g>
+      <g transform="translate(20,266)">
+        <rect width="44" height="22" rx="6" fill="#0b1320"/>
+        <text x="22" y="16" text-anchor="middle" fill="#ffffff" font-weight="600">u</text>
+        <text x="56" y="16" fill="rgba(11,19,32,0.62)">Mark read / unread</text>
+      </g>
+    </g>
+
+    <line x1="20" y1="316" x2="300" y2="316" stroke="rgba(11,19,32,0.10)"/>
+    <text x="20" y="344" font-size="14" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Wave info</text>
+    <g font-size="12" font-family="Geist, Inter, sans-serif">
+      <text x="20" y="370" fill="rgba(11,19,32,0.55)">CREATED</text>
+      <text x="20" y="386" fill="rgba(11,19,32,0.92)">Apr 26 · 14:22</text>
+      <text x="20" y="412" fill="rgba(11,19,32,0.55)">PARTICIPANTS</text>
+      <text x="20" y="428" fill="rgba(11,19,32,0.92)">Anton, Sasha, Marina, Dan, Yuri</text>
+      <text x="20" y="454" fill="rgba(11,19,32,0.55)">TAGS</text>
+      <g transform="translate(20,464)">
+        <rect width="46" height="22" rx="11" fill="rgba(124,58,237,0.22)"/>
+        <text x="23" y="16" text-anchor="middle" font-weight="600" fill="#3a1280">robots</text>
+        <rect x="54" y="0" width="62" height="22" rx="11" fill="rgba(251,146,60,0.22)"/>
+        <text x="85" y="16" text-anchor="middle" font-weight="600" fill="#7a3a06">streaming</text>
+      </g>
+      <text x="20" y="514" fill="rgba(11,19,32,0.55)">TASKS</text>
+      <text x="20" y="530" fill="rgba(11,19,32,0.92)">1 active · 0 done</text>
+      <text x="20" y="556" fill="rgba(11,19,32,0.55)">REACTIONS</text>
+      <text x="20" y="572" fill="rgba(11,19,32,0.92)">👀 3 · 🚀 1</text>
+    </g>
+
+    <line x1="20" y1="600" x2="300" y2="600" stroke="rgba(11,19,32,0.10)"/>
+    <text x="20" y="628" font-size="14" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Live activity</text>
+    <text x="20" y="652" font-size="12" fill="rgba(11,19,32,0.62)" font-family="Geist, Inter, sans-serif">Dan is typing…</text>
+    <circle cx="40" cy="676" r="3" fill="#22d3ee">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="900ms" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="50" cy="676" r="3" fill="#22d3ee">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="900ms" begin="200ms" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="60" cy="676" r="3" fill="#22d3ee">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="900ms" begin="400ms" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <text x="20" y="884" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">J-UI-4 · matrix R-3.1, R-3.2, R-3.3, R-3.6 · components: shell-main-region, wave-blip, wavy-focus-frame, wave-blip-toolbar, wavy-thread-collapse · light theme</text>
+</svg>

@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">J-UI-3 — New Wave create flow (dialog over shell)</title>
+  <desc id="desc">Modal dialog overlaying the desktop shell. Title field, participants chooser with invited and suggested chips, body composer with format toolbar, attachment row, and Send/Cancel actions. Behind the dim layer the inbox shows a pulse-ring on the just-created wave appearing at the top of the rail.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f7fb"/>
+      <stop offset="100%" stop-color="#eef1f7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b1320" flood-opacity="0.06"/>
+    </filter>
+    <filter id="modal-shadow" x="-10%" y="-20%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="30" flood-color="#0b1320" flood-opacity="0.20"/>
+    </filter>
+    <symbol id="supawave-mark" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+    </symbol>
+  </defs>
+
+  <rect width="1440" height="900" fill="url(#bg)"/>
+
+  <!-- ============ DIMMED SHELL BEHIND ============ -->
+  <g opacity="0.45">
+    <rect x="0" y="0" width="1440" height="56" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <use href="#supawave-mark" x="20" y="10" width="36" height="36"/>
+    <text x="64" y="34" font-size="18" font-weight="700" fill="#0b1320">SupaWave</text>
+    <rect x="280" y="56" width="1160" height="844" fill="#fafbfd"/>
+    <rect x="0" y="56" width="280" height="844" fill="#ffffff"/>
+
+    <!-- Inbox card preview -->
+    <text x="20" y="84" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" letter-spacing="0.08em">SAVED SEARCHES</text>
+    <rect x="12" y="96" width="256" height="36" rx="12" fill="rgba(34,211,238,0.18)"/>
+    <text x="32" y="119" font-size="13" font-weight="600" fill="#0b1320">Inbox</text>
+    <text x="32" y="158" font-size="13" fill="#0b1320">Mentions</text>
+    <text x="32" y="194" font-size="13" fill="#0b1320">Tasks</text>
+
+    <!-- placeholder cards -->
+    <rect x="296" y="100" width="416" height="80" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <rect x="296" y="196" width="416" height="80" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Wave panel placeholder -->
+    <rect x="744" y="100" width="676" height="200" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+  </g>
+
+  <!-- Pulse ring on top inbox slot — the just-created wave will land here -->
+  <g transform="translate(296,100)">
+    <rect width="416" height="80" rx="12" fill="#ffffff" stroke="#22d3ee" stroke-width="2" opacity="0.85"/>
+    <rect width="416" height="80" rx="12" fill="none" stroke="#22d3ee" stroke-width="2" opacity="0.45">
+      <animate attributeName="stroke-width" values="2;6;2" dur="900ms" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.45;0;0.45" dur="900ms" repeatCount="indefinite"/>
+    </rect>
+    <text x="20" y="28" font-size="11" font-weight="600" fill="#0b1320" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">JUST CREATED · LANDING IN INBOX</text>
+    <text x="20" y="50" font-size="13" font-weight="700" fill="#0b1320" opacity="0.65">F-3 follow-up: streaming retry telemetry</text>
+    <text x="20" y="68" font-size="11" fill="rgba(11,19,32,0.55)" opacity="0.65">(rendering after server confirms)</text>
+  </g>
+
+  <rect x="0" y="0" width="1440" height="900" fill="rgba(11,19,32,0.40)"/>
+
+  <!-- ============ MODAL ============ -->
+  <g transform="translate(280,80)">
+    <rect width="880" height="740" rx="20" fill="#ffffff" filter="url(#modal-shadow)"/>
+
+    <!-- Modal header -->
+    <g transform="translate(32,28)">
+      <text x="0" y="14" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">NEW WAVE</text>
+      <text x="0" y="44" font-size="22" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Start a new wave</text>
+      <text x="0" y="66" font-size="13" fill="rgba(11,19,32,0.62)">Title and body submit a write through the J2CL conversation model. Esc cancels.</text>
+    </g>
+
+    <!-- close X -->
+    <g transform="translate(820,28)">
+      <rect width="32" height="32" rx="8" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+      <line x1="11" y1="11" x2="21" y2="21" stroke="#0b1320" stroke-width="1.5"/>
+      <line x1="21" y1="11" x2="11" y2="21" stroke="#0b1320" stroke-width="1.5"/>
+    </g>
+
+    <line x1="32" y1="116" x2="848" y2="116" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Title field -->
+    <g transform="translate(32,140)">
+      <text x="0" y="14" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">TITLE</text>
+      <rect width="816" height="48" rx="12" y="22" fill="#fafbfd" stroke="#22d3ee" stroke-width="2"/>
+      <text x="20" y="52" font-size="16" font-weight="600" fill="#0b1320">F-3 follow-up: streaming retry telemetry</text>
+      <line x1="424" y1="40" x2="424" y2="60" stroke="#22d3ee" stroke-width="2">
+        <animate attributeName="opacity" values="1;0;1" dur="900ms" repeatCount="indefinite"/>
+      </line>
+      <text x="816" y="84" text-anchor="end" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 / 120</text>
+    </g>
+
+    <!-- Participants -->
+    <g transform="translate(32,256)">
+      <text x="0" y="14" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">PARTICIPANTS</text>
+      <rect width="816" height="48" rx="12" y="22" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+
+      <!-- existing chips -->
+      <g transform="translate(12,32)">
+        <rect width="92" height="28" rx="14" fill="rgba(124,58,237,0.22)"/>
+        <circle cx="14" cy="14" r="10" fill="#7c3aed"/>
+        <text x="14" y="18" text-anchor="middle" font-size="9" font-weight="700" fill="#ffffff">YZ</text>
+        <text x="30" y="18" font-size="12" font-weight="600" fill="#3a1280">@yuri</text>
+        <line x1="78" y1="10" x2="84" y2="18" stroke="#3a1280" stroke-width="1.5"/>
+        <line x1="84" y1="10" x2="78" y2="18" stroke="#3a1280" stroke-width="1.5"/>
+      </g>
+      <g transform="translate(112,32)">
+        <rect width="100" height="28" rx="14" fill="rgba(34,211,238,0.18)"/>
+        <circle cx="14" cy="14" r="10" fill="#22d3ee"/>
+        <text x="14" y="18" text-anchor="middle" font-size="9" font-weight="700" fill="#0b1320">SK</text>
+        <text x="30" y="18" font-size="12" font-weight="600" fill="#0b1320">@sasha</text>
+        <line x1="86" y1="10" x2="92" y2="18" stroke="#0b1320" stroke-width="1.5"/>
+        <line x1="92" y1="10" x2="86" y2="18" stroke="#0b1320" stroke-width="1.5"/>
+      </g>
+      <g transform="translate(220,32)">
+        <rect width="106" height="28" rx="14" fill="rgba(251,146,60,0.22)"/>
+        <circle cx="14" cy="14" r="10" fill="#fb923c"/>
+        <text x="14" y="18" text-anchor="middle" font-size="9" font-weight="700" fill="#0b1320">MR</text>
+        <text x="30" y="18" font-size="12" font-weight="600" fill="#7a3a06">@marina</text>
+        <line x1="92" y1="10" x2="98" y2="18" stroke="#7a3a06" stroke-width="1.5"/>
+        <line x1="98" y1="10" x2="92" y2="18" stroke="#7a3a06" stroke-width="1.5"/>
+      </g>
+      <text x="344" y="50" font-size="13" fill="rgba(11,19,32,0.55)">Add a person… (type @ to search)</text>
+
+      <!-- Suggested -->
+      <text x="0" y="94" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Suggested:</text>
+      <rect x="80" y="80" width="74" height="20" rx="10" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="117" y="94" text-anchor="middle" font-size="11" fill="#0b1320">+ @dan</text>
+      <rect x="160" y="80" width="86" height="20" rx="10" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="203" y="94" text-anchor="middle" font-size="11" fill="#0b1320">+ @anton</text>
+      <rect x="252" y="80" width="80" height="20" rx="10" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="292" y="94" text-anchor="middle" font-size="11" fill="#0b1320">+ #robots</text>
+    </g>
+
+    <!-- Body composer -->
+    <g transform="translate(32,388)">
+      <text x="0" y="14" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">BODY</text>
+
+      <!-- mini format toolbar -->
+      <g transform="translate(0,22)">
+        <rect width="816" height="36" rx="10" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+        <text x="14" y="24" font-size="13" font-weight="900" fill="#0b1320">B</text>
+        <text x="36" y="24" font-size="13" font-weight="700" font-style="italic" fill="#0b1320">I</text>
+        <text x="58" y="24" font-size="13" fill="#0b1320" text-decoration="underline">U</text>
+        <line x1="80" y1="8" x2="80" y2="28" stroke="rgba(11,19,32,0.10)"/>
+        <text x="100" y="24" font-size="12" font-weight="700" fill="#0b1320">H1</text>
+        <text x="130" y="24" font-size="12" font-weight="700" fill="#0b1320">H2</text>
+        <line x1="156" y1="8" x2="156" y2="28" stroke="rgba(11,19,32,0.10)"/>
+        <text x="180" y="24" font-size="12" fill="#0b1320">• List</text>
+        <text x="226" y="24" font-size="12" fill="#0b1320">1. List</text>
+        <line x1="278" y1="8" x2="278" y2="28" stroke="rgba(11,19,32,0.10)"/>
+        <text x="298" y="24" font-size="12" fill="#0b1320">🔗 Link</text>
+        <text x="354" y="24" font-size="12" font-family="monospace" fill="#0b1320">{ } Code</text>
+        <line x1="424" y1="8" x2="424" y2="28" stroke="rgba(11,19,32,0.10)"/>
+        <text x="444" y="24" font-size="12" fill="#0b1320">📎 Attach</text>
+        <text x="510" y="24" font-size="12" fill="#0b1320">@ Mention</text>
+        <text x="586" y="24" font-size="12" fill="#0b1320">#️ Tag</text>
+        <text x="804" y="24" text-anchor="end" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Markdown</text>
+      </g>
+
+      <!-- Body input -->
+      <rect width="816" height="180" rx="12" y="68" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+
+      <text x="20" y="96" font-size="14" font-weight="700" fill="#0b1320">## Context</text>
+      <text x="20" y="118" font-size="14" fill="rgba(11,19,32,0.92)">After F-3 we still see duplicate retries against streaming endpoints. We need a</text>
+      <text x="20" y="136" font-size="14" fill="rgba(11,19,32,0.92)">visible per-request counter wired to the Grafana dashboard.</text>
+      <text x="20" y="160" font-size="14" font-weight="700" fill="#0b1320">## Asks</text>
+      <text x="36" y="180" font-size="14" fill="rgba(11,19,32,0.92)">• @sasha — patch outer fetch retry pin</text>
+      <text x="36" y="198" font-size="14" fill="rgba(11,19,32,0.92)">• @marina — confirm telemetry shape</text>
+      <text x="36" y="216" font-size="14" fill="rgba(11,19,32,0.92)">• @dan — wire to /grafana/api-latency board</text>
+      <line x1="278" y1="208" x2="278" y2="228" stroke="#22d3ee" stroke-width="2">
+        <animate attributeName="opacity" values="1;0;1" dur="900ms" repeatCount="indefinite"/>
+      </line>
+    </g>
+
+    <!-- Attachment row -->
+    <g transform="translate(32,654)">
+      <rect width="240" height="44" rx="10" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+      <rect x="6" y="6" width="32" height="32" rx="6" fill="rgba(34,211,238,0.18)"/>
+      <text x="22" y="26" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">PNG</text>
+      <text x="46" y="22" font-size="12" font-weight="600" fill="#0b1320">retry-doubling-prod-2.png</text>
+      <text x="46" y="38" font-size="10" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">240KB · pasted</text>
+    </g>
+
+    <!-- Footer -->
+    <line x1="32" y1="708" x2="848" y2="708" stroke="rgba(11,19,32,0.10)"/>
+    <g transform="translate(32,720)">
+      <text x="0" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Posts to Inbox · ⌘↵ to send</text>
+
+      <rect x="624" y="0" width="80" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="664" y="20" text-anchor="middle" font-size="13" fill="#0b1320">Cancel</text>
+      <rect x="712" y="0" width="104" height="32" rx="16" fill="#22d3ee"/>
+      <text x="764" y="20" text-anchor="middle" font-size="13" font-weight="700" fill="#0b1320">Create wave</text>
+    </g>
+  </g>
+
+  <text x="40" y="876" font-size="11" fill="rgba(255,255,255,0.85)" font-family="Geist, Inter, sans-serif">J-UI-3 · matrix R-5.1 · components: composer-shell, wavy-composer, wavy-format-toolbar, compose-attachment-card, mention-suggestion-popover · light theme · modal over shell</text>
+</svg>

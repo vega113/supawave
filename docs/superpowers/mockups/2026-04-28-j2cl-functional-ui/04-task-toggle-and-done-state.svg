@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">J-UI-6 — Per-blip task toggle: idle, active, done states</title>
+  <desc id="desc">Three side-by-side close-ups of the same blip. Left: idle — task affordance visible but not toggled. Center: task active — amber chip and metadata badge appear, due date popover anchored to the affordance. Right: done — strikethrough text, checkmark, completion timestamp, persists on reload.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f7fb"/>
+      <stop offset="100%" stop-color="#eef1f7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b1320" flood-opacity="0.06"/>
+    </filter>
+    <symbol id="supawave-mark" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+    </symbol>
+  </defs>
+
+  <rect width="1200" height="760" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1200" height="56" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+  <use href="#supawave-mark" x="20" y="10" width="36" height="36"/>
+  <text x="64" y="34" font-size="18" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">SupaWave</text>
+  <text x="186" y="34" font-size="13" fill="rgba(11,19,32,0.62)">Task toggle states · close-up</text>
+
+  <!-- Title -->
+  <text x="40" y="100" font-size="22" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Per-blip task toggle &amp; done state</text>
+  <text x="40" y="124" font-size="13" fill="rgba(11,19,32,0.62)">wavy-task-affordance + task-metadata-popover · DocOp-backed · persists across reload</text>
+
+  <!-- ============ STATE 1: IDLE ============ -->
+  <g transform="translate(40,164)">
+    <text x="0" y="0" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">1 · IDLE</text>
+    <rect x="0" y="16" width="360" height="180" rx="14" fill="#ffffff" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+
+    <!-- avatar + author -->
+    <circle cx="28" cy="48" r="16" fill="#fb923c"/>
+    <text x="28" y="53" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">MR</text>
+    <text x="56" y="44" font-size="13" font-weight="700" fill="#0b1320">Marina R.</text>
+    <text x="120" y="44" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 min ago</text>
+
+    <text x="56" y="64" font-size="13" fill="rgba(11,19,32,0.92)">Pin outer fetch retry to 1 and gate</text>
+    <text x="56" y="80" font-size="13" fill="rgba(11,19,32,0.92)">behind robotStreamingRetryV2.</text>
+
+    <!-- per-blip toolbar -->
+    <g transform="translate(56,108)">
+      <rect width="280" height="26" rx="13" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+      <text x="14" y="17" font-size="11" font-weight="600" fill="#0b1320">↩ Reply</text>
+      <text x="68" y="17" font-size="11" fill="#0b1320">✎ Edit</text>
+      <text x="118" y="17" font-size="11" fill="#0b1320">🔗 Link</text>
+      <line x1="166" y1="6" x2="166" y2="20" stroke="rgba(11,19,32,0.10)"/>
+      <!-- task affordance (idle) -->
+      <rect x="178" y="4" width="84" height="18" rx="9" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <circle cx="190" cy="13" r="5" fill="none" stroke="rgba(11,19,32,0.55)" stroke-width="1.5"/>
+      <text x="200" y="17" font-size="11" font-weight="600" fill="rgba(11,19,32,0.62)">Mark task</text>
+    </g>
+
+    <text x="0" y="160" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Click the empty circle, or press</text>
+    <rect x="208" y="148" width="20" height="16" rx="4" fill="#0b1320"/>
+    <text x="218" y="160" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">t</text>
+    <text x="232" y="160" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">on focus.</text>
+  </g>
+
+  <!-- arrow -->
+  <g stroke="#22d3ee" stroke-width="2" fill="none">
+    <line x1="412" y1="270" x2="438" y2="270"/>
+    <polygon points="436,266 446,270 436,274" fill="#22d3ee" stroke="none"/>
+  </g>
+
+  <!-- ============ STATE 2: ACTIVE TASK ============ -->
+  <g transform="translate(456,164)">
+    <text x="0" y="0" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">2 · TASK ACTIVE</text>
+    <rect x="0" y="16" width="360" height="220" rx="14" fill="#ffffff" stroke="#fb923c" stroke-width="2" filter="url(#card-shadow)"/>
+
+    <!-- amber rail -->
+    <rect x="0" y="16" width="3" height="220" rx="2" fill="#fb923c"/>
+
+    <!-- avatar + author -->
+    <circle cx="28" cy="48" r="16" fill="#fb923c"/>
+    <text x="28" y="53" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">MR</text>
+    <text x="56" y="44" font-size="13" font-weight="700" fill="#0b1320">Marina R.</text>
+    <text x="120" y="44" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 min ago</text>
+
+    <!-- task header chip -->
+    <rect x="220" y="32" width="120" height="22" rx="11" fill="rgba(251,146,60,0.22)"/>
+    <text x="232" y="47" font-size="11" font-weight="700" fill="#7a3a06">⚑ TASK · DUE FRI</text>
+
+    <text x="56" y="68" font-size="13" fill="rgba(11,19,32,0.92)">Pin outer fetch retry to 1 and gate</text>
+    <text x="56" y="84" font-size="13" fill="rgba(11,19,32,0.92)">behind robotStreamingRetryV2.</text>
+
+    <!-- task metadata row -->
+    <g transform="translate(56,100)">
+      <rect width="66" height="20" rx="10" fill="rgba(251,146,60,0.22)"/>
+      <text x="33" y="14" text-anchor="middle" font-size="10" font-weight="700" fill="#7a3a06">@sasha</text>
+      <rect x="74" y="0" width="92" height="20" rx="10" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+      <text x="120" y="14" text-anchor="middle" font-size="10" fill="#0b1320">📅 Fri Apr 30</text>
+      <rect x="174" y="0" width="62" height="20" rx="10" fill="rgba(124,58,237,0.22)"/>
+      <text x="205" y="14" text-anchor="middle" font-size="10" font-weight="600" fill="#3a1280">P1</text>
+    </g>
+
+    <!-- per-blip toolbar with task active -->
+    <g transform="translate(56,140)">
+      <rect width="280" height="26" rx="13" fill="rgba(251,146,60,0.22)"/>
+      <text x="14" y="17" font-size="11" font-weight="600" fill="#7a3a06">↩ Reply</text>
+      <text x="68" y="17" font-size="11" fill="#7a3a06">✎ Edit</text>
+      <text x="118" y="17" font-size="11" fill="#7a3a06">🔗 Link</text>
+      <line x1="166" y1="6" x2="166" y2="20" stroke="rgba(122,58,6,0.25)"/>
+      <!-- task affordance (active) -->
+      <rect x="178" y="4" width="84" height="18" rx="9" fill="#fb923c"/>
+      <circle cx="190" cy="13" r="5" fill="#0b1320"/>
+      <text x="200" y="17" font-size="11" font-weight="700" fill="#0b1320">Done?</text>
+    </g>
+
+    <!-- popover hint (task-metadata-popover) -->
+    <g transform="translate(178,180)">
+      <rect width="158" height="42" rx="10" fill="#0b1320"/>
+      <polygon points="74,0 80,-6 86,0" fill="#0b1320"/>
+      <text x="12" y="18" font-size="11" font-weight="600" fill="#ffffff" font-family="Geist, Inter, sans-serif">Edit task metadata</text>
+      <text x="12" y="32" font-size="10" fill="rgba(255,255,255,0.62)" font-family="Geist, Inter, sans-serif">assignee · due · priority</text>
+    </g>
+  </g>
+
+  <!-- arrow -->
+  <g stroke="#22d3ee" stroke-width="2" fill="none">
+    <line x1="828" y1="270" x2="854" y2="270"/>
+    <polygon points="852,266 862,270 852,274" fill="#22d3ee" stroke="none"/>
+  </g>
+
+  <!-- ============ STATE 3: DONE ============ -->
+  <g transform="translate(872,164)">
+    <text x="0" y="0" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">3 · DONE · PERSISTS ACROSS RELOAD</text>
+    <rect x="0" y="16" width="288" height="200" rx="14" fill="#fafbfd" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+
+    <!-- green-ish completed rail -->
+    <rect x="0" y="16" width="3" height="200" rx="2" fill="#22d3ee"/>
+
+    <circle cx="28" cy="48" r="16" fill="#fb923c" opacity="0.65"/>
+    <text x="28" y="53" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320" opacity="0.65">MR</text>
+    <text x="56" y="44" font-size="13" font-weight="700" fill="rgba(11,19,32,0.62)">Marina R.</text>
+    <text x="120" y="44" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 min ago</text>
+
+    <!-- DONE chip -->
+    <rect x="200" y="32" width="76" height="22" rx="11" fill="#22d3ee"/>
+    <text x="212" y="47" font-size="11" font-weight="700" fill="#0b1320">✓ DONE</text>
+
+    <!-- strikethrough body -->
+    <text x="56" y="68" font-size="13" fill="rgba(11,19,32,0.55)" text-decoration="line-through">Pin outer fetch retry to 1 and gate</text>
+    <text x="56" y="84" font-size="13" fill="rgba(11,19,32,0.55)" text-decoration="line-through">behind robotStreamingRetryV2.</text>
+
+    <!-- completion meta -->
+    <g transform="translate(56,100)">
+      <text x="0" y="12" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Completed by</text>
+      <rect x="74" y="0" width="60" height="18" rx="9" fill="rgba(124,58,237,0.22)"/>
+      <text x="104" y="13" text-anchor="middle" font-size="10" font-weight="600" fill="#3a1280">@sasha</text>
+      <text x="138" y="12" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 8 min ago</text>
+    </g>
+
+    <!-- per-blip toolbar with undo -->
+    <g transform="translate(56,140)">
+      <rect width="216" height="26" rx="13" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+      <text x="14" y="17" font-size="11" fill="rgba(11,19,32,0.62)">↩ Reply</text>
+      <text x="68" y="17" font-size="11" fill="rgba(11,19,32,0.62)">🔗 Link</text>
+      <line x1="116" y1="6" x2="116" y2="20" stroke="rgba(11,19,32,0.10)"/>
+      <rect x="128" y="4" width="80" height="18" rx="9" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <circle cx="140" cy="13" r="5" fill="#22d3ee"/>
+      <path d="M137 13 l2 2 l4 -4" stroke="#0b1320" stroke-width="1.5" fill="none"/>
+      <text x="151" y="17" font-size="11" font-weight="600" fill="#0b1320">Reopen</text>
+    </g>
+  </g>
+
+  <!-- ============ STATE TRANSITIONS LEDGER (DocOp wire) ============ -->
+  <g transform="translate(40,408)">
+    <rect width="1120" height="320" rx="14" fill="#ffffff" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+    <text x="20" y="32" font-size="14" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Wire-level state transitions</text>
+    <text x="20" y="50" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Task toggle is wired to the task DocOp on the wavelet — done state survives reload because it is a document annotation, not a UI flag.</text>
+
+    <g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11">
+      <!-- Idle -->
+      <text x="20" y="92" fill="rgba(11,19,32,0.55)">Idle</text>
+      <text x="20" y="110" fill="#0b1320">{ blipId: 'b9d4', task: null }</text>
+
+      <line x1="280" y1="100" x2="312" y2="100" stroke="#22d3ee" stroke-width="2"/>
+      <polygon points="310,96 320,100 310,104" fill="#22d3ee"/>
+      <text x="280" y="84" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">click ✓ Task</text>
+
+      <!-- Active -->
+      <text x="332" y="92" fill="rgba(11,19,32,0.55)">Active</text>
+      <text x="332" y="110" fill="#0b1320">{ blipId: 'b9d4',</text>
+      <text x="332" y="126" fill="#0b1320">  task: {</text>
+      <text x="332" y="142" fill="#0b1320">    state: 'open',</text>
+      <text x="332" y="158" fill="#0b1320">    assignee: 'sasha',</text>
+      <text x="332" y="174" fill="#0b1320">    due: '2026-04-30',</text>
+      <text x="332" y="190" fill="#0b1320">    priority: 'P1' } }</text>
+
+      <line x1="612" y1="100" x2="644" y2="100" stroke="#22d3ee" stroke-width="2"/>
+      <polygon points="642,96 652,100 642,104" fill="#22d3ee"/>
+      <text x="612" y="84" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">click Done?</text>
+
+      <!-- Done -->
+      <text x="664" y="92" fill="rgba(11,19,32,0.55)">Done</text>
+      <text x="664" y="110" fill="#0b1320">{ blipId: 'b9d4',</text>
+      <text x="664" y="126" fill="#0b1320">  task: {</text>
+      <text x="664" y="142" fill="#0b1320">    state: 'done',</text>
+      <text x="664" y="158" fill="#0b1320">    completedBy: 'sasha',</text>
+      <text x="664" y="174" fill="#0b1320">    completedAt:</text>
+      <text x="664" y="190" fill="#0b1320">      '2026-04-28T10:42Z' } }</text>
+    </g>
+
+    <line x1="20" y1="220" x2="1100" y2="220" stroke="rgba(11,19,32,0.10)"/>
+
+    <text x="20" y="248" font-size="12" font-weight="700" fill="#0b1320">Acceptance · matrix R-5.4</text>
+    <g font-family="Geist, Inter, sans-serif" font-size="12" fill="rgba(11,19,32,0.92)">
+      <text x="20" y="270">• Task toggle round-trips through the wavelet's task DocOp (not a transient client flag).</text>
+      <text x="20" y="290">• Done state renders strikethrough body + checkmark chip + completion meta.</text>
+      <text x="20" y="310">• State persists across reload, restart, and remote-client updates (live decrement of Tasks folder count).</text>
+    </g>
+  </g>
+
+  <text x="40" y="746" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">J-UI-6 · matrix R-5.4 · components: wavy-task-affordance, task-metadata-popover, wave-blip, wave-blip-toolbar · light theme</text>
+</svg>

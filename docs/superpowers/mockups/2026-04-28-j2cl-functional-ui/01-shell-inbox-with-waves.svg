@@ -1,0 +1,310 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">J-UI-1 / J-UI-2 — Desktop shell with rendered Inbox digest cards</title>
+  <desc id="desc">SupaWave J2CL desktop shell. Header with logo and search. Saved-search rail (Inbox/Mentions/Tasks/Public/Archive/Pinned), filter chip strip, six rendered wavy-search-rail-card digests with avatar stack, title, snippet, msg count, unread badge, relative timestamp. Center wave-region shows the selected wave header with action toolbar and a placeholder reading frame.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f7fb"/>
+      <stop offset="100%" stop-color="#eef1f7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b1320" flood-opacity="0.06"/>
+    </filter>
+    <symbol id="supawave-mark" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+    </symbol>
+    <symbol id="avatar-cyan" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="16" fill="#22d3ee"/>
+    </symbol>
+    <symbol id="avatar-violet" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="16" fill="#7c3aed"/>
+    </symbol>
+    <symbol id="avatar-amber" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="16" fill="#fb923c"/>
+    </symbol>
+    <symbol id="avatar-slate" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="16" fill="#475569"/>
+    </symbol>
+  </defs>
+
+  <rect width="1440" height="900" fill="url(#bg)"/>
+
+  <!-- ============ HEADER (shell-header) ============ -->
+  <g>
+    <rect x="0" y="0" width="1440" height="64" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <use href="#supawave-mark" x="20" y="14" width="36" height="36"/>
+    <text x="64" y="40" font-size="20" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">SupaWave</text>
+    <text x="64" y="54" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">J2CL · /?view=j2cl-root</text>
+
+    <!-- Global search -->
+    <rect x="420" y="16" width="600" height="32" rx="16" fill="#f6f7fb" stroke="rgba(11,19,32,0.10)"/>
+    <circle cx="440" cy="32" r="6" fill="none" stroke="rgba(11,19,32,0.55)" stroke-width="1.5"/>
+    <line x1="445" y1="37" x2="450" y2="42" stroke="rgba(11,19,32,0.55)" stroke-width="1.5"/>
+    <text x="460" y="36" font-size="13" fill="rgba(11,19,32,0.55)">Search waves, blips, tags…</text>
+    <text x="990" y="35" font-size="11" font-family="Geist, Inter, sans-serif" fill="rgba(11,19,32,0.55)">⌘K</text>
+
+    <!-- Right cluster -->
+    <rect x="1248" y="16" width="84" height="32" rx="16" fill="#22d3ee" />
+    <text x="1290" y="36" text-anchor="middle" font-size="13" font-weight="600" fill="#0b1320">+ New Wave</text>
+    <use href="#avatar-violet" x="1352" y="16" width="32" height="32"/>
+    <text x="1368" y="37" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">YZ</text>
+  </g>
+
+  <!-- ============ NAV RAIL (shell-nav-rail / wavy-search-rail) ============ -->
+  <g transform="translate(0,64)">
+    <rect x="0" y="0" width="296" height="836" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Saved-search folder list -->
+    <text x="20" y="32" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">SAVED SEARCHES</text>
+
+    <!-- Inbox (active) -->
+    <rect x="12" y="44" width="272" height="40" rx="12" fill="rgba(34,211,238,0.18)"/>
+    <rect x="12" y="44" width="3" height="40" rx="2" fill="#22d3ee"/>
+    <text x="32" y="69" font-size="14" font-weight="600" fill="#0b1320">Inbox</text>
+    <rect x="232" y="56" width="40" height="20" rx="10" fill="#22d3ee"/>
+    <text x="252" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">12</text>
+
+    <!-- Mentions -->
+    <text x="32" y="113" font-size="14" fill="#0b1320">Mentions</text>
+    <circle cx="262" cy="108" r="5" fill="#7c3aed"/>
+
+    <!-- Tasks -->
+    <text x="32" y="153" font-size="14" fill="#0b1320">Tasks</text>
+    <rect x="240" y="140" width="32" height="18" rx="9" fill="rgba(251,146,60,0.22)"/>
+    <text x="256" y="153" text-anchor="middle" font-size="11" font-weight="600" fill="#7a3a06">5</text>
+
+    <!-- Public -->
+    <text x="32" y="193" font-size="14" fill="#0b1320">Public</text>
+
+    <!-- Archive -->
+    <text x="32" y="233" font-size="14" fill="#0b1320">Archive</text>
+
+    <!-- Pinned -->
+    <text x="32" y="273" font-size="14" fill="#0b1320">Pinned</text>
+
+    <!-- Manage saved searches -->
+    <text x="32" y="306" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">+ Manage saved searches</text>
+
+    <!-- Filter chips strip -->
+    <line x1="20" y1="332" x2="276" y2="332" stroke="rgba(11,19,32,0.10)"/>
+    <text x="20" y="356" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">FILTERS</text>
+
+    <!-- chip: Unread only (active) -->
+    <rect x="20" y="370" width="92" height="26" rx="13" fill="#0b1320"/>
+    <text x="66" y="387" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">Unread only</text>
+    <!-- chip: Attachments -->
+    <rect x="118" y="370" width="106" height="26" rx="13" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <text x="171" y="387" text-anchor="middle" font-size="11" fill="#0b1320">Attachments</text>
+    <!-- chip: From me -->
+    <rect x="20" y="404" width="78" height="26" rx="13" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <text x="59" y="421" text-anchor="middle" font-size="11" fill="#0b1320">From me</text>
+    <!-- chip: With @ -->
+    <rect x="104" y="404" width="74" height="26" rx="13" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <text x="141" y="421" text-anchor="middle" font-size="11" fill="#0b1320">With @</text>
+    <!-- chip: Has task -->
+    <rect x="184" y="404" width="84" height="26" rx="13" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+    <text x="226" y="421" text-anchor="middle" font-size="11" fill="#0b1320">Has task</text>
+
+    <line x1="20" y1="450" x2="276" y2="450" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Status text -->
+    <text x="20" y="476" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Showing 12 unread waves in Inbox</text>
+  </g>
+
+  <!-- ============ SEARCH RESULT PANEL (rendered digest cards) ============ -->
+  <g transform="translate(296,64)">
+    <rect x="0" y="0" width="448" height="836" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+    <text x="24" y="36" font-size="16" font-weight="600" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Inbox</text>
+    <text x="24" y="54" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">in:inbox unread:true · 12 waves</text>
+
+    <!-- Card 1 (selected, has unread badge + pulse ring) -->
+    <g transform="translate(16,76)">
+      <rect width="416" height="120" rx="12" fill="#ffffff" stroke="#22d3ee" stroke-width="2" filter="url(#card-shadow)"/>
+      <!-- avatar stack: 3 + overflow -->
+      <g transform="translate(16,16)">
+        <use href="#avatar-cyan" x="0" y="0" width="28" height="28"/>
+        <text x="14" y="19" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">AT</text>
+        <use href="#avatar-violet" x="20" y="0" width="28" height="28"/>
+        <text x="34" y="19" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">SK</text>
+        <use href="#avatar-amber" x="40" y="0" width="28" height="28"/>
+        <text x="54" y="19" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">MR</text>
+        <circle cx="74" cy="14" r="14" fill="rgba(11,19,32,0.10)"/>
+        <text x="74" y="18" text-anchor="middle" font-size="10" font-weight="600" fill="#0b1320">+2</text>
+      </g>
+      <text x="124" y="32" font-size="14" font-weight="700" fill="#0b1320">Robot streaming follow-up — 4xx retries</text>
+      <text x="124" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Sasha: I bumped the retry budget but we still see backoff after</text>
+      <text x="124" y="68" font-size="12" fill="rgba(11,19,32,0.62)">five consecutive 502s on the streaming endpoint. Anyone seeing</text>
+      <text x="124" y="84" font-size="12" fill="rgba(11,19,32,0.62)">this on prod-2 today?</text>
+      <!-- meta row -->
+      <g transform="translate(124,96)">
+        <rect width="44" height="20" rx="10" fill="rgba(34,211,238,0.18)"/>
+        <text x="22" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">3 new</text>
+        <text x="56" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 18 blips</text>
+        <text x="280" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 min ago</text>
+      </g>
+      <rect x="396" y="12" width="12" height="12" rx="6" fill="#22d3ee">
+        <animate attributeName="r" values="6;7;6" dur="600ms" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <!-- Card 2 -->
+    <g transform="translate(16,212)">
+      <rect width="416" height="100" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+      <use href="#avatar-violet" x="16" y="16" width="28" height="28"/>
+      <text x="30" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">YZ</text>
+      <use href="#avatar-slate" x="36" y="16" width="28" height="28"/>
+      <text x="50" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">DK</text>
+      <text x="124" y="32" font-size="14" font-weight="700" fill="#0b1320">Lucene startup reuse — design review</text>
+      <text x="124" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Dan: design memo updated with the index-stamp invariant. Ready</text>
+      <text x="124" y="68" font-size="12" fill="rgba(11,19,32,0.62)">for a second pass when you have a window today.</text>
+      <g transform="translate(124,80)">
+        <rect width="44" height="20" rx="10" fill="rgba(34,211,238,0.18)"/>
+        <text x="22" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">1 new</text>
+        <text x="56" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 9 blips · @you</text>
+        <text x="280" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">14 min ago</text>
+      </g>
+    </g>
+
+    <!-- Card 3 -->
+    <g transform="translate(16,328)">
+      <rect width="416" height="100" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)" filter="url(#card-shadow)"/>
+      <use href="#avatar-amber" x="16" y="16" width="28" height="28"/>
+      <text x="30" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">MR</text>
+      <text x="60" y="32" font-size="14" font-weight="700" fill="#0b1320">Sprint 18 retro</text>
+      <text x="60" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Marina: tasks rolled forward. Two carryovers from F-3. Tagged</text>
+      <text x="60" y="68" font-size="12" fill="rgba(11,19,32,0.62)">Yuri and Sasha as owners — see the task list at the bottom.</text>
+      <g transform="translate(60,80)">
+        <rect width="44" height="20" rx="10" fill="rgba(251,146,60,0.22)"/>
+        <text x="22" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#7a3a06">2 task</text>
+        <text x="56" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 6 blips</text>
+        <text x="280" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">42 min ago</text>
+      </g>
+    </g>
+
+    <!-- Card 4 (read - dimmer, no badge) -->
+    <g transform="translate(16,444)" opacity="0.78">
+      <rect width="416" height="92" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <use href="#avatar-cyan" x="16" y="16" width="28" height="28"/>
+      <text x="30" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">AT</text>
+      <text x="60" y="32" font-size="14" font-weight="600" fill="#0b1320">Onboarding flow polish</text>
+      <text x="60" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Anton: pushed the welcome-wave copy. Final review tomorrow.</text>
+      <g transform="translate(60,68)">
+        <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">4 blips · all read</text>
+        <text x="340" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 hours ago</text>
+      </g>
+    </g>
+
+    <!-- Card 5 -->
+    <g transform="translate(16,552)">
+      <rect width="416" height="92" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <use href="#avatar-violet" x="16" y="16" width="28" height="28"/>
+      <text x="30" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">YZ</text>
+      <use href="#avatar-cyan" x="36" y="16" width="28" height="28"/>
+      <text x="50" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">PK</text>
+      <text x="124" y="32" font-size="14" font-weight="700" fill="#0b1320">J2CL parity matrix — gate review</text>
+      <text x="124" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Pavel: 4/26 gates green; we need J-UI-1..8 closed before a re-vote.</text>
+      <g transform="translate(124,68)">
+        <rect width="44" height="20" rx="10" fill="rgba(34,211,238,0.18)"/>
+        <text x="22" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">5 new</text>
+        <text x="56" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 22 blips · 2 tasks</text>
+        <text x="280" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">3 hours ago</text>
+      </g>
+    </g>
+
+    <!-- Card 6 -->
+    <g transform="translate(16,660)">
+      <rect width="416" height="92" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <use href="#avatar-slate" x="16" y="16" width="28" height="28"/>
+      <text x="30" y="35" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">DK</text>
+      <text x="60" y="32" font-size="14" font-weight="700" fill="#0b1320">Grafana perf dashboard — INP regression</text>
+      <text x="60" y="52" font-size="12" fill="rgba(11,19,32,0.62)">Dan: p75 INP up 18% on /?view=j2cl-root since Tuesday's deploy.</text>
+      <g transform="translate(60,68)">
+        <rect width="44" height="20" rx="10" fill="rgba(34,211,238,0.18)"/>
+        <text x="22" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#0b1320">2 new</text>
+        <text x="56" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">· 11 blips · @you</text>
+        <text x="280" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">5 hours ago</text>
+      </g>
+    </g>
+
+    <!-- Skeleton hint of more cards -->
+    <g transform="translate(16,768)" opacity="0.5">
+      <rect width="416" height="60" rx="12" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="208" y="36" text-anchor="middle" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">6 more waves below</text>
+    </g>
+  </g>
+
+  <!-- ============ WAVE PANEL (shell-main-region) ============ -->
+  <g transform="translate(744,64)">
+    <rect x="0" y="0" width="696" height="836" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Wave header -->
+    <g transform="translate(24,24)">
+      <text x="0" y="20" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">WAVE · 7c4a91 · UPDATED 2 MIN AGO</text>
+      <text x="0" y="50" font-size="22" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Robot streaming follow-up — 4xx retries</text>
+
+      <!-- Participants -->
+      <g transform="translate(0,68)">
+        <use href="#avatar-cyan" x="0" y="0" width="24" height="24"/>
+        <text x="12" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#0b1320">AT</text>
+        <use href="#avatar-violet" x="18" y="0" width="24" height="24"/>
+        <text x="30" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">SK</text>
+        <use href="#avatar-amber" x="36" y="0" width="24" height="24"/>
+        <text x="48" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#0b1320">MR</text>
+        <use href="#avatar-slate" x="54" y="0" width="24" height="24"/>
+        <text x="66" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">DK</text>
+        <use href="#avatar-violet" x="72" y="0" width="24" height="24"/>
+        <text x="84" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">YZ</text>
+        <text x="106" y="16" font-size="12" fill="rgba(11,19,32,0.62)">5 participants</text>
+      </g>
+
+      <!-- Toolbar -->
+      <g transform="translate(0,108)">
+        <rect width="92" height="32" rx="16" fill="#0b1320"/>
+        <text x="46" y="20" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">Reply</text>
+        <rect x="100" y="0" width="76" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+        <text x="138" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Pin</text>
+        <rect x="184" y="0" width="92" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+        <text x="230" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Archive</text>
+        <rect x="284" y="0" width="100" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+        <text x="334" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Mark read</text>
+        <rect x="392" y="0" width="60" height="32" rx="16" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+        <text x="422" y="20" text-anchor="middle" font-size="12" fill="#0b1320">Tags</text>
+      </g>
+    </g>
+
+    <line x1="24" y1="200" x2="672" y2="200" stroke="rgba(11,19,32,0.10)"/>
+
+    <!-- Reading-frame placeholder showing first blip preview, full thread on screen 02 -->
+    <g transform="translate(24,224)">
+      <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">THREADED READING · SCREEN 02 ZOOMS IN</text>
+
+      <!-- Root blip preview -->
+      <g transform="translate(0,32)">
+        <rect width="624" height="120" rx="12" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+        <use href="#avatar-cyan" x="16" y="16" width="32" height="32"/>
+        <text x="32" y="36" text-anchor="middle" font-size="12" font-weight="700" fill="#0b1320">AT</text>
+        <text x="60" y="32" font-size="13" font-weight="700" fill="#0b1320">Anton T.</text>
+        <text x="120" y="32" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 hours ago</text>
+        <text x="60" y="56" font-size="13" fill="rgba(11,19,32,0.92)">Sasha — what's the actual retry budget after the F-3 cleanup? I'm</text>
+        <text x="60" y="74" font-size="13" fill="rgba(11,19,32,0.92)">seeing logs that look like we're doubling up between the streaming</text>
+        <text x="60" y="92" font-size="13" fill="rgba(11,19,32,0.92)">handler and the outer fetch. Repro is on prod-2 only.</text>
+      </g>
+
+      <g transform="translate(0,176)">
+        <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">17 more blips · 2 collapsed sub-threads · 1 task active</text>
+      </g>
+    </g>
+
+    <!-- Floating scroll-to-new chip -->
+    <g transform="translate(484,750)">
+      <rect width="180" height="36" rx="18" fill="#22d3ee"/>
+      <text x="90" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#0b1320">↓ 3 new blips below</text>
+    </g>
+  </g>
+
+  <!-- ============ ANNOTATION OVERLAY ============ -->
+  <g transform="translate(20,860)">
+    <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">J-UI-1 · J-UI-2 · matrix R-3.5, R-4.5 · components: shell-root, wavy-search-rail, wavy-search-rail-card, shell-main-region · light theme · 1440×900</text>
+  </g>
+</svg>

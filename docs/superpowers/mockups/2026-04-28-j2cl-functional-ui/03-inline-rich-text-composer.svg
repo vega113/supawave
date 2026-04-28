@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc" font-family="Inter, -apple-system, 'Segoe UI', sans-serif">
+  <title id="title">J-UI-5 — Inline rich-text composer with selection-driven format toolbar</title>
+  <desc id="desc">An inline contenteditable composer opened at a specific blip in a wave. The selection-driven format toolbar floats above the composer with bold/italic/link/list/heading/alignment buttons; bold and italic are active because the current selection is bold-italic. Send and Cancel buttons sit at the bottom-right.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f7fb"/>
+      <stop offset="100%" stop-color="#eef1f7"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-10%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0b1320" flood-opacity="0.06"/>
+    </filter>
+    <filter id="toolbar-shadow" x="-10%" y="-30%" width="120%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0b1320" flood-opacity="0.20"/>
+    </filter>
+    <symbol id="supawave-mark" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#0a4f82"/>
+      <path d="M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="24" cy="18" r="3.5" fill="#ffd166"/>
+    </symbol>
+  </defs>
+
+  <rect width="1440" height="900" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1440" height="56" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+  <use href="#supawave-mark" x="20" y="10" width="36" height="36"/>
+  <text x="64" y="34" font-size="18" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">SupaWave</text>
+  <text x="186" y="34" font-size="13" fill="rgba(11,19,32,0.62)">Inbox › Robot streaming follow-up — composing reply at depth 2</text>
+
+  <!-- Wave area -->
+  <rect x="0" y="56" width="280" height="844" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+  <text x="20" y="84" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">SAVED SEARCHES</text>
+  <rect x="12" y="96" width="256" height="36" rx="12" fill="rgba(34,211,238,0.18)"/>
+  <rect x="12" y="96" width="3" height="36" rx="2" fill="#22d3ee"/>
+  <text x="32" y="119" font-size="13" font-weight="600" fill="#0b1320">Inbox</text>
+  <text x="32" y="158" font-size="13" fill="#0b1320">Mentions</text>
+  <text x="32" y="194" font-size="13" fill="#0b1320">Tasks</text>
+  <text x="32" y="230" font-size="13" fill="#0b1320">Public</text>
+  <text x="32" y="266" font-size="13" fill="#0b1320">Archive</text>
+  <text x="32" y="302" font-size="13" fill="#0b1320">Pinned</text>
+
+  <!-- Wave panel background -->
+  <rect x="280" y="56" width="1160" height="844" fill="#fafbfd" stroke="rgba(11,19,32,0.10)"/>
+
+  <!-- Wave header -->
+  <text x="304" y="92" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">WAVE · 7c4a91 · 5 PARTICIPANTS</text>
+  <text x="304" y="124" font-size="22" font-weight="700" fill="#0b1320" font-family="'Space Grotesk', Inter, sans-serif">Robot streaming follow-up — 4xx retries</text>
+
+  <line x1="304" y1="148" x2="1416" y2="148" stroke="rgba(11,19,32,0.10)"/>
+
+  <!-- Existing blip 1 -->
+  <g transform="translate(304,168)">
+    <circle cx="20" cy="20" r="20" fill="#22d3ee"/>
+    <text x="20" y="25" text-anchor="middle" font-size="13" font-weight="700" fill="#0b1320">AT</text>
+    <text x="52" y="16" font-size="13" font-weight="700" fill="#0b1320">Anton T.</text>
+    <text x="120" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">2 hours ago · root</text>
+    <text x="52" y="38" font-size="14" fill="rgba(11,19,32,0.92)">Sasha — what's the actual retry budget after the F-3 cleanup?</text>
+  </g>
+
+  <!-- Existing blip 2 (parent of the reply being composed) -->
+  <g transform="translate(376,232)">
+    <circle cx="16" cy="20" r="16" fill="#7c3aed"/>
+    <text x="16" y="25" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">SK</text>
+    <text x="44" y="16" font-size="13" font-weight="700" fill="#0b1320">Sasha K.</text>
+    <text x="104" y="16" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">1 hour ago</text>
+    <text x="44" y="38" font-size="13" fill="rgba(11,19,32,0.92)">Budget is 3 retries with 200ms / 600ms / 1.4s backoff. Outer fetch should not retry — if it does,</text>
+    <text x="44" y="56" font-size="13" fill="rgba(11,19,32,0.92)">that's the duplicate you're seeing. Can you grab a request-id from prod-2?</text>
+  </g>
+
+  <!-- ============ INLINE COMPOSER (composer-inline-reply + wavy-composer) ============ -->
+  <g transform="translate(376,316)">
+    <!-- Connector tail showing inline anchor -->
+    <line x1="0" y1="0" x2="0" y2="48" stroke="rgba(34,211,238,0.40)" stroke-width="2"/>
+
+    <!-- Composer card -->
+    <rect x="0" y="48" width="900" height="376" rx="16" fill="#ffffff" stroke="#22d3ee" stroke-width="2" filter="url(#card-shadow)"/>
+
+    <!-- Composer header -->
+    <g transform="translate(20,68)">
+      <text x="0" y="14" font-size="11" font-weight="600" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif" letter-spacing="0.08em">REPLYING TO SASHA K. · DEPTH 2</text>
+    </g>
+
+    <!-- contenteditable surface -->
+    <g transform="translate(20,96)">
+      <rect width="860" height="232" rx="12" fill="#f6f7fb"/>
+      <!-- Sample rich text content with selection -->
+      <text x="20" y="32" font-size="14" fill="rgba(11,19,32,0.92)">request-id is</text>
+      <text x="118" y="32" font-size="14" font-weight="700" fill="#0b1320">6f1a-7cc4</text>
+      <text x="194" y="32" font-size="14" fill="rgba(11,19,32,0.92)">. The outer fetch retried after the 502 hit, then</text>
+      <!-- Selected fragment (bold + italic) - highlighted -->
+      <rect x="20" y="44" width="296" height="22" rx="3" fill="rgba(34,211,238,0.22)"/>
+      <text x="20" y="62" font-size="14" font-weight="700" font-style="italic" fill="#0b1320">the handler retried 3 more times on top</text>
+      <text x="318" y="62" font-size="14" fill="rgba(11,19,32,0.92)">. Net</text>
+      <text x="20" y="92" font-size="14" fill="rgba(11,19,32,0.92)">5 retries against the same upstream. I think the fix is in the outer fetch:</text>
+
+      <!-- bullet list -->
+      <text x="36" y="124" font-size="14" fill="rgba(11,19,32,0.92)">• pin its retry to 1</text>
+      <text x="36" y="146" font-size="14" fill="rgba(11,19,32,0.92)">• keep the handler budget unchanged</text>
+      <text x="36" y="168" font-size="14" fill="rgba(11,19,32,0.92)">• gate behind</text>
+      <!-- inline link -->
+      <text x="142" y="168" font-size="14" font-weight="600" fill="#0a4f82" text-decoration="underline">flag:robotStreamingRetryV2</text>
+
+      <text x="20" y="200" font-size="14" fill="rgba(11,19,32,0.92)">Filed bug as #1081. Patch will land later today.</text>
+
+      <!-- caret -->
+      <line x1="332" y1="186" x2="332" y2="208" stroke="#22d3ee" stroke-width="2">
+        <animate attributeName="opacity" values="1;0;1" dur="900ms" repeatCount="indefinite"/>
+      </line>
+    </g>
+
+    <!-- Bottom action bar -->
+    <g transform="translate(20,348)">
+      <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">Markdown supported · ⌘↵ to send · Esc to cancel</text>
+      <rect x="700" y="-4" width="80" height="28" rx="14" fill="#ffffff" stroke="rgba(11,19,32,0.10)"/>
+      <text x="740" y="15" text-anchor="middle" font-size="12" fill="#0b1320">Cancel</text>
+      <rect x="788" y="-4" width="92" height="28" rx="14" fill="#22d3ee"/>
+      <text x="834" y="15" text-anchor="middle" font-size="12" font-weight="700" fill="#0b1320">Send reply</text>
+    </g>
+  </g>
+
+  <!-- ============ FLOATING SELECTION-DRIVEN FORMAT TOOLBAR (wavy-format-toolbar) ============ -->
+  <!-- Anchored above the selected fragment -->
+  <g transform="translate(396,388)">
+    <rect width="540" height="48" rx="12" fill="#0b1320" filter="url(#toolbar-shadow)"/>
+    <!-- pointer arrow -->
+    <polygon points="60,48 72,60 84,48" fill="#0b1320"/>
+
+    <!-- Group 1: typography toggles -->
+    <!-- Bold (active) -->
+    <rect x="8" y="8" width="32" height="32" rx="8" fill="#22d3ee"/>
+    <text x="24" y="29" text-anchor="middle" font-size="14" font-weight="900" fill="#0b1320">B</text>
+    <!-- Italic (active) -->
+    <rect x="44" y="8" width="32" height="32" rx="8" fill="#22d3ee"/>
+    <text x="60" y="29" text-anchor="middle" font-size="14" font-weight="700" font-style="italic" fill="#0b1320">I</text>
+    <!-- Underline -->
+    <rect x="80" y="8" width="32" height="32" rx="8" fill="transparent"/>
+    <text x="96" y="29" text-anchor="middle" font-size="14" fill="#ffffff" text-decoration="underline">U</text>
+    <!-- Strike -->
+    <rect x="116" y="8" width="32" height="32" rx="8" fill="transparent"/>
+    <text x="132" y="29" text-anchor="middle" font-size="14" fill="#ffffff" text-decoration="line-through">S</text>
+
+    <line x1="160" y1="12" x2="160" y2="36" stroke="rgba(255,255,255,0.20)"/>
+
+    <!-- Group 2: heading + structure -->
+    <text x="184" y="29" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">H1</text>
+    <text x="220" y="29" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">H2</text>
+    <text x="256" y="29" text-anchor="middle" font-size="14" fill="#ffffff">"</text>
+
+    <line x1="276" y1="12" x2="276" y2="36" stroke="rgba(255,255,255,0.20)"/>
+
+    <!-- Group 3: lists -->
+    <g transform="translate(296,16)">
+      <circle cx="3" cy="4" r="2" fill="#ffffff"/>
+      <line x1="10" y1="4" x2="22" y2="4" stroke="#ffffff" stroke-width="1.5"/>
+      <circle cx="3" cy="12" r="2" fill="#ffffff"/>
+      <line x1="10" y1="12" x2="22" y2="12" stroke="#ffffff" stroke-width="1.5"/>
+    </g>
+    <g transform="translate(332,16)">
+      <text x="0" y="6" font-size="8" fill="#ffffff">1.</text>
+      <line x1="10" y1="4" x2="22" y2="4" stroke="#ffffff" stroke-width="1.5"/>
+      <text x="0" y="14" font-size="8" fill="#ffffff">2.</text>
+      <line x1="10" y1="12" x2="22" y2="12" stroke="#ffffff" stroke-width="1.5"/>
+    </g>
+
+    <line x1="368" y1="12" x2="368" y2="36" stroke="rgba(255,255,255,0.20)"/>
+
+    <!-- Group 4: alignment -->
+    <g transform="translate(380,18)" stroke="#ffffff" stroke-width="1.5" fill="none">
+      <line x1="0" y1="0" x2="20" y2="0"/>
+      <line x1="0" y1="6" x2="14" y2="6"/>
+      <line x1="0" y1="12" x2="20" y2="12"/>
+    </g>
+    <g transform="translate(412,18)" stroke="#ffffff" stroke-width="1.5" fill="none">
+      <line x1="3" y1="0" x2="23" y2="0"/>
+      <line x1="6" y1="6" x2="20" y2="6"/>
+      <line x1="3" y1="12" x2="23" y2="12"/>
+    </g>
+
+    <line x1="448" y1="12" x2="448" y2="36" stroke="rgba(255,255,255,0.20)"/>
+
+    <!-- Group 5: link + code -->
+    <g transform="translate(460,18)" stroke="#ffffff" stroke-width="1.5" fill="none">
+      <path d="M0 6 a4 4 0 0 1 4-4 h6 a4 4 0 0 1 4 4"/>
+      <path d="M8 6 a4 4 0 0 1 4 4 h6 a4 4 0 0 1 0 0"/>
+    </g>
+    <text x="498" y="30" font-size="13" fill="#ffffff" font-family="monospace">{ }</text>
+
+    <text x="540" y="74" text-anchor="end" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">selection: bold + italic detected — toggles reflect</text>
+  </g>
+
+  <!-- Annotation -->
+  <g transform="translate(304,820)">
+    <text x="0" y="14" font-size="11" fill="rgba(11,19,32,0.55)" font-family="Geist, Inter, sans-serif">J-UI-5 · matrix R-5.1, R-5.2, R-5.7 · components: composer-inline-reply, wavy-composer, wavy-format-toolbar, toolbar-button, toolbar-group · light theme</text>
+  </g>
+</svg>

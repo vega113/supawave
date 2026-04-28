@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-28-v1-j2cl-shell-chrome",
+  "version": "PR #1104",
+  "date": "2026-04-28",
+  "title": "J2CL shell chrome rebuild",
+  "summary": "The /?view=j2cl-root shell composes as a full-bleed header bar plus rail and wave panel that match the Wavy design mockup.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Rebuilt the J2CL root shell layout to match 01-shell-inbox-with-waves.svg: full-bleed header with the SupaWave brand on the left, rail on the left with digest cards, and the wave panel filling the remaining viewport.",
+        "Hid the empty Plugins rail-extension panel on the user route and removed the redundant J2 SupaWave J2CL Root Shell developer brand string."
+      ]
+    }
+  ]
+}

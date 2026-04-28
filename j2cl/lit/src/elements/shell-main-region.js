@@ -8,8 +8,12 @@ export class ShellMainRegion extends LitElement {
       min-width: 0;
     }
 
+    /* V-1 (#1099): wave panel sits flush against the rail / header
+     * border. The inner sidecar layout owns its own gutters; this
+     * shell wrapper no longer adds an outer panel inset that pushed
+     * cards into a narrow centred column. */
     main {
-      padding: var(--shell-space-inset-panel, 20px);
+      padding: 0;
       min-height: 360px;
     }
   `;

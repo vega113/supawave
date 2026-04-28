@@ -15,9 +15,6 @@ export class ShellHeader extends LitElement {
       align-items: center;
       justify-content: space-between;
       gap: var(--shell-space-inline-default, 12px);
-      padding: var(--shell-space-inset-panel, 16px 18px);
-      border-bottom: 1px solid var(--shell-color-divider-subtle, #e5edf5);
-      background: var(--shell-color-surface-shell, #fff);
     }
 
     .brand {

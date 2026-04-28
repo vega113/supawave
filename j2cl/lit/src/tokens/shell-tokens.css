@@ -21,9 +21,7 @@
 body.j2cl-root-shell-page {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(150, 240, 255, 0.18), transparent 36%),
-    linear-gradient(180deg, #f9fbfb 0%, var(--shell-color-surface-page) 48%, #eef3f4 100%);
+  background: linear-gradient(180deg, #f6f7fb 0%, #eef1f7 100%);
   color: var(--shell-color-text-primary);
   font-family: var(--shell-font-ui);
 }
@@ -32,24 +30,35 @@ a {
   color: inherit;
 }
 
+/* V-1 (#1099): full-bleed shell that matches 01-shell-inbox-with-waves.svg.
+ * No outer max-width; no card chrome on the shell itself; the header,
+ * rail, and main region each carry their own surface so the chrome reads
+ * as one continuous bar + rail + wave-panel composition. */
 shell-root,
 shell-root-signed-out {
   position: relative;
   display: grid;
   min-height: 100vh;
-  gap: 20px;
+  gap: 0;
   box-sizing: border-box;
-  max-width: 1220px;
-  margin: 0 auto;
-  padding: 18px 20px 24px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 shell-root {
-  grid-template-columns: minmax(190px, 220px) 1fr;
+  grid-template-columns: minmax(260px, 296px) 1fr;
+  grid-template-rows: auto auto 1fr auto auto;
+  /* V-1 (#1099): the rail-extension row leaves the left column empty
+   * (".") so the nav rail does not span into row 4. When the slotted
+   * <wavy-rail-panel> is hidden, the auto-sized row 4 collapses to 0
+   * and there is no blank strip under the wave panel even if the nav
+   * rail has tall content (long digest list on a short viewport). */
   grid-template-areas:
     "skip skip"
     "header header"
     "nav main"
+    ".   rail-extension"
     "status status";
 }
 
@@ -110,37 +119,78 @@ shell-skip-link > a:focus {
   outline-offset: -3px;
 }
 
+/* V-1 (#1099): top bar matches the mockup — full-bleed white surface,
+ * 64px tall, hairline bottom border, brand on the left, header chrome on
+ * the right. */
 shell-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  padding: 16px 18px;
-  border-radius: var(--shell-shell-radius);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: var(--shell-shell-shadow);
-  backdrop-filter: blur(18px);
+  padding: 12px 20px;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+  border-bottom: 1px solid rgba(11, 19, 32, 0.10);
+  backdrop-filter: none;
+  min-height: 64px;
+  box-sizing: border-box;
 }
 
 shell-header > [slot="brand"] {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1.05rem;
-  font-weight: 800;
+  gap: 12px;
   text-decoration: none;
+  color: #0b1320;
 }
 
-shell-header > [slot="brand"] span:first-child {
+shell-header > [slot="brand"] .j2cl-brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--shell-color-accent-brand), #087e8b);
-  color: #fff;
+  width: 36px;
+  height: 36px;
+}
+
+shell-header > [slot="brand"] .j2cl-brand-mark svg {
+  width: 36px;
+  height: 36px;
+  display: block;
+}
+
+shell-header > [slot="brand"] .j2cl-brand-stack {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+shell-header > [slot="brand"] .j2cl-brand-name {
+  font-family: "Space Grotesk", Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0b1320;
+}
+
+shell-header > [slot="brand"] .j2cl-brand-eyebrow {
+  font-family: Geist, Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: rgba(11, 19, 32, 0.55);
+  margin-top: 2px;
+}
+
+/* The wavy-header (right cluster) renders its own brand link as part of
+ * the F-2 inventory contract. Hide it visually when shell-header already
+ * provides the canonical brand on the left so the bar isn't double-
+ * branded; the link stays in the DOM so parity tests still find it. */
+shell-header > [slot="actions-signed-in"] > .brand,
+shell-header > [slot="actions-signed-out"] > .brand,
+shell-header wavy-header > .brand {
+  display: none;
 }
 
 shell-header > [slot="actions-signed-in"],
@@ -178,12 +228,16 @@ shell-nav-rail > a:focus-visible {
   outline-offset: 2px;
 }
 
+/* V-1 (#1099): rail surface matches the mockup — flat white panel with a
+ * hairline right border, no rounded card. align-self: stretch fills the
+ * grid row so we don't have to assume a fixed header height. */
 shell-nav-rail {
   display: block;
-  align-self: start;
-  padding: 14px 12px;
-  border-radius: var(--shell-shell-radius);
-  background: var(--shell-color-surface-rail);
+  align-self: stretch;
+  padding: 0;
+  border-radius: 0;
+  background: #ffffff;
+  border-right: 1px solid rgba(11, 19, 32, 0.10);
 }
 
 shell-nav-rail > a {
@@ -201,13 +255,17 @@ shell-nav-rail > a:first-child {
   font-weight: 700;
 }
 
+/* V-1 (#1099): wave panel takes the rest of the viewport — flat surface,
+ * no card chrome, no outer padding (the inner sidecar layout handles its
+ * own gutters). */
 shell-main-region {
   display: block;
   min-width: 0;
-  padding: 20px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: var(--shell-shell-shadow);
+  padding: 0;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+  align-self: stretch;
 }
 
 shell-root-signed-out > [slot="main"] {
@@ -237,21 +295,23 @@ shell-status-strip {
 @media (max-width: 860px) {
   shell-root {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto 1fr auto auto;
     grid-template-areas:
       "skip"
       "header"
       "nav"
       "main"
+      "rail-extension"
       "status";
-  }
-
-  shell-root,
-  shell-root-signed-out {
-    padding-left: 14px;
-    padding-right: 14px;
   }
 
   shell-header {
     align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  shell-nav-rail {
+    border-right: 0;
+    border-bottom: 1px solid rgba(11, 19, 32, 0.10);
   }
 }

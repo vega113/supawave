@@ -34,7 +34,16 @@ export class WavyHeader extends LitElement {
     address: { type: String, attribute: "data-address", reflect: true },
     userName: { type: String, attribute: "user-name" },
     unreadCount: { type: Number, attribute: "unread-count" },
-    basePath: { type: String, attribute: "base-path" }
+    basePath: { type: String, attribute: "base-path" },
+    // V-1 (#1099): when the host carries no-brand the inner SupaWave
+    // brand link is suppressed so the J2CL root shell can render the
+    // canonical brand from shell-header > [slot="brand"] without
+    // double-branding. The light-DOM brand is still SSR'd so the F-2
+    // wavyHeaderInnerLightDomEmitsBrandLocaleBellMailUserMenuChrome
+    // parity test continues to pass; the shadow render simply omits
+    // it post-upgrade and a sibling rule in shell-tokens.css hides
+    // the SSR brand pre-upgrade.
+    noBrand: { type: Boolean, attribute: "no-brand", reflect: true }
   };
 
   // Locale set re-derived from the GWT locale build set; matches the
@@ -65,6 +74,11 @@ export class WavyHeader extends LitElement {
       color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
       text-decoration: none;
       font-weight: 600;
+    }
+    /* V-1 (#1099): host-level opt-out for the inner brand link so the
+     * J2CL root shell can render its canonical brand exactly once. */
+    :host([no-brand]) .brand {
+      display: none;
     }
     .brand-dot {
       width: 8px;
@@ -153,6 +167,7 @@ export class WavyHeader extends LitElement {
     this.userName = "";
     this.unreadCount = 0;
     this.basePath = "/";
+    this.noBrand = false;
   }
 
   _normalizedBasePath() {
@@ -205,10 +220,14 @@ export class WavyHeader extends LitElement {
     const hasUnread = (this.unreadCount || 0) > 0;
     const base = this._normalizedBasePath();
     return html`
-      <a class="brand" href=${base} aria-label="SupaWave home">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <span class="brand-text">SupaWave</span>
-      </a>
+      ${this.noBrand
+        ? null
+        : html`
+            <a class="brand" href=${base} aria-label="SupaWave home">
+              <span class="brand-dot" aria-hidden="true"></span>
+              <span class="brand-text">SupaWave</span>
+            </a>
+          `}
 
       <select
         class="locale"

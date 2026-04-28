@@ -127,6 +127,16 @@ body {
   align-items: start;
 }
 
+/* V-1 (#1099): on the J2CL root server-first workflow the legacy search
+ * card is hidden (J-UI-5+ — the rail owns the query surface), so the
+ * 2-column split-layout left an empty 320–420px gutter. Collapse to a
+ * single column when the workflow is server-first so the wave panel
+ * fills the available width. */
+[data-j2cl-server-first-workflow="true"] .sidecar-split-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
 .sidecar-search-card {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #d8e2f0;
@@ -145,6 +155,19 @@ body {
   border-radius: 24px;
   box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
   padding: 32px;
+}
+
+/* V-1 (#1099): on the server-first workflow the wave panel sits inside
+ * the shell's flat main region, so the rounded-card chrome on the
+ * selected card creates redundant nesting. Drop the card chrome there
+ * and let the wave panel breathe with simple padding — the inner blip
+ * cards keep their own surfaces. */
+[data-j2cl-server-first-workflow="true"] .sidecar-selected-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 24px;
 }
 
 .sidecar-selected-title {

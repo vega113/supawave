@@ -15,8 +15,6 @@ export class ShellNavRail extends LitElement {
       flex-direction: column;
       gap: 4px;
       padding: var(--shell-space-inset-panel, 12px);
-      background: var(--shell-color-surface-shell, #fff);
-      border-right: 1px solid var(--shell-color-divider-subtle, #e5edf5);
       min-width: 180px;
     }
 

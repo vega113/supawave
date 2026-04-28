@@ -3531,10 +3531,23 @@ public final class HtmlRenderer {
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\" signed-in>\n");
+      // V-1 (#1099): brand block matches 01-shell-inbox-with-waves.svg —
+      // 36px circular SupaWave mark + bold name + subtle eyebrow. The
+      // SVG mark mirrors the mockup symbol (<symbol id="supawave-mark">)
+      // inline so no asset bump is required for visual parity.
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
           .append(safeResolvedReturnTarget)
-          .append("\" aria-label=\"J2CL root shell\">\n");
-      sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave J2CL Root Shell</span>\n");
+          .append("\" aria-label=\"SupaWave\">\n");
+      sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
+          .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
+          .append("<circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"#0a4f82\"/>")
+          .append("<path d=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\" stroke=\"#ffffff\" stroke-width=\"4\" stroke-linecap=\"round\" fill=\"none\"/>")
+          .append("<circle cx=\"24\" cy=\"18\" r=\"3.5\" fill=\"#ffd166\"/>")
+          .append("</svg></span>\n");
+      sb.append("      <span class=\"j2cl-brand-stack\">")
+          .append("<span class=\"j2cl-brand-name\">SupaWave</span>")
+          .append("<span class=\"j2cl-brand-eyebrow\">J2CL · ").append(safeResolvedBasePath).append("?view=j2cl-root</span>")
+          .append("</span>\n");
       sb.append("    </a>\n");
       // F-2 slice 3 (#1047): wavy header chrome (A.1, A.2, A.5, A.6,
       // A.7) is mounted as a <wavy-header> custom element inside the
@@ -3590,11 +3603,18 @@ public final class HtmlRenderer {
           escapeHtml(resolvedSnapshotResult.getWaveId() == null
               ? "" : resolvedSnapshotResult.getWaveId());
       String safeRailFolder = escapeHtml(deriveActiveFolder(resolvedInitialQuery));
+      // V-1 (#1099): the production rail-extension panel ships hidden
+      // by default so the user route matches 01-shell-inbox-with-waves.svg
+      // (no third "Plugins" column on the chrome). The element stays in
+      // the DOM so the F-4 plugin contract (J2clRailExtensionParityTest)
+      // still passes — when a plugin slots payload into <slot
+      // name="rail-extension"> it is responsible for removing the hidden
+      // attribute. wavy-rail-panel.js declares :host([hidden]) display:none.
       sb.append("  <wavy-rail-panel slot=\"rail-extension\" panel-title=\"Plugins\" data-active-wave-id=\"")
           .append(safeRailWaveId)
           .append("\" data-active-folder=\"")
           .append(safeRailFolder)
-          .append("\" data-j2cl-rail-extension=\"true\"></wavy-rail-panel>\n");
+          .append("\" data-j2cl-rail-extension=\"true\" hidden></wavy-rail-panel>\n");
       sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
@@ -3637,10 +3657,21 @@ public final class HtmlRenderer {
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\">\n");
+      // V-1 (#1099): brand block matches 01-shell-inbox-with-waves.svg
+      // (mirrored from the signed-in branch above).
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
           .append(safeResolvedReturnTarget)
-          .append("\" aria-label=\"J2CL root shell\">\n");
-      sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave J2CL Root Shell</span>\n");
+          .append("\" aria-label=\"SupaWave\">\n");
+      sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
+          .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
+          .append("<circle cx=\"24\" cy=\"24\" r=\"24\" fill=\"#0a4f82\"/>")
+          .append("<path d=\"M8 28 Q14 16 20 28 Q24 36 28 28 Q34 16 40 28\" stroke=\"#ffffff\" stroke-width=\"4\" stroke-linecap=\"round\" fill=\"none\"/>")
+          .append("<circle cx=\"24\" cy=\"18\" r=\"3.5\" fill=\"#ffd166\"/>")
+          .append("</svg></span>\n");
+      sb.append("      <span class=\"j2cl-brand-stack\">")
+          .append("<span class=\"j2cl-brand-name\">SupaWave</span>")
+          .append("<span class=\"j2cl-brand-eyebrow\">J2CL · ").append(safeResolvedBasePath).append("?view=j2cl-root</span>")
+          .append("</span>\n");
       sb.append("    </a>\n");
       sb.append("    <span slot=\"actions-signed-out\">Signed out</span>\n");
       sb.append("    <a slot=\"actions-signed-out\" data-j2cl-root-signin=\"true\" href=\"/auth/signin?r=")
@@ -4166,7 +4197,13 @@ public final class HtmlRenderer {
     String initialsRaw = computeUserInitials(rawAddress);
     String initials = StringEscapeUtils.escapeHtml4(initialsRaw);
     String selectedLocaleOpt = resolveLocaleOption(safeHtmlLang);
-    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in locale=\"")
+    // V-1 (#1099): no-brand suppresses the wavy-header inner SupaWave
+    // brand link so the J2CL root shell renders its canonical brand
+    // once via shell-header > [slot="brand"]. The light-DOM brand is
+    // still emitted below (parity contract); the shadow render skips
+    // it post-upgrade and a CSS rule in shell-tokens.css hides the
+    // SSR copy pre-upgrade.
+    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in no-brand locale=\"")
         .append(selectedLocaleOpt)
         .append("\" data-address=\"")
         .append(escapedAddress)
@@ -4177,7 +4214,7 @@ public final class HtmlRenderer {
         .append("\">\n");
     sb.append("      <a class=\"brand\" href=\"")
         .append(safeResolvedReturnTarget)
-        .append("\" aria-label=\"SupaWave home\">")
+        .append("\" aria-label=\"SupaWave\">")
         .append("<span class=\"brand-dot\" aria-hidden=\"true\"></span>")
         .append("<span class=\"brand-text\">SupaWave</span></a>\n");
     sb.append("      <select class=\"locale\" aria-label=\"Language\">\n");

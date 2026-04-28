@@ -4012,9 +4012,6 @@ public final class HtmlRenderer {
         }
         subtagStart = i + 1;
         dashCount++;
-        if (dashCount > 4) {
-          return "en";
-        }
       }
     }
     int finalLen = len - subtagStart;
@@ -4123,8 +4120,9 @@ public final class HtmlRenderer {
     // escaped before being written into the avatar text node.
     String initialsRaw = computeUserInitials(rawAddress);
     String initials = StringEscapeUtils.escapeHtml4(initialsRaw);
+    String selectedLocaleOpt = resolveLocaleOption(safeHtmlLang);
     sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in locale=\"")
-        .append(safeHtmlLang)
+        .append(selectedLocaleOpt)
         .append("\" data-address=\"")
         .append(escapedAddress)
         .append("\" user-name=\"")
@@ -4137,7 +4135,6 @@ public final class HtmlRenderer {
         .append("\" aria-label=\"SupaWave home\">")
         .append("<span class=\"brand-dot\" aria-hidden=\"true\"></span>")
         .append("<span class=\"brand-text\">SupaWave</span></a>\n");
-    String selectedLocaleOpt = resolveLocaleOption(safeHtmlLang);
     sb.append("      <select class=\"locale\" aria-label=\"Language\">\n");
     sb.append("        <option value=\"en\"").append("en".equals(selectedLocaleOpt) ? " selected" : "").append(">English</option>\n");
     sb.append("        <option value=\"de\"").append("de".equals(selectedLocaleOpt) ? " selected" : "").append(">Deutsch</option>\n");
@@ -4184,8 +4181,10 @@ public final class HtmlRenderer {
     }
     String[] options = {"en", "de", "es", "fr", "ru", "sl", "zh_TW"};
     String normalized = safeHtmlLang.replace('-', '_');
+    String normalizedLower = normalized.toLowerCase(java.util.Locale.ROOT);
     for (String opt : options) {
-      if (opt.equalsIgnoreCase(normalized)) {
+      String optLower = opt.toLowerCase(java.util.Locale.ROOT);
+      if (optLower.equals(normalizedLower) || normalizedLower.startsWith(optLower + "_")) {
         return opt;
       }
     }

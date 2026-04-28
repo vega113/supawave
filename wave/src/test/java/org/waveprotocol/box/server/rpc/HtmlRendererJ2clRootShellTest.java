@@ -546,4 +546,53 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         "Private-use extension tag must round-trip",
         htmlPrivate.contains("<html lang=\"de-x-phonebk\">"));
   }
+
+  public void testHtmlLangAcceptsFivePlusDashExtensionTags() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    // zh-Hant-TW-u-ca-gregory has 5 dashes; the old dashCount>4 guard would
+    // have rejected it and fallen back to "en".
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false,
+        "zh-Hant-TW-u-ca-gregory", false);
+
+    assertTrue(
+        "5-dash BCP-47 extension tag must reach <html lang>",
+        html.contains("<html lang=\"zh-Hant-TW-u-ca-gregory\">"));
+  }
+
+  public void testWavyHeaderLocaleUsesUnderscore() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    // zh-TW in BCP-47 must map to zh_TW (underscore) in <wavy-header locale>,
+    // because wavy-header's LOCALES list uses underscore codes.
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-TW", false);
+
+    assertTrue(
+        "<wavy-header locale> must carry zh_TW not zh-TW",
+        html.contains("locale=\"zh_TW\""));
+    assertFalse(
+        "<wavy-header locale> must not carry raw BCP-47 zh-TW",
+        html.contains("locale=\"zh-TW\""));
+  }
+
+  public void testWavyHeaderLocaleResolvesExtensionSuffixedTag() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    // zh-TW-u-ca-roc carries a calendar extension; wavy-header must still
+    // get zh_TW (the closest supported option).
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-TW-u-ca-roc", false);
+
+    assertTrue(
+        "<wavy-header locale> must resolve zh-TW-u-ca-roc to zh_TW",
+        html.contains("locale=\"zh_TW\""));
+  }
 }

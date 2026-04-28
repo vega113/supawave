@@ -46,7 +46,14 @@ export class WavySearchRailCard extends LitElement {
     postedAt: { type: String, attribute: "posted-at" },
     postedAtIso: { type: String, attribute: "posted-at-iso" },
     msgCount: { type: Number, attribute: "msg-count" },
-    unreadCount: { type: Number, attribute: "unread-count" },
+    /**
+     * J-UI-7 (#1085, R-4.4): reflect to the `unread-count` attribute so
+     * the attribute is the single source of truth and CSS can style the
+     * read state via `:host([unread-count="0"])`. The J2CL Java view
+     * mutates the attribute live; reflection keeps the property and the
+     * attribute in sync without a second `data-read` flag.
+     */
+    unreadCount: { type: Number, attribute: "unread-count", reflect: true },
     pinned: { type: Boolean, reflect: true },
     authors: { type: String },
     /**
@@ -153,11 +160,28 @@ export class WavySearchRailCard extends LitElement {
       background: var(--wavy-signal-cyan, #22d3ee);
       color: var(--wavy-bg-base, #0b1120);
       font-weight: 600;
+    }
+    /*
+     * J-UI-7 (#1085, R-4.4): pulse lives on the host, not on the badge.
+     * The most important transition is 1 -> 0 (open the wave, badge
+     * disappears) — at that point .badge.unread no longer renders, so
+     * scoping the pulse to it would mean no visible cue. Putting the
+     * pulse on the host means a zero-out still announces the change.
+     */
+    :host {
       transition: box-shadow var(--wavy-motion-pulse-duration, 600ms)
         var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
-    :host([data-pulse="ring"]) .badge.unread {
+    :host([data-pulse="ring"]) {
       box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(34, 211, 238, 0.22));
+    }
+    /*
+     * J-UI-7 (#1085, R-4.4): expose a CSS hook for the read state so
+     * downstream styling (and parity tests) can detect a fully-read
+     * card without scraping the badge DOM.
+     */
+    :host([unread-count="0"]) {
+      --wavy-rail-card-read: 1;
     }
     time.ts {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
@@ -194,6 +218,26 @@ export class WavySearchRailCard extends LitElement {
     }, dur);
   }
 
+  /**
+   * J-UI-7 (#1085, R-4.4): auto-pulse on every unreadCount transition
+   * after the initial render. The first render does not pulse — that
+   * would noisily flash every card on the search list whenever the
+   * page loads. Subsequent transitions (decrement on open, increment
+   * from a peer's reply) all fire the host-level pulse so the live
+   * decrement is visible regardless of whether the badge ends up
+   * visible afterwards.
+   */
+  updated(changed) {
+    if (!changed.has("unreadCount")) {
+      return;
+    }
+    if (!this._unreadCountInitialized) {
+      this._unreadCountInitialized = true;
+      return;
+    }
+    this.firePulse();
+  }
+
   _emitSelected() {
     this.dispatchEvent(
       new CustomEvent("wavy-search-rail-card-selected", {
@@ -202,6 +246,23 @@ export class WavySearchRailCard extends LitElement {
         detail: { waveId: this.waveId }
       })
     );
+  }
+
+  /**
+   * J-UI-7 (#1085, R-4.4): the focusable `<article>` exposes both the
+   * title and the live unread state to assistive technology, so users
+   * hear the count change when they navigate back to a card whose
+   * unread count just decremented (or incremented). When unreadCount
+   * is 0 the announcement collapses to "<title>. Read." rather than
+   * shouting "0 unread.".
+   */
+  _composeAriaLabel() {
+    const title = this.title || "(no title)";
+    const count = Math.max(0, this.unreadCount || 0);
+    if (count <= 0) {
+      return title + ". Read.";
+    }
+    return title + ". " + count + " unread.";
   }
 
   _initials(name) {
@@ -233,7 +294,7 @@ export class WavySearchRailCard extends LitElement {
         }}
         tabindex="0"
         role="article"
-        aria-label=${this.title || "(no title)"}
+        aria-label=${this._composeAriaLabel()}
         aria-current=${this.selected ? "true" : nothing}
       >
         <div class="top">

@@ -11,6 +11,7 @@ public final class J2clDigestView {
   }
 
   private final String waveId;
+  private final String titleText;
   private final HTMLButtonElement root;
   private final HTMLElement stats;
   private int blipCount;
@@ -18,6 +19,7 @@ public final class J2clDigestView {
 
   public J2clDigestView(J2clSearchDigestItem item, SelectionHandler selectionHandler) {
     this.waveId = item.getWaveId();
+    this.titleText = item.getTitle() == null ? "" : item.getTitle();
     this.blipCount = item.getBlipCount();
     this.unreadCount = item.getUnreadCount();
     this.root = (HTMLButtonElement) DomGlobal.document.createElement("button");
@@ -55,6 +57,8 @@ public final class J2clDigestView {
     stats.textContent = buildStatsText(item.getUnreadCount(), item.getBlipCount());
     root.appendChild(stats);
 
+    refreshReadStateAttributes();
+
     root.onclick =
         event -> {
           selectionHandler.onSelected(item.getWaveId());
@@ -86,7 +90,28 @@ public final class J2clDigestView {
     }
     this.unreadCount = normalized;
     stats.textContent = buildStatsText(unreadCount, blipCount);
+    refreshReadStateAttributes();
     return true;
+  }
+
+  /**
+   * J-UI-7 (#1085, R-4.4): keep the {@code data-read} attribute and the
+   * accessible name on the digest button in sync with the current
+   * unread count. The legacy DOM digest path has no Lit host to derive
+   * styling from, so it owns its own attribute. The accessible name
+   * lives on the focusable {@code <button>} root rather than a stats
+   * subnode so AT consumers announce the read state when the button
+   * receives focus.
+   */
+  private void refreshReadStateAttributes() {
+    if (unreadCount <= 0) {
+      root.setAttribute("data-read", "true");
+    } else {
+      root.removeAttribute("data-read");
+    }
+    String unreadPhrase = unreadCount <= 0 ? "Read." : (unreadCount + " unread.");
+    String namePrefix = titleText.isEmpty() ? "Wave" : ("Wave: " + titleText);
+    root.setAttribute("aria-label", namePrefix + ". " + unreadPhrase);
   }
 
   /** Visible for parity tests so they can read back the rendered stats text. */

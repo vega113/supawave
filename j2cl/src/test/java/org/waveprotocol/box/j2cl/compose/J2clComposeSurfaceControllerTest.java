@@ -2642,6 +2642,38 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals(Arrays.asList("example.com/w+new"), created);
   }
 
+  // J-UI-3 — if the user edits the title while the create request is in
+  // flight, the success handler must receive the title that was actually
+  // submitted, not the live draft value.
+  @Test
+  public void handleCreateResponseUsesSnapshotTitleNotLiveTitleDraft() {
+    List<String> stubTitles = new ArrayList<String>();
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            new FakeFactory(),
+            new J2clComposeSurfaceController.CreateSuccessHandler() {
+              @Override
+              public void onWaveCreated(String waveId) { onWaveCreated(waveId, ""); }
+              @Override
+              public void onWaveCreated(String waveId, String title) {
+                stubTitles.add(title);
+              }
+            },
+            waveId -> { });
+    controller.start();
+    controller.onCreateSubmittedWithTitle("Submitted title", "body text");
+    // User edits title while request is in flight
+    controller.onCreateTitleChanged("Changed title");
+    // Server responds — callback should use the submitted snapshot
+    gateway.resolveBootstrap();
+    Assert.assertEquals(Arrays.asList("Submitted title"), stubTitles);
+  }
+
   // J-UI-3 — title-only submit (no body) is allowed; the user can ship a
   // wave with just a title. The body draft remains empty.
   @Test

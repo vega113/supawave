@@ -1437,6 +1437,11 @@ public final class J2clComposeSurfaceController {
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
           if (generation != createGeneration) {
+            // This generation was superseded; clear the stamp queued by preCreateSubmitHook
+            // so the next successful create doesn't consume a stale submit-query entry.
+            if (createFailureHook != null) {
+              try { createFailureHook.run(); } catch (RuntimeException ignored) {}
+            }
             return;
           }
           notifyCurrentUserAddress(bootstrap.getAddress());
@@ -1456,7 +1461,7 @@ public final class J2clComposeSurfaceController {
           gateway.submit(
               bootstrap,
               request.getSubmitRequest(),
-              response -> handleCreateResponse(generation, request, response),
+              response -> handleCreateResponse(generation, request, submittedTitle, submittedDraft, response),
               error -> handleCreateFailure(generation, error));
         },
         error -> handleCreateFailure(generation, error));
@@ -1465,8 +1470,14 @@ public final class J2clComposeSurfaceController {
   private void handleCreateResponse(
       int generation,
       CreateWaveRequest request,
+      String submittedTitle,
+      String submittedDraft,
       SidecarSubmitResponse response) {
     if (generation != createGeneration) {
+      // Superseded; clear the stamp just as a real failure would.
+      if (createFailureHook != null) {
+        try { createFailureHook.run(); } catch (RuntimeException ignored) {}
+      }
       return;
     }
     if (!response.getErrorMessage().isEmpty()) {
@@ -1474,14 +1485,11 @@ public final class J2clComposeSurfaceController {
       return;
     }
     createSubmitting = false;
-    // J-UI-3 (#1081, R-5.1): snapshot title and body before clearing them
-    // so the success handler can pass a non-empty stub title through to
-    // the rail's optimistic-digest prepend even when the user typed only
-    // a body (CodeRabbit major review on PR #1090: a body-only create
-    // previously prepended as "(untitled wave)" instead of using the
-    // body's first line).
-    String createdTitle = createTitleDraft;
-    String createdBodyForStub = createDraft;
+    // Use the immutable snapshots taken in submitCreate() so that a title
+    // edit that arrives during the server round-trip does not corrupt the
+    // stub title passed to the optimistic-digest handler.
+    String createdTitle = submittedTitle;
+    String createdBodyForStub = submittedDraft;
     createDraft = "";
     createTitleDraft = "";
     activeCommandId = "";
@@ -1501,6 +1509,10 @@ public final class J2clComposeSurfaceController {
 
   private void handleCreateFailure(int generation, String error) {
     if (generation != createGeneration) {
+      // Superseded; still clear the stamp so no stale entry lingers in the queue.
+      if (createFailureHook != null) {
+        try { createFailureHook.run(); } catch (RuntimeException ignored) {}
+      }
       return;
     }
     createSubmitting = false;

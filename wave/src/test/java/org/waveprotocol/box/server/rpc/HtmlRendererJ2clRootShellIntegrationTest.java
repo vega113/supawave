@@ -649,9 +649,14 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
 
   public void testV2PreviewFixtureStatusAndDetailAreTaggedDebugOnly() {
     String html = renderSignedInPage();
+    // status is NOT marked debug-only — error text must remain visible in non-debug mode.
+    // It starts hidden; J2clSelectedWaveView.render() sets hidden=false only on error or debug-on.
     assertTrue(
-        "Preview-fixture status must carry data-j2cl-debug-only (V-2 #1100)",
-        html.contains("class=\"sidecar-selected-status\" data-j2cl-debug-only=\"true\""));
+        "Preview-fixture status must be hidden by default, not debug-only (V-2 #1100 P1 fix)",
+        html.contains("class=\"sidecar-selected-status\" hidden"));
+    assertFalse(
+        "Preview-fixture status must NOT carry data-j2cl-debug-only (V-2 #1100 P1 fix)",
+        html.contains("class=\"sidecar-selected-status\" data-j2cl-debug-only"));
     assertTrue(
         "Preview-fixture detail must carry data-j2cl-debug-only (V-2 #1100)",
         html.contains("class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\""));

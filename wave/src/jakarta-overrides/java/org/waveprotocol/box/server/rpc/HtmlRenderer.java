@@ -4660,7 +4660,7 @@ public final class HtmlRenderer {
         .append(escapeHtml(title))
         .append("</h2>\n");
     sb.append("              <p class=\"sidecar-selected-unread\" hidden></p>\n");
-    sb.append("              <p class=\"sidecar-selected-status\" data-j2cl-debug-only=\"true\">")
+    sb.append("              <p class=\"sidecar-selected-status\" hidden>")
         .append(escapeHtml(status))
         .append("</p>\n");
     sb.append("              <p class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\">")
@@ -4881,7 +4881,7 @@ public final class HtmlRenderer {
       sb.append("    placeholder.removeAttribute('aria-busy');\n");
       sb.append("    var status=workflow.querySelector('.sidecar-selected-status');\n");
       sb.append("    var detail=workflow.querySelector('.sidecar-selected-detail');\n");
-      sb.append("    if(status){status.className='sidecar-selected-status sidecar-selected-status-error';status.textContent='Selected wave live upgrade failed.';}\n");
+      sb.append("    if(status){status.className='sidecar-selected-status sidecar-selected-status-error';status.textContent='Selected wave live upgrade failed.';status.hidden=false;}\n");
       sb.append("    if(detail){detail.textContent='The J2CL root-shell bundle failed to load. Refresh to retry.';}\n");
       sb.append("    if(window.__j2clRootShellStat){window.__j2clRootShellStat('shell_swap','bundle-load-error',0,!!placeholder.getAttribute('data-j2cl-server-first-selected-wave'));}\n");
       sb.append("    return;\n");

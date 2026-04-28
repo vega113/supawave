@@ -81,7 +81,8 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       detail = queryRequired(existingCard, ".sidecar-selected-detail");
       // V-2 (#1100): re-bound server-first DOM may pre-date the debug-only
       // attribute; mark the dev-string elements so sidecar.css hides them.
-      markDebugOnly(status);
+      // status is NOT marked debug-only here — error text must stay visible
+      // even when the debug overlay is off; visibility is set in render().
       markDebugOnly(detail);
       HTMLElement reboundEyebrow = (HTMLElement) existingCard.querySelector(".sidecar-eyebrow");
       if (reboundEyebrow != null) {
@@ -144,7 +145,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
     status = (HTMLElement) DomGlobal.document.createElement("p");
     status.className = "sidecar-selected-status";
-    markDebugOnly(status);
+    // Not marked debug-only: error text must remain visible in non-debug mode.
+    // Visibility is controlled per-render in render() / renderPreservedServerFirstState().
+    status.hidden = true;
     coldCard.appendChild(status);
 
     detail = (HTMLElement) DomGlobal.document.createElement("p");
@@ -465,6 +468,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             ? "sidecar-selected-status sidecar-selected-status-error"
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
+    status.hidden = !model.isError() && !isDebugOverlayOn();
     detail.textContent = model.getDetailText();
     participantSummary.textContent =
         model.getParticipantIds().isEmpty()
@@ -727,6 +731,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             ? "sidecar-selected-status sidecar-selected-status-error"
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
+    status.hidden = !model.isError() && !isDebugOverlayOn();
     detail.textContent = model.getDetailText();
     if (model.isError()) {
       // Error is a terminal state: clear aria-busy so AT doesn't treat the

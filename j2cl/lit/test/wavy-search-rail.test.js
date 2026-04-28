@@ -281,6 +281,45 @@ describe("<wavy-search-rail>", () => {
       expect(chip.getAttribute("aria-pressed")).to.equal("false");
     });
   });
+
+  // J-UI-1 (#1079): the rail must expose a `cards` slot so the J2CL
+  // search panel can project <wavy-search-rail-card> children inside the
+  // shadow DOM. Without the slot the children would be hidden post-upgrade.
+  describe("J-UI-1 cards slot (#1079)", () => {
+    it("declares a <slot name=\"cards\"> in the shadow DOM", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const slot = el.renderRoot.querySelector('slot[name="cards"]');
+      expect(slot, "rail must expose a cards slot for digest projection").to.exist;
+    });
+
+    it("accepts <wavy-search-rail-card> light-DOM children projected into the cards slot", async () => {
+      const el = await fixture(html`
+        <wavy-search-rail>
+          <wavy-search-rail-card slot="cards" data-wave-id="w+a"></wavy-search-rail-card>
+          <wavy-search-rail-card slot="cards" data-wave-id="w+b"></wavy-search-rail-card>
+        </wavy-search-rail>
+      `);
+      await el.updateComplete;
+      const slot = el.renderRoot.querySelector('slot[name="cards"]');
+      const assigned = slot.assignedElements();
+      expect(assigned.map((n) => n.dataset.waveId)).to.deep.equal(["w+a", "w+b"]);
+    });
+
+    it("preserves the saved-search list above the cards slot and filter strip below it", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const folders = el.renderRoot.querySelector("ul.folders");
+      const slot = el.renderRoot.querySelector('slot[name="cards"]');
+      const filters = el.renderRoot.querySelector("details.filters");
+      expect(folders, "saved-search list mounts").to.exist;
+      expect(slot, "cards slot mounts").to.exist;
+      expect(filters, "filter strip mounts").to.exist;
+      // Document order: folders, then cards slot, then filter strip.
+      expect(folders.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
+      expect(slot.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
+    });
+  });
 });
 
 // Helper: read the element's static stylesheet text so we can assert

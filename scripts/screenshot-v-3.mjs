@@ -12,15 +12,17 @@
 // whatever toolbar shape is present on the working tree (before vs.
 // after is captured by running the script after a `git checkout` of
 // the toolbar files).
-import { chromium } from "playwright/index.js";
 import path from "node:path";
 import http from "node:http";
 import fs from "node:fs";
 import url from "node:url";
+import { createRequire } from "node:module";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const litRoot = path.join(repoRoot, "j2cl", "lit");
+const litRequire = createRequire(path.join(litRoot, "package.json"));
+const { chromium } = litRequire("playwright");
 
 if (process.argv.length < 3) {
   console.error("usage: node scripts/screenshot-v-3.mjs <out.png>");
@@ -40,29 +42,49 @@ function contentTypeFor(p) {
   return "application/octet-stream";
 }
 
+function splitBareSpecifier(spec) {
+  // "@scope/pkg/subpath/x.js" -> { pkg: "@scope/pkg", sub: "subpath/x.js" }
+  // "pkg/subpath/x.js" -> { pkg: "pkg", sub: "subpath/x.js" }
+  if (spec.startsWith("@")) {
+    const parts = spec.split("/");
+    if (parts.length < 2) return { pkg: spec, sub: "" };
+    return { pkg: parts.slice(0, 2).join("/"), sub: parts.slice(2).join("/") };
+  }
+  const idx = spec.indexOf("/");
+  if (idx < 0) return { pkg: spec, sub: "" };
+  return { pkg: spec.slice(0, idx), sub: spec.slice(idx + 1) };
+}
+
 function resolveImport(specifier, fromDir) {
   if (specifier.startsWith(".") || specifier.startsWith("/")) {
     return null; // handled by static path resolution
   }
-  // Bare specifier: walk up node_modules trees from fromDir.
+  const { pkg, sub } = splitBareSpecifier(specifier);
   let dir = fromDir;
   while (true) {
-    const candidate = path.join(dir, "node_modules", specifier);
-    if (fs.existsSync(candidate)) {
-      const pkgJson = path.join(candidate, "package.json");
+    const pkgRoot = path.join(dir, "node_modules", pkg);
+    if (fs.existsSync(pkgRoot)) {
+      if (sub) {
+        const direct = path.join(pkgRoot, sub);
+        if (fs.existsSync(direct) && fs.statSync(direct).isFile()) return direct;
+        if (fs.existsSync(direct + ".js")) return direct + ".js";
+        if (fs.existsSync(path.join(direct, "index.js"))) return path.join(direct, "index.js");
+        return direct;
+      }
+      const pkgJson = path.join(pkgRoot, "package.json");
       if (fs.existsSync(pkgJson)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+        const meta = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
         let entry = null;
-        if (typeof pkg.exports === "string") entry = pkg.exports;
-        else if (pkg.exports && typeof pkg.exports === "object") {
-          const root = pkg.exports["."] || pkg.exports;
+        if (typeof meta.exports === "string") entry = meta.exports;
+        else if (meta.exports && typeof meta.exports === "object") {
+          const root = meta.exports["."] || meta.exports;
           entry = (root && (root.import || root.default || root.module)) || null;
           if (entry && typeof entry === "object") entry = entry.default || entry.import;
         }
-        if (!entry) entry = pkg.module || pkg.main || "index.js";
-        return path.join(candidate, entry);
+        if (!entry) entry = meta.module || meta.main || "index.js";
+        return path.join(pkgRoot, entry);
       }
-      return path.join(candidate, "index.js");
+      return path.join(pkgRoot, "index.js");
     }
     const parent = path.dirname(dir);
     if (parent === dir) return null;
@@ -73,7 +95,7 @@ function resolveImport(specifier, fromDir) {
 function rewriteImports(source, fromFile) {
   const fromDir = path.dirname(fromFile);
   return source.replace(
-    /(\bfrom\s+["']|\bimport\s*\(\s*["']|\bimport\s+["'])([^"']+)(["'])/g,
+    /(\bfrom\s*["']|\bimport\s*\(\s*["']|\bimport\s*["'])([^"']+)(["'])/g,
     (match, prefix, spec, suffix) => {
       if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("http")) {
         return match;
@@ -224,7 +246,7 @@ try {
   });
   const page = await context.newPage();
   await page.goto(`http://${HOST}:${port}/`, { waitUntil: "networkidle" });
-  await page.waitForFunction(() => window.__ready === true, null, { timeout: 10000 });
+  await page.waitForFunction(() => window.__ready === true, null, { timeout: 15000 });
   // Allow paint to settle.
   await page.waitForTimeout(200);
   const editor = await page.locator(".editor").first();

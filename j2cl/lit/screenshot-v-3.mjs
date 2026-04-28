@@ -6,7 +6,7 @@
 // j2cl/lit/node_modules.
 //
 // Usage:
-//   node scripts/screenshot-v-3.mjs <out.png>
+//   node j2cl/lit/screenshot-v-3.mjs <out.png>
 //
 // The harness re-uses the lit modules from j2cl/lit/src so it picks up
 // whatever toolbar shape is present on the working tree (before vs.
@@ -23,7 +23,7 @@ const litRoot = __dirname;
 const repoRoot = path.resolve(litRoot, "..", "..");
 
 if (process.argv.length < 3) {
-  console.error("usage: node scripts/screenshot-v-3.mjs <out.png>");
+  console.error("usage: node j2cl/lit/screenshot-v-3.mjs <out.png>");
   process.exit(2);
 }
 const outPath = path.resolve(process.argv[2]);

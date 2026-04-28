@@ -5,7 +5,7 @@ export class ToolbarButton extends LitElement {
   static properties = {
     action: { type: String },
     label: { type: String },
-    icon: { type: String, reflect: true },
+    icon: { type: String },
     pressed: { type: Boolean, reflect: true },
     disabled: { type: Boolean, reflect: true },
     toggle: { type: Boolean, reflect: true },
@@ -84,7 +84,7 @@ export class ToolbarButton extends LitElement {
     super();
     this.action = "";
     this.label = "";
-    this.icon = "";
+    this.icon = null;
     this.pressed = false;
     this.disabled = false;
     this.toggle = false;

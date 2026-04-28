@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-28-issue-1101-v-3-format-toolbar",
-  "version": "PR #V-3",
+  "version": "PR #1105",
   "date": "2026-04-28",
   "title": "V-3: Real format toolbar with icons (J2CL composer)",
   "summary": "The selection-driven format toolbar at /?view=j2cl-root now renders as a compact icon row matching the 03-inline-rich-text-composer.svg mockup. Each button shows an SVG glyph with an aria-label/title, grouped by purpose (text formatting / block / alignment / link / clear / insert). Toggled formatting (bold, italic, underline, strikethrough, lists) lights with the cyan signal accent in the active selection.",

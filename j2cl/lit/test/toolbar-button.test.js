@@ -67,6 +67,13 @@ describe("<toolbar-button>", () => {
     expect(button.textContent.trim()).to.equal("Archive");
   });
 
+  it("does not reflect an empty icon attribute for text-mode consumers", async () => {
+    const el = await fixture(html`
+      <toolbar-button action="archive" label="Archive"></toolbar-button>
+    `);
+    expect(el.hasAttribute("icon")).to.equal(false);
+  });
+
   // V-3 (#1101): the title attribute is gated on icon presence so that
   // text-mode consumers (wave-blip-toolbar etc.) do not gain unexpected
   // hover tooltips from this slice. Per copilot review feedback.

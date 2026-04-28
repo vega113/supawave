@@ -716,17 +716,49 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       String type = typeObj == null ? "" : String.valueOf(typeObj);
       String text = textObj == null ? "" : String.valueOf(textObj);
       if ("annotated".equals(type)) {
-        Object keyObj = map.get("annotationKey");
-        Object valueObj = map.get("annotationValue");
-        String key = keyObj == null ? "" : String.valueOf(keyObj);
-        String value = valueObj == null ? "" : String.valueOf(valueObj);
-        if (text.isEmpty() || key.isEmpty() || value.isEmpty()) {
+        // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84a):
+        // multi-annotation runs forward an `annotations` array of
+        // {key, value} pairs. Singular `annotationKey` /
+        // `annotationValue` fields stay as a back-compat fallback for
+        // single-annotation runs.
+        List<J2clComposeSurfaceController.SubmittedComponent.Annotation> parsed =
+            new ArrayList<J2clComposeSurfaceController.SubmittedComponent.Annotation>();
+        Object annsObj = map.get("annotations");
+        if (annsObj != null) {
+          JsArray<?> annsArr = Js.cast(annsObj);
+          int annsLen = annsArr.length;
+          for (int j = 0; j < annsLen; j++) {
+            Object annItem = annsArr.getAt(j);
+            if (annItem == null) continue;
+            JsPropertyMap<Object> annMap = Js.cast(annItem);
+            Object kObj = annMap.get("key");
+            Object vObj = annMap.get("value");
+            String k = kObj == null ? "" : String.valueOf(kObj);
+            String v = vObj == null ? "" : String.valueOf(vObj);
+            if (!k.isEmpty() && !v.isEmpty()) {
+              parsed.add(
+                  new J2clComposeSurfaceController.SubmittedComponent.Annotation(k, v));
+            }
+          }
+        }
+        if (parsed.isEmpty()) {
+          Object keyObj = map.get("annotationKey");
+          Object valueObj = map.get("annotationValue");
+          String key = keyObj == null ? "" : String.valueOf(keyObj);
+          String value = valueObj == null ? "" : String.valueOf(valueObj);
+          if (!key.isEmpty() && !value.isEmpty()) {
+            parsed.add(
+                new J2clComposeSurfaceController.SubmittedComponent.Annotation(key, value));
+          }
+        }
+        if (text.isEmpty() || parsed.isEmpty()) {
           if (!text.isEmpty()) {
             result.add(J2clComposeSurfaceController.SubmittedComponent.text(text));
           }
           continue;
         }
-        result.add(J2clComposeSurfaceController.SubmittedComponent.annotated(text, key, value));
+        result.add(
+            J2clComposeSurfaceController.SubmittedComponent.annotatedMulti(text, parsed));
       } else if ("text".equals(type)) {
         if (!text.isEmpty()) {
           result.add(J2clComposeSurfaceController.SubmittedComponent.text(text));

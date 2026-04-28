@@ -169,8 +169,16 @@ public final class J2clComposeSurfaceController {
    * J-UI-5 (#1083, R-5.7): a single text or annotated-text run forwarded
    * by `wavy-composer.js#serializeRichComponents` on reply submit.
    * Mirrors the JS schema: a TEXT component carries plain text; an
-   * ANNOTATED component wraps its text in a single `(annotationKey,
-   * annotationValue)` pair the read codec already understands.
+   * ANNOTATED component wraps its text in one or more
+   * `(annotationKey, annotationValue)` pairs the read codec already
+   * understands.
+   *
+   * <p>Multi-annotation support (codex review #1095 thread
+   * PRRT_kwDOBwxLXs5-C84a): combined wraps such as
+   * `<strong><em>x</em></strong>` carry both `fontStyle=italic` AND
+   * `fontWeight=bold` on the same text run; the controller's submit
+   * path opens / closes both annotations bracketing the chars op so
+   * combined styles round-trip on reload.
    */
   public static final class SubmittedComponent {
     public enum Kind {
@@ -178,30 +186,60 @@ public final class J2clComposeSurfaceController {
       ANNOTATED
     }
 
+    public static final class Annotation {
+      private final String key;
+      private final String value;
+
+      public Annotation(String key, String value) {
+        this.key = key == null ? "" : key;
+        this.value = value == null ? "" : value;
+      }
+
+      public String getKey() {
+        return key;
+      }
+
+      public String getValue() {
+        return value;
+      }
+    }
+
     private final Kind kind;
     private final String text;
-    private final String annotationKey;
-    private final String annotationValue;
+    private final List<Annotation> annotations;
 
     public static SubmittedComponent text(String text) {
-      return new SubmittedComponent(Kind.TEXT, text == null ? "" : text, "", "");
+      return new SubmittedComponent(
+          Kind.TEXT,
+          text == null ? "" : text,
+          Collections.<Annotation>emptyList());
     }
 
     public static SubmittedComponent annotated(
         String text, String annotationKey, String annotationValue) {
+      List<Annotation> list = new ArrayList<Annotation>(1);
+      list.add(new Annotation(annotationKey, annotationValue));
       return new SubmittedComponent(
           Kind.ANNOTATED,
           text == null ? "" : text,
-          annotationKey == null ? "" : annotationKey,
-          annotationValue == null ? "" : annotationValue);
+          list);
     }
 
-    private SubmittedComponent(
-        Kind kind, String text, String annotationKey, String annotationValue) {
+    public static SubmittedComponent annotatedMulti(
+        String text, List<Annotation> annotations) {
+      List<Annotation> list = annotations == null
+          ? Collections.<Annotation>emptyList()
+          : new ArrayList<Annotation>(annotations);
+      return new SubmittedComponent(
+          list.isEmpty() ? Kind.TEXT : Kind.ANNOTATED,
+          text == null ? "" : text,
+          list);
+    }
+
+    private SubmittedComponent(Kind kind, String text, List<Annotation> annotations) {
       this.kind = kind;
       this.text = text;
-      this.annotationKey = annotationKey;
-      this.annotationValue = annotationValue;
+      this.annotations = Collections.unmodifiableList(annotations);
     }
 
     public Kind getKind() {
@@ -212,12 +250,19 @@ public final class J2clComposeSurfaceController {
       return text;
     }
 
+    /** First annotation key in declaration order; empty when this is a TEXT component. */
     public String getAnnotationKey() {
-      return annotationKey;
+      return annotations.isEmpty() ? "" : annotations.get(0).getKey();
     }
 
+    /** First annotation value in declaration order; empty when this is a TEXT component. */
     public String getAnnotationValue() {
-      return annotationValue;
+      return annotations.isEmpty() ? "" : annotations.get(0).getValue();
+    }
+
+    /** All annotations attached to this run (≥ 0 entries, in declaration order). */
+    public List<Annotation> getAnnotations() {
+      return annotations;
     }
   }
 
@@ -1631,14 +1676,33 @@ public final class J2clComposeSurfaceController {
         // run so the submit does not throw and tear down the reply.
         if (component.getKind() == SubmittedComponent.Kind.ANNOTATED
             && !component.getText().isEmpty()
-            && !component.getText().trim().isEmpty()
-            && !component.getAnnotationKey().isEmpty()
-            && !component.getAnnotationValue().isEmpty()) {
-          builder.annotatedText(
-              component.getAnnotationKey(),
-              component.getAnnotationValue(),
-              component.getText());
-          continue;
+            && !component.getText().trim().isEmpty()) {
+          List<SubmittedComponent.Annotation> ann = component.getAnnotations();
+          List<SubmittedComponent.Annotation> validAnns =
+              new ArrayList<SubmittedComponent.Annotation>();
+          for (SubmittedComponent.Annotation a : ann) {
+            if (a != null && !a.getKey().isEmpty() && !a.getValue().isEmpty()) {
+              validAnns.add(a);
+            }
+          }
+          if (!validAnns.isEmpty()) {
+            // Codex review #1095 thread PRRT_kwDOBwxLXs5-C84a: use
+            // the multi-annotation builder when more than one pair
+            // is present so combined bold+italic / bold+link /
+            // etc. round-trip through the delta.
+            if (validAnns.size() == 1) {
+              SubmittedComponent.Annotation only = validAnns.get(0);
+              builder.annotatedText(only.getKey(), only.getValue(), component.getText());
+            } else {
+              List<J2clComposerDocument.KeyValuePair> pairs =
+                  new ArrayList<J2clComposerDocument.KeyValuePair>(validAnns.size());
+              for (SubmittedComponent.Annotation a : validAnns) {
+                pairs.add(new J2clComposerDocument.KeyValuePair(a.getKey(), a.getValue()));
+              }
+              builder.annotatedTextMulti(pairs, component.getText());
+            }
+            continue;
+          }
         }
         builder.text(component.getText());
       }

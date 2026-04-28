@@ -19,6 +19,30 @@ import "./wavy-link-modal.js";
  * (http/https/mailto) plus relative URLs (no scheme). Rejects any
  * scheme that can carry script (javascript:, data:, vbscript:, file:).
  */
+/**
+ * J-UI-5 (#1083, codex review thread PRRT_kwDOBwxLXs5-C84T):
+ * returns true when the supplied DOM node sits entirely within the
+ * range (range.start ≤ node.start AND range.end ≥ node.end). Used by
+ * `_clearFormattingAtSelection` to decide whether a container tag
+ * (`<ul>`, `<ol>`, `<li>`, `<blockquote>`) should be unwrapped — only
+ * when the user's selection covers the whole container, never when
+ * one sibling item is selected and the rest would lose formatting.
+ */
+function rangeFullyContainsNode(range, node) {
+  if (!range || !node) return false;
+  try {
+    const nodeRange = document.createRange();
+    nodeRange.selectNode(node);
+    const startsBefore =
+        range.compareBoundaryPoints(Range.START_TO_START, nodeRange) <= 0;
+    const endsAfter =
+        range.compareBoundaryPoints(Range.END_TO_END, nodeRange) >= 0;
+    return startsBefore && endsAfter;
+  } catch (_e) {
+    return false;
+  }
+}
+
 function isSafeLinkHref(url) {
   if (!url || typeof url !== "string") return false;
   const trimmed = url.trim();
@@ -380,23 +404,20 @@ export class WavyComposer extends LitElement {
       event.stopPropagation();
       return;
     }
+    // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84X):
+    // align-* and rtl have no submit-pipeline serialization in this
+    // slice — applying the DOM mutation locally would make the
+    // alignment / direction *appear* to take effect but get silently
+    // dropped on submit/reload. Leave the click as a no-op (no DOM
+    // mutation, no stopPropagation) so the action bubbles to a
+    // listener that can surface "unavailable" status. Filed alongside
+    // the heading button as an out-of-scope follow-up in plan §9.
     if (
       actionId === "align-left" ||
       actionId === "align-center" ||
-      actionId === "align-right"
+      actionId === "align-right" ||
+      actionId === "rtl"
     ) {
-      const align = actionId === "align-left" ? "left" : actionId === "align-center" ? "center" : "right";
-      this._applyBlockStyleAtSelection((block) => {
-        block.style.textAlign = align;
-      });
-      event.stopPropagation();
-      return;
-    }
-    if (actionId === "rtl") {
-      this._applyBlockStyleAtSelection((block) => {
-        block.dir = "rtl";
-      });
-      event.stopPropagation();
       return;
     }
     if (actionId === "link") {
@@ -540,34 +561,6 @@ export class WavyComposer extends LitElement {
   }
 
   /**
-   * J-UI-5 (#1083, R-5.7): apply a style mutation to the block-level
-   * ancestor of the active range without clobbering pre-existing inline
-   * style. Wraps in a fresh `<div>` when no block ancestor exists.
-   */
-  _applyBlockStyleAtSelection(applyFn) {
-    if (!this._bodyElement) return;
-    const range = this._activeRange();
-    if (!range) return;
-    if (!this._bodyElement.contains(range.startContainer)) return;
-    let block = this._findAncestorTag(range.startContainer, ["div", "p", "li", "blockquote"]);
-    if (!block) {
-      block = document.createElement("div");
-      try {
-        block.appendChild(range.extractContents());
-        range.insertNode(block);
-      } catch (_e) {
-        return;
-      }
-    }
-    try {
-      applyFn(block);
-    } catch (_e) {
-      return;
-    }
-    this._afterBodyMutation();
-  }
-
-  /**
    * J-UI-5 (#1083, R-5.7): open the existing `<wavy-link-modal>` to
    * collect a URL, then wrap the active range in `<a href=…>`. The
    * range is captured before the modal opens so caret/selection
@@ -682,7 +675,19 @@ export class WavyComposer extends LitElement {
     const range = this._activeRange();
     if (!range) return;
     if (!this._bodyElement.contains(range.startContainer)) return;
-    const tagsToFlatten = new Set([
+    // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84T):
+    // inline wraps (bold/italic/underline/strike/link/headings) are
+    // unwrapped when they intersect the selection — selecting the
+    // middle of a bold word and clearing should drop bold from the
+    // whole wrap, matching the intuitive "remove formatting from this
+    // text" expectation.
+    //
+    // Container wraps (`ul`, `ol`, `li`, `blockquote`) are different:
+    // unwrapping a `<ul>` because the user selected ONE `<li>`
+    // strips list membership from sibling items the user did not
+    // touch. Only unwrap a container when the entire container's
+    // tree is inside the selection.
+    const inlineTags = new Set([
       "strong",
       "b",
       "em",
@@ -692,38 +697,32 @@ export class WavyComposer extends LitElement {
       "strike",
       "del",
       "a",
-      "ul",
-      "ol",
-      "li",
-      "blockquote",
       "h1",
       "h2",
       "h3",
       "h4"
     ]);
-    // Walk descendants of the body and unwrap matching tags whose
-    // tree intersects the active range. `Range.intersectsNode` returns
-    // true when any part of the candidate's subtree overlaps the
-    // selection, which matches the user expectation that selecting one
-    // bold word and clearing scopes the strip to that word's wrap +
-    // any wrap entirely inside the selection. Wraps that strictly
-    // contain the selection (e.g. a list whose items wholly enclose
-    // the range) are also unwrapped so the user can drop list
-    // membership for the selected lines.
+    const containerTags = new Set(["ul", "ol", "li", "blockquote"]);
     const walker = document.createTreeWalker(this._bodyElement, NodeFilter.SHOW_ELEMENT, null);
     const stripCandidates = [];
     let node = walker.currentNode;
     while ((node = walker.nextNode())) {
       const tag = node.tagName ? node.tagName.toLowerCase() : "";
-      if (!tagsToFlatten.has(tag)) continue;
+      const isInline = inlineTags.has(tag);
+      const isContainer = containerTags.has(tag);
+      if (!isInline && !isContainer) continue;
       if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
-      let intersects = false;
       try {
-        intersects = range.intersectsNode(node);
+        if (!range.intersectsNode(node)) continue;
       } catch (_e) {
-        intersects = false;
+        continue;
       }
-      if (!intersects) continue;
+      if (isContainer && !rangeFullyContainsNode(range, node)) {
+        // Container only partially covered — sibling items would lose
+        // formatting if we unwrap. Skip and let the user clear
+        // per-item by widening the selection.
+        continue;
+      }
       stripCandidates.push(node);
     }
     // Unwrap children-first so an outer wrap's children migrate cleanly
@@ -1204,8 +1203,10 @@ export class WavyComposer extends LitElement {
         // recursively so that nested formatting (e.g. <strong><em>...
         // </em></strong>) and chips inside formatted text survive
         // round-trip. Plain text inside the wrap is promoted to the
-        // matching annotation; rich components inside the wrap flow
-        // through unchanged.
+        // matching annotation; pre-annotated children carry the inner
+        // annotation in their `annotations` list and we *append* the
+        // outer annotation to that list so the combined run round-trips
+        // (codex review #1095 thread PRRT_kwDOBwxLXs5-C84a).
         const inlineAnnotation = inlineFormatAnnotation(tag);
         if (inlineAnnotation) {
           flushText();
@@ -1222,7 +1223,30 @@ export class WavyComposer extends LitElement {
                 type: "annotated",
                 text: c.text,
                 annotationKey: inlineAnnotation.key,
-                annotationValue: inlineAnnotation.value
+                annotationValue: inlineAnnotation.value,
+                annotations: [
+                  { key: inlineAnnotation.key, value: inlineAnnotation.value }
+                ]
+              });
+            } else if (c.type === "annotated") {
+              // Compose the outer annotation with whatever the inner
+              // walk already attached (italic / link / list / etc.).
+              const inner = Array.isArray(c.annotations) && c.annotations.length > 0
+                ? c.annotations.slice()
+                : [{ key: c.annotationKey, value: c.annotationValue }];
+              const merged = inner.concat([
+                { key: inlineAnnotation.key, value: inlineAnnotation.value }
+              ]);
+              components.push({
+                type: "annotated",
+                text: c.text,
+                // Singular `annotationKey`/`annotationValue` mirror the
+                // first annotation for backward-compatible consumers
+                // that read the legacy fields. Multi-annotation aware
+                // consumers walk the `annotations` array.
+                annotationKey: merged[0].key,
+                annotationValue: merged[0].value,
+                annotations: merged
               });
             } else {
               components.push(c);

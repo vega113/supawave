@@ -3512,6 +3512,58 @@ public class J2clComposeSurfaceControllerTest {
         gateway.lastSubmitRequest.getDeltaJson().contains("fontWeight"));
   }
 
+  // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84a):
+  // a SubmittedComponent carrying two annotations (e.g. fontStyle +
+  // fontWeight) must serialise as a single chars op bracketed by both
+  // annotation start/end pairs in well-nested order, so combined
+  // bold+italic round-trips.
+  @Test
+  public void onReplySubmittedWithComponentsEmitsNestedAnnotationsForCombinedRun() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> {},
+            waveId -> {});
+    controller.start();
+    openWaveForReply(controller);
+
+    List<J2clComposeSurfaceController.SubmittedComponent.Annotation> ann = new ArrayList<>();
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "fontStyle", "italic"));
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "fontWeight", "bold"));
+    List<J2clComposeSurfaceController.SubmittedComponent> components = new ArrayList<>();
+    components.add(
+        J2clComposeSurfaceController.SubmittedComponent.annotatedMulti("combined", ann));
+
+    controller.onReplySubmittedWithComponents(components);
+
+    String delta = gateway.lastSubmitRequest.getDeltaJson();
+    // Both annotation starts AND both annotation ends, with chars in
+    // between. The exact order of starts is fontStyle then fontWeight
+    // (declaration order); ends are reversed.
+    int italicStart = delta.indexOf("\"1\":\"fontStyle\",\"3\":\"italic\"");
+    int boldStart = delta.indexOf("\"1\":\"fontWeight\",\"3\":\"bold\"");
+    int chars = delta.indexOf("\"2\":\"combined\"");
+    int boldEnd = delta.indexOf("[\"fontWeight\"]");
+    int italicEnd = delta.indexOf("[\"fontStyle\"]");
+    Assert.assertTrue("italic start present", italicStart >= 0);
+    Assert.assertTrue("bold start present", boldStart >= 0);
+    Assert.assertTrue("chars present", chars >= 0);
+    Assert.assertTrue("bold end present", boldEnd >= 0);
+    Assert.assertTrue("italic end present", italicEnd >= 0);
+    Assert.assertTrue("italic opens before bold (declaration order)", italicStart < boldStart);
+    Assert.assertTrue("bold opens before chars", boldStart < chars);
+    Assert.assertTrue("chars before bold close", chars < boldEnd);
+    Assert.assertTrue("bold closes before italic (well-nested)", boldEnd < italicEnd);
+  }
+
   // J-UI-5 (#1083): an annotated component whose text is whitespace-only
   // (a common user flow: bolding a word together with its trailing
   // space) must not throw; the controller downgrades it to a plain

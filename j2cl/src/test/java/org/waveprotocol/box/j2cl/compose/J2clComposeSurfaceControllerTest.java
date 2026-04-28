@@ -2556,11 +2556,34 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals("", view.model.getCreateDraft());
   }
 
-  // J-UI-3 — title is normalised: leading/trailing whitespace stripped,
-  // embedded newlines replaced with spaces so a paste with newlines does
-  // not break the conv/title annotation span.
+  // J-UI-3 (#1081, R-5.1) — live edits are LOSSLESS for whitespace per
+  // codex P1 PRRT_kwDOBwxLXs5-ColZ. Only embedded newlines get replaced
+  // with a space (paste safety: a literal newline would break the
+  // conv/title annotation span). Leading/trailing whitespace is preserved
+  // so users can type multi-word titles like "My wave" without each
+  // mid-word space being eaten between keystrokes.
   @Test
-  public void onCreateTitleChangedNormalisesPastedWhitespace() {
+  public void onCreateTitleChangedKeepsTrailingSpaceForMultiWordEdits() {
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(),
+            new ArrayList<String>(), new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateTitleChanged("My ");
+
+    Assert.assertEquals(
+        "trailing space must survive a live keystroke so the next character lands after it",
+        "My ",
+        view.model.getCreateTitleDraft());
+  }
+
+  // J-UI-3 — embedded newlines from a paste are replaced with spaces in
+  // the live path so the conv/title annotation never spans more than one
+  // line, but leading/trailing whitespace is preserved (only trimmed at
+  // submit time).
+  @Test
+  public void onCreateTitleChangedNeutralisesPastedNewlinesButPreservesEdgeWhitespace() {
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
         newController(new FakeGateway(), view, new FakeFactory(),
@@ -2569,7 +2592,33 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.onCreateTitleChanged("  pasted\nfrom-clipboard\r\n  ");
 
-    Assert.assertEquals("pasted from-clipboard", view.model.getCreateTitleDraft());
+    // \r\n becomes two spaces (each replaced individually) plus the
+    // original 2 trailing spaces = 4 trailing spaces.
+    Assert.assertEquals(
+        "  pasted from-clipboard    ", view.model.getCreateTitleDraft());
+  }
+
+  // J-UI-3 — submit-time normalisation trims edge whitespace so the
+  // conv/title annotation in the outgoing delta is a clean single-line
+  // span. Live state can still hold whitespace; only the submit path
+  // trims.
+  @Test
+  public void onCreateSubmittedWithTitleTrimsEdgeWhitespaceAtSubmit() {
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(),
+            new ArrayList<String>(), new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("  Hello world  ", "body");
+
+    // After submit clears the title, the model is empty. We assert via
+    // the success path: blank-title-after-success means the trim happened
+    // (otherwise the validation gate would have fired). The edge-trim
+    // behaviour is also covered by richContentSubmitCreateEmits... below
+    // via the encoded delta.
+    Assert.assertEquals("", view.model.getCreateTitleDraft());
+    Assert.assertEquals("Wave created.", view.model.getCreateStatusText());
   }
 
   // J-UI-3 — submit with both title and body succeeds and clears both

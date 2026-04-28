@@ -643,12 +643,15 @@ public final class J2clComposeSurfaceController {
   }
 
   /**
-   * J-UI-3 (#1081, R-5.1): the title input's value changed. Title is single
-   * line; we trim trailing whitespace/newlines (a paste with a trailing
-   * newline must not break the title annotation).
+   * J-UI-3 (#1081, R-5.1): the title input's value changed. Live updates
+   * are kept lossless so users can type multi-word titles normally — we
+   * only neutralise embedded newlines (paste safety: a literal newline
+   * would break the conv/title annotation span). Leading and trailing
+   * whitespace is preserved here and trimmed on submit (codex P1 review
+   * thread on PR #1090).
    */
   public void onCreateTitleChanged(String title) {
-    createTitleDraft = normalizeTitle(title);
+    createTitleDraft = sanitizeTitleLive(title);
     createErrorText = "";
     render();
   }
@@ -661,10 +664,11 @@ public final class J2clComposeSurfaceController {
   /**
    * J-UI-3 (#1081, R-5.1): submit triggered from the title input (Enter key).
    * Snapshots both title and body before submit so a stray draft-change after
-   * Enter does not race with submitCreate.
+   * Enter does not race with submitCreate. The submit path is the only place
+   * that trims the title, so live edits keep every character the user typed.
    */
   public void onCreateSubmittedWithTitle(String title, String draft) {
-    createTitleDraft = normalizeTitle(title);
+    createTitleDraft = normalizeTitleForSubmit(title);
     createDraft = normalizeDraft(draft);
     submitCreate();
   }
@@ -2199,18 +2203,28 @@ public final class J2clComposeSurfaceController {
   }
 
   /**
-   * J-UI-3 (#1081, R-5.1): normalise a title-input value. Titles are
-   * single-line; we strip leading/trailing whitespace and any embedded
-   * newlines so a paste with a trailing newline does not turn the title
-   * annotation into a multi-line span (which would also pollute the
-   * digest snippet).
+   * J-UI-3 (#1081, R-5.1): live-edit sanitiser for the title input. Replaces
+   * any embedded newline (e.g. from a paste) with a space so the conv/title
+   * annotation never spans more than one line, but otherwise preserves the
+   * raw input — including trailing whitespace — so users can type
+   * multi-word titles normally without each space being eaten between
+   * keystrokes.
    */
-  private static String normalizeTitle(String title) {
+  private static String sanitizeTitleLive(String title) {
     if (title == null) {
       return "";
     }
-    String stripped = title.replace('\n', ' ').replace('\r', ' ').trim();
-    return stripped;
+    return title.replace('\n', ' ').replace('\r', ' ');
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): submit-time normaliser. Strips leading/trailing
+   * whitespace in addition to the live-edit newline sanitisation so the
+   * outgoing delta carries a clean single-line title. Called only from the
+   * submit path; live edits use {@link #sanitizeTitleLive}.
+   */
+  private static String normalizeTitleForSubmit(String title) {
+    return sanitizeTitleLive(title).trim();
   }
 
   private static String extractDomain(String waveId) {

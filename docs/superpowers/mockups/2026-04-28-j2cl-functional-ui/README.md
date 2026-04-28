@@ -40,7 +40,10 @@ dedicated SVG would only repeat #01.
 
 ## 3. Component mapping (what each mockup is implementable with)
 
-All component names below already exist in `j2cl/lit/src/`. The mockups
+All component names below already exist somewhere in `j2cl/` (most under
+`j2cl/lit/src/`; a couple of read-surface CSS classes live in
+`j2cl/src/main/webapp/assets/sidecar.css` and are applied by
+`j2cl/src/main/java/.../J2clReadSurfaceDomRenderer.java`). The mockups
 are intentionally constrained to that set so the implementer never has to
 invent a component to ship a slice.
 
@@ -67,9 +70,12 @@ invent a component to ship a slice.
   task)
 - `wavy-focus-frame` — cyan ring + glow shown on the focused blip in #02
   and #06
-- `wavy-thread-collapse.css` / `.j2cl-read-thread-toggle` /
-  `.j2cl-read-thread-collapsed` — chevron + collapsed count line
-  ("3 collapsed replies")
+- `j2cl/lit/src/design/wavy-thread-collapse.css` (Lit-side stylesheet,
+  defines the `.j2cl-read-thread-collapsed` rule) +
+  `j2cl/src/main/webapp/assets/sidecar.css` (defines
+  `.j2cl-read-thread-toggle`, applied by
+  `j2cl/src/main/java/.../J2clReadSurfaceDomRenderer.java`) — together
+  produce the chevron + collapsed count line ("3 collapsed replies")
 - `wavy-floating-scroll-to-new` — the cyan "↓ N new blips below" pill
 - `wavy-back-to-inbox` — mobile-only back button in #06
 - `wavy-depth-nav-bar` — breadcrumb under deep threads (latent, not all

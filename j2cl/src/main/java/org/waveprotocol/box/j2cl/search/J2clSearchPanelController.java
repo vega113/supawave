@@ -50,6 +50,24 @@ public final class J2clSearchPanelController
     default boolean updateDigestUnread(String waveId, int unreadCount) {
       return false;
     }
+
+    /**
+     * J-UI-2 (#1080 / R-4.5): announce a folder/chip navigation through an
+     * aria-live region and move keyboard focus to the active folder
+     * button. The default is a no-op so legacy view contexts (the
+     * non-rail sidecar) keep their pre-existing behaviour.
+     */
+    default void announceNavigation(String label) {
+    }
+
+    /**
+     * J-UI-2 (#1080 / R-4.5): move focus to the rail control representing
+     * the currently active folder so keyboard users land predictably
+     * after a saved-search button has driven a query change. No-op when
+     * the view does not own a focusable folder list.
+     */
+    default void focusActiveFolder() {
+    }
   }
 
   public interface RouteStateHandler {
@@ -130,6 +148,38 @@ public final class J2clSearchPanelController
   public void onShowMoreRequested() {
     currentPageSize += pageIncrement;
     requestSearch();
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): saved-search folder click — drive the same
+   * query/route flow as {@link #onQuerySubmitted(String)} but also
+   * announce the navigation and move focus so keyboard users land on
+   * the active folder button. The view's hooks default to no-ops so
+   * legacy non-rail surfaces keep their pre-existing behaviour.
+   */
+  @Override
+  public void onSavedSearchSelected(String folderId, String label, String query) {
+    onQuerySubmitted(query);
+    if (label != null && !label.isEmpty()) {
+      view.announceNavigation(label);
+    }
+    view.focusActiveFolder();
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): filter chip toggle — drive the search with
+   * the composed query and announce the chip's new pressed state so
+   * screen-reader users hear the active filter set after each toggle.
+   */
+  @Override
+  public void onFilterToggled(
+      String filterId, String label, boolean active, String composedQuery) {
+    onQuerySubmitted(composedQuery);
+    if (label != null && !label.isEmpty()) {
+      String announcement =
+          active ? label + " filter on" : label + " filter off";
+      view.announceNavigation(announcement);
+    }
   }
 
   /**

@@ -294,6 +294,91 @@ public class J2clSearchPanelControllerTest {
         Arrays.asList("example.com/w+1=0"), view.updateDigestUnreadInvocations);
   }
 
+  // --- J-UI-2 (#1080 / R-4.5): folder + chip switching --------------------
+
+  @Test
+  public void savedSearchSelectionIssuesFolderQueryAndAnnounces() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Wave 1",
+                    "Snippet",
+                    "example.com/w+1",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("teammate@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    List<String> routeEvents = new ArrayList<String>();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway,
+            view,
+            (state, digestItem, userNavigation) ->
+                routeEvents.add(state.getQuery() + "|" + userNavigation),
+            1200);
+    controller.start(null, null);
+
+    controller.onSavedSearchSelected("mentions", "Mentions", "mentions:me");
+
+    Assert.assertEquals("mentions:me", gateway.lastQuery);
+    Assert.assertEquals("Mentions", view.lastAnnouncement);
+    Assert.assertEquals(1, view.focusActiveFolderInvocations);
+    // Route state must be published for back/forward to work.
+    Assert.assertTrue(
+        "saved-search must publish a userNavigation route event",
+        routeEvents.contains("mentions:me|true"));
+  }
+
+  @Test
+  public void filterToggleIssuesComposedQueryAndAnnouncesActiveLabel() {
+    FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start("in:inbox", null);
+
+    controller.onFilterToggled(
+        "unread", "Unread only", /* active= */ true, "in:inbox is:unread");
+
+    Assert.assertEquals("in:inbox is:unread", gateway.lastQuery);
+    Assert.assertEquals("Unread only filter on", view.lastAnnouncement);
+  }
+
+  @Test
+  public void filterToggleOffAnnouncesInactiveLabel() {
+    FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start("in:inbox is:unread", null);
+
+    controller.onFilterToggled(
+        "unread", "Unread only", /* active= */ false, "in:inbox");
+
+    Assert.assertEquals("in:inbox", gateway.lastQuery);
+    Assert.assertEquals("Unread only filter off", view.lastAnnouncement);
+  }
+
+  @Test
+  public void savedSearchSelectionWithEmptyLabelDoesNotAnnounce() {
+    FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:archive", 0, null));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(gateway, view, (state, digestItem, userNavigation) -> {}, 1200);
+    controller.start(null, null);
+
+    controller.onSavedSearchSelected("archive", "", "in:archive");
+
+    Assert.assertEquals("in:archive", gateway.lastQuery);
+    Assert.assertNull("empty label must not produce an announcement", view.lastAnnouncement);
+    // Focus still moves so keyboard users land on the active button.
+    Assert.assertEquals(1, view.focusActiveFolderInvocations);
+  }
+
   @Test
   public void digestSelectionPublishesRouteStateAsUserNavigation() {
     FakeGateway gateway = new FakeGateway(new SidecarSearchResponse("in:inbox", 0, null));
@@ -363,6 +448,10 @@ public class J2clSearchPanelControllerTest {
     private J2clSearchResultModel lastModel = J2clSearchResultModel.empty("");
     private String selectedWaveId;
     private final List<String> updateDigestUnreadInvocations = new ArrayList<String>();
+    /** J-UI-2 (#1080): last announce-navigation label, or null if never called. */
+    private String lastAnnouncement;
+    /** J-UI-2 (#1080): count of focusActiveFolder invocations. */
+    private int focusActiveFolderInvocations;
 
     @Override
     public void bind(J2clSearchViewListener listener) {
@@ -398,6 +487,16 @@ public class J2clSearchPanelControllerTest {
     @Override
     public void setSelectedWaveId(String waveId) {
       this.selectedWaveId = waveId;
+    }
+
+    @Override
+    public void announceNavigation(String label) {
+      this.lastAnnouncement = label;
+    }
+
+    @Override
+    public void focusActiveFolder() {
+      this.focusActiveFolderInvocations++;
     }
 
     @Override

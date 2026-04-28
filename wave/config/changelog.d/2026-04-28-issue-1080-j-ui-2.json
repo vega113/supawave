@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-04-28-issue-1080-j-ui-2",
+  "version": "PR #1080",
+  "date": "2026-04-28",
+  "title": "J-UI-2: Folder + filter chip switching is functional",
+  "summary": "On /?view=j2cl-root the saved-search folders (Inbox / Mentions / Tasks / Public / Archive / Pinned) and the filter chips (Unread only / With attachments / From me) now drive real query changes. The active folder + chip composition round-trips through the URL so back/forward, reload, and deep links preserve the active filter.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Each saved-search folder click reaches the search backend with its canonical query token (in:inbox, mentions:me, tasks:me, with:@, in:archive, in:pinned) and the rail repopulates.",
+        "Filter chips compose with the active folder; toggling a chip preserves user-typed tokens, dedupes case-insensitively, and pushes the composed query into the URL so reload and deep links work.",
+        "Server-side: the rail's Unread only chip (is:unread) now aliases unread:true in both the in-memory and Solr-backed search providers. has:attachment and from:me parse, compose, and round-trip cleanly but their server-side execution is deferred to follow-up issues.",
+        "Saved-search clicks announce the active folder via aria-live and move keyboard focus to the active folder button so screen-reader and keyboard users land predictably (R-4.5).",
+        "Builds on the J-UI-1 j2cl-search-rail-cards flag — no new flag is needed."
+      ]
+    }
+  ]
+}

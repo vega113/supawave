@@ -361,6 +361,33 @@ public class QueryHelper {
     return tokensMap;
   }
 
+  /**
+   * J-UI-2 (#1080 / R-4.5): case-insensitive check for an
+   * {@code is:<value>} token (parsed as {@link TokenQueryType#IS}).
+   * Returns {@code true} when the search query contained
+   * {@code is:<value>} for the supplied {@code value}. The set under IS
+   * may hold multiple values; matching is case-insensitive because the
+   * parser does not lowercase IS values.
+   *
+   * <p>Both {@link SimpleSearchProviderImpl} and
+   * {@link SolrSearchProviderImpl} consult this predicate so the
+   * {@code is:unread} chip alias is implemented once. Lives here rather
+   * than on either provider so the providers do not develop a runtime
+   * dependency on each other.
+   */
+  public static boolean hasIsValue(Map<TokenQueryType, Set<String>> queryParams, String value) {
+    Set<String> values = queryParams.get(TokenQueryType.IS);
+    if (values == null || values.isEmpty()) {
+      return false;
+    }
+    for (String candidate : values) {
+      if (candidate != null && candidate.equalsIgnoreCase(value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static boolean isUnreadTokenValue(String tokenValue) {
     String normalized = tokenValue.toLowerCase(Locale.ROOT);
     return normalized.equals("true")

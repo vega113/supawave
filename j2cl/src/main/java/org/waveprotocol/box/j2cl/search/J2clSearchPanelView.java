@@ -61,6 +61,21 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
    */
   private final boolean railCardsEnabled;
   private J2clSearchViewListener listener;
+  /**
+   * J-UI-2 (#1080 / R-4.5): aria-live region appended to the search rail
+   * so saved-search and filter-chip clicks are announced to screen
+   * readers. Created lazily on first {@link #announceNavigation(String)}
+   * call.
+   */
+  private HTMLElement railLiveRegion;
+  /**
+   * J-UI-2 (#1080 / R-4.5): the rail emits {@code wavy-search-filter-toggled}
+   * AND {@code wavy-search-submit} for a single chip click. When the
+   * filter listener has already issued a search, we record the composed
+   * query here so the submit listener can skip the duplicate. Reset to
+   * {@code null} after the matching submit lands.
+   */
+  private String chipDrivenSubmitPending;
 
   public J2clSearchPanelView(HTMLElement host) {
     this(host, ShellPresentation.SIDE_CAR);
@@ -465,7 +480,19 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
             return;
           }
           String query = readDetailString(evt, "query");
-          listener.onQuerySubmitted(query == null ? queryInput.value : query);
+          String resolved = query == null ? queryInput.value : query;
+          // J-UI-2 (#1080 / R-4.5): chip toggles emit both
+          // wavy-search-filter-toggled and wavy-search-submit; the
+          // filter listener already drove a search via onFilterToggled.
+          // Skip the redundant submit so the chip click does not
+          // produce two identical backend requests. See
+          // shouldSuppressChipDrivenSubmit for the predicate.
+          if (shouldSuppressChipDrivenSubmit(chipDrivenSubmitPending, resolved)) {
+            chipDrivenSubmitPending = null;
+            return;
+          }
+          chipDrivenSubmitPending = null;
+          listener.onQuerySubmitted(resolved);
         });
     searchRail.addEventListener(
         "wavy-saved-search-selected",
@@ -474,9 +501,45 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
             return;
           }
           String query = readDetailString(evt, "query");
-          if (query != null && !query.isEmpty()) {
-            listener.onQuerySubmitted(query);
+          if (query == null || query.isEmpty()) {
+            return;
           }
+          // J-UI-2 (#1080 / R-4.5): route through onSavedSearchSelected
+          // so the controller can announce the navigation and re-focus
+          // the active folder button. The folderId/label come straight
+          // from the rail's CustomEvent detail; missing fields fall back
+          // to the query token for the announcement.
+          String folderId = readDetailString(evt, "folderId");
+          String label = readDetailString(evt, "label");
+          if (label == null || label.isEmpty()) {
+            label = labelForFolderId(folderId, query);
+          }
+          listener.onSavedSearchSelected(folderId, label, query);
+        });
+    // J-UI-2 (#1080 / R-4.5): chip toggles emit BOTH wavy-search-submit
+    // and wavy-search-filter-toggled. Bind the more specific event so
+    // the controller can announce the chip-active state. The submit
+    // listener guard below ensures the chip-driven submit does not
+    // double-fire onQuerySubmitted — readFromFilterToggle short-
+    // circuits the next submit event so the same chip click does not
+    // produce two backend requests.
+    searchRail.addEventListener(
+        "wavy-search-filter-toggled",
+        (Event evt) -> {
+          if (listener == null) {
+            return;
+          }
+          String filterId = readDetailString(evt, "filterId");
+          String label = readDetailString(evt, "label");
+          if (label == null || label.isEmpty()) {
+            label = labelForFilterId(filterId);
+          }
+          String composed = readDetailString(evt, "query");
+          boolean active = readDetailBoolean(evt, "active");
+          // Mark the next submit event as "consumed by the filter
+          // pathway" so the submit listener skips it.
+          chipDrivenSubmitPending = composed == null ? "" : composed;
+          listener.onFilterToggled(filterId, label, active, composed == null ? "" : composed);
         });
     searchRail.addEventListener(
         "wavy-search-refresh-requested",
@@ -493,6 +556,24 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
         });
   }
 
+  /**
+   * J-UI-2 (#1080 / R-4.5): predicate for the wavy-search-submit
+   * dedupe. Returns true when the pending chip-driven submit query
+   * matches the resolved submit value — the contract relies on the
+   * Lit rail dispatching {@code wavy-search-filter-toggled} BEFORE
+   * {@code wavy-search-submit} on a chip toggle (verified by the
+   * "filter-toggled is dispatched BEFORE wavy-search-submit"
+   * regression test in {@code wavy-search-rail.test.js}). Extracted
+   * for JVM testability — the live event-listener path uses
+   * elemental2 DOM types which are not available under plain JUnit.
+   */
+  static boolean shouldSuppressChipDrivenSubmit(String pending, String resolved) {
+    if (pending == null) {
+      return false;
+    }
+    return pending.equals(resolved);
+  }
+
   private static String readDetailString(Event evt, String key) {
     Object detail = Js.asPropertyMap(evt).get("detail");
     if (detail == null) {
@@ -500,6 +581,152 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     }
     Object value = Js.asPropertyMap(detail).get(key);
     return value == null ? null : String.valueOf(value);
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): read a boolean detail from the rail's
+   * CustomEvent. Truthy strings ({@code "true"}, {@code "1"}) and the
+   * native {@code Boolean.TRUE} both return true; everything else is
+   * false. Used by the filter-toggled listener to detect the chip's
+   * pressed state.
+   */
+  private static boolean readDetailBoolean(Event evt, String key) {
+    Object detail = Js.asPropertyMap(evt).get("detail");
+    if (detail == null) {
+      return false;
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    if (value == null) {
+      return false;
+    }
+    if (value instanceof Boolean) {
+      return ((Boolean) value).booleanValue();
+    }
+    String text = String.valueOf(value).toLowerCase();
+    return text.equals("true") || text.equals("1");
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): folder labels for screen-reader announcement
+   * when the rail does not include the label in the CustomEvent detail.
+   * Mirrors the canonical FOLDERS list in
+   * {@code j2cl/lit/src/elements/wavy-search-rail.js}; if a folderId is
+   * unknown we fall back to the raw query token so the announcement is
+   * still meaningful.
+   */
+  private static String labelForFolderId(String folderId, String fallbackQuery) {
+    if (folderId == null) {
+      return fallbackQuery == null ? "" : fallbackQuery;
+    }
+    switch (folderId) {
+      case "inbox":
+        return "Inbox";
+      case "mentions":
+        return "Mentions";
+      case "tasks":
+        return "Tasks";
+      case "public":
+        return "Public";
+      case "archive":
+        return "Archive";
+      case "pinned":
+        return "Pinned";
+      default:
+        return fallbackQuery == null ? folderId : fallbackQuery;
+    }
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): chip labels for screen-reader announcement,
+   * mirroring the FILTERS list in the rail.
+   */
+  private static String labelForFilterId(String filterId) {
+    if (filterId == null) {
+      return "";
+    }
+    switch (filterId) {
+      case "unread":
+        return "Unread only";
+      case "attachments":
+        return "With attachments";
+      case "from-me":
+        return "From me";
+      default:
+        return filterId;
+    }
+  }
+
+  @Override
+  public void announceNavigation(String label) {
+    if (label == null || label.isEmpty()) {
+      return;
+    }
+    HTMLElement region = ensureRailLiveRegion();
+    if (region == null) {
+      return;
+    }
+    // Toggle textContent: setting the same string twice in a row does
+    // not always re-trigger an announcement, so we clear first.
+    region.textContent = "";
+    region.textContent = label;
+  }
+
+  @Override
+  public void focusActiveFolder() {
+    if (searchRail == null) {
+      return;
+    }
+    // The rail keeps the active folder pinned via aria-current=page;
+    // ask the Lit element to focus it through its public method so we
+    // do not reach into shadow DOM from the J2CL side. Cast the host
+    // through a structural interface and call the method directly;
+    // when the rail predates this method (e.g. a stale SSR snapshot)
+    // the call is a silent no-op via the optional-chain guard below.
+    if (Js.asPropertyMap(searchRail).get("focusActiveFolder") == null) {
+      return;
+    }
+    Js.<RailFocusBridge>cast(searchRail).focusActiveFolder();
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): structural type for invoking the Lit rail's
+   * {@code focusActiveFolder()} method from J2CL without reaching into
+   * the shadow DOM. The method is exposed by
+   * {@code j2cl/lit/src/elements/wavy-search-rail.js}.
+   */
+  @jsinterop.annotations.JsType(isNative = true, namespace = jsinterop.annotations.JsPackage.GLOBAL, name = "Object")
+  private interface RailFocusBridge {
+    void focusActiveFolder();
+  }
+
+  private HTMLElement ensureRailLiveRegion() {
+    if (railLiveRegion != null) {
+      return railLiveRegion;
+    }
+    if (searchRail == null) {
+      return null;
+    }
+    HTMLElement region =
+        (HTMLElement) DomGlobal.document.createElement("div");
+    region.className = "j2cl-rail-live-region";
+    region.setAttribute("role", "status");
+    region.setAttribute("aria-live", "polite");
+    region.setAttribute("aria-atomic", "true");
+    // Visually hidden, screen-reader announceable.
+    region.setAttribute(
+        "style",
+        "position:absolute;width:1px;height:1px;margin:-1px;padding:0;"
+            + "overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;");
+    // Keep the live region OUTSIDE the rail's shadow root so screen
+    // readers reliably pick up the assertive content. Append next to
+    // the rail in the light DOM.
+    if (searchRail.parentNode != null) {
+      searchRail.parentNode.insertBefore(region, searchRail.nextSibling);
+    } else {
+      DomGlobal.document.body.appendChild(region);
+    }
+    railLiveRegion = region;
+    return region;
   }
 
   static Copy copyFor(ShellPresentation shellPresentation) {

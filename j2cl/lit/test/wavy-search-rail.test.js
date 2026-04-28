@@ -282,6 +282,147 @@ describe("<wavy-search-rail>", () => {
     });
   });
 
+  // J-UI-2 (#1080 / R-4.5): folder click must carry the user-visible
+  // label so the J2CL controller can announce navigation via aria-live
+  // without re-deriving the label from the folderId.
+  describe("J-UI-2 navigation announce + focus (#1080)", () => {
+    it("wavy-saved-search-selected detail carries folder label", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const archive = el.renderRoot.querySelector(
+        '[data-folder-id="archive"]'
+      );
+      setTimeout(() => archive.click(), 0);
+      const evt = await oneEvent(el, "wavy-saved-search-selected");
+      expect(evt.detail.folderId).to.equal("archive");
+      expect(evt.detail.label).to.equal("Archive");
+      expect(evt.detail.query).to.equal("in:archive");
+    });
+
+    it("wavy-search-filter-toggled detail carries filter label", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const chip = el.renderRoot.querySelector('[data-filter-id="from-me"]');
+      setTimeout(() => chip.click(), 0);
+      const evt = await oneEvent(el, "wavy-search-filter-toggled");
+      expect(evt.detail.filterId).to.equal("from-me");
+      expect(evt.detail.label).to.equal("From me");
+      expect(evt.detail.active).to.equal(true);
+    });
+
+    it("focusActiveFolder() moves focus to the aria-current=page button", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      el.query = "in:archive";
+      await el.updateComplete;
+      el.focusActiveFolder();
+      const archive = el.renderRoot.querySelector(
+        '[data-folder-id="archive"]'
+      );
+      expect(el.renderRoot.activeElement || el.shadowRoot.activeElement).to.equal(
+        archive
+      );
+    });
+
+    it("focusActiveFolder() is a no-op when no folder is active", async () => {
+      const el = await fixture(
+        html`<wavy-search-rail query="title:meeting"></wavy-search-rail>`
+      );
+      await el.updateComplete;
+      // No throw, no focus change.
+      expect(() => el.focusActiveFolder()).to.not.throw();
+    });
+
+    it("each of the six folders emits its canonical query+label pair", async () => {
+      const expected = [
+        { id: "inbox", label: "Inbox", query: "in:inbox" },
+        { id: "mentions", label: "Mentions", query: "mentions:me" },
+        { id: "tasks", label: "Tasks", query: "tasks:me" },
+        { id: "public", label: "Public", query: "with:@" },
+        { id: "archive", label: "Archive", query: "in:archive" },
+        { id: "pinned", label: "Pinned", query: "in:pinned" }
+      ];
+      for (const folder of expected) {
+        const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+        await el.updateComplete;
+        const button = el.renderRoot.querySelector(
+          `[data-folder-id="${folder.id}"]`
+        );
+        setTimeout(() => button.click(), 0);
+        const evt = await oneEvent(el, "wavy-saved-search-selected");
+        expect(evt.detail).to.deep.equal({
+          folderId: folder.id,
+          label: folder.label,
+          query: folder.query
+        });
+      }
+    });
+
+    it("each of the three chips composes with in:inbox and emits label", async () => {
+      const expected = [
+        { id: "unread", label: "Unread only", token: "is:unread" },
+        { id: "attachments", label: "With attachments", token: "has:attachment" },
+        { id: "from-me", label: "From me", token: "from:me" }
+      ];
+      for (const chip of expected) {
+        const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+        await el.updateComplete;
+        const button = el.renderRoot.querySelector(
+          `[data-filter-id="${chip.id}"]`
+        );
+        setTimeout(() => button.click(), 0);
+        const evt = await oneEvent(el, "wavy-search-filter-toggled");
+        expect(evt.detail.filterId).to.equal(chip.id);
+        expect(evt.detail.label).to.equal(chip.label);
+        expect(evt.detail.token).to.equal(chip.token);
+        expect(evt.detail.query).to.equal("in:inbox " + chip.token);
+        expect(evt.detail.active).to.equal(true);
+      }
+    });
+
+    it("chip toggle still emits BOTH wavy-search-filter-toggled and wavy-search-submit", async () => {
+      // Defends against a refactor that splits the two events apart.
+      // The Java view dedupes via chipDrivenSubmitPending; if either
+      // event stops firing, the dedupe contract breaks silently.
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const chip = el.renderRoot.querySelector('[data-filter-id="unread"]');
+      const seen = [];
+      el.addEventListener("wavy-search-filter-toggled", (e) =>
+        seen.push("toggled:" + e.detail.query)
+      );
+      el.addEventListener("wavy-search-submit", (e) =>
+        seen.push("submit:" + e.detail.query)
+      );
+      chip.click();
+      expect(seen).to.deep.equal([
+        "toggled:in:inbox is:unread",
+        "submit:in:inbox is:unread"
+      ]);
+    });
+
+    it("filter-toggled is dispatched BEFORE wavy-search-submit (dedup order contract)", async () => {
+      // J-UI-2 (#1080): the J2CL view's chipDrivenSubmitPending dedup
+      // assumes filter-toggled lands first, sets the flag, and the
+      // following submit listener sees and consumes the flag. If a
+      // future refactor reverses this order the J2CL submit handler
+      // would issue a duplicate backend search.
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const chip = el.renderRoot.querySelector('[data-filter-id="unread"]');
+      const order = [];
+      el.addEventListener("wavy-search-submit", () => order.push("submit"));
+      el.addEventListener("wavy-search-filter-toggled", () =>
+        order.push("toggled")
+      );
+      chip.click();
+      // Re-assert order independent of registration order — the rail's
+      // _toggleFilter must dispatch toggled first so the J2CL flag can
+      // pre-arm before submit checks it.
+      expect(order).to.deep.equal(["toggled", "submit"]);
+    });
+  });
+
   // J-UI-1 (#1079): the rail must expose a `cards` slot so the J2CL
   // search panel can project <wavy-search-rail-card> children inside the
   // shadow DOM. Without the slot the children would be hidden post-upgrade.

@@ -134,7 +134,13 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // Maybe should be changed in case other folders in addition to 'inbox' are
     // added.
     final boolean isAllQuery = isAllQuery(query);
-    final boolean isUnreadOnlyQuery = queryParams.containsKey(TokenQueryType.UNREAD);
+    // J-UI-2 (#1080 / R-4.5): mirror the SimpleSearchProvider — the rail's
+    // "Unread only" chip emits `is:unread`; treat it as a synonym for
+    // `unread:true` here so the Solr-backed surface filters identically
+    // to the in-memory one.
+    final boolean isUnreadOnlyQuery =
+        queryParams.containsKey(TokenQueryType.UNREAD)
+            || QueryHelper.hasIsValue(queryParams, "unread");
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);
@@ -274,10 +280,24 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   private static final Pattern TAG_PATTERN = Pattern.compile("\\btag:(\\S+)");
   private static final Pattern UNREAD_PATTERN = Pattern.compile("(^|\\s)unread:\\S+(?=\\s|$)");
 
+  /**
+   * J-UI-2 (#1080): the rail's filter chips emit {@code is:unread},
+   * {@code has:attachment}, and {@code from:me}. {@code is:unread} is
+   * handled equivalently to {@code unread:true} via post-filtering; the
+   * other chip tokens are URL-only this slice (deferred follow-ups).
+   * In all three cases the token must be stripped before the query is
+   * forwarded to Solr — Solr's schema does not know these prefixes and
+   * a literal {@code is:unread} term in the user-query clause fails the
+   * Lucene parser.
+   */
+  private static final Pattern CHIP_TOKEN_PATTERN =
+      Pattern.compile("(^|\\s)(is|has|from):\\S+(?=\\s|$)", Pattern.CASE_INSENSITIVE);
+
   private static final Pattern IN_ALL_PATTERN = Pattern.compile("\\bin:all\\b");
 
   static String stripUnreadFilterTokens(String query) {
     String cleanedQuery = UNREAD_PATTERN.matcher(query).replaceAll("$1");
+    cleanedQuery = CHIP_TOKEN_PATTERN.matcher(cleanedQuery).replaceAll("$1");
     return cleanedQuery.replaceAll("\\s{2,}", " ").trim();
   }
 

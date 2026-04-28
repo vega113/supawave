@@ -251,7 +251,14 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     final Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
         ? queryParams.get(TokenQueryType.TAG)
         : Collections.<String>emptySet();
-    final boolean isUnreadOnlyQuery = queryParams.containsKey(TokenQueryType.UNREAD);
+    // J-UI-2 (#1080 / R-4.5): the rail's "Unread only" chip emits the
+    // canonical token `is:unread` (parsed under TokenQueryType.IS). Treat
+    // it as a synonym for `unread:true` so the chip actually filters
+    // server-side. Any other `is:<value>` stays a no-op for now —
+    // `has:attachment` and `from:me` are deferred to follow-up issues.
+    final boolean isUnreadOnlyQuery =
+        queryParams.containsKey(TokenQueryType.UNREAD)
+            || QueryHelper.hasIsValue(queryParams, "unread");
 
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView =
         createWavesViewToFilter(user, isAllQuery);

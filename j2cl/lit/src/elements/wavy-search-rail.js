@@ -347,10 +347,33 @@ export class WavySearchRail extends LitElement {
   _onFolderClick(folder) {
     this.query = folder.query;
     this.activeFolder = folder.id;
+    // J-UI-2 (#1080 / R-4.5): include the user-visible label in the
+    // event detail so the J2CL controller can announce the navigation
+    // through aria-live without re-deriving the label from the
+    // folderId.
     this._emit("wavy-saved-search-selected", {
       folderId: folder.id,
+      label: folder.label,
       query: folder.query
     });
+  }
+
+  /**
+   * J-UI-2 (#1080 / R-4.5): move keyboard focus to the active folder
+   * button so users land predictably after a saved-search click. Public
+   * so the J2CL search panel can call it via a structural cast without
+   * reaching into shadow DOM.
+   */
+  focusActiveFolder() {
+    if (!this.renderRoot) {
+      return;
+    }
+    const target = this.renderRoot.querySelector(
+      'button.folder[aria-current="page"]'
+    );
+    if (target && typeof target.focus === "function") {
+      target.focus();
+    }
   }
 
   /**
@@ -381,6 +404,10 @@ export class WavySearchRail extends LitElement {
     this.query = composed;
     this._emit("wavy-search-filter-toggled", {
       filterId: filter.id,
+      // J-UI-2 (#1080 / R-4.5): include the user-visible label so the
+      // J2CL controller can announce "<label> filter on/off" via the
+      // rail's aria-live region.
+      label: filter.label,
       token: filter.token,
       active: !isActive,
       query: composed

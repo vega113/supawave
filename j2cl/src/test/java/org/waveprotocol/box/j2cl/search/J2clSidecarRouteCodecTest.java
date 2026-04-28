@@ -148,6 +148,100 @@ public class J2clSidecarRouteCodecTest {
         "?q=with%3A%40&wave=example.com%2Fw%2Babc123", url);
   }
 
+  // --- J-UI-2 (#1080, R-4.5): folder + chip composition round-trips ---
+
+  @Test
+  public void inboxFolderQueryRoundTrips() {
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=in%3Ainbox");
+    Assert.assertEquals("in:inbox", state.getQuery());
+    Assert.assertEquals("?q=in%3Ainbox", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void mentionsFolderQueryRoundTrips() {
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=mentions%3Ame");
+    Assert.assertEquals("mentions:me", state.getQuery());
+    Assert.assertEquals("?q=mentions%3Ame", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void tasksFolderQueryRoundTrips() {
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=tasks%3Ame");
+    Assert.assertEquals("tasks:me", state.getQuery());
+    Assert.assertEquals("?q=tasks%3Ame", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void publicFolderQueryRoundTrips() {
+    // The public folder uses with:@ which encodes %3A%40.
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=with%3A%40");
+    Assert.assertEquals("with:@", state.getQuery());
+    Assert.assertEquals("?q=with%3A%40", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void archiveFolderQueryRoundTrips() {
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=in%3Aarchive");
+    Assert.assertEquals("in:archive", state.getQuery());
+    Assert.assertEquals("?q=in%3Aarchive", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void pinnedFolderQueryRoundTrips() {
+    J2clSidecarRouteState state = J2clSidecarRouteCodec.parse("?q=in%3Apinned");
+    Assert.assertEquals("in:pinned", state.getQuery());
+    Assert.assertEquals("?q=in%3Apinned", J2clSidecarRouteCodec.toUrl(state));
+  }
+
+  @Test
+  public void chipComposedWithFolderRoundTrips() {
+    // Inbox + Unread only: the chip composition rule joins tokens with a
+    // single space, which encodes to '+' (the parser treats both '+' and
+    // '%20' as space).
+    J2clSidecarRouteState state =
+        J2clSidecarRouteCodec.parse("?q=in%3Ainbox+is%3Aunread");
+    Assert.assertEquals("in:inbox is:unread", state.getQuery());
+    String reEncoded = J2clSidecarRouteCodec.toUrl(state);
+    // Re-encoding goes through encodeURIComponent which produces %20,
+    // not '+'. Decoding must still yield the same query token sequence.
+    Assert.assertEquals("in:inbox is:unread",
+        J2clSidecarRouteCodec.parse(reEncoded).getQuery());
+  }
+
+  @Test
+  public void chipComposedWithFolderAndWaveRoundTrips() {
+    // Active filter chip + active folder + a deep-link wave selection.
+    J2clSidecarRouteState state =
+        J2clSidecarRouteCodec.parse(
+            "?q=mentions%3Ame+is%3Aunread&wave=example.com%2Fw%2Babc123");
+    Assert.assertEquals("mentions:me is:unread", state.getQuery());
+    Assert.assertEquals("example.com/w+abc123", state.getSelectedWaveId());
+    String reEncoded = J2clSidecarRouteCodec.toUrl(state);
+    J2clSidecarRouteState reparsed = J2clSidecarRouteCodec.parse(reEncoded);
+    Assert.assertEquals(state, reparsed);
+  }
+
+  @Test
+  public void hasAttachmentChipRoundTrips() {
+    // has:attachment is URL-only this slice (deferred server filter)
+    // but the URL must still round-trip cleanly so reload preserves
+    // the chip's pressed state.
+    J2clSidecarRouteState state =
+        J2clSidecarRouteCodec.parse("?q=in%3Aarchive+has%3Aattachment");
+    Assert.assertEquals("in:archive has:attachment", state.getQuery());
+    String reEncoded = J2clSidecarRouteCodec.toUrl(state);
+    Assert.assertEquals(state, J2clSidecarRouteCodec.parse(reEncoded));
+  }
+
+  @Test
+  public void fromMeChipRoundTrips() {
+    J2clSidecarRouteState state =
+        J2clSidecarRouteCodec.parse("?q=in%3Apinned+from%3Ame");
+    Assert.assertEquals("in:pinned from:me", state.getQuery());
+    String reEncoded = J2clSidecarRouteCodec.toUrl(state);
+    Assert.assertEquals(state, J2clSidecarRouteCodec.parse(reEncoded));
+  }
+
   @Test
   public void withDepthBlipIdProducesMatchingState() {
     J2clSidecarRouteState base =

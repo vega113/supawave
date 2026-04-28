@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-28-v5-density-tuning",
+  "version": "PR #v-5",
+  "date": "2026-04-28",
+  "title": "J2CL density tuning",
+  "summary": "The /?view=j2cl-root shell tightens digest-card padding, widens the wave panel, and removes the top whitespace gap so proportions align with the Wavy design mockup.",
+  "sections": [
+    {
+      "type": "polish",
+      "items": [
+        "Narrowed the J2CL shell rail to 248-280 px (was 260-296 px) and trimmed the wave panel inner inset so the wave panel widens by ~16-32 px on a 1440 viewport.",
+        "Tightened the wavy-search-rail-card digest stack via density tokens (--wavy-rail-card-padding-*, --wavy-rail-card-gap, --wavy-rail-card-snippet-mb) so visible cards land in the 92-120 px range from 01-shell-inbox-with-waves.svg.",
+        "Collapsed the perceptible top whitespace gap between the 64 px header bar and the first row of wave content."
+      ]
+    }
+  ]
+}

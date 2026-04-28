@@ -23,6 +23,7 @@ import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clReadSurfaceDomRenderer {
@@ -108,6 +109,13 @@ public final class J2clReadSurfaceDomRenderer {
   // view layer (J2clSelectedWaveView). Null binder means "no reactions
   // wiring yet" — the row is still mounted as an empty add-only state.
   private ReactionBinder reactionBinder;
+  // J-UI-4 (#1082, R-3.1): conversation manifest for the current wave.
+  // Set by the view layer before each render call. The renderer uses
+  // this to graft parent-blip-id / thread-id onto each blip in the
+  // viewport-windowed render path so renderWindow nests reply threads
+  // the same way the live-blip render path does. Empty manifest = no
+  // enrichment (legacy waves keep rendering flat).
+  private SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -146,6 +154,18 @@ public final class J2clReadSurfaceDomRenderer {
    */
   public void setReactionBinder(ReactionBinder binder) {
     this.reactionBinder = binder;
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1): publishes the parsed conversation manifest
+   * for the current wave so the renderer can graft parent-blip-id /
+   * thread-id onto each loaded entry on the viewport-windowed render
+   * path. Pass {@link SidecarConversationManifest#empty()} (or null)
+   * to disable manifest enrichment (legacy / non-conversational
+   * waves keep rendering flat).
+   */
+  public void setConversationManifest(SidecarConversationManifest manifest) {
+    this.conversationManifest = manifest == null ? SidecarConversationManifest.empty() : manifest;
   }
 
   /**
@@ -489,6 +509,25 @@ public final class J2clReadSurfaceDomRenderer {
     for (int i = 0; i < entries.size(); i++) {
       J2clReadWindowEntry entry = entries.get(i);
       if (entry.isLoaded()) {
+        // J-UI-4 (#1082, R-3.1): prefer the entry's own parent /
+        // thread metadata when present, but otherwise fall back to
+        // the renderer's conversation manifest so the windowed
+        // render path can nest replies the same way the live-blip
+        // path does. The viewport state today builds entries via
+        // the simple loaded(...) factory which leaves parent /
+        // thread empty; the manifest fills the gap.
+        String entryParent = entry.getParentBlipId();
+        String entryThread = entry.getThreadId();
+        if ((entryParent == null || entryParent.isEmpty())
+            && (entryThread == null || entryThread.isEmpty())
+            && !conversationManifest.isEmpty()) {
+          SidecarConversationManifest.Entry manifestEntry =
+              conversationManifest.findByBlipId(entry.getBlipId());
+          if (manifestEntry != null) {
+            entryParent = manifestEntry.getParentBlipId();
+            entryThread = manifestEntry.getThreadId();
+          }
+        }
         loadedBlips.add(
             new J2clReadBlip(
                 entry.getBlipId(),
@@ -497,8 +536,8 @@ public final class J2clReadSurfaceDomRenderer {
                 entry.getAuthorId(),
                 entry.getAuthorDisplayName(),
                 entry.getLastModifiedTimeMillis(),
-                entry.getParentBlipId(),
-                entry.getThreadId(),
+                entryParent,
+                entryThread,
                 entry.isUnread(),
                 entry.hasMention()));
       } else {
@@ -660,7 +699,28 @@ public final class J2clReadSurfaceDomRenderer {
           threadHost.setAttribute("data-thread-id", "inline-" + parentBlipId);
         }
         threadHost.setAttribute("data-parent-blip-id", parentBlipId);
-        parentBlipHost.appendChild(threadHost);
+        // review-1089 round-2 (Copilot): mount the reply thread as a
+        // *sibling after* the parent <wave-blip> rather than as a
+        // child of its default slot. The wave-blip element places
+        // its default slot inside the .body wrapper, which inherits
+        // styling like the F-3.S2 task-completed strikethrough
+        // (`:host([data-task-completed]) .body { text-decoration:
+        // line-through; color: var(--wavy-text-quiet); }`). Nested
+        // replies are unrelated to the parent's task state and must
+        // not pick up that visual treatment.
+        if (parentBlipHost.parentNode != null) {
+          if (parentBlipHost.nextSibling != null) {
+            parentBlipHost.parentNode.insertBefore(threadHost, parentBlipHost.nextSibling);
+          } else {
+            parentBlipHost.parentNode.appendChild(threadHost);
+          }
+        } else {
+          // The parent is somehow detached (defensive — should not
+          // happen for blips we just appended above). Fall back to
+          // appending under the parent so the content remains
+          // reachable.
+          parentBlipHost.appendChild(threadHost);
+        }
         threadHostsByThreadKey.put(threadKey, threadHost);
       }
       threadHost.appendChild(blipElement);

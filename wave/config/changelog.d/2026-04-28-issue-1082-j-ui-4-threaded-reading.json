@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-28-issue-1082-j-ui-4-threaded-reading",
-  "version": "J-UI-4 (#1082)",
+  "version": "PR #1089",
   "date": "2026-04-28",
   "title": "J2CL Open-Wave Threaded Reading View",
   "summary": "The J2CL open-wave panel now nests reply threads under their parent blip instead of flattening every blip into a single root thread. R-3.1 hard-acceptance for deep nesting + reply ordering matching the conversation model is met; the existing focus frame, collapse toggles, and aria contracts inherit the nested DOM unchanged.",

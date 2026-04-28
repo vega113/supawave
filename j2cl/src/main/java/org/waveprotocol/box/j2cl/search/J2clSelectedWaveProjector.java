@@ -156,7 +156,11 @@ public final class J2clSelectedWaveProjector {
         unreadCount,
         read,
         readStateKnown,
-        readStateKnown && readStateStale);
+        readStateKnown && readStateStale)
+        // J-UI-4 (#1082, R-3.1): plumb the parsed manifest through so
+        // J2clSelectedWaveView can publish it to the renderer ahead of
+        // each render pass.
+        .withConversationManifest(update.getConversationManifest());
   }
 
   /**
@@ -486,7 +490,15 @@ public final class J2clSelectedWaveProjector {
         continue;
       }
       String blipId = entry.getBlipId();
-      seenBlipIds.add(blipId);
+      // review-1089 round-2 (Copilot): a malformed manifest with the
+      // same blip id repeated would otherwise emit the blip twice.
+      // Manifest.of() already dedupes its by-id map, but the ordered
+      // list must also be deduped here so the read surface stays
+      // single-instance even if a future manifest source skips the
+      // de-dup.
+      if (!seenBlipIds.add(blipId)) {
+        continue;
+      }
       J2clReadBlip existing = blipsByBlipId.get(blipId);
       if (existing == null) {
         ordered.add(
@@ -524,7 +536,7 @@ public final class J2clSelectedWaveProjector {
       if (blip != null
           && blip.getBlipId() != null
           && !blip.getBlipId().isEmpty()
-          && !seenBlipIds.contains(blip.getBlipId())) {
+          && seenBlipIds.add(blip.getBlipId())) {
         ordered.add(blip);
       }
     }

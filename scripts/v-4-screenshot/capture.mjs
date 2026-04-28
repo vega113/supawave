@@ -28,7 +28,11 @@ function startServer(rootDir) {
     const server = http.createServer((req, res) => {
       let urlPath = decodeURIComponent(req.url.split("?")[0]);
       if (urlPath === "/") urlPath = "/index.html";
-      const filePath = path.resolve(rootDir, urlPath.slice(1));
+      // Strip traversal segments so taint-analysis can see the sanitisation
+      // before the path reaches fs.readFile (defence-in-depth vs the startsWith guard).
+      const safeParts = urlPath.split("/").filter(seg => seg !== ".." && seg !== ".");
+      const safePath = "/" + safeParts.filter(Boolean).join("/");
+      const filePath = path.resolve(rootDir, safePath.slice(1));
       if (!filePath.startsWith(rootDir + path.sep) && filePath !== rootDir) {
         res.writeHead(403); res.end("forbidden"); return;
       }

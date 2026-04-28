@@ -128,6 +128,15 @@ public final class J2clComposerDocument {
      * order and close in reverse (so the wave-doc op stream stays
      * well-nested). Empty annotation list throws — callers should
      * route through {@link #text(String)} instead.
+     *
+     * <p>Coderabbit review #1095 thread PRRT_kwDOBwxLXs5-NWW2:
+     * duplicate annotation keys are collapsed last-wins BEFORE the
+     * Component is constructed, so the builder's stored representation
+     * matches what the delta writer emits. Without this, callers that
+     * inspect a built {@link J2clComposerDocument} would see two
+     * `textDecoration` entries while the on-the-wire delta only
+     * carries one. Last-wins matches the wave-doc reader's resolution
+     * of overlapping annotation starts on the same key.
      */
     public Builder annotatedTextMulti(List<KeyValuePair> annotations, String text) {
       if (annotations == null || annotations.isEmpty()) {
@@ -136,16 +145,22 @@ public final class J2clComposerDocument {
       if (text == null || text.trim().isEmpty()) {
         throw new IllegalArgumentException("Missing annotated text.");
       }
-      List<Annotation> resolved = new ArrayList<Annotation>(annotations.size());
+      java.util.LinkedHashMap<String, Annotation> dedup =
+          new java.util.LinkedHashMap<String, Annotation>();
       for (KeyValuePair pair : annotations) {
         if (pair == null) {
           throw new IllegalArgumentException("Null annotation entry.");
         }
-        resolved.add(
-            new Annotation(
-                requireNonEmpty(pair.getKey(), "Missing annotation key."),
-                requireNonEmpty(pair.getValue(), "Missing annotation value.")));
+        String key = requireNonEmpty(pair.getKey(), "Missing annotation key.");
+        String value = requireNonEmpty(pair.getValue(), "Missing annotation value.");
+        // last-wins removal-then-insert keeps insertion order stable
+        // for keys whose value did not change while letting later
+        // duplicates overwrite earlier entries (the wave-doc reader
+        // applies the same resolution).
+        dedup.remove(key);
+        dedup.put(key, new Annotation(key, value));
       }
+      List<Annotation> resolved = new ArrayList<Annotation>(dedup.values());
       Annotation first = resolved.get(0);
       components.add(
           new Component(

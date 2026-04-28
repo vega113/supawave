@@ -249,6 +249,76 @@ public class J2clSelectedWaveViewChromeTest {
         host.querySelector("wavy-wave-nav-row"));
   }
 
+  // J-UI-8 (#1086, R-6.3): aria-busy is set by HtmlRenderer on the
+  // server-first card for the lifetime of the snapshot; clearing it is
+  // the J2CL view's signal that the live render has replaced the
+  // server-first state. The first non-preserved render() call must
+  // remove the attribute.
+  @Test
+  public void liveRenderClearsAriaBusyOnServerFirstCard() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    host.innerHTML =
+        "<div class=\"sidecar-selected-host\" data-j2cl-selected-wave-host=\"true\">"
+            + "<section class=\"sidecar-selected-card\""
+            + " data-j2cl-server-first-mode=\"snapshot\""
+            + " data-j2cl-server-first-selected-wave=\"example.com/w+1\""
+            + " data-j2cl-upgrade-placeholder=\"selected-wave\""
+            + " aria-busy=\"true\">"
+            + "<p class=\"sidecar-eyebrow\">Opened wave</p>"
+            + "<wavy-depth-nav-bar hidden data-j2cl-server-first-chrome=\"true\"></wavy-depth-nav-bar>"
+            + "<h2 class=\"sidecar-selected-title\">Title</h2>"
+            + "<p class=\"sidecar-selected-unread\" hidden></p>"
+            + "<p class=\"sidecar-selected-status\"></p>"
+            + "<p class=\"sidecar-selected-detail\"></p>"
+            + "<p class=\"sidecar-selected-participants\" hidden></p>"
+            + "<wavy-wave-nav-row data-j2cl-server-first-chrome=\"true\"></wavy-wave-nav-row>"
+            + "<p class=\"sidecar-selected-snippet\" hidden></p>"
+            + "<div class=\"sidecar-selected-compose\"></div>"
+            + "<div class=\"sidecar-selected-content\" data-wave-id=\"example.com/w+2\"></div>"
+            + "</section>"
+            + "</div>";
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    HTMLElement card = (HTMLElement) host.querySelector(".sidecar-selected-card");
+    Assert.assertNotNull(card);
+    Assert.assertEquals(
+        "Server-first markup ships with aria-busy=\"true\"",
+        "true",
+        card.getAttribute("aria-busy"));
+
+    // Render with a different selected wave id so shouldPreserveServerFirstCard
+    // returns false and the live path runs (which then triggers
+    // clearServerFirstMarkers).
+    J2clSelectedWaveModel model =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            false,
+            "example.com/w+2",
+            "Different wave",
+            "",
+            "0 unread.",
+            "Live.",
+            "",
+            0,
+            Collections.<String>emptyList(),
+            Arrays.<String>asList(),
+            Arrays.<J2clReadBlip>asList(),
+            null,
+            0,
+            false,
+            true,
+            false);
+    view.render(model);
+
+    Assert.assertFalse(
+        "clearServerFirstMarkers must remove aria-busy on the live upgrade",
+        card.hasAttribute("aria-busy"));
+    Assert.assertFalse(
+        "clearServerFirstMarkers must remove the upgrade-placeholder marker",
+        card.hasAttribute("data-j2cl-upgrade-placeholder"));
+  }
+
   // -- helpers ---------------------------------------------------------
 
   private HTMLElement createHost() {

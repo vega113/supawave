@@ -67,6 +67,37 @@ public final class J2clSelectedWaveSnapshotRendererTest extends TestCase {
     assertTrue(result.getSnapshotHtml().contains("class=\"wave-content\""));
   }
 
+  // J-UI-8 (#1086, R-6.1): the renderer's snapshot HTML must carry the
+  // per-blip data-blip-id attribute the J2CL view binds against. Without
+  // it, even a non-empty snapshot would be opaque to the live upgrade
+  // — `shouldPreserveServerFirstCard` would still preserve the markup
+  // visually, but the per-blip enhancement (focus, reactions, viewport
+  // scroll memory) would not lift onto the server-rendered nodes. This
+  // test pins the renderer-level contract, separate from the
+  // HtmlRenderer-level visible-region pin.
+  public void testSnapshotHtmlCarriesPerBlipDataAttribute() {
+    TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
+    data.appendBlipWithText("First blip");
+
+    J2clSelectedWaveSnapshotRenderer renderer =
+        new J2clSelectedWaveSnapshotRenderer(
+            providerFor(data.copyWaveletData(), true),
+            150L,
+            131072,
+            new SequenceTimeSource(0L, 10L, 20L));
+
+    J2clSelectedWaveSnapshotRenderer.SnapshotResult result =
+        renderer.renderRequestedWave(WAVE_ID.serialise(), VIEWER);
+
+    assertEquals(J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT, result.getMode());
+    assertTrue(
+        "Snapshot HTML must carry data-blip-id so the J2CL DOM-as-view provider can resolve it",
+        result.getSnapshotHtml().contains("data-blip-id="));
+    assertTrue(
+        "Snapshot HTML must carry the data-wave-id host attribute for view binding",
+        result.getSnapshotHtml().contains("data-wave-id=\"" + WAVE_ID.serialise() + "\""));
+  }
+
   public void testSnapshotEscapesUserAuthoredBlipMarkup() {
     TestingWaveletData data = new TestingWaveletData(WAVE_ID, CONV_ROOT, AUTHOR, true);
     data.appendBlipWithText("<script>alert('owned')</script>");

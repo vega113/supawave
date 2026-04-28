@@ -184,4 +184,251 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertFalse("Signed-out shell must not include mountWhenReady",
         html.contains("mountWhenReady("));
   }
+
+  // J-UI-8 (#1086, R-6.3): aria-busy on the snapshot card so AT clients
+  // know the pre-upgrade content is in flux. Cleared by
+  // J2clSelectedWaveView.clearServerFirstMarkers once the live render
+  // replaces the server-first state.
+  public void testSnapshotCardCarriesAriaBusy() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/?view=j2cl-root&wave=example.com%2Fw%2B1",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+            "example.com/w+1",
+            "<div class=\"wave-content\"><h1 class=\"wave-title\">Inbox wave</h1></div>"));
+
+    int cardIdx = html.indexOf("<section class=\"sidecar-selected-card\"");
+    assertTrue("Snapshot mode must emit a sidecar-selected-card", cardIdx >= 0);
+    int cardEnd = html.indexOf('>', cardIdx);
+    assertTrue(cardEnd > cardIdx);
+    String cardOpenTag = html.substring(cardIdx, cardEnd);
+    assertTrue(
+        "Snapshot mode must mark the card aria-busy=\"true\" until the J2CL upgrade clears it",
+        cardOpenTag.contains("aria-busy=\"true\""));
+  }
+
+  // R-6.3 corollary: aria-busy is a server-first signal only — the card
+  // must not carry it when there is no snapshot to upgrade away from.
+  public void testNoWaveCardOmitsAriaBusy() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+
+    int cardIdx = html.indexOf("<section class=\"sidecar-selected-card\"");
+    assertTrue(cardIdx >= 0);
+    int cardEnd = html.indexOf('>', cardIdx);
+    String cardOpenTag = html.substring(cardIdx, cardEnd);
+    assertFalse(
+        "no-wave card must not carry aria-busy — there is nothing to upgrade away from",
+        cardOpenTag.contains("aria-busy"));
+  }
+
+  // J-UI-8 (#1086, R-6.1): <html lang> reflects the viewer's account
+  // locale so the static first-paint HTML is AT-correct without waiting
+  // on JS.
+  public void testHtmlLangReflectsViewerLocale() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
+        "fr",
+        false);
+
+    assertTrue(
+        "Locale 'fr' must reach <html lang>",
+        html.contains("<html lang=\"fr\">"));
+  }
+
+  public void testHtmlLangAcceptsRegionSubtag() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
+        "pt-BR",
+        false);
+
+    assertTrue("Region subtag must round-trip", html.contains("<html lang=\"pt-BR\">"));
+  }
+
+  public void testHtmlLangNormalizesUnderscoreToHyphen() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
+        "zh_CN",
+        false);
+
+    assertTrue(
+        "java.util.Locale-style underscore must normalize to BCP-47 hyphen",
+        html.contains("<html lang=\"zh-CN\">"));
+  }
+
+  // Defense-in-depth: the html lang attribute is one of the few SSR
+  // points that takes a viewer-supplied string. Hostile payloads that
+  // could break out of the attribute or inject script tags must clamp
+  // back to the safe default.
+  public void testHtmlLangSanitizesInjectionPayload() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
+        "\"><script>alert(1)</script>",
+        false);
+
+    assertTrue(
+        "Injection payload must clamp to 'en' — never reach the lang attribute",
+        html.contains("<html lang=\"en\">"));
+    assertFalse(html.contains("<script>alert(1)"));
+  }
+
+  public void testHtmlLangDefaultsWhenNullOrEmpty() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String htmlNull = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, null, false);
+    String htmlEmpty = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "", false);
+
+    assertTrue(htmlNull.contains("<html lang=\"en\">"));
+    assertTrue(htmlEmpty.contains("<html lang=\"en\">"));
+  }
+
+  // J-UI-8 (#1086, R-6.1): <noscript> info banner ships only when the
+  // j2cl-server-first-paint flag is on. The banner is wrapped in
+  // <noscript> so it is a no-op when JS is enabled — flag-on with JS-on
+  // is identical to flag-off.
+  public void testServerFirstPaintFlagOnEmitsNoscriptBanner() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", true);
+
+    assertTrue(
+        "Flag-on must emit the noscript banner element",
+        html.contains("data-j2cl-noscript-banner=\"true\""));
+    int bannerIdx = html.indexOf("data-j2cl-noscript-banner=\"true\"");
+    int noscriptOpen = html.lastIndexOf("<noscript>", bannerIdx);
+    int noscriptClose = html.indexOf("</noscript>", bannerIdx);
+    assertTrue(
+        "Banner must live inside a <noscript> wrapper so JS-on visitors do not see it",
+        noscriptOpen >= 0 && noscriptClose >= 0 && noscriptOpen < bannerIdx
+            && bannerIdx < noscriptClose);
+  }
+
+  public void testServerFirstPaintFlagOffOmitsNoscriptBanner() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", false);
+
+    assertFalse(
+        "Flag-off must not emit the noscript banner",
+        html.contains("data-j2cl-noscript-banner"));
+  }
+
+  public void testNoscriptBannerCopyDiffersForSignedInVsSignedOut() {
+    JSONObject signedIn = new JSONObject();
+    signedIn.put("address", "alice@example.com");
+    JSONObject signedOut = new JSONObject();
+
+    String htmlSignedIn = HtmlRenderer.renderJ2clRootShellPage(
+        signedIn, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", true);
+    String htmlSignedOut = HtmlRenderer.renderJ2clRootShellPage(
+        signedOut, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", true);
+
+    assertTrue(htmlSignedIn.contains("static read-only snapshot"));
+    assertTrue(htmlSignedOut.contains("Sign in to load waves"));
+  }
+
+  // J-UI-8 (#1086, R-6.1): the snapshot HTML must land inside
+  // .sidecar-selected-content (which is a normal grid host in
+  // sidecar.css), not inside the .sidecar-empty-state element which is
+  // hidden when a snapshot is present. Pinning this prevents the
+  // "rendered into a hidden seam" regression class flagged by the audit.
+  public void testSnapshotIsNotEmittedInsideEmptyState() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    String snapshotHtml =
+        "<div class=\"wave-content\" data-blip-id=\"b+1\"><h1>Inbox wave</h1></div>";
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/?view=j2cl-root&wave=example.com%2Fw%2B1",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+            "example.com/w+1", snapshotHtml));
+
+    int snapshotIdx = html.indexOf("data-blip-id=\"b+1\"");
+    assertTrue("Snapshot must land in the response", snapshotIdx >= 0);
+    // The empty-state is hidden when a snapshot is present; assert that
+    // the snapshot is NOT nested under the hidden empty-state element.
+    int emptyStateIdx = html.indexOf("<div class=\"sidecar-empty-state\" hidden");
+    assertTrue("Snapshot mode must hide the empty-state recipe", emptyStateIdx >= 0);
+    assertTrue(
+        "Snapshot must be emitted before the hidden empty-state, not inside it",
+        snapshotIdx < emptyStateIdx);
+    // And it must live inside the visible .sidecar-selected-content
+    // grid host.
+    int contentHostIdx = html.lastIndexOf("<div class=\"sidecar-selected-content\"", snapshotIdx);
+    assertTrue("Snapshot must live inside .sidecar-selected-content", contentHostIdx >= 0);
+  }
 }

@@ -776,6 +776,58 @@ public class SimpleSearchProviderImplTest extends TestCase {
         WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
   }
 
+  /**
+   * J-UI-2 (#1080 / R-4.5): the J2CL rail's "Unread only" filter chip
+   * emits the canonical token {@code is:unread}; the server must treat
+   * it as a synonym for {@code unread:true} so the chip actually filters
+   * results. The token round-trips through the URL via
+   * {@code J2clSidecarRouteCodec} so this is the one chip with real
+   * server-side execution this slice.
+   */
+  public void testSearchFilterByIsUnreadAliasesUnreadTrue() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "project update");
+
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "project update");
+
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read", 0, "unread", 2));
+
+    SearchResult results = unreadFilterProvider.search(USER1, "in:inbox is:unread", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("unread",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  /**
+   * J-UI-2 (#1080): {@code is:<other>} values must not throw and must not
+   * silently filter — only {@code is:unread} is wired this slice. Other
+   * tokens stay no-ops so the chip composition path is forward-safe for
+   * follow-up filters ({@code is:starred}, {@code is:muted}, etc.).
+   */
+  public void testSearchUnknownIsTokenIsNoOp() throws Exception {
+    WaveletName unreadWave = WaveletName.of(WaveId.of(DOMAIN, "unread"), WAVELET_ID);
+    WaveletName readWave = WaveletName.of(WaveId.of(DOMAIN, "read"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(unreadWave, USER1, addParticipantToWavelet(USER1, unreadWave));
+    appendBlipToWavelet(unreadWave, USER1, "b+unread", "project update");
+    submitDeltaToNewWavelet(readWave, USER1, addParticipantToWavelet(USER1, readWave));
+    appendBlipToWavelet(readWave, USER1, "b+read", "project update");
+
+    SearchProvider unreadFilterProvider =
+        newUnreadAwareSearchProvider(ImmutableMap.of("read", 0, "unread", 2));
+
+    SearchResult results = unreadFilterProvider.search(USER1, "in:inbox is:starred", 0, 10);
+
+    // is:starred is unknown — must not filter, must not throw.
+    assertEquals(2, results.getNumResults());
+  }
+
   public void testSearchFilterByUnreadAppliesBeforePagination() throws Exception {
     WaveletName readFirst = WaveletName.of(WaveId.of(DOMAIN, "read-first"), WAVELET_ID);
     WaveletName unreadLater = WaveletName.of(WaveId.of(DOMAIN, "unread-later"), WAVELET_ID);

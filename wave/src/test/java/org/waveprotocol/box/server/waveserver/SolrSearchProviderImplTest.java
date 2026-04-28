@@ -35,6 +35,35 @@ public class SolrSearchProviderImplTest extends TestCase {
             "project https://example.com/unread:true unread:true update"));
   }
 
+  /**
+   * J-UI-2 (#1080 / R-4.5): the rail's filter chips emit
+   * {@code is:unread}, {@code has:attachment}, and {@code from:me}.
+   * Solr's user-query clause must not see these as literal terms — they
+   * are either post-filtered ({@code is:unread} → unread post-filter) or
+   * URL-only this slice. Verify each one is stripped before the
+   * user-query clause is built.
+   */
+  public void testStripUnreadFilterTokensRemovesIsUnreadChipToken() {
+    assertEquals(
+        "in:inbox",
+        SolrSearchProviderImpl.stripUnreadFilterTokens("in:inbox is:unread"));
+    assertEquals(
+        "in:inbox",
+        SolrSearchProviderImpl.stripUnreadFilterTokens("in:inbox IS:UNREAD"));
+  }
+
+  public void testStripUnreadFilterTokensRemovesHasAndFromChipTokens() {
+    assertEquals(
+        "in:archive",
+        SolrSearchProviderImpl.stripUnreadFilterTokens("in:archive has:attachment from:me"));
+  }
+
+  public void testStripUnreadFilterTokensLeavesOtherTokensUntouched() {
+    assertEquals(
+        "in:inbox tag:work mentions:me",
+        SolrSearchProviderImpl.stripUnreadFilterTokens("in:inbox tag:work mentions:me"));
+  }
+
   public void testSearchRejectsMentionsQueries() {
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
         "core.wave_server_domain", "example.com",

@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 
 /**
  * <wavy-blip-card> — F-0 (#1035) recipe for a single blip card in the
@@ -163,17 +163,30 @@ export class WavyBlipCard extends LitElement {
   }
 
   render() {
+    // V-4 (#1102): the recipe's own minimal header is only rendered
+    // when no caller has populated the metadata slot — otherwise the
+    // wrapper element (e.g. <wave-blip>) brings a richer header with
+    // avatar + chevron and the recipe header would duplicate it. The
+    // standalone unit-test fixtures still see the header because they
+    // do not slot anything into metadata. Empty author-name + empty
+    // posted-at also collapses the header so design previews without
+    // metadata stay clean.
+    const hasMetadataSlot = !!this.querySelector('[slot="metadata"]');
+    const hasHeaderText = (this.authorName || "") || (this.postedAt || "");
+    const renderInternalHeader = hasHeaderText && !hasMetadataSlot;
     return html`
-      <article role="article" aria-labelledby="author">
-        <header>
-          <span class="author" id="author">${this.authorName || ""}</span>
-          <time class="timestamp">${this.postedAt || ""}</time>
-        </header>
+      <article role="article" aria-labelledby=${renderInternalHeader ? "author" : nothing}>
+        ${renderInternalHeader
+          ? html`<header>
+              <span class="author" id="author">${this.authorName || ""}</span>
+              <time class="timestamp">${this.postedAt || ""}</time>
+            </header>`
+          : null}
+        <div class="metadata-top"><slot name="metadata"></slot></div>
         <div class="body"><slot></slot></div>
         <div class="ext-slot-wrapper">
           <slot name="blip-extension"></slot>
         </div>
-        <div class="metadata"><slot name="metadata"></slot></div>
         <div class="reactions"><slot name="reactions"></slot></div>
       </article>
     `;

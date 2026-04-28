@@ -423,4 +423,113 @@ describe("<wave-blip>", () => {
       "2026-05-01"
     );
   });
+
+  // V-4 (#1102): per-blip chrome on the open wave.
+  describe("V-4 per-blip chrome", () => {
+    it("avatar palette is deterministic per author-id (same id → same palette index)", async () => {
+      const a = await fixture(html`
+        <wave-blip data-blip-id="b40" author-id="alice@example.com" author-name="Alice"></wave-blip>
+      `);
+      const b = await fixture(html`
+        <wave-blip data-blip-id="b41" author-id="alice@example.com" author-name="Alice2"></wave-blip>
+      `);
+      await a.updateComplete;
+      await b.updateComplete;
+      const aPalette = a.renderRoot.querySelector(".avatar").getAttribute("data-palette");
+      const bPalette = b.renderRoot.querySelector(".avatar").getAttribute("data-palette");
+      expect(aPalette).to.equal(bPalette);
+      expect(["0", "1", "2", "3"]).to.include(aPalette);
+    });
+
+    it("avatar palette differs across distinct author ids (at least one of three differs)", async () => {
+      const ids = ["alice@x", "bob@y", "carol@z"];
+      const palettes = new Set();
+      for (const id of ids) {
+        const el = await fixture(html`
+          <wave-blip data-blip-id="b" author-id=${id}></wave-blip>
+        `);
+        await el.updateComplete;
+        palettes.add(el.renderRoot.querySelector(".avatar").getAttribute("data-palette"));
+      }
+      expect(palettes.size).to.be.greaterThan(1);
+    });
+
+    it("renders the thread chevron only when reply-count > 0", async () => {
+      const el = await fixture(html`
+        <wave-blip data-blip-id="b42" author-name="A">x</wave-blip>
+      `);
+      await el.updateComplete;
+      let chevron = el.renderRoot.querySelector(".thread-chevron[data-thread-chevron='true']");
+      expect(chevron, "no chevron when no replies").to.not.exist;
+
+      el.replyCount = 2;
+      await el.updateComplete;
+      chevron = el.renderRoot.querySelector(".thread-chevron[data-thread-chevron='true']");
+      expect(chevron, "chevron when reply-count > 0").to.exist;
+      expect(chevron.textContent.trim()).to.equal("▾"); // ▾
+    });
+
+    it("chevron flips to ▸ when data-thread-collapsed is set", async () => {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b43"
+          author-name="A"
+          reply-count="2"
+          data-thread-collapsed
+        >x</wave-blip>
+      `);
+      await el.updateComplete;
+      const chevron = el.renderRoot.querySelector(".thread-chevron[data-thread-chevron='true']");
+      expect(chevron).to.exist;
+      expect(chevron.textContent.trim()).to.equal("▸"); // ▸
+    });
+
+    it("root-depth blip appends ' · root' to the timestamp text", async () => {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b44"
+          data-wave-id="w44"
+          author-name="A"
+          posted-at="2 hours ago"
+          data-blip-depth="root"
+        ></wave-blip>
+      `);
+      await el.updateComplete;
+      const time = el.renderRoot.querySelector("time.posted");
+      expect(time.textContent).to.contain("2 hours ago");
+      expect(time.textContent).to.contain("· root");
+    });
+
+    it("reply-depth blip omits the root suffix", async () => {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b45"
+          author-name="A"
+          posted-at="1m ago"
+          data-blip-depth="reply"
+        ></wave-blip>
+      `);
+      await el.updateComplete;
+      const time = el.renderRoot.querySelector("time.posted");
+      expect(time.textContent).to.not.contain("· root");
+    });
+
+    it("focused blip stamps data-variant='focused' on the inner toolbar", async () => {
+      const el = await fixture(html`
+        <wave-blip data-blip-id="b46" data-wave-id="w46" focused></wave-blip>
+      `);
+      await el.updateComplete;
+      const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+      expect(toolbar.getAttribute("data-variant")).to.equal("focused");
+    });
+
+    it("unfocused blip stamps data-variant='default' on the inner toolbar", async () => {
+      const el = await fixture(html`
+        <wave-blip data-blip-id="b47" data-wave-id="w47"></wave-blip>
+      `);
+      await el.updateComplete;
+      const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+      expect(toolbar.getAttribute("data-variant")).to.equal("default");
+    });
+  });
 });

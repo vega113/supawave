@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-28-v-4-blip-chrome",
+  "version": "PR #1102",
+  "date": "2026-04-28",
+  "title": "J2CL open wave: per-blip chrome",
+  "summary": "Blips on the J2CL open-wave route now render with the visual chrome from the J-UI mockups: colored author avatar, name + relative timestamp header, hover/focus toolbar pill, root vs reply avatar sizing, and a thread chevron when a blip has replies.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Per-author colored avatar with deterministic 4-entry palette",
+        "Author + relative timestamp header above the blip body",
+        "Pill-shaped per-blip toolbar with glyph-prefixed Reply / Edit / Delete / Link entries; focused-blip variant repaints with cyan-soft fill",
+        "Thread chevron next to the avatar on blips with replies"
+      ]
+    }
+  ]
+}

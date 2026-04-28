@@ -644,6 +644,15 @@ public final class J2clReadSurfaceDomRenderer {
               /* taskAssignee= */ entry.getTaskAssignee(),
               /* taskDueTimestamp= */ entry.getTaskDueTimestamp());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
+      // V-4 (#1102): mark blip depth so the larger root avatar paints
+      // and the timestamp picks up the ` · root` suffix. Check parent
+      // presence in winBlipHostsById to match the fallback in
+      // resolveWinThreadTarget — a blip whose parent hasn't been inserted
+      // yet will be placed at the root thread, so treat it as root.
+      String winParentForDepth = blip.getParentBlipId();
+      boolean parentPresent = winParentForDepth != null && !winParentForDepth.isEmpty()
+          && winBlipHostsById.containsKey(winParentForDepth);
+      blipElement.setAttribute("data-blip-depth", parentPresent ? "reply" : "root");
       winBlipHostsById.put(blip.getBlipId(), blipElement);
       HTMLElement blipTarget = resolveWinThreadTarget(
           blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),
@@ -651,6 +660,38 @@ public final class J2clReadSurfaceDomRenderer {
           rootThread,
           winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
       blipTarget.appendChild(blipElement);
+    }
+    // V-4 (#1102): tally child counts after window placement and stamp
+    // reply-count on each parent host so the V-4 chevron paints. The
+    // count comes from sibling-thread membership rather than manifest
+    // lookups so windowed paint that omits some children stays
+    // consistent with the rendered subtree.
+    Map<String, Integer> winReplyCounts = new HashMap<String, Integer>();
+    for (HTMLElement threadHost : winThreadHostsByKey.values()) {
+      String parentId = threadHost.getAttribute("data-parent-blip-id");
+      if (parentId == null || parentId.isEmpty()) {
+        continue;
+      }
+      // Walk the immediate children rather than recursing — only
+      // direct wave-blip children of this thread host count toward
+      // the parent's reply tally. The Element.children HTMLCollection
+      // skips text/comment nodes, so we just filter by data-blip-id.
+      int direct = 0;
+      Element child = threadHost.firstElementChild;
+      while (child != null) {
+        if (child.hasAttribute("data-blip-id") || child.hasAttribute("data-placeholder-blip-id")) {
+          direct++;
+        }
+        child = child.nextElementSibling;
+      }
+      Integer prior = winReplyCounts.get(parentId);
+      winReplyCounts.put(parentId, (prior == null ? 0 : prior) + direct);
+    }
+    for (Map.Entry<String, Integer> entry : winReplyCounts.entrySet()) {
+      HTMLElement parentHost = winBlipHostsById.get(entry.getKey());
+      if (parentHost != null && entry.getValue() != null && entry.getValue() > 0) {
+        parentHost.setAttribute("reply-count", String.valueOf(entry.getValue()));
+      }
     }
     if (hasPlaceholder) {
       surface.setAttribute("aria-live", "polite");
@@ -767,14 +808,23 @@ public final class J2clReadSurfaceDomRenderer {
         hasNesting = true;
       }
     }
+    // V-4 (#1102): reply counts are tallied *post-placement* below so
+    // an orphan child that fell back to rootThread does not falsely
+    // bump its declared parent's count. The Lit element only paints
+    // the chevron when reply-count > 0, so unset/zero is the default
+    // no-children state.
     if (!hasNesting) {
       for (int i = 0; i < effective.size(); i++) {
-        rootThread.appendChild(renderBlip(effective.get(i), i));
+        HTMLElement el = renderBlip(effective.get(i), i);
+        // V-4: parentless blips paint the larger root avatar.
+        el.setAttribute("data-blip-depth", "root");
+        rootThread.appendChild(el);
       }
       return;
     }
     Map<String, HTMLElement> blipHostsById = new HashMap<String, HTMLElement>();
     Map<String, HTMLElement> threadHostsByThreadKey = new HashMap<String, HTMLElement>();
+    Map<String, Integer> replyCounts = new HashMap<String, Integer>();
     // review-1089 round-4 (codex P2): track the last inline-thread host
     // mounted under each parent so subsequent sibling threads land
     // *after* earlier ones, matching manifest DFS sibling order.
@@ -786,6 +836,7 @@ public final class J2clReadSurfaceDomRenderer {
       String parentBlipId = blip.getParentBlipId();
       String threadId = blip.getThreadId() == null ? "" : blip.getThreadId();
       if (parentBlipId == null || parentBlipId.isEmpty()) {
+        blipElement.setAttribute("data-blip-depth", "root");
         rootThread.appendChild(blipElement);
         continue;
       }
@@ -798,10 +849,23 @@ public final class J2clReadSurfaceDomRenderer {
         // before its parent (or references a parent that does not
         // exist in the streamed snapshot). Fall back to root-thread
         // placement so the user still sees the blip's content
-        // instead of having it silently dropped.
+        // instead of having it silently dropped. V-4 (#1102): an
+        // orphan reattached to rootThread paints as a root-depth
+        // blip — the full-size avatar matches its visual placement
+        // alongside genuine root blips, and the orphan does not
+        // contribute to the declared parent's reply-count tally so
+        // the chevron is not painted for a parent whose DOM subtree
+        // is empty.
+        blipElement.setAttribute("data-blip-depth", "root");
         rootThread.appendChild(blipElement);
         continue;
       }
+      // V-4 (#1102): only count successfully nested children — orphans
+      // that fell back above are skipped so the parent's reply-count
+      // matches the actual rendered subtree.
+      Integer prior = replyCounts.get(parentBlipId);
+      replyCounts.put(parentBlipId, prior == null ? 1 : prior + 1);
+      blipElement.setAttribute("data-blip-depth", "reply");
       String threadKey = parentBlipId + "::" + threadId;
       HTMLElement threadHost = threadHostsByThreadKey.get(threadKey);
       if (threadHost == null) {
@@ -850,6 +914,16 @@ public final class J2clReadSurfaceDomRenderer {
         lastThreadHostByParent.put(parentBlipId, threadHost);
       }
       threadHost.appendChild(blipElement);
+    }
+    // V-4 (#1102): stamp reply-count on each parent now that placement
+    // is finalized — orphans that fell back to rootThread are excluded
+    // from the tally so the chevron only paints when the parent's DOM
+    // subtree actually has children.
+    for (Map.Entry<String, Integer> entry : replyCounts.entrySet()) {
+      HTMLElement parentHost = blipHostsById.get(entry.getKey());
+      if (parentHost != null && entry.getValue() != null && entry.getValue() > 0) {
+        parentHost.setAttribute("reply-count", String.valueOf(entry.getValue()));
+      }
     }
   }
 
@@ -1604,6 +1678,23 @@ public final class J2clReadSurfaceDomRenderer {
       button.setAttribute("aria-expanded", "true");
       button.setAttribute("aria-label", "Collapse " + threadLabel(thread));
       button.textContent = "Collapse thread";
+    }
+    // V-4 (#1102): mirror collapse state onto the parent wave-blip so
+    // the chevron glyph (triangle-down/right) reflects the actual
+    // thread state. Use the rendered-blip lookup helper rather than
+    // CSS selector interpolation so a parentBlipId that contains
+    // characters needing CSS escaping (quotes, brackets, colons) still
+    // resolves and the chevron stays in sync.
+    String parentBlipId = thread.getAttribute("data-parent-blip-id");
+    if (parentBlipId != null && !parentBlipId.isEmpty()) {
+      HTMLElement parentBlip = renderedBlipById(parentBlipId);
+      if (parentBlip != null) {
+        if (collapsed) {
+          parentBlip.setAttribute("data-thread-collapsed", "true");
+        } else {
+          parentBlip.removeAttribute("data-thread-collapsed");
+        }
+      }
     }
     if (collapsed && isHiddenByCollapsedThread(focusedBlip)) {
       focusNearestVisibleFrom(focusedBlip);

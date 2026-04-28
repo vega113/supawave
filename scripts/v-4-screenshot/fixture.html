@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>V-4 fixture — open wave per-blip chrome</title>
+<link rel="stylesheet" href="../../j2cl/lit/src/design/wavy-tokens.css" />
+<style>
+  html, body { margin: 0; background: #f6f7fb; font-family: Inter, sans-serif; }
+  body { padding: 32px 64px; max-width: 1080px; }
+  h1 {
+    font: 700 24px/1.25 'Space Grotesk', Inter, sans-serif;
+    color: #0b1320;
+    margin: 0 0 8px;
+  }
+  .meta {
+    font-size: 11px;
+    color: rgba(11,19,32,0.55);
+    letter-spacing: 0.08em;
+    margin-bottom: 24px;
+  }
+  .thread {
+    position: relative;
+    padding-left: 24px;
+  }
+  .thread::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 2px;
+    background: rgba(34,211,238,0.30);
+    border-radius: 9999px;
+  }
+  wave-blip {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(11,19,32,0.10);
+    padding: 16px;
+    margin-bottom: 12px;
+    display: block;
+    color: rgba(11,19,32,0.92);
+    box-shadow: 0 1px 2px rgba(11,19,32,0.04);
+  }
+  wave-blip[focused] {
+    border-color: #22d3ee;
+    box-shadow: 0 0 0 2px #22d3ee, 0 6px 18px rgba(34,211,238,0.25);
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "lit": "../../j2cl/lit/node_modules/lit/index.js",
+    "lit/": "../../j2cl/lit/node_modules/lit/",
+    "@lit/reactive-element": "../../j2cl/lit/node_modules/@lit/reactive-element/reactive-element.js",
+    "@lit/reactive-element/": "../../j2cl/lit/node_modules/@lit/reactive-element/",
+    "lit-element/lit-element.js": "../../j2cl/lit/node_modules/lit-element/lit-element.js",
+    "lit-element": "../../j2cl/lit/node_modules/lit-element/index.js",
+    "lit-element/": "../../j2cl/lit/node_modules/lit-element/",
+    "lit-html": "../../j2cl/lit/node_modules/lit-html/lit-html.js",
+    "lit-html/": "../../j2cl/lit/node_modules/lit-html/"
+  }
+}
+</script>
+<script type="module" src="../../j2cl/lit/src/design/wavy-blip-card.js"></script>
+<script type="module" src="../../j2cl/lit/src/elements/wave-blip-toolbar.js"></script>
+<script type="module" src="../../j2cl/lit/src/elements/wave-blip.js"></script>
+</head>
+<body data-wavy-theme="light">
+<div class="meta">WAVE · 7c4a91 · 5 PARTICIPANTS</div>
+<h1>Robot streaming follow-up — 4xx retries</h1>
+
+<wave-blip
+  data-blip-id="b1"
+  data-wave-id="w1"
+  author-id="anton@example.com"
+  author-name="Anton T."
+  posted-at="2 hours ago"
+  posted-at-iso="2026-04-28T12:00:00Z"
+  data-blip-depth="root"
+  reply-count="4"
+>Sasha — what's the actual retry budget after the F-3 cleanup? I'm seeing logs that look like we're doubling up between the streaming handler and the outer fetch. Repro is on prod-2 only.</wave-blip>
+
+<div class="thread">
+  <wave-blip
+    data-blip-id="b2"
+    data-wave-id="w1"
+    author-id="sasha@example.com"
+    author-name="Sasha K."
+    posted-at="1 hour ago"
+    posted-at-iso="2026-04-28T13:00:00Z"
+    data-blip-depth="reply"
+    reply-count="1"
+  >The budget is 3 retries with 200ms / 600ms / 1.4s backoff. Outer fetch should not retry — if it does, that's the duplicate you're seeing. Can you grab a request-id from prod-2?</wave-blip>
+
+  <div class="thread">
+    <wave-blip
+      data-blip-id="b3"
+      data-wave-id="w1"
+      author-id="marina@example.com"
+      author-name="Marina R."
+      posted-at="42 min ago"
+      posted-at-iso="2026-04-28T13:18:00Z"
+      data-blip-depth="reply"
+      focused
+    >request-id 6f1a-7cc4: outer fetch retried twice after a 502 from upstream. The handler retried 3 more times on top. So 5 total. Filed bug as #1081.</wave-blip>
+  </div>
+
+  <wave-blip
+    data-blip-id="b4"
+    data-wave-id="w1"
+    author-id="sasha@example.com"
+    author-name="Sasha K."
+    posted-at="38 min ago"
+    posted-at-iso="2026-04-28T13:22:00Z"
+    data-blip-depth="reply"
+    reply-count="3"
+    data-thread-collapsed
+  >Patch open — pinning outer fetch retry to 1, will land behind feature flag…</wave-blip>
+
+  <wave-blip
+    data-blip-id="b5"
+    data-wave-id="w1"
+    author-id="dan@example.com"
+    author-name="Dan K."
+    posted-at="2 min ago"
+    posted-at-iso="2026-04-28T13:58:00Z"
+    data-blip-depth="reply"
+    unread
+  >Confirmed on staging-3 too. Bumping severity. Looping in @yuri for the deploy gate.</wave-blip>
+</div>
+</body>
+</html>

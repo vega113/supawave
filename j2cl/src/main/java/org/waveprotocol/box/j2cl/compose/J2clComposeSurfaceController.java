@@ -336,6 +336,13 @@ public final class J2clComposeSurfaceController {
   // installed; legacy callers that did not register a hook continue to
   // fall back to the success-time query inside onOptimisticDigest.
   private Runnable preCreateSubmitHook;
+  // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: hook fired
+  // on every create-failure path (bootstrap error, submit error,
+  // stale-generation guard) so the search panel can drop the matching
+  // submit-query stamp it queued in preCreateSubmitHook. Without this
+  // pairing a failed attempt's stamp leaks forward and scopes the next
+  // successful create's optimistic stub to the wrong rail.
+  private Runnable createFailureHook;
   private String createDraft = "";
   // J-UI-3 (#1081, R-5.1): the title-input value separate from createDraft.
   // Composed into the rich-content document on submit alongside the body so
@@ -1169,6 +1176,19 @@ public final class J2clComposeSurfaceController {
   }
 
   /**
+   * J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: install a
+   * hook fired on every create-failure path so the search panel can drop
+   * the submit-query stamp the pre-submit hook queued. The hook is
+   * invoked synchronously when {@link #handleCreateFailure} fires, so
+   * the matching pendingSubmitQueries entry is dequeued before any
+   * subsequent successful create can consume it. Idempotent — passing
+   * {@code null} disables the hook.
+   */
+  public void setCreateFailureHook(Runnable hook) {
+    this.createFailureHook = hook;
+  }
+
+  /**
    * F-3.S3 (#1038, R-5.5): publish the latest per-blip reaction
    * snapshot from the model. The controller uses this on each toggle
    * click to decide whether the user is adding or removing their
@@ -1466,6 +1486,17 @@ public final class J2clComposeSurfaceController {
     createStatusText = "";
     createErrorText = error == null || error.isEmpty() ? "Create wave failed." : error;
     render();
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: pair the
+    // pre-submit stamp with a failure-time drop so a failed create does
+    // not leave a stale submit-query entry that the next successful
+    // create would consume.
+    if (createFailureHook != null) {
+      try {
+        createFailureHook.run();
+      } catch (RuntimeException ignored) {
+        // Best-effort: never re-throw out of an integration callback.
+      }
+    }
   }
 
   private void submitReply() {

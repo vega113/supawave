@@ -138,6 +138,11 @@ public final class J2clRootShellController {
     // moment the user clicks submit, so a query change between submit
     // and server-response cannot leak the stub into an unrelated rail.
     composeController.setPreCreateSubmitHook(controller::markCreateSubmitted);
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: pair the
+    // pre-submit stamp with a failure-time drop so a failed create does
+    // not leave a stale submit-query stamp that scopes the next
+    // successful create's stub to the wrong rail.
+    composeController.setCreateFailureHook(controller::discardOldestSubmitStamp);
     // J-UI-3 (#1081, R-5.1): the rail's New Wave button focuses the create
     // form's title input. Listening on document.body so the event bubbles
     // up regardless of where the rail is currently mounted.

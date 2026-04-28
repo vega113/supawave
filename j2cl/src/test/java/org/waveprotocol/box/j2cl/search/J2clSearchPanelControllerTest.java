@@ -839,6 +839,96 @@ public class J2clSearchPanelControllerTest {
         view.lastModel.findDigestItem("example.com/w+pending"));
   }
 
+  // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7V: when the
+  // user submits on query A and navigates to B before the success
+  // callback fires, the immediate prepend in onOptimisticDigest must
+  // not paint into B's rail. The stub is held in pendingStubs and
+  // surfaces only when the user returns to A.
+  @Test
+  public void onOptimisticDigestSkipsImmediatePrependWhenSubmitQueryDoesNotMatch() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Inbox wave",
+                    "Snippet",
+                    "example.com/w+inbox",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    controller.markCreateSubmitted();
+    gateway.response =
+        responseWithDigests(
+            new SidecarSearchResponse.Digest(
+                "Mention",
+                "Snippet",
+                "example.com/w+mention",
+                2L,
+                0,
+                1,
+                Collections.singletonList("user@example.com"),
+                "user@example.com",
+                false));
+    controller.onQuerySubmitted("with:@me");
+    int rendersBefore = view.lastModel.getDigestItems().size();
+
+    controller.onOptimisticDigest("example.com/w+pending", "Pending wave");
+
+    Assert.assertNull(
+        "stub must not be painted into the unrelated with:@me rail",
+        view.lastModel.findDigestItem("example.com/w+pending"));
+    Assert.assertEquals(
+        "rail digest count is unchanged because the stub is held back",
+        rendersBefore,
+        view.lastModel.getDigestItems().size());
+  }
+
+  // J-UI-3 — codex P2 PRRT_kwDOBwxLXs5-DA7T: a failed create must drop
+  // its pending submit-query stamp so the next successful create
+  // consumes its OWN stamp rather than the stale one from the failure.
+  @Test
+  public void discardOldestSubmitStampPreventsStaleQueryFromLeakingForward() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Mention",
+                    "Snippet",
+                    "example.com/w+mention",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    // Failed create on in:inbox: stamp is queued, then dropped on failure.
+    controller.markCreateSubmitted();
+    controller.discardOldestSubmitStamp();
+    // User navigates to with:@me and submits a successful create there.
+    controller.onQuerySubmitted("with:@me");
+    controller.markCreateSubmitted();
+    controller.onOptimisticDigest("example.com/w+retry", "Retry wave");
+
+    Assert.assertNotNull(
+        "successful retry must consume its OWN submit stamp (with:@me), not the discarded in:inbox one",
+        view.lastModel.findDigestItem("example.com/w+retry"));
+  }
+
   // J-UI-3 — when no markCreateSubmitted() stamp is queued (legacy path),
   // onOptimisticDigest falls back to the success-time query so existing
   // wiring continues to work.

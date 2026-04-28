@@ -366,6 +366,29 @@ public final class J2clSearchPanelController
   }
 
   /**
+   * J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: drop the
+   * oldest entry from the pendingSubmitQueries deque without scoping a
+   * stub. Called by the compose controller's failure hook so a create
+   * that errors before the success callback (bootstrap or submit error)
+   * does not leave a stale stamp in the queue. Without this, the next
+   * successful create would consume the failed attempt's submit query
+   * and scope its optimistic stub to the wrong rail. Idempotent:
+   * silently no-ops when the queue is empty.
+   */
+  public void discardOldestSubmitStamp() {
+    pendingSubmitQueries.pollFirst();
+  }
+
+  /**
+   * J-UI-3 (#1090, thread PRRT_kwDOBwxLXs5-DA7T): pop the pending submit-query stamp when a
+   * create attempt fails before reaching the success callback. Prevents stale stamps from
+   * being consumed by a subsequent successful create under a different query.
+   */
+  public void cancelPendingCreateSubmit() {
+    pendingSubmitQueries.pollFirst();
+  }
+
+  /**
    * J-UI-3 (#1081, R-5.1): record an optimistic digest for the just-created
    * wave and prepend it to the rail immediately. The stub is dropped when
    * the next search response includes the matching waveId or after
@@ -402,8 +425,18 @@ public final class J2clSearchPanelController
     }
     final PendingStub pending = new PendingStub(stub, submitQuery);
     pendingStubs.put(waveId, pending);
-    lastModel = withActivePendingLabel(lastModel.withPrependedDigest(stub));
-    view.render(lastModel);
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7V: only
+    // prepend immediately when the stamped submit query matches the
+    // currently visible rail. If the user navigated to a different
+    // query between submit and success, the stub stays in pendingStubs
+    // (so it surfaces when they return) but is not painted into the
+    // unrelated rail. This makes the immediate prepend match the
+    // long-term scope semantics enforced by applyOptimisticStubs.
+    String activeQuery = currentQuery == null ? "" : currentQuery;
+    if (submitQuery.equals(activeQuery)) {
+      lastModel = withActivePendingLabel(lastModel.withPrependedDigest(stub));
+      view.render(lastModel);
+    }
     // Schedule the stuck-stub bound BEFORE issuing requestSearch so a
     // synchronous response callback (in tests, or a hot-cache server) can
     // cancel the timeout via applyOptimisticStubs instead of stranding it.

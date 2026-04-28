@@ -1,5 +1,7 @@
 package org.waveprotocol.box.j2cl.transport;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public final class SidecarSessionBootstrap {
@@ -7,10 +9,21 @@ public final class SidecarSessionBootstrap {
 
   private final String address;
   private final String websocketAddress;
+  // J-UI-3 (#1081, R-5.1): the per-user enabled feature-flag list passed
+  // through from the bootstrap JSON's session.features array. Empty list
+  // when the field is absent or signed-out.
+  private final List<String> enabledFeatures;
 
   public SidecarSessionBootstrap(String address, String websocketAddress) {
+    this(address, websocketAddress, Collections.<String>emptyList());
+  }
+
+  public SidecarSessionBootstrap(
+      String address, String websocketAddress, List<String> enabledFeatures) {
     this.address = address;
     this.websocketAddress = websocketAddress;
+    this.enabledFeatures =
+        enabledFeatures == null ? Collections.<String>emptyList() : enabledFeatures;
   }
 
   public String getAddress() {
@@ -19,6 +32,21 @@ public final class SidecarSessionBootstrap {
 
   public String getWebSocketAddress() {
     return websocketAddress;
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): returns the list of enabled feature-flag names
+   * for the signed-in user, mirroring the bootstrap JSON's
+   * {@code session.features} array. Used by experimental sub-features
+   * gated under more granular flags than {@code j2cl-root-bootstrap}.
+   */
+  public List<String> getEnabledFeatures() {
+    return enabledFeatures;
+  }
+
+  /** Convenience: returns true when {@code flag} is in {@link #getEnabledFeatures}. */
+  public boolean isFeatureEnabled(String flag) {
+    return enabledFeatures.contains(flag);
   }
 
   public static boolean usesCompatibleCookieHost(String pageHostname, String websocketAddress) {
@@ -105,7 +133,28 @@ public final class SidecarSessionBootstrap {
     if (socketAddress.isEmpty() || "null".equals(socketAddress)) {
       throw new IllegalArgumentException("Bootstrap JSON did not include a socket address");
     }
-    return new SidecarSessionBootstrap(address, socketAddress);
+    return new SidecarSessionBootstrap(address, socketAddress, extractFeatures(session));
+  }
+
+  /**
+   * J-UI-3 (#1081): pulls a list of enabled feature-flag names out of
+   * {@code session.features}. Tolerant: missing or malformed fields yield
+   * an empty list rather than throwing, since clients should still bootstrap
+   * even if the server has not enabled any user-specific flags.
+   */
+  private static List<String> extractFeatures(Map<String, Object> session) {
+    Object featuresValue = session.get("features");
+    if (!(featuresValue instanceof java.util.List)) {
+      return Collections.emptyList();
+    }
+    java.util.List<?> raw = (java.util.List<?>) featuresValue;
+    java.util.ArrayList<String> features = new java.util.ArrayList<String>(raw.size());
+    for (Object entry : raw) {
+      if (entry instanceof String && !((String) entry).isEmpty()) {
+        features.add((String) entry);
+      }
+    }
+    return Collections.unmodifiableList(features);
   }
 
   /**

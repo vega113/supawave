@@ -543,6 +543,53 @@ public class J2clSearchPanelControllerTest {
         items.get(0).getWaveId());
   }
 
+  // J-UI-3 (#1081, R-5.1) — when the server response confirms the new
+  // wave is indexed, the stuck-stub timeout is cancelled so a late timer
+  // firing cannot retire a digest the server has already accepted.
+  // Mitigates the timeout-fires-before-server-response race (review).
+  @Test
+  public void serverResponseCancelsScheduledOptimisticTimeout() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Existing",
+                    "Snippet",
+                    "example.com/w+existing",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    int cancelsBefore = scheduler.cancelCallCount;
+
+    // Server now has the new wave indexed; the next gateway hit returns it.
+    gateway.response =
+        responseWithDigests(
+            new SidecarSearchResponse.Digest(
+                "Server-side new",
+                "Snippet",
+                "example.com/w+confirm",
+                2L,
+                0,
+                1,
+                Collections.singletonList("user@example.com"),
+                "user@example.com",
+                false));
+    controller.onOptimisticDigest("example.com/w+confirm", "Confirm me");
+
+    Assert.assertTrue(
+        "applyOptimisticStub must cancel the pending timeout",
+        scheduler.cancelCallCount > cancelsBefore);
+  }
+
   // J-UI-3: when the search index never returns the new wave, the
   // OPTIMISTIC_TIMEOUT_MS scheduler retires the stub so the rail does
   // not show a stale entry forever.
@@ -610,21 +657,35 @@ public class J2clSearchPanelControllerTest {
   // J-UI-3 (#1081, R-5.1): captures the stuck-stub timeout runnable so the
   // test can drive it deterministically without sleeping. fire() runs the
   // most recently scheduled runnable (there is only ever one outstanding
-  // per onOptimisticDigest call).
+  // per onOptimisticDigest call). cancel() removes a pending runnable.
   private static final class FakeOptimisticScheduler
       implements J2clSearchPanelController.OptimisticScheduler {
     private Runnable pending;
+    private Object pendingHandle;
     private int lastDelayMs = -1;
+    private int cancelCallCount;
 
     @Override
-    public void scheduleTimeout(int delayMs, Runnable action) {
+    public Object scheduleTimeout(int delayMs, Runnable action) {
       this.lastDelayMs = delayMs;
       this.pending = action;
+      this.pendingHandle = new Object();
+      return pendingHandle;
+    }
+
+    @Override
+    public void cancel(Object handle) {
+      cancelCallCount++;
+      if (handle != null && handle == pendingHandle) {
+        pending = null;
+        pendingHandle = null;
+      }
     }
 
     void fire() {
       Runnable next = pending;
       pending = null;
+      pendingHandle = null;
       if (next != null) {
         next.run();
       }

@@ -93,17 +93,30 @@ public final class J2clSearchPanelController
   // it.
   private J2clSearchDigestItem optimisticStub;
   private int optimisticGeneration;
+  private Object optimisticTimeoutHandle;
   private final OptimisticScheduler optimisticScheduler;
-  private static final int OPTIMISTIC_TIMEOUT_MS = 5_000;
+  // J-UI-3 (#1081): bound on a stuck optimistic stub. Set to 30s so the
+  // race "timeout fires before slow gateway response arrives" is rare in
+  // practice (Lucene refresh interval is typically <2s; 30s is well past
+  // every observed lag). When the server response confirms the wave the
+  // stub is dropped immediately and the timeout is cancelled, so this
+  // bound only matters when the wave never gets indexed.
+  private static final int OPTIMISTIC_TIMEOUT_MS = 30_000;
 
   /**
    * J-UI-3 (#1081, R-5.1): pluggable timer seam for the optimistic-prepend
    * timeout. Production wires {@link #defaultOptimisticScheduler}, which
    * delegates to {@code DomGlobal.setTimeout}. JVM tests pass a fake that
    * captures the runnable so they can drive the timeout deterministically.
+   * The handle returned by {@link #scheduleTimeout} can be passed to
+   * {@link #cancel} so the controller can retire the timer when the server
+   * confirms the wave is indexed (avoids the timeout-fires-before-response
+   * race).
    */
   public interface OptimisticScheduler {
-    void scheduleTimeout(int delayMs, Runnable action);
+    Object scheduleTimeout(int delayMs, Runnable action);
+
+    void cancel(Object handle);
   }
 
   public J2clSearchPanelController(
@@ -128,7 +141,19 @@ public final class J2clSearchPanelController
   }
 
   private static OptimisticScheduler defaultOptimisticScheduler() {
-    return (delayMs, action) -> DomGlobal.setTimeout(ignored -> action.run(), delayMs);
+    return new OptimisticScheduler() {
+      @Override
+      public Object scheduleTimeout(int delayMs, Runnable action) {
+        return DomGlobal.setTimeout(ignored -> action.run(), delayMs);
+      }
+
+      @Override
+      public void cancel(Object handle) {
+        if (handle instanceof Double) {
+          DomGlobal.clearTimeout(((Double) handle).doubleValue());
+        }
+      }
+    };
   }
 
   @Override
@@ -303,21 +328,28 @@ public final class J2clSearchPanelController
     optimisticStub =
         new J2clSearchDigestItem(waveId, safeTitle, safeSnippet, "", 0, 1, now, false);
     final int generation = ++optimisticGeneration;
+    if (optimisticTimeoutHandle != null) {
+      optimisticScheduler.cancel(optimisticTimeoutHandle);
+      optimisticTimeoutHandle = null;
+    }
     lastModel = lastModel.withPrependedDigest(optimisticStub);
     view.render(lastModel);
+    // Schedule the stuck-stub bound BEFORE issuing requestSearch so a
+    // synchronous response callback (in tests, or a hot-cache server) can
+    // cancel the timeout via applyOptimisticStub instead of stranding it.
+    optimisticTimeoutHandle =
+        optimisticScheduler.scheduleTimeout(
+            OPTIMISTIC_TIMEOUT_MS,
+            () -> {
+              optimisticTimeoutHandle = null;
+              if (generation == optimisticGeneration && optimisticStub != null) {
+                String stuckId = optimisticStub.getWaveId();
+                optimisticStub = null;
+                lastModel = lastModel.withoutDigest(stuckId);
+                view.render(lastModel);
+              }
+            });
     requestSearch();
-    // Bound a stuck stub: if the index never returns the wave, retire the
-    // stub after OPTIMISTIC_TIMEOUT_MS so a stale entry does not linger.
-    optimisticScheduler.scheduleTimeout(
-        OPTIMISTIC_TIMEOUT_MS,
-        () -> {
-          if (generation == optimisticGeneration && optimisticStub != null) {
-            String stuckId = optimisticStub.getWaveId();
-            optimisticStub = null;
-            lastModel = lastModel.withoutDigest(stuckId);
-            view.render(lastModel);
-          }
-        });
   }
 
   /**
@@ -332,6 +364,12 @@ public final class J2clSearchPanelController
     String stubId = optimisticStub.getWaveId();
     if (projected.containsWave(stubId)) {
       optimisticStub = null;
+      // The server confirmed the new wave is indexed; cancel the stuck-stub
+      // timeout so the rail does not flicker if the timer fires later.
+      if (optimisticTimeoutHandle != null) {
+        optimisticScheduler.cancel(optimisticTimeoutHandle);
+        optimisticTimeoutHandle = null;
+      }
       return projected;
     }
     return projected.withPrependedDigest(optimisticStub);

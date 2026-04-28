@@ -7,6 +7,17 @@ import java.util.Locale;
 
 /** Immutable structured composer document used to build J2CL rich-content sidecar deltas. */
 public final class J2clComposerDocument {
+  // J-UI-3 (#1081, R-5.1): the wave-title annotation key. Mirrors
+  // org.waveprotocol.wave.model.conversation.TitleHelper.TITLE_KEY which
+  // is built from Annotations.join(Blips.ANNOTATION_PREFIX, "title") and
+  // resolves to the literal "conv/title". Kept as a private constant
+  // here because TitleHelper lives in the wave model module which is not
+  // visible to J2CL-compiled code.
+  static final String TITLE_ANNOTATION_KEY = "conv/title";
+  // TitleHelper.AUTO_VALUE = "" — empty value tells the server to use
+  // the annotated text run as the title.
+  static final String TITLE_ANNOTATION_AUTO_VALUE = "";
+
   enum ComponentType {
     TEXT,
     ANNOTATED_TEXT,
@@ -86,8 +97,8 @@ public final class J2clComposerDocument {
           new Component(
               ComponentType.ANNOTATED_TEXT,
               text,
-              "conv/title",
-              "",
+              TITLE_ANNOTATION_KEY,
+              TITLE_ANNOTATION_AUTO_VALUE,
               "",
               ""));
       return this;

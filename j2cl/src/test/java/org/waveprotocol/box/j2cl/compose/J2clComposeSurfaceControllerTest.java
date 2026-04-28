@@ -2592,10 +2592,12 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.onCreateTitleChanged("  pasted\nfrom-clipboard\r\n  ");
 
-    // \r\n becomes two spaces (each replaced individually) plus the
-    // original 2 trailing spaces = 4 trailing spaces.
+    // Each break run collapses to a single space (CRLF/LF/CR runs no
+    // longer leak Windows-style double-spacing): the lone \n becomes one
+    // space, the \r\n run becomes one space, and the original 2 trailing
+    // spaces are preserved verbatim → 3 trailing spaces total.
     Assert.assertEquals(
-        "  pasted from-clipboard    ", view.model.getCreateTitleDraft());
+        "  pasted from-clipboard   ", view.model.getCreateTitleDraft());
   }
 
   // J-UI-3 — submit-time normalisation trims edge whitespace so the
@@ -2724,6 +2726,98 @@ public class J2clComposeSurfaceControllerTest {
     controller.onCreateSubmittedWithTitle("Title", "Body");
 
     Assert.assertEquals(Arrays.asList("example.com/w+new"), singleArgCalls);
+  }
+
+  // J-UI-3 (#1081, R-5.1) — CodeRabbit major PRRT_kwDOBwxLXs5-Cper:
+  // body-only creates must derive a stub title from the body's first
+  // non-blank line so the optimistic rail digest does not render as
+  // "(untitled wave)" when the user clearly intended their typed text
+  // to identify the wave.
+  @Test
+  public void bodyOnlyCreatePassesFirstBodyLineAsStubTitle() {
+    List<String> stubTitles = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            new FakeFactory(),
+            new J2clComposeSurfaceController.CreateSuccessHandler() {
+              @Override
+              public void onWaveCreated(String waveId) {
+                onWaveCreated(waveId, "");
+              }
+              @Override
+              public void onWaveCreated(String waveId, String title) {
+                stubTitles.add(title);
+              }
+            },
+            waveId -> { });
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("", "  hello world\nsecond line\n");
+
+    Assert.assertEquals(Arrays.asList("hello world"), stubTitles);
+  }
+
+  // J-UI-3 — when both title and body are typed, the explicit title wins
+  // over the body-derived fallback. Submit-time normalisation trims edge
+  // whitespace.
+  @Test
+  public void submitWithTitleAndBodyPassesTrimmedTitleAsStubTitle() {
+    List<String> stubTitles = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            new FakeFactory(),
+            new J2clComposeSurfaceController.CreateSuccessHandler() {
+              @Override
+              public void onWaveCreated(String waveId) { onWaveCreated(waveId, ""); }
+              @Override
+              public void onWaveCreated(String waveId, String title) {
+                stubTitles.add(title);
+              }
+            },
+            waveId -> { });
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("  Sprint plan  ", "body line");
+
+    Assert.assertEquals(Arrays.asList("Sprint plan"), stubTitles);
+  }
+
+  // J-UI-3 — when neither title nor body has any non-blank text the
+  // stub title is empty so onOptimisticDigest's "(untitled wave)"
+  // fallback does fire as the last resort.
+  @Test
+  public void bodyOnlyCreateWithBlankBodyFallsThroughToUntitledFallback() {
+    List<String> stubTitles = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            new FakeFactory(),
+            new J2clComposeSurfaceController.CreateSuccessHandler() {
+              @Override
+              public void onWaveCreated(String waveId) { onWaveCreated(waveId, ""); }
+              @Override
+              public void onWaveCreated(String waveId, String title) {
+                stubTitles.add(title);
+              }
+            },
+            waveId -> { });
+    controller.start();
+
+    // The validation gate normally blocks (both blank), so to exercise
+    // the fallback we use a body that is whitespace-only with a
+    // non-blank-but-trimmable suffix character to satisfy the gate.
+    controller.onCreateSubmittedWithTitle("", "   \n\n.");
+
+    // First non-blank line is ".", so that becomes the stub title.
+    Assert.assertEquals(Arrays.asList("."), stubTitles);
   }
 
   // F-3.S2 (#1038, R-5.3) — telemetry-only assertions for the mention

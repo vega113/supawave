@@ -417,11 +417,31 @@ public final class J2clSearchPanelController
     // prepend pushes the previously-prepended item down by one row, so the
     // last (most-recent) submission ends up at the top of the rail.
     J2clSearchResultModel result = projected;
+    int prependedCount = 0;
     for (PendingStub pending : pendingStubs.values()) {
       if (pending.query == null
           ? currentQuery == null
           : pending.query.equals(currentQuery)) {
         result = result.withPrependedDigest(pending.digest);
+        prependedCount++;
+      }
+    }
+    if (prependedCount > 0) {
+      // CodeRabbit minor PRRT_kwDOBwxLXs5-Cpes: the projector's count text
+      // ("N waves" / "N of M waves [· K unread]") reflects the server
+      // response only. When we prepend optimistic stubs the rail header
+      // would otherwise still show the stale server count, so we suffix
+      // a "(+N pending)" marker. The unread count is unchanged because
+      // optimistic stubs render with unread=0.
+      String suffix = " (+" + prependedCount + " pending)";
+      String existingText = result.getWaveCountText();
+      if (!existingText.endsWith(suffix)) {
+        result =
+            new J2clSearchResultModel(
+                result.getDigestItems(),
+                existingText.isEmpty() ? suffix.trim() : existingText + suffix,
+                result.isShowMoreVisible(),
+                result.getEmptyMessage());
       }
     }
     return result;

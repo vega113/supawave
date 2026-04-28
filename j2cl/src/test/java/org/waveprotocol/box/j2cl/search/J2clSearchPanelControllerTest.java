@@ -767,6 +767,41 @@ public class J2clSearchPanelControllerTest {
         view.lastModel.getDigestItems().get(0).getWaveId());
   }
 
+  // J-UI-3 (#1081, R-5.1) — CodeRabbit minor PRRT_kwDOBwxLXs5-Cpes: when
+  // an optimistic stub is prepended, the rail header's wave-count text
+  // must reflect the new entry instead of showing the stale server count.
+  // The current implementation appends "(+N pending)" so the user sees
+  // "1 waves · 0 unread (+1 pending)" while indexing catches up.
+  @Test
+  public void optimisticStubAppendsPendingSuffixToWaveCountText() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Existing",
+                    "Snippet",
+                    "example.com/w+existing",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    controller.onOptimisticDigest("example.com/w+pending", "Pending wave");
+
+    Assert.assertTrue(
+        "wave-count text must surface a pending suffix, got: "
+            + view.lastModel.getWaveCountText(),
+        view.lastModel.getWaveCountText().endsWith("(+1 pending)"));
+  }
+
   // J-UI-3: refreshSearch is idempotent and re-issues the active query
   // without resetting selection or page size.
   @Test

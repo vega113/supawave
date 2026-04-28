@@ -1400,12 +1400,15 @@ public final class J2clComposeSurfaceController {
       return;
     }
     createSubmitting = false;
-    createDraft = "";
-    // J-UI-3 (#1081, R-5.1): snapshot the title before clearing it so the
-    // success handler can pass it through to the rail's optimistic-digest
-    // prepend; clear last so the rendered create form returns to its empty
-    // state.
+    // J-UI-3 (#1081, R-5.1): snapshot title and body before clearing them
+    // so the success handler can pass a non-empty stub title through to
+    // the rail's optimistic-digest prepend even when the user typed only
+    // a body (CodeRabbit major review on PR #1090: a body-only create
+    // previously prepended as "(untitled wave)" instead of using the
+    // body's first line).
     String createdTitle = createTitleDraft;
+    String createdBodyForStub = createDraft;
+    createDraft = "";
     createTitleDraft = "";
     activeCommandId = "";
     annotationCommandId = "";
@@ -1415,7 +1418,10 @@ public final class J2clComposeSurfaceController {
     createErrorText = "";
     render();
     if (createSuccessHandler != null) {
-      createSuccessHandler.onWaveCreated(request.getCreatedWaveId(), createdTitle);
+      String stubTitle = createdTitle.trim().isEmpty()
+          ? firstNonBlankLine(createdBodyForStub)
+          : createdTitle.trim();
+      createSuccessHandler.onWaveCreated(request.getCreatedWaveId(), stubTitle);
     }
   }
 
@@ -2204,17 +2210,32 @@ public final class J2clComposeSurfaceController {
 
   /**
    * J-UI-3 (#1081, R-5.1): live-edit sanitiser for the title input. Replaces
-   * any embedded newline (e.g. from a paste) with a space so the conv/title
-   * annotation never spans more than one line, but otherwise preserves the
-   * raw input — including trailing whitespace — so users can type
-   * multi-word titles normally without each space being eaten between
-   * keystrokes.
+   * any embedded line break (CR, LF, or any run of them) with a single
+   * space so the conv/title annotation never spans more than one line and
+   * Windows CRLF pastes do not introduce double spaces. Otherwise
+   * preserves the raw input — including trailing whitespace — so users
+   * can type multi-word titles normally without each space being eaten
+   * between keystrokes (CodeRabbit follow-up on PR #1090).
    */
   private static String sanitizeTitleLive(String title) {
     if (title == null) {
       return "";
     }
-    return title.replace('\n', ' ').replace('\r', ' ');
+    StringBuilder out = new StringBuilder(title.length());
+    boolean inBreakRun = false;
+    for (int i = 0; i < title.length(); i++) {
+      char c = title.charAt(i);
+      if (c == '\n' || c == '\r') {
+        if (!inBreakRun) {
+          out.append(' ');
+          inBreakRun = true;
+        }
+      } else {
+        out.append(c);
+        inBreakRun = false;
+      }
+    }
+    return out.toString();
   }
 
   /**
@@ -2225,6 +2246,33 @@ public final class J2clComposeSurfaceController {
    */
   private static String normalizeTitleForSubmit(String title) {
     return sanitizeTitleLive(title).trim();
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): pulls the first non-blank line out of {@code text}
+   * for use as an optimistic-stub title fallback when the user submitted a
+   * body-only create. Empty/null input yields an empty string so the
+   * optimistic-prepend path can fall through to its "(untitled wave)"
+   * placeholder.
+   */
+  private static String firstNonBlankLine(String text) {
+    if (text == null) {
+      return "";
+    }
+    int len = text.length();
+    int i = 0;
+    while (i < len) {
+      int lineEnd = i;
+      while (lineEnd < len && text.charAt(lineEnd) != '\n' && text.charAt(lineEnd) != '\r') {
+        lineEnd++;
+      }
+      String line = text.substring(i, lineEnd).trim();
+      if (!line.isEmpty()) {
+        return line;
+      }
+      i = lineEnd + 1;
+    }
+    return "";
   }
 
   private static String extractDomain(String waveId) {

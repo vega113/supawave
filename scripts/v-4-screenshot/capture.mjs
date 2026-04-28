@@ -28,8 +28,8 @@ function startServer(rootDir) {
     const server = http.createServer((req, res) => {
       let urlPath = decodeURIComponent(req.url.split("?")[0]);
       if (urlPath === "/") urlPath = "/index.html";
-      const filePath = path.join(rootDir, urlPath);
-      if (!filePath.startsWith(rootDir + path.sep)) {
+      const filePath = path.resolve(rootDir, urlPath.slice(1));
+      if (!filePath.startsWith(rootDir + path.sep) && filePath !== rootDir) {
         res.writeHead(403); res.end("forbidden"); return;
       }
       fs.readFile(filePath, (err, buf) => {

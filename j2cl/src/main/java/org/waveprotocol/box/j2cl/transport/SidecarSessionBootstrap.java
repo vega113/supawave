@@ -1,5 +1,6 @@
 package org.waveprotocol.box.j2cl.transport;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,9 @@ public final class SidecarSessionBootstrap {
     this.address = address;
     this.websocketAddress = websocketAddress;
     this.enabledFeatures =
-        enabledFeatures == null ? Collections.<String>emptyList() : enabledFeatures;
+        enabledFeatures == null
+            ? Collections.<String>emptyList()
+            : Collections.unmodifiableList(new ArrayList<String>(enabledFeatures));
   }
 
   public String getAddress() {

@@ -70,12 +70,6 @@ public final class J2clSearchResultModel {
   }
 
   /**
-   * F-4 (#1039 / R-4.4): returns a model with the matching digest's unread
-   * count replaced. When no digest matches the supplied waveId, this is the
-   * identity. Used by the live-decrement path to keep the cached model in
-   * sync with the live read-state without rerunning the search.
-   */
-  /**
    * J-UI-3 (#1081, R-5.1): returns a model with {@code item} prepended at the
    * top of the digest list. Used by the optimistic-prepend path so the new
    * wave appears in the rail immediately after a successful create, while
@@ -130,6 +124,12 @@ public final class J2clSearchResultModel {
     return new J2clSearchResultModel(next, waveCountText, showMoreVisible, emptyMessage);
   }
 
+  /**
+   * F-4 (#1039 / R-4.4): returns a model with the matching digest's unread
+   * count replaced. When no digest matches the supplied waveId, this is the
+   * identity. Used by the live-decrement path to keep the cached model in
+   * sync with the live read-state without rerunning the search.
+   */
   public J2clSearchResultModel withUpdatedUnreadCount(String waveId, int newUnreadCount) {
     if (waveId == null || waveId.isEmpty() || digestItems.isEmpty()) {
       return this;

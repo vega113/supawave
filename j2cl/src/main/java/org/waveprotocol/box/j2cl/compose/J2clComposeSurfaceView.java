@@ -121,12 +121,16 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         };
     createTitleInput.onkeydown =
         event -> {
-          String key = String.valueOf(Js.asPropertyMap(event).get("key"));
-          if ("Enter".equals(key)) {
-            event.preventDefault();
-            if (listener != null) {
-              listener.onCreateSubmittedWithTitle(createTitleInput.value, createInput.value);
-            }
+          JsPropertyMap<?> eventProps = Js.asPropertyMap(event);
+          String key = String.valueOf(eventProps.get("key"));
+          boolean shiftKey = Boolean.TRUE.equals(eventProps.get("shiftKey"));
+          boolean isComposing = Boolean.TRUE.equals(eventProps.get("isComposing"));
+          if (!("Enter".equals(key)) || shiftKey || isComposing) {
+            return null;
+          }
+          event.preventDefault();
+          if (listener != null) {
+            listener.onCreateSubmittedWithTitle(createTitleInput.value, createInput.value);
           }
           return null;
         };
@@ -335,15 +339,17 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   @Override
   public void render(J2clComposeSurfaceModel model) {
-    // J-UI-3 (#1081, R-5.1): only assign the title input value when it
-    // actually differs to avoid clobbering the caret position while the user
-    // is typing. The textarea below uses the same guard.
+    // J-UI-3 (#1081, R-5.1): only assign input values when they actually differ
+    // to avoid clobbering the caret position while the user is typing.
     String modelTitle = model.getCreateTitleDraft();
     if (!String.valueOf(createTitleInput.value).equals(modelTitle)) {
       createTitleInput.value = modelTitle;
     }
     createTitleInput.disabled = !model.isCreateEnabled() || model.isCreateSubmitting();
-    createInput.value = model.getCreateDraft();
+    String modelDraft = model.getCreateDraft();
+    if (!String.valueOf(createInput.value).equals(modelDraft)) {
+      createInput.value = modelDraft;
+    }
     createInput.disabled = !model.isCreateEnabled() || model.isCreateSubmitting();
     setProperty(createSubmit, "busy", model.isCreateSubmitting());
     setProperty(createSubmit, "disabled", !model.isCreateEnabled() || model.isCreateSubmitting());

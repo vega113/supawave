@@ -322,7 +322,7 @@ public final class J2clSearchPanelController
     if (waveId == null || waveId.isEmpty()) {
       return;
     }
-    String safeTitle = title == null ? "" : title;
+    String safeTitle = (title == null || title.isEmpty()) ? "(untitled wave)" : title;
     String safeSnippet = "";
     long now = System.currentTimeMillis();
     optimisticStub =

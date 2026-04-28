@@ -159,8 +159,35 @@ public final class J2clSelectedWaveProjector {
         readStateKnown && readStateStale)
         // J-UI-4 (#1082, R-3.1): plumb the parsed manifest through so
         // J2clSelectedWaveView can publish it to the renderer ahead of
-        // each render pass.
-        .withConversationManifest(update.getConversationManifest());
+        // each render pass. review-1089 round-3 (codex P1 +
+        // coderabbitai): if the current update omits the conversation
+        // document (live/fragment-only updates do this), preserve the
+        // previous wave's manifest so the next renderWindow() does not
+        // fall back to flat threading until a full snapshot resends.
+        .withConversationManifest(
+            chooseManifest(update.getConversationManifest(), previousMatchesWave, previous));
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1): if the new update has no conversation
+   * document (manifest is empty), keep the previous same-wave model's
+   * manifest. A non-empty new manifest always wins (so manifest edits
+   * do propagate). Empty + no previous-same-wave = empty.
+   */
+  private static SidecarConversationManifest chooseManifest(
+      SidecarConversationManifest fromUpdate,
+      boolean previousMatchesWave,
+      J2clSelectedWaveModel previous) {
+    if (fromUpdate != null && !fromUpdate.isEmpty()) {
+      return fromUpdate;
+    }
+    if (previousMatchesWave && previous != null) {
+      SidecarConversationManifest previousManifest = previous.getConversationManifest();
+      if (previousManifest != null && !previousManifest.isEmpty()) {
+        return previousManifest;
+      }
+    }
+    return SidecarConversationManifest.empty();
   }
 
   /**
@@ -221,7 +248,11 @@ public final class J2clSelectedWaveProjector {
         unreadCount,
         read,
         readStateKnown,
-        readStateKnown && readStateStale);
+        readStateKnown && readStateStale)
+        // J-UI-4 (#1082, R-3.1): preserve manifest across read-state
+        // re-projections — read-state updates carry no conversation
+        // document and must not flatten threading.
+        .withConversationManifest(previous.getConversationManifest());
   }
 
   private static String appendStatus(String base, String suffix) {

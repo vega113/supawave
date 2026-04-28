@@ -445,7 +445,10 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        // J-UI-4 (#1082, R-3.1): preserve manifest across clones so
+        // viewport-windowed renders keep nesting after fragment growth.
+        .withConversationManifest(conversationManifest);
   }
 
   J2clSelectedWaveModel withReadBlips(List<J2clReadBlip> newReadBlips) {
@@ -469,7 +472,8 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        .withConversationManifest(conversationManifest);
   }
 
   J2clSelectedWaveModel withStatus(String nextStatusText, String nextDetailText) {
@@ -495,7 +499,8 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        .withConversationManifest(conversationManifest);
   }
 
   public int getUnreadCount() {

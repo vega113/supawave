@@ -1244,29 +1244,73 @@ export class WavyComposer extends LitElement {
     if (!this._bodyElement) return "";
     // Walk immediate child nodes to capture newlines that contenteditable
     // adds as <div> wrappers per-line (Enter key) or <br> nodes.
-    let text = "";
-    for (const node of this._bodyElement.childNodes) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        text += node.textContent;
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
+    //
+    // Coderabbit review #1095 thread PRRT_kwDOBwxLXs5-NWWy: list and
+    // blockquote containers must emit explicit `\n` separators between
+    // their block children. Without this, `<ul><li>a</li><li>b</li></ul>`
+    // serialised as `ab` in the draft preview while the DocOp submit
+    // path sees them as separate runs — the preview no longer matched
+    // the submitted content. Mirror the structure DocOp serialization
+    // uses by handling `<ul>` / `<ol>` (newline-separated `<li>`s)
+    // and `<blockquote>` (newline-separated block children) inline.
+    const out = { text: "" };
+    const ensureLineBreak = () => {
+      if (out.text.length > 0 && !out.text.endsWith("\n")) {
+        out.text += "\n";
+      }
+    };
+    const walk = (parent) => {
+      for (const node of parent.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          out.text += node.textContent;
+          continue;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
         const tag = node.tagName.toLowerCase();
         if (tag === "br") {
-          text += "\n";
-        } else if (tag === "div" || tag === "p") {
-          if (text.length > 0 && !text.endsWith("\n")) text += "\n";
-          text += node.textContent;
-        } else {
-          // F-3.S2 (#1038, R-5.3 step 4): mention chip spans are
-          // contenteditable=false; their textContent is "@<displayName>"
-          // which we want in the textual draft view so consumers see
-          // the right preview. The rich serializer below
-          // (_serializeBodyComponents) emits a separate annotation
-          // component for the same chip on submit.
-          text += node.textContent;
+          out.text += "\n";
+          continue;
         }
+        if (tag === "div" || tag === "p" || tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
+          ensureLineBreak();
+          walk(node);
+          continue;
+        }
+        if (tag === "ul" || tag === "ol") {
+          ensureLineBreak();
+          let firstItem = true;
+          for (const child of node.childNodes) {
+            if (
+              child.nodeType === Node.ELEMENT_NODE &&
+              child.tagName.toLowerCase() === "li"
+            ) {
+              if (!firstItem) ensureLineBreak();
+              walk(child);
+              firstItem = false;
+            }
+          }
+          ensureLineBreak();
+          continue;
+        }
+        if (tag === "blockquote") {
+          ensureLineBreak();
+          // Walk children; nested block boundaries inside the quote
+          // emit their own separators via the cases above.
+          walk(node);
+          ensureLineBreak();
+          continue;
+        }
+        // F-3.S2 (#1038, R-5.3 step 4): mention chip spans are
+        // contenteditable=false; their textContent is "@<displayName>"
+        // which we want in the textual draft view so consumers see
+        // the right preview. The rich serializer below
+        // (_serializeBodyComponents) emits a separate annotation
+        // component for the same chip on submit.
+        out.text += node.textContent;
       }
-    }
-    return text;
+    };
+    walk(this._bodyElement);
+    return out.text;
   }
 
   /**

@@ -833,4 +833,29 @@ describe("wavy-composer clear-formatting preserves list boundaries", () => {
     expect(blocks.length).to.be.greaterThan(1);
     expect(el._serializeBodyText()).to.contain("a\nb");
   });
+
+  // Coderabbit review #1095 thread PRRT_kwDOBwxLXs5-NWWy: the draft
+  // preview from `_serializeBodyText` must keep block boundaries for
+  // `<ul>`, `<ol>`, and `<blockquote>` so the previewed text matches
+  // the structure submitted via DocOps.
+  it("serializes <ul><li>a</li><li>b</li></ul> with newline separator", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(el).innerHTML = "<ul><li>a</li><li>b</li></ul>";
+    expect(el._serializeBodyText()).to.contain("a\nb");
+    expect(el._serializeBodyText().indexOf("ab")).to.equal(-1);
+  });
+
+  it("serializes <ol> items with newline separator", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(el).innerHTML = "<ol><li>one</li><li>two</li></ol>";
+    expect(el._serializeBodyText()).to.contain("one\ntwo");
+  });
+
+  it("serializes <blockquote> contents with leading newline boundary", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(el).innerHTML = "before<blockquote>quoted</blockquote>after";
+    const text = el._serializeBodyText();
+    expect(text).to.contain("before\nquoted");
+    expect(text).to.contain("quoted\nafter");
+  });
 });

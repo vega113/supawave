@@ -808,19 +808,11 @@ public final class J2clReadSurfaceDomRenderer {
         hasNesting = true;
       }
     }
-    // V-4 (#1102): tally reply counts so each blip host can advertise
-    // `reply-count` for the inline-reply chip and the thread chevron in
-    // the V-4 per-blip chrome. The Lit element only paints the chevron
-    // when the count > 0, so unset/zero is the default no-children
-    // state.
-    Map<String, Integer> replyCounts = new HashMap<String, Integer>();
-    for (J2clReadBlip blip : effective) {
-      String parent = blip.getParentBlipId();
-      if (parent != null && !parent.isEmpty()) {
-        Integer prior = replyCounts.get(parent);
-        replyCounts.put(parent, prior == null ? 1 : prior + 1);
-      }
-    }
+    // V-4 (#1102): reply counts are tallied *post-placement* below so
+    // an orphan child that fell back to rootThread does not falsely
+    // bump its declared parent's count. The Lit element only paints
+    // the chevron when reply-count > 0, so unset/zero is the default
+    // no-children state.
     if (!hasNesting) {
       for (int i = 0; i < effective.size(); i++) {
         HTMLElement el = renderBlip(effective.get(i), i);
@@ -832,6 +824,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     Map<String, HTMLElement> blipHostsById = new HashMap<String, HTMLElement>();
     Map<String, HTMLElement> threadHostsByThreadKey = new HashMap<String, HTMLElement>();
+    Map<String, Integer> replyCounts = new HashMap<String, Integer>();
     // review-1089 round-4 (codex P2): track the last inline-thread host
     // mounted under each parent so subsequent sibling threads land
     // *after* earlier ones, matching manifest DFS sibling order.
@@ -839,15 +832,6 @@ public final class J2clReadSurfaceDomRenderer {
     for (int i = 0; i < effective.size(); i++) {
       J2clReadBlip blip = effective.get(i);
       HTMLElement blipElement = renderBlip(blip, i);
-      // V-4 (#1102): advertise reply-count on the wave-blip host so
-      // the chevron paints. data-blip-depth is set *after* the final
-      // parent-resolution decision below so an orphan blip reattached
-      // to rootThread paints with the correct root depth, not the
-      // pre-resolution "reply" guess.
-      Integer rc = replyCounts.get(blip.getBlipId());
-      if (rc != null && rc > 0) {
-        blipElement.setAttribute("reply-count", String.valueOf(rc));
-      }
       blipHostsById.put(blip.getBlipId(), blipElement);
       String parentBlipId = blip.getParentBlipId();
       String threadId = blip.getThreadId() == null ? "" : blip.getThreadId();
@@ -868,11 +852,19 @@ public final class J2clReadSurfaceDomRenderer {
         // instead of having it silently dropped. V-4 (#1102): an
         // orphan reattached to rootThread paints as a root-depth
         // blip — the full-size avatar matches its visual placement
-        // alongside genuine root blips.
+        // alongside genuine root blips, and the orphan does not
+        // contribute to the declared parent's reply-count tally so
+        // the chevron is not painted for a parent whose DOM subtree
+        // is empty.
         blipElement.setAttribute("data-blip-depth", "root");
         rootThread.appendChild(blipElement);
         continue;
       }
+      // V-4 (#1102): only count successfully nested children — orphans
+      // that fell back above are skipped so the parent's reply-count
+      // matches the actual rendered subtree.
+      Integer prior = replyCounts.get(parentBlipId);
+      replyCounts.put(parentBlipId, prior == null ? 1 : prior + 1);
       blipElement.setAttribute("data-blip-depth", "reply");
       String threadKey = parentBlipId + "::" + threadId;
       HTMLElement threadHost = threadHostsByThreadKey.get(threadKey);
@@ -922,6 +914,16 @@ public final class J2clReadSurfaceDomRenderer {
         lastThreadHostByParent.put(parentBlipId, threadHost);
       }
       threadHost.appendChild(blipElement);
+    }
+    // V-4 (#1102): stamp reply-count on each parent now that placement
+    // is finalized — orphans that fell back to rootThread are excluded
+    // from the tally so the chevron only paints when the parent's DOM
+    // subtree actually has children.
+    for (Map.Entry<String, Integer> entry : replyCounts.entrySet()) {
+      HTMLElement parentHost = blipHostsById.get(entry.getKey());
+      if (parentHost != null && entry.getValue() != null && entry.getValue() > 0) {
+        parentHost.setAttribute("reply-count", String.valueOf(entry.getValue()));
+      }
     }
   }
 

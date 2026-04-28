@@ -7,10 +7,20 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
+
+// The repo has no top-level package.json — Playwright lives in the
+// j2cl/lit web-test-runner stack. Resolve it from there so the script
+// runs from any cwd as long as `npm install` has been run in
+// j2cl/lit/ (the same prerequisite the lit test suite already
+// requires).
+const litRequire = createRequire(
+  new URL("../../j2cl/lit/package.json", import.meta.url)
+);
+const { chromium } = litRequire("playwright");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",

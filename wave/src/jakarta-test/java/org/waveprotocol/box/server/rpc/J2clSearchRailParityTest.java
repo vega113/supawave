@@ -254,6 +254,28 @@ public final class J2clSearchRailParityTest {
   }
 
   /**
+   * J-UI-5 (#1083): the SSR must advertise the inline rich-composer
+   * flag value on `<shell-root>` so `J2clComposeSurfaceView` can mount
+   * the contenteditable composer at the chosen blip. Sister assertion
+   * to the rail-cards flag tests above.
+   */
+  @Test
+  public void j2clRootShellEmitsInlineRichComposerMarkerWhenFlagOn() throws Exception {
+    String html = renderJ2clRootShellWithInlineRichComposer();
+    assertTrue(
+        "Flag-ON render must advertise data-j2cl-inline-rich-composer on <shell-root>",
+        html.contains("data-j2cl-inline-rich-composer=\"true\""));
+  }
+
+  @Test
+  public void j2clRootShellOmitsInlineRichComposerMarkerWhenFlagOff() throws Exception {
+    String html = renderJ2clRootShell();
+    assertFalse(
+        "Default flag-OFF render must not advertise data-j2cl-inline-rich-composer on <shell-root>",
+        html.contains("data-j2cl-inline-rich-composer=\"true\""));
+  }
+
+  /**
    * B.5–B.10 — six saved-search folders with the canonical query
    * strings AND the canonical visible labels. Each folder carries a
    * {@code data-folder-id} so the client-side rail can route clicks
@@ -571,6 +593,64 @@ public final class J2clSearchRailParityTest {
         new FeatureFlagStore.FeatureFlag(
             "j2cl-search-rail-cards",
             "Render J2CL search digests as <wavy-search-rail-card> elements",
+            true,
+            Collections.emptyMap())));
+    return store;
+  }
+
+  /**
+   * J-UI-5 (#1083): renders the J2CL root shell with the
+   * `j2cl-inline-rich-composer` flag enabled globally so the SSR
+   * emits `data-j2cl-inline-rich-composer="true"` on `<shell-root>`.
+   * Mirrors `renderJ2clRootShellWithRailCards` but flips the
+   * inline-composer flag instead.
+   */
+  private static String renderJ2clRootShellWithInlineRichComposer() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(6));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServletWithInlineRichComposerFlag(VIEWER, renderer);
+    return invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+  }
+
+  private static WaveClientServlet createServletWithInlineRichComposerFlag(
+      ParticipantId user, J2clSelectedWaveSnapshotRenderer snapshotRenderer) throws Exception {
+    Config config = ConfigFactory.parseString(
+        "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
+            + "core.http_websocket_public_address=\"\"\n"
+            + "core.http_websocket_presented_address=\"\"\n"
+            + "core.search_type=\"memory\"\n"
+            + "administration.analytics_account=\"\"\n");
+    SessionManager sessionManager = mock(SessionManager.class);
+    AccountStore accountStore = mock(AccountStore.class);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(user);
+    when(sessionManager.getLoggedInUser((WebSession) null)).thenReturn(user);
+    if (user != null) {
+      AccountData accountData = mock(AccountData.class);
+      HumanAccountData humanAccountData = mock(HumanAccountData.class);
+      when(accountData.isHuman()).thenReturn(true);
+      when(accountData.asHuman()).thenReturn(humanAccountData);
+      when(humanAccountData.getRole()).thenReturn(HumanAccountData.ROLE_USER);
+      when(accountStore.getAccount(user)).thenReturn(accountData);
+      when(sessionManager.getLoggedInAccount(any(WebSession.class))).thenReturn(accountData);
+      when(sessionManager.getLoggedInAccount((WebSession) null)).thenReturn(accountData);
+    }
+    return new WaveClientServlet(
+        "example.com",
+        config,
+        sessionManager,
+        accountStore,
+        new VersionServlet("test", 0L),
+        mock(WavePreRenderer.class),
+        snapshotRenderer,
+        new FeatureFlagService(inlineRichComposerFeatureFlagStore()));
+  }
+
+  private static FeatureFlagStore inlineRichComposerFeatureFlagStore() throws Exception {
+    FeatureFlagStore store = mock(FeatureFlagStore.class);
+    when(store.getAll()).thenReturn(java.util.List.of(
+        new FeatureFlagStore.FeatureFlag(
+            "j2cl-inline-rich-composer",
+            "Open a contenteditable wavy-composer with a selection-driven format toolbar",
             true,
             Collections.emptyMap())));
     return store;

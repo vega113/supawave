@@ -1622,16 +1622,23 @@ public final class J2clComposeSurfaceController {
         && !pendingSubmittedComponents.isEmpty()) {
       for (SubmittedComponent component : pendingSubmittedComponents) {
         if (component == null) continue;
-        if (component.getKind() == SubmittedComponent.Kind.ANNOTATED) {
-          if (!component.getText().isEmpty()
-              && !component.getAnnotationKey().isEmpty()
-              && !component.getAnnotationValue().isEmpty()) {
-            builder.annotatedText(
-                component.getAnnotationKey(),
-                component.getAnnotationValue(),
-                component.getText());
-            continue;
-          }
+        // J-UI-5 (#1083): the J2clComposerDocument.Builder.annotatedText
+        // method rejects whitespace-only text (trim().isEmpty()) with
+        // an IllegalArgumentException. A common user flow — bolding a
+        // word together with its trailing space — produces an
+        // annotated component whose text is " " (a single space),
+        // which trims to empty. Downgrade that case to a plain text
+        // run so the submit does not throw and tear down the reply.
+        if (component.getKind() == SubmittedComponent.Kind.ANNOTATED
+            && !component.getText().isEmpty()
+            && !component.getText().trim().isEmpty()
+            && !component.getAnnotationKey().isEmpty()
+            && !component.getAnnotationValue().isEmpty()) {
+          builder.annotatedText(
+              component.getAnnotationKey(),
+              component.getAnnotationValue(),
+              component.getText());
+          continue;
         }
         builder.text(component.getText());
       }

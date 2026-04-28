@@ -13,6 +13,22 @@ import "./wavy-link-modal.js";
  * `J2clComposeSurfaceController.java` so the JS submit emits exactly
  * what the Java side maps from a toolbar-action click today.
  */
+/**
+ * J-UI-5 (#1083): defense-in-depth href scheme validator. Allows the
+ * same scheme set the `<wavy-link-modal>` validates against
+ * (http/https/mailto) plus relative URLs (no scheme). Rejects any
+ * scheme that can carry script (javascript:, data:, vbscript:, file:).
+ */
+function isSafeLinkHref(url) {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  // Relative URL — no scheme prefix.
+  if (!/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(trimmed)) return true;
+  const scheme = trimmed.slice(0, trimmed.indexOf(":")).toLowerCase();
+  return scheme === "http" || scheme === "https" || scheme === "mailto";
+}
+
 function inlineFormatAnnotation(tag) {
   switch (tag) {
     case "strong":
@@ -327,6 +343,12 @@ export class WavyComposer extends LitElement {
     this.removeEventListener("composer-focus-request", this._handleFocusRequest);
     document.removeEventListener("selectionchange", this._handleSelectionChange);
     this.removeEventListener("wavy-format-toolbar-action", this._handleToolbarAction);
+    // J-UI-5 (#1083): drop our per-composer link modal so it does not
+    // outlive the composer host (avoids a body-level orphan node).
+    if (this._linkModalElement && this._linkModalElement.isConnected) {
+      this._linkModalElement.parentNode.removeChild(this._linkModalElement);
+    }
+    this._linkModalElement = null;
     super.disconnectedCallback();
   }
 
@@ -364,12 +386,16 @@ export class WavyComposer extends LitElement {
       actionId === "align-right"
     ) {
       const align = actionId === "align-left" ? "left" : actionId === "align-center" ? "center" : "right";
-      this._setBlockAttributeAtSelection("style", `text-align: ${align};`);
+      this._applyBlockStyleAtSelection((block) => {
+        block.style.textAlign = align;
+      });
       event.stopPropagation();
       return;
     }
     if (actionId === "rtl") {
-      this._setBlockAttributeAtSelection("dir", "rtl");
+      this._applyBlockStyleAtSelection((block) => {
+        block.dir = "rtl";
+      });
       event.stopPropagation();
       return;
     }
@@ -513,15 +539,18 @@ export class WavyComposer extends LitElement {
     this._afterBodyMutation();
   }
 
-  _setBlockAttributeAtSelection(attrName, attrValue) {
+  /**
+   * J-UI-5 (#1083, R-5.7): apply a style mutation to the block-level
+   * ancestor of the active range without clobbering pre-existing inline
+   * style. Wraps in a fresh `<div>` when no block ancestor exists.
+   */
+  _applyBlockStyleAtSelection(applyFn) {
     if (!this._bodyElement) return;
     const range = this._activeRange();
     if (!range) return;
     if (!this._bodyElement.contains(range.startContainer)) return;
     let block = this._findAncestorTag(range.startContainer, ["div", "p", "li", "blockquote"]);
     if (!block) {
-      // Wrap the active range's containing line in a <div> so the
-      // alignment/dir attribute has somewhere to land.
       block = document.createElement("div");
       try {
         block.appendChild(range.extractContents());
@@ -530,7 +559,11 @@ export class WavyComposer extends LitElement {
         return;
       }
     }
-    block.setAttribute(attrName, attrValue);
+    try {
+      applyFn(block);
+    } catch (_e) {
+      return;
+    }
     this._afterBodyMutation();
   }
 
@@ -551,11 +584,16 @@ export class WavyComposer extends LitElement {
     } catch (_e) {
       preselectedDisplay = "";
     }
-    let modal = document.querySelector("wavy-link-modal[data-j2cl-link-modal=\"true\"]");
-    if (!modal) {
+    // J-UI-5 (#1083): each composer owns its own link modal so that
+    // two composers (wave-root + inline reply) opened simultaneously
+    // never share a modal node — sharing would mean their independent
+    // submit / cancel listeners fire against each other.
+    let modal = this._linkModalElement;
+    if (!modal || !modal.isConnected) {
       modal = document.createElement("wavy-link-modal");
       modal.setAttribute("data-j2cl-link-modal", "true");
       document.body.appendChild(modal);
+      this._linkModalElement = modal;
     }
     modal.urlValue = "";
     modal.displayValue = preselectedDisplay;
@@ -583,8 +621,19 @@ export class WavyComposer extends LitElement {
   _wrapRangeInLink(range, url, displayText) {
     if (!this._bodyElement) return;
     if (!this._bodyElement.contains(range.startContainer)) return;
+    // J-UI-5 (#1083): defense in depth. The wavy-link-modal already
+    // validates the URL scheme, but the wrap helper is also reachable
+    // by any consumer dispatching `wavy-link-modal-submit` directly,
+    // so re-check here. Reject `javascript:` / `data:` / `vbscript:`
+    // URLs so a misbehaving caller cannot inject script-bearing hrefs.
+    if (!isSafeLinkHref(url)) return;
     const anchor = document.createElement("a");
     anchor.setAttribute("href", url);
+    // External-link safety defaults: open in same tab, drop the
+    // referrer/window-opener handle when the user clicks. Composer
+    // anchors do not need a target attribute, but rel hardens the
+    // default behaviour for any future caller that adds one.
+    anchor.setAttribute("rel", "noopener noreferrer");
     if (displayText && range.collapsed) {
       anchor.textContent = displayText;
     } else {
@@ -620,8 +669,13 @@ export class WavyComposer extends LitElement {
    * J-UI-5 (#1083, R-5.7): flatten formatting tags inside the active
    * range so the user can recover plain text. Strips the formatting
    * wraps we know about (`<strong>`, `<em>`, `<u>`, `<s>`, `<a>`,
-   * `<ul>`, `<ol>`, `<li>`, `<blockquote>`). Mention chips are left
-   * intact — they are semantic, not visual formatting.
+   * `<ul>`, `<ol>`, `<li>`, `<blockquote>`) **only inside the selected
+   * range**. Mention chips are left intact — they are semantic, not
+   * visual formatting.
+   *
+   * Scoping the strip to the range matters: a user clicking
+   * "Clear formatting" with one bold word selected must not erase
+   * every other formatted run elsewhere in the body.
    */
   _clearFormattingAtSelection() {
     if (!this._bodyElement) return;
@@ -647,27 +701,15 @@ export class WavyComposer extends LitElement {
       "h3",
       "h4"
     ]);
-    let container = range.commonAncestorContainer;
-    if (container.nodeType === Node.TEXT_NODE) {
-      container = container.parentNode;
-    }
-    while (container && container !== this._bodyElement) {
-      const tag = container.tagName ? container.tagName.toLowerCase() : "";
-      if (tagsToFlatten.has(tag)) {
-        // Pull container's text out and replace the container.
-        const parent = container.parentNode;
-        if (!parent) break;
-        const text = document.createTextNode(container.textContent || "");
-        parent.replaceChild(text, container);
-        container = text.parentNode;
-        continue;
-      }
-      container = container.parentNode;
-    }
-    // Now walk descendants of the common ancestor and flatten any
-    // remaining wraps inside the original range. Use a fresh tree
-    // walker over the body and strip any matching tag whose entire
-    // contents lie inside the original range bounds.
+    // Walk descendants of the body and unwrap matching tags whose
+    // tree intersects the active range. `Range.intersectsNode` returns
+    // true when any part of the candidate's subtree overlaps the
+    // selection, which matches the user expectation that selecting one
+    // bold word and clearing scopes the strip to that word's wrap +
+    // any wrap entirely inside the selection. Wraps that strictly
+    // contain the selection (e.g. a list whose items wholly enclose
+    // the range) are also unwrapped so the user can drop list
+    // membership for the selected lines.
     const walker = document.createTreeWalker(this._bodyElement, NodeFilter.SHOW_ELEMENT, null);
     const stripCandidates = [];
     let node = walker.currentNode;
@@ -675,8 +717,18 @@ export class WavyComposer extends LitElement {
       const tag = node.tagName ? node.tagName.toLowerCase() : "";
       if (!tagsToFlatten.has(tag)) continue;
       if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
+      let intersects = false;
+      try {
+        intersects = range.intersectsNode(node);
+      } catch (_e) {
+        intersects = false;
+      }
+      if (!intersects) continue;
       stripCandidates.push(node);
     }
+    // Unwrap children-first so an outer wrap's children migrate cleanly
+    // (otherwise the outer unwrap orphans inner candidates).
+    stripCandidates.reverse();
     for (const candidate of stripCandidates) {
       this._unwrapElement(candidate);
     }

@@ -190,6 +190,30 @@ describe("wavy-composer toolbar action handlers", () => {
     expect(body.textContent).to.equal("boldy");
   });
 
+  it("Clear formatting only strips wraps that intersect the selection", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML =
+      '<strong>keep</strong><span data-marker> </span><em>strip</em>';
+    body.focus();
+    // Select only the <em>.
+    const range = document.createRange();
+    range.selectNodeContents(body.querySelector("em"));
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+
+    dispatchToolbarAction(el, "clear-formatting");
+
+    // The bold run must survive — it does not intersect the selection.
+    expect(body.querySelector("strong")).to.exist;
+    expect(body.querySelector("strong").textContent).to.equal("keep");
+    // The italic run is gone.
+    expect(body.querySelector("em")).to.not.exist;
+    expect(body.textContent).to.equal("keep strip");
+  });
+
   it("emits draft-change after a toolbar mutation", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     bodyOf(el).textContent = "abc";

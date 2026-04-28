@@ -278,8 +278,8 @@ export class WavyComposer extends LitElement {
     keymapHint: { type: String, attribute: "keymap-hint" },
     saveIndicator: { type: String, attribute: "save-indicator" },
     // V-2 (#1100): when off (default), the "Reply target: <id>" line
-    // does not render. Shell bootstrap pushes the value through from
-    // the body class set by HtmlRenderer; tests set it directly.
+    // does not render. connectedCallback() reads it from the body class
+    // set by HtmlRenderer (SSR); tests set the attribute directly.
     debugOverlay: { type: Boolean, attribute: "debug-overlay", reflect: true },
     // F-3.S2 (#1038, R-5.3): mention suggestion candidates. The Java
     // view sets this from the wave's participant list. Each candidate

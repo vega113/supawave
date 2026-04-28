@@ -648,6 +648,16 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
     detail.textContent = model.getDetailText();
+    if (model.isError()) {
+      // Error is a terminal state: clear aria-busy so AT doesn't treat the
+      // region as permanently loading. clearServerFirstMarkers() isn't called
+      // here because shouldPreserveServerFirstCard keeps the card alive on
+      // error, but the busy signal should not persist once an error surfaces.
+      HTMLElement card = (HTMLElement) contentList.parentElement;
+      if (card != null) {
+        card.removeAttribute("aria-busy");
+      }
+    }
   }
 
   private void clearServerFirstMarkers() {
@@ -656,6 +666,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       card.removeAttribute("data-j2cl-server-first-selected-wave");
       card.removeAttribute("data-j2cl-server-first-mode");
       card.removeAttribute("data-j2cl-upgrade-placeholder");
+      // J-UI-8 (#1086, R-6.3): clear the AT busy signal once the live
+      // render has replaced the server-first state. Server-side the
+      // attribute is only set when hasSnapshot is true; removing it
+      // unconditionally is safe because removeAttribute is a no-op for
+      // missing attributes.
+      card.removeAttribute("aria-busy");
     }
     serverFirstActive = false;
     serverFirstWaveId = "";

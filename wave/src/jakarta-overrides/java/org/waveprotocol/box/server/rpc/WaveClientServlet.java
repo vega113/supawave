@@ -251,6 +251,26 @@ public class WaveClientServlet extends HttpServlet {
       boolean railCardsEnabled =
           featureFlagService.isEnabled(
               "j2cl-search-rail-cards", id != null ? id.getAddress() : null);
+      // J-UI-8 (#1086): per-viewer locale lookup so <html lang> reflects
+      // the user preference (R-6.1). The matrix only requires the AT
+      // signal — full SSR string localization is out of scope and tracked
+      // separately. Account lookup failures fall through to "en" via the
+      // sanitiser in HtmlRenderer.
+      String viewerLocale = null;
+      if (id != null) {
+        try {
+          AccountData acct = accountStore.getAccount(id);
+          if (acct != null && acct.isHuman()) {
+            viewerLocale = acct.asHuman().getLocale();
+          }
+        } catch (Exception e) {
+          LOG.warning("Failed to look up locale for j2cl-root SSR " + id.getAddress(), e);
+        }
+      }
+      // J-UI-8 (#1086): per-viewer flag gating for the noscript banner.
+      boolean serverFirstPaintEnabled =
+          featureFlagService.isEnabled(
+              "j2cl-server-first-paint", id != null ? id.getAddress() : null);
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setHeader("Cache-Control", "private, no-store");
@@ -268,7 +288,9 @@ public class WaveClientServlet extends HttpServlet {
             rootShellReturnTarget,
             resolveWebsocketAddressForPage(request, true), // codeql[java/xss]
             snapshotResult,
-            railCardsEnabled)); // codeql[java/xss]
+            railCardsEnabled,
+            viewerLocale,
+            serverFirstPaintEnabled)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

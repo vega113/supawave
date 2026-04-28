@@ -201,6 +201,86 @@ public final class J2clViewportFirstPaintParityTest {
   }
 
   /**
+   * J-UI-8 (#1086, R-6.1): the server-rendered snapshot must land
+   * inside the {@code .sidecar-selected-content} grid host (visible by
+   * default), not inside the {@code .sidecar-empty-state} element which
+   * is {@code hidden} when a snapshot is present, and not nested under
+   * any {@code hidden} ancestor or {@code display:none} inline style.
+   * Pinning this prevents the audit's "rendered into a hidden seam"
+   * regression class.
+   */
+  @Test
+  public void j2clRootShellSnapshotLandsInVisibleRegion() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(7));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServlet(VIEWER, renderer);
+
+    String html = invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+
+    int blipIdIdx = html.indexOf("data-blip-id=");
+    assertTrue("Snapshot must surface at least one data-blip-id node", blipIdIdx >= 0);
+
+    // The sidecar-selected-content host is visible by default
+    // (.sidecar-selected-content { display: grid } in sidecar.css). The
+    // snapshot must live inside this host.
+    int contentHostIdx =
+        html.lastIndexOf("<div class=\"sidecar-selected-content\"", blipIdIdx);
+    assertTrue(
+        "Snapshot blip must live inside .sidecar-selected-content",
+        contentHostIdx >= 0);
+
+    // The hidden empty-state recipe must come *after* the snapshot in
+    // the DOM, never wrap it.
+    int hiddenEmptyStateIdx =
+        html.indexOf("<div class=\"sidecar-empty-state\" hidden", contentHostIdx);
+    assertTrue(
+        "Empty-state recipe must be hidden when a snapshot is present",
+        hiddenEmptyStateIdx > blipIdIdx);
+
+    // No display:none / visibility:hidden inline styles must wrap the
+    // selected-wave host.
+    int hostStart = html.lastIndexOf("<div class=\"sidecar-selected-host\"", blipIdIdx);
+    assertTrue(hostStart >= 0);
+    String hostOpen = html.substring(hostStart, html.indexOf('>', hostStart));
+    assertFalse(
+        "selected-wave host must not be hidden via inline style",
+        hostOpen.contains("display:none") || hostOpen.contains("visibility:hidden")
+            || hostOpen.contains(" hidden"));
+  }
+
+  /**
+   * J-UI-8 (#1086, R-6.3): the server-first card carries
+   * {@code aria-busy="true"} on the snapshot path so AT clients know the
+   * pre-upgrade state is in flux. The J2CL view clears the attribute in
+   * {@code clearServerFirstMarkers()} once the live render replaces the
+   * server-first state.
+   */
+  @Test
+  public void j2clRootShellSnapshotCardCarriesAriaBusy() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(5));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServlet(VIEWER, renderer);
+
+    String html = invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+
+    int cardIdx = html.indexOf("<section class=\"sidecar-selected-card\"");
+    assertTrue(cardIdx >= 0);
+    int cardEnd = html.indexOf('>', cardIdx);
+    String cardOpenTag = html.substring(cardIdx, cardEnd);
+    // aria-busy is now injected via an inline script so the no-JS path never
+    // leaves the region permanently busy. Verify the open tag is attribute-free
+    // and the inline script is present in the section body.
+    assertFalse(
+        "Snapshot card open tag must not carry aria-busy as a static attribute"
+            + " — that would be permanent on the no-JS path",
+        cardOpenTag.contains("aria-busy"));
+    assertTrue(
+        "Snapshot mode must emit the aria-busy inline script so AT clients know"
+            + " the pre-upgrade content is in flux",
+        html.indexOf("document.currentScript.parentElement.setAttribute('aria-busy'", cardIdx) > 0);
+  }
+
+  /**
    * R-7.1 boundary: the server-first response payload for the windowed
    * snapshot is meaningfully smaller than the legacy whole-wave HTML
    * (this is the operator-facing reason the lane exists). The windowed

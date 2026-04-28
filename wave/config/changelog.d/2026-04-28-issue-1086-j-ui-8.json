@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-28-issue-1086-j-ui-8",
+  "version": "PR #1096",
+  "date": "2026-04-28",
+  "title": "J-UI-8: Server-first first-paint of selected wave",
+  "summary": "Hardens the J2CL root-shell first-paint guarantees from the parity audit — locale-aware <html lang>, aria-busy on the server-first snapshot card until JS replaces it, and a flag-gated <noscript> banner so visitors with JavaScript disabled understand the static read-only state.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "On /?view=j2cl-root the <html lang> attribute now reflects the viewer's account locale (sanitised to a BCP-47 shape; falls back to en for unknown / hostile values) so the static first paint is AT-correct without waiting on JS — addresses parity matrix R-6.1 'locale text respects user preference'.",
+        "The server-first selected-wave card now ships with aria-busy=\"true\" on the snapshot path; J2clSelectedWaveView.clearServerFirstMarkers clears it on the first non-preserved live render, so AT clients are told the pre-upgrade content is in flux (parity R-6.3 'ARIA quiesce on upgrade').",
+        "New j2cl-server-first-paint experimental flag (default off in prod). When enabled, /?view=j2cl-root emits a <noscript> info banner explaining that compose, reactions, and live updates require JavaScript. Enable per participant via scripts/feature-flag.sh enable j2cl-server-first-paint."
+      ]
+    }
+  ]
+}

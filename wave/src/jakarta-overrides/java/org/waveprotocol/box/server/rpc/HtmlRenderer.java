@@ -3361,10 +3361,40 @@ public final class HtmlRenderer {
       String rootShellReturnTarget, String websocketAddress,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled) {
+    return renderJ2clRootShellPage(
+        sessionJson,
+        analyticsAccount,
+        buildCommit,
+        serverBuildTime,
+        currentReleaseId,
+        rootShellReturnTarget,
+        websocketAddress,
+        snapshotResult,
+        railCardsEnabled,
+        null,
+        false);
+  }
+
+  /**
+   * J-UI-8 (#1086): full overload that surfaces the viewer's account
+   * locale (R-6.1 "locale text respects user preference on the server
+   * HTML") plus the {@code j2cl-server-first-paint} flag value to the
+   * SSR. When the flag is on, a {@code <noscript>} info banner ships
+   * inside the body so visitors with JavaScript disabled understand the
+   * page is showing a static read-only snapshot.
+   */
+  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
+      String buildCommit, long serverBuildTime, String currentReleaseId,
+      String rootShellReturnTarget, String websocketAddress,
+      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
+      boolean railCardsEnabled,
+      String viewerLocale,
+      boolean serverFirstPaintEnabled) {
     J2clSelectedWaveSnapshotRenderer.SnapshotResult resolvedSnapshotResult =
         snapshotResult == null
             ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
             : snapshotResult;
+    String safeHtmlLang = sanitizeHtmlLang(viewerLocale);
     JSONObject resolvedSessionJson = sessionJson == null ? new JSONObject() : sessionJson;
     String address = resolvedSessionJson.optString(SessionConstants.ADDRESS, "");
     String role = resolvedSessionJson.optString(SessionConstants.ROLE, HumanAccountData.ROLE_USER);
@@ -3390,7 +3420,7 @@ public final class HtmlRenderer {
     String safeAddress = escapeHtml(address);
 
     StringBuilder sb = new StringBuilder(3072);
-    sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
+    sb.append("<!DOCTYPE html>\n<html lang=\"").append(safeHtmlLang).append("\">\n<head>\n");
     sb.append("<meta charset=\"UTF-8\">\n");
     sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0\">\n");
     sb.append("<title>SupaWave J2CL Root Shell</title>\n");
@@ -3420,6 +3450,23 @@ public final class HtmlRenderer {
     appendJ2clRootShellStatsShim(sb);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body class=\"j2cl-root-shell-page\">\n");
+    boolean hasServerFirstSnapshot =
+        signedIn
+            && resolvedSnapshotResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT
+            && resolvedSnapshotResult.hasSnapshotHtml();
+    if (serverFirstPaintEnabled && hasServerFirstSnapshot) {
+      // J-UI-8 (#1086, R-6.1): static info banner for signed-in
+      // visitors with JavaScript disabled. The <noscript> wrapper makes
+      // the entire block a no-op when JS is enabled, so flag-on with
+      // JS-on is identical to flag-off. Signed-out users already see a
+      // sign-in CTA via the regular signed-out chrome, so they do not
+      // need the banner — keeping the signed-out experience untouched
+      // matches the plan's "signed in only" scoping. Guard on
+      // hasServerFirstSnapshot so NO_WAVE/deferred/denied/error routes
+      // never emit the "static read-only snapshot" copy — that text is
+      // only accurate when a snapshot is actually present.
+      appendJ2clRootShellNoscriptBanner(sb);
+    }
     if (signedIn) {
       sb.append("<shell-root data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
           .append(safeResolvedReturnTarget)
@@ -3455,7 +3502,7 @@ public final class HtmlRenderer {
       // <wavy-blip-card> server-render contract). The raw address is
       // passed through alongside the safe (HTML-escaped) form so
       // computeUserInitials can run on the unescaped local part.
-      appendWavyHeaderActionsSlot(sb, address, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath);
+      appendWavyHeaderActionsSlot(sb, address, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, safeHtmlLang);
       // The legacy inline Admin and Sign out links are PRESERVED until
       // the F-0 user-menu sheet ships (A.7 only mounts the trigger;
       // A.8–A.18 are F-0). Removing them now would orphan affordances
@@ -3709,7 +3756,7 @@ public final class HtmlRenderer {
     sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave Read Surface Preview</span>\n");
     sb.append("    </a>\n");
     appendWavyHeaderActionsSlot(
-        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath);
+        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, "en");
     sb.append("  </shell-header>\n");
     sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
     appendWavySearchRail(sb, safeInitialQuery, false);
@@ -3908,6 +3955,133 @@ public final class HtmlRenderer {
     sb.append("</section>\n");
   }
 
+  /**
+   * J-UI-8 (#1086, R-6.1): clamp a viewer-supplied locale string into a
+   * BCP-47-shaped value safe for the {@code <html lang>} attribute. We
+   * accept the standard 2–3 letter language subtag, optional region/script
+   * subtags ({@code en-US}, {@code zh-Hans-CN}), and BCP-47 extension and
+   * private-use sequences ({@code en-US-u-ca-gregory}, {@code de-x-phonebk});
+   * anything outside that shape — including null, empty, or hostile payloads —
+   * falls back to {@code en} so the attribute can never be used as an HTML /
+   * script injection vector.
+   */
+  static String sanitizeHtmlLang(String locale) {
+    if (locale == null || locale.isEmpty()) {
+      return "en";
+    }
+    int len = locale.length();
+    if (len > 35) {
+      // BCP-47 caps a single tag at 8-char subtags + separators; 35 is
+      // already generous. Reject anything longer rather than truncate so
+      // we never produce a half-tag.
+      return "en";
+    }
+    int dashCount = 0;
+    int subtagStart = 0;
+    boolean inExtension = false;
+    for (int i = 0; i < len; i++) {
+      char c = locale.charAt(i);
+      if (c == '-' || c == '_') {
+        if (i == subtagStart) {
+          return "en"; // empty subtag / leading separator
+        }
+        int subtagLen = i - subtagStart;
+        if (dashCount == 0) {
+          // Primary subtag: 2-3 ASCII letters only.
+          if (subtagLen < 2 || subtagLen > 3 || !isAsciiLetters(locale, subtagStart, i)) {
+            return "en";
+          }
+        } else if (subtagLen == 1) {
+          // Singleton subtag: BCP-47 extension or private-use introducer
+          // (e.g. 'u' for Unicode extension, 'x' for private use).
+          // After a singleton, subsequent subtags may be 1-8 chars.
+          if (!isAsciiAlnum(locale, subtagStart, i)) {
+            return "en";
+          }
+          inExtension = true;
+        } else if (inExtension) {
+          // Extension subtag: 1-8 alphanumeric chars (relaxed from 2-8).
+          if (subtagLen > 8 || !isAsciiAlnum(locale, subtagStart, i)) {
+            return "en";
+          }
+        } else {
+          // Normal secondary subtag: 2-8 alphanumeric chars.
+          if (subtagLen < 2 || subtagLen > 8 || !isAsciiAlnum(locale, subtagStart, i)) {
+            return "en";
+          }
+        }
+        subtagStart = i + 1;
+        dashCount++;
+      }
+    }
+    int finalLen = len - subtagStart;
+    if (dashCount == 0) {
+      if (finalLen < 2 || finalLen > 3 || !isAsciiLetters(locale, subtagStart, len)) {
+        return "en";
+      }
+    } else if (inExtension) {
+      // Extension subtag: 1-8 chars. finalLen==0 means trailing separator.
+      if (finalLen < 1 || finalLen > 8 || !isAsciiAlnum(locale, subtagStart, len)) {
+        return "en";
+      }
+    } else {
+      // finalLen == 1 is a terminal singleton (no following subtags) — invalid BCP-47.
+      if (finalLen < 2 || finalLen > 8 || !isAsciiAlnum(locale, subtagStart, len)) {
+        return "en";
+      }
+    }
+    // Normalize separators to '-' (BCP-47) — Java's java.util.Locale
+    // round-trips with '_' for older account rows; the HTML lang
+    // attribute is BCP-47.
+    return locale.replace('_', '-');
+  }
+
+  private static boolean isAsciiLetters(String s, int start, int end) {
+    for (int i = start; i < end; i++) {
+      char c = s.charAt(i);
+      if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isAsciiAlnum(String s, int start, int end) {
+    for (int i = start; i < end; i++) {
+      char c = s.charAt(i);
+      if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * J-UI-8 (#1086, R-6.1): emit a static {@code <noscript>} banner that
+   * explains the page is showing a read-only snapshot and that compose,
+   * reactions, and live updates require JavaScript. The block is a no-op
+   * when JS is enabled — browsers strip {@code <noscript>} content from
+   * the rendered DOM — so flag-on with JS-on is identical to flag-off.
+   * The banner styles are inlined inside the noscript block so they only
+   * apply when the banner itself renders.
+   */
+  private static void appendJ2clRootShellNoscriptBanner(StringBuilder sb) {
+    sb.append("<noscript>\n");
+    sb.append("<style>\n");
+    sb.append(".j2cl-noscript-banner {\n");
+    sb.append("  background: #fff8e1; border: 1px solid #f0c674; color: #5d4609;\n");
+    sb.append("  padding: 12px 16px; margin: 12px auto; max-width: 880px; border-radius: 12px;\n");
+    sb.append("  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n");
+    sb.append("}\n");
+    sb.append(".j2cl-noscript-banner strong { display: block; font-size: 15px; margin-bottom: 4px; }\n");
+    sb.append("</style>\n");
+    sb.append("<div class=\"j2cl-noscript-banner\" data-j2cl-noscript-banner=\"true\" role=\"note\">\n");
+    sb.append("<strong>JavaScript is disabled in this browser.</strong>\n");
+    sb.append("This page is showing a static read-only snapshot of the selected wave. Compose, reactions, and live updates are unavailable until JavaScript is enabled.\n");
+    sb.append("</div>\n");
+    sb.append("</noscript>\n");
+  }
+
   private static void appendJ2clRootShellStatsShim(StringBuilder sb) {
     sb.append("<script type=\"text/javascript\">\n");
     sb.append("var stats = window.__stats = window.__stats || [];\n");
@@ -3938,7 +4112,7 @@ public final class HtmlRenderer {
    */
   private static void appendWavyHeaderActionsSlot(
       StringBuilder sb, String rawAddress, String safeAddress,
-      String safeResolvedReturnTarget, String safeBasePath) {
+      String safeResolvedReturnTarget, String safeBasePath, String safeHtmlLang) {
     String escapedAddress = safeAddress == null ? "" : safeAddress;
     // computeUserInitials runs on the RAW address so the local-part
     // splitting matches the JS Lit element exactly (the Lit element
@@ -3946,7 +4120,10 @@ public final class HtmlRenderer {
     // escaped before being written into the avatar text node.
     String initialsRaw = computeUserInitials(rawAddress);
     String initials = StringEscapeUtils.escapeHtml4(initialsRaw);
-    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in locale=\"en\" data-address=\"")
+    String selectedLocaleOpt = resolveLocaleOption(safeHtmlLang);
+    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in locale=\"")
+        .append(selectedLocaleOpt)
+        .append("\" data-address=\"")
         .append(escapedAddress)
         .append("\" user-name=\"")
         .append(escapedAddress)
@@ -3959,13 +4136,13 @@ public final class HtmlRenderer {
         .append("<span class=\"brand-dot\" aria-hidden=\"true\"></span>")
         .append("<span class=\"brand-text\">SupaWave</span></a>\n");
     sb.append("      <select class=\"locale\" aria-label=\"Language\">\n");
-    sb.append("        <option value=\"en\" selected>English</option>\n");
-    sb.append("        <option value=\"de\">Deutsch</option>\n");
-    sb.append("        <option value=\"es\">Español</option>\n");
-    sb.append("        <option value=\"fr\">Français</option>\n");
-    sb.append("        <option value=\"ru\">Русский</option>\n");
-    sb.append("        <option value=\"sl\">Slovenščina</option>\n");
-    sb.append("        <option value=\"zh_TW\">繁體中文</option>\n");
+    sb.append("        <option value=\"en\"").append("en".equals(selectedLocaleOpt) ? " selected" : "").append(">English</option>\n");
+    sb.append("        <option value=\"de\"").append("de".equals(selectedLocaleOpt) ? " selected" : "").append(">Deutsch</option>\n");
+    sb.append("        <option value=\"es\"").append("es".equals(selectedLocaleOpt) ? " selected" : "").append(">Español</option>\n");
+    sb.append("        <option value=\"fr\"").append("fr".equals(selectedLocaleOpt) ? " selected" : "").append(">Français</option>\n");
+    sb.append("        <option value=\"ru\"").append("ru".equals(selectedLocaleOpt) ? " selected" : "").append(">Русский</option>\n");
+    sb.append("        <option value=\"sl\"").append("sl".equals(selectedLocaleOpt) ? " selected" : "").append(">Slovenščina</option>\n");
+    sb.append("        <option value=\"zh_TW\"").append("zh_TW".equals(selectedLocaleOpt) ? " selected" : "").append(">繁體中文</option>\n");
     sb.append("      </select>\n");
     // A.5 notifications bell — server-renders the same SVG glyph the
     // Lit element renders so the icon does not appear empty pre-upgrade.
@@ -3989,6 +4166,38 @@ public final class HtmlRenderer {
         .append(escapedAddress)
         .append("</span></button>\n");
     sb.append("    </wavy-header>\n");
+  }
+
+  /**
+   * Maps a sanitized BCP-47 lang tag to one of the seven locale option values
+   * used by the wavy-header select ({@code en}, {@code de}, {@code es},
+   * {@code fr}, {@code ru}, {@code sl}, {@code zh_TW}). Tries an exact
+   * normalized match first (handling {@code zh-TW} → {@code zh_TW}), then
+   * falls back to the primary language subtag, then to {@code "en"}.
+   */
+  private static String resolveLocaleOption(String safeHtmlLang) {
+    if (safeHtmlLang == null || safeHtmlLang.isEmpty()) {
+      return "en";
+    }
+    String[] options = {"en", "de", "es", "fr", "ru", "sl", "zh_TW"};
+    String normalized = safeHtmlLang.replace('-', '_');
+    String normalizedLower = normalized.toLowerCase(java.util.Locale.ROOT);
+    for (String opt : options) {
+      String optLower = opt.toLowerCase(java.util.Locale.ROOT);
+      if (optLower.equals(normalizedLower) || normalizedLower.startsWith(optLower + "_")) {
+        return opt;
+      }
+    }
+    String primary = safeHtmlLang.contains("-")
+        ? safeHtmlLang.substring(0, safeHtmlLang.indexOf('-'))
+        : safeHtmlLang;
+    String[] primaryOptions = {"en", "de", "es", "fr", "ru", "sl"};
+    for (String opt : primaryOptions) {
+      if (opt.equalsIgnoreCase(primary)) {
+        return opt;
+      }
+    }
+    return "en";
   }
 
   /**
@@ -4356,6 +4565,14 @@ public final class HtmlRenderer {
     sb.append(" data-j2cl-server-first-mode=\"")
         .append(effectiveResult.getModeValue())
         .append("\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
+    if (hasSnapshot) {
+      // J-UI-8 (#1086, R-6.3): mark the card busy so AT clients know the
+      // pre-upgrade content is in flux. J2clSelectedWaveView clears the
+      // attribute in clearServerFirstMarkers() once the live render
+      // replaces the server-first state. Set via inline script so the
+      // no-JS path never leaves the region permanently aria-busy.
+      sb.append("              <script>document.currentScript.parentElement.setAttribute('aria-busy','true');</script>\n");
+    }
     sb.append("              <p class=\"sidecar-eyebrow\">Opened wave</p>\n");
     // F-2 slice 2 (#1046, R-3.7-chrome): depth-nav-bar landmark.
     // Hidden by default; the J2CL client (S5) writes the current depth
@@ -4583,6 +4800,7 @@ public final class HtmlRenderer {
       sb.append("  if(!workflow){return;}\n");
       sb.append("  var placeholder=selectedWavePlaceholder();\n");
       sb.append("  if(placeholder){\n");
+      sb.append("    placeholder.removeAttribute('aria-busy');\n");
       sb.append("    var status=workflow.querySelector('.sidecar-selected-status');\n");
       sb.append("    var detail=workflow.querySelector('.sidecar-selected-detail');\n");
       sb.append("    if(status){status.className='sidecar-selected-status sidecar-selected-status-error';status.textContent='Selected wave live upgrade failed.';}\n");

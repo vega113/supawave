@@ -438,6 +438,155 @@ public final class WaveClientServletJ2clRootShellTest {
     return snapshotRenderer;
   }
 
+  // J-UI-8 (#1086, R-6.1): the servlet must look up the viewer's
+  // account locale and pass it through to renderJ2clRootShellPage so
+  // <html lang> reflects the user preference. This pins the servlet
+  // pass-through wiring — the unit-level locale clamping lives in
+  // HtmlRendererJ2clRootShellTest.
+  @Test
+  public void j2clRootResponseRespectsAccountLocale() throws Exception {
+    WaveClientServlet servlet =
+        createServletWithLocale(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.ROLE_USER,
+            defaultSnapshotRenderer(),
+            "fr",
+            null);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    assertTrue(
+        "Account locale 'fr' must reach the SSR <html lang> attribute",
+        body.toString().contains("<html lang=\"fr\">"));
+  }
+
+  @Test
+  public void j2clRootResponseFallsBackToEnWhenAccountHasNoLocale() throws Exception {
+    WaveClientServlet servlet =
+        createServletWithLocale(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.ROLE_USER,
+            defaultSnapshotRenderer(),
+            null,
+            null);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    assertTrue(body.toString().contains("<html lang=\"en\">"));
+  }
+
+  // J-UI-8 (#1086, R-6.1): the servlet must surface the
+  // j2cl-server-first-paint flag value to the renderer so the noscript
+  // banner ships when the flag is on for the viewer.
+  @Test
+  public void j2clRootResponseShipsNoscriptBannerWhenFlagIsOn() throws Exception {
+    J2clSelectedWaveSnapshotRenderer snapshotRenderer = defaultSnapshotRenderer();
+    when(snapshotRenderer.renderRequestedWave(any(), any()))
+        .thenReturn(J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
+            "example.com/w+1", "<p>wave content</p>"));
+    WaveClientServlet servlet =
+        createServletWithLocale(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.ROLE_USER,
+            snapshotRenderer,
+            null,
+            new FeatureFlagStore.FeatureFlag(
+                "j2cl-server-first-paint", "noscript banner", true, Collections.emptyMap()));
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameter("wave")).thenReturn("example.com/w+1");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    assertTrue(
+        "Flag-on servlet response must ship the noscript banner when snapshot is present",
+        body.toString().contains("data-j2cl-noscript-banner=\"true\""));
+  }
+
+  @Test
+  public void j2clRootResponseOmitsNoscriptBannerWhenFlagIsOff() throws Exception {
+    WaveClientServlet servlet =
+        createServletWithLocale(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.ROLE_USER,
+            defaultSnapshotRenderer(),
+            null,
+            null);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn("j2cl-root");
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    assertFalse(body.toString().contains("data-j2cl-noscript-banner"));
+  }
+
+  private static WaveClientServlet createServletWithLocale(
+      ParticipantId user,
+      String role,
+      J2clSelectedWaveSnapshotRenderer snapshotRenderer,
+      String accountLocale,
+      FeatureFlagStore.FeatureFlag flagOverride)
+      throws Exception {
+    Config config = ConfigFactory.parseString(
+        "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
+            + "core.http_websocket_public_address=\"\"\n"
+            + "core.http_websocket_presented_address=\"\"\n"
+            + "core.search_type=\"memory\"\n"
+            + "administration.analytics_account=\"\"\n");
+    SessionManager sessionManager = mock(SessionManager.class);
+    AccountStore accountStore = mock(AccountStore.class);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(user);
+    when(sessionManager.getLoggedInUser((WebSession) null)).thenReturn(user);
+    if (user != null) {
+      AccountData accountData = mock(AccountData.class);
+      HumanAccountData humanAccountData = mock(HumanAccountData.class);
+      when(accountData.isHuman()).thenReturn(true);
+      when(accountData.asHuman()).thenReturn(humanAccountData);
+      when(humanAccountData.getRole()).thenReturn(role);
+      when(humanAccountData.getLocale()).thenReturn(accountLocale);
+      when(accountStore.getAccount(user)).thenReturn(accountData);
+    }
+    FeatureFlagStore flagStore = mock(FeatureFlagStore.class);
+    when(flagStore.getAll())
+        .thenReturn(
+            flagOverride == null
+                ? Collections.<FeatureFlagStore.FeatureFlag>emptyList()
+                : Collections.singletonList(flagOverride));
+    return new WaveClientServlet(
+        "example.com",
+        config,
+        sessionManager,
+        accountStore,
+        new VersionServlet("test", 0L),
+        mock(WavePreRenderer.class),
+        snapshotRenderer,
+        new FeatureFlagService(flagStore));
+  }
+
   private static String renderSignedInJ2clRootShellWithRole(String role) throws Exception {
     WaveClientServlet servlet =
         createServlet(ParticipantId.ofUnsafe("alice@example.com"), role);

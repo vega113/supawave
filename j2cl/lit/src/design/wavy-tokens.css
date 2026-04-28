@@ -93,6 +93,26 @@
   --wavy-toolbar-tile-active-fg: #0b1320;
   --wavy-toolbar-tile-hover-bg: rgba(255, 255, 255, 0.08);
 
+  /* V-4 (#1102) — per-blip header + toolbar tokens. The hover toolbar
+   * and the header chrome paint on the open wave's blip cards (see
+   * mockup 02-open-wave-threaded-reading.svg). The avatar palette is a
+   * 4-entry deterministic ring keyed off `author-id`; consumers index
+   * the palette via `--wavy-avatar-palette-N` (N in 0..3). */
+  --wavy-blip-toolbar-bg: var(--wavy-bg-surface);
+  --wavy-blip-toolbar-fg: var(--wavy-text-body);
+  --wavy-blip-toolbar-divider: var(--wavy-border-hairline);
+  --wavy-blip-toolbar-focused-bg: var(--wavy-signal-cyan-soft);
+  --wavy-blip-toolbar-focused-border: var(--wavy-signal-cyan);
+  --wavy-avatar-size-root: 40px;
+  --wavy-avatar-size-reply: 32px;
+  --wavy-avatar-fg: #0b1320;
+  --wavy-avatar-palette-0: #22d3ee;
+  --wavy-avatar-palette-1: #7c3aed;
+  --wavy-avatar-palette-2: #fb923c;
+  --wavy-avatar-palette-3: #475569;
+  --wavy-avatar-palette-3-fg: #ffffff;
+  --wavy-thread-indent-guide: rgba(34, 211, 238, 0.30);
+
   /* V-5 (#1103) — density tokens for 01-shell-inbox-with-waves.svg.
    * Mockup measurements at 1440×900: rail 296 px (20.5%), search-result
    * panel 448 px, wave panel 696 px; digest cards 92–120 px tall with

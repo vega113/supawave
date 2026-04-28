@@ -70,6 +70,16 @@ export class WaveBlip extends LitElement {
     hasMention: { type: Boolean, attribute: "has-mention", reflect: true },
     replyCount: { type: Number, attribute: "reply-count", reflect: true },
     livePulse: { type: Boolean, attribute: "live-pulse", reflect: true },
+    // V-4 (#1102): blip depth distinguishes the root blip from reply
+    // blips so the avatar paints at the larger root size and the
+    // header timestamp picks up the ` · root` suffix that the mockup
+    // shows on the top-of-thread blip.
+    blipDepth: { type: String, attribute: "data-blip-depth", reflect: true },
+    // V-4 (#1102): controls thread chevron glyph orientation. When the
+    // thread is collapsed the chevron flips from ▾ to ▸. The boolean
+    // is sourced from the `data-j2cl-thread-collapsed` attribute the
+    // toolbar surface controller maintains on the parent thread host.
+    threadCollapsed: { type: Boolean, attribute: "data-thread-collapsed", reflect: true },
     // F-3.S2 (#1038, R-5.4): per-blip task state. Reflected to
     // data-task-completed so wave-blip[data-task-completed="true"] can
     // be targeted by external CSS hooks (mark-read pipeline, search
@@ -105,25 +115,56 @@ export class WaveBlip extends LitElement {
     }
     .header {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: var(--wavy-spacing-2, 8px);
       margin-bottom: var(--wavy-spacing-2, 8px);
     }
+    .thread-chevron {
+      flex: 0 0 auto;
+      width: 16px;
+      text-align: center;
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      cursor: pointer;
+      user-select: none;
+    }
+    :host([focused]) .thread-chevron {
+      color: var(--wavy-signal-cyan, #22d3ee);
+      font-weight: 700;
+    }
+    /* Hide the chevron entirely when the blip has no replies. The
+     * J-UI-4 controller only attaches collapse listeners to threads
+     * with children, so the glyph is purely a visual cue here. */
+    .thread-chevron[hidden] {
+      display: none;
+    }
     .avatar {
       flex: 0 0 auto;
-      width: 24px;
-      height: 24px;
+      width: var(--wavy-avatar-size-reply, 32px);
+      height: var(--wavy-avatar-size-reply, 32px);
       border-radius: var(--wavy-radius-pill, 9999px);
       background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
-      color: var(--wavy-text-body, #fff);
+      color: var(--wavy-avatar-fg, #0b1320);
       font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
-      font-weight: 600;
+      font-weight: 700;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       border: 0;
       padding: 0;
+    }
+    :host([data-blip-depth="root"]) .avatar {
+      width: var(--wavy-avatar-size-root, 40px);
+      height: var(--wavy-avatar-size-root, 40px);
+      font-size: 0.8125rem;
+    }
+    .avatar[data-palette="0"] { background: var(--wavy-avatar-palette-0, #22d3ee); }
+    .avatar[data-palette="1"] { background: var(--wavy-avatar-palette-1, #7c3aed); color: #ffffff; }
+    .avatar[data-palette="2"] { background: var(--wavy-avatar-palette-2, #fb923c); }
+    .avatar[data-palette="3"] {
+      background: var(--wavy-avatar-palette-3, #475569);
+      color: var(--wavy-avatar-palette-3-fg, #ffffff);
     }
     .avatar:focus-visible {
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
@@ -138,6 +179,11 @@ export class WaveBlip extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
       cursor: help;
+    }
+    .toolbar {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--wavy-spacing-2, 8px);
     }
     .inline-reply-chip {
       display: inline-block;
@@ -204,6 +250,8 @@ export class WaveBlip extends LitElement {
     this.taskCompleted = false;
     this.taskAssignee = "";
     this.taskDueDate = "";
+    this.blipDepth = "";
+    this.threadCollapsed = false;
     this._participants = [];
   }
 
@@ -264,6 +312,33 @@ export class WaveBlip extends LitElement {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+  }
+
+  /**
+   * V-4 (#1102): deterministic 4-entry avatar palette index keyed off
+   * `author-id` (preferred) or `author-name` so the same author keeps
+   * the same color across re-renders. The hash is intentionally simple
+   * (FNV-1a 32-bit) — palette stability and uniform distribution are
+   * the only requirements; cryptographic strength is not relevant.
+   */
+  _palette() {
+    const key = (this.authorId || this.authorName || "").trim();
+    if (!key) return 0;
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < key.length; i++) {
+      hash ^= key.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return Math.abs(hash) % 4;
+  }
+
+  /**
+   * V-4 (#1102): chevron glyph for thread-collapse affordance.
+   * Visible only when the blip has at least one reply; flips between
+   * ▾ (open) and ▸ (collapsed) based on `data-thread-collapsed`.
+   */
+  _chevronGlyph() {
+    return this.threadCollapsed ? "▸" : "▾";
   }
 
   _onAvatarClick(event) {
@@ -393,6 +468,17 @@ export class WaveBlip extends LitElement {
             △ ${this.replyCount}
           </button>`
         : null;
+    const isRoot = this.blipDepth === "root";
+    const timestampSuffix = isRoot && this.postedAt ? " · root" : "";
+    const palette = this._palette();
+    const hasReplies = this.replyCount > 0;
+    const chevron = hasReplies
+      ? html`<span
+          class="thread-chevron"
+          data-thread-chevron="true"
+          aria-hidden="true"
+        >${this._chevronGlyph()}</span>`
+      : html`<span class="thread-chevron" hidden></span>`;
 
     return html`
       <wavy-blip-card
@@ -406,10 +492,12 @@ export class WaveBlip extends LitElement {
         ?live-pulse=${this.livePulse}
       >
         <div class="header" slot="metadata">
+          ${chevron}
           <button
             type="button"
             class="avatar"
             data-blip-avatar="true"
+            data-palette=${String(palette)}
             aria-label=${`Open ${this.authorName || this.authorId || "user"} profile`}
             @click=${this._onAvatarClick}
           >
@@ -421,13 +509,14 @@ export class WaveBlip extends LitElement {
             title=${tooltip}
             datetime=${ifDefined(this.postedAtIso || undefined)}
           >
-            ${this.postedAt}
+            ${this.postedAt}${timestampSuffix}
           </time>
         </div>
         <div class="toolbar" slot="metadata">
           <wave-blip-toolbar
             data-blip-id=${this.blipId}
             data-wave-id=${this.waveId}
+            data-variant=${this.focused ? "focused" : "default"}
             @wave-blip-toolbar-reply=${this._onReplyClick}
             @wave-blip-toolbar-edit=${this._onEditClick}
             @wave-blip-toolbar-link=${this._onLinkClick}

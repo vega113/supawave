@@ -644,6 +644,12 @@ public final class J2clReadSurfaceDomRenderer {
               /* taskAssignee= */ entry.getTaskAssignee(),
               /* taskDueTimestamp= */ entry.getTaskDueTimestamp());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
+      // V-4 (#1102): mark blip depth so the larger root avatar paints
+      // and the timestamp picks up the ` · root` suffix.
+      String winParentForDepth = blip.getParentBlipId();
+      blipElement.setAttribute(
+          "data-blip-depth",
+          (winParentForDepth == null || winParentForDepth.isEmpty()) ? "root" : "reply");
       winBlipHostsById.put(blip.getBlipId(), blipElement);
       HTMLElement blipTarget = resolveWinThreadTarget(
           blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),
@@ -651,6 +657,28 @@ public final class J2clReadSurfaceDomRenderer {
           rootThread,
           winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
       blipTarget.appendChild(blipElement);
+    }
+    // V-4 (#1102): tally child counts after window placement and stamp
+    // reply-count on each parent host so the V-4 chevron paints. The
+    // count comes from sibling-thread membership rather than manifest
+    // lookups so windowed paint that omits some children stays
+    // consistent with the rendered subtree.
+    Map<String, Integer> winReplyCounts = new HashMap<String, Integer>();
+    for (HTMLElement threadHost : winThreadHostsByKey.values()) {
+      String parentId = threadHost.getAttribute("data-parent-blip-id");
+      if (parentId == null || parentId.isEmpty()) {
+        continue;
+      }
+      NodeList<Element> threadBlips = threadHost.querySelectorAll(":scope > [data-blip-id]");
+      Integer prior = winReplyCounts.get(parentId);
+      int rc = (prior == null ? 0 : prior) + threadBlips.length;
+      winReplyCounts.put(parentId, rc);
+    }
+    for (Map.Entry<String, Integer> entry : winReplyCounts.entrySet()) {
+      HTMLElement parentHost = winBlipHostsById.get(entry.getKey());
+      if (parentHost != null && entry.getValue() != null && entry.getValue() > 0) {
+        parentHost.setAttribute("reply-count", String.valueOf(entry.getValue()));
+      }
     }
     if (hasPlaceholder) {
       surface.setAttribute("aria-live", "polite");
@@ -767,9 +795,25 @@ public final class J2clReadSurfaceDomRenderer {
         hasNesting = true;
       }
     }
+    // V-4 (#1102): tally reply counts so each blip host can advertise
+    // `reply-count` for the inline-reply chip and the thread chevron in
+    // the V-4 per-blip chrome. The Lit element only paints the chevron
+    // when the count > 0, so unset/zero is the default no-children
+    // state.
+    Map<String, Integer> replyCounts = new HashMap<String, Integer>();
+    for (J2clReadBlip blip : effective) {
+      String parent = blip.getParentBlipId();
+      if (parent != null && !parent.isEmpty()) {
+        Integer prior = replyCounts.get(parent);
+        replyCounts.put(parent, prior == null ? 1 : prior + 1);
+      }
+    }
     if (!hasNesting) {
       for (int i = 0; i < effective.size(); i++) {
-        rootThread.appendChild(renderBlip(effective.get(i), i));
+        HTMLElement el = renderBlip(effective.get(i), i);
+        // V-4: parentless blips paint the larger root avatar.
+        el.setAttribute("data-blip-depth", "root");
+        rootThread.appendChild(el);
       }
       return;
     }
@@ -782,13 +826,21 @@ public final class J2clReadSurfaceDomRenderer {
     for (int i = 0; i < effective.size(); i++) {
       J2clReadBlip blip = effective.get(i);
       HTMLElement blipElement = renderBlip(blip, i);
+      // V-4 (#1102): advertise reply-count + depth on the wave-blip host
+      // so the V-4 visual chrome (chevron + larger root avatar) paints.
+      Integer rc = replyCounts.get(blip.getBlipId());
+      if (rc != null && rc > 0) {
+        blipElement.setAttribute("reply-count", String.valueOf(rc));
+      }
       blipHostsById.put(blip.getBlipId(), blipElement);
       String parentBlipId = blip.getParentBlipId();
       String threadId = blip.getThreadId() == null ? "" : blip.getThreadId();
       if (parentBlipId == null || parentBlipId.isEmpty()) {
+        blipElement.setAttribute("data-blip-depth", "root");
         rootThread.appendChild(blipElement);
         continue;
       }
+      blipElement.setAttribute("data-blip-depth", "reply");
       HTMLElement parentBlipHost = blipHostsById.get(parentBlipId);
       if (parentBlipHost == null) {
         // Defense-in-depth for a malformed manifest. The projector's

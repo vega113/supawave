@@ -156,29 +156,40 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           }
         });
 
+    // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-NhCf):
+    // read the inline-rich-composer flag BEFORE binding any listeners
+    // on the legacy `<composer-inline-reply>` element. When the flag
+    // is on, the inline `<wavy-composer>` is the SOLE composer
+    // surface — we must not also bind the legacy `reply-submit`
+    // path, otherwise a draft typed into the textarea would bypass
+    // component-based serialization and submit as plain text.
+    inlineRichComposerEnabled = readInlineRichComposerFlag();
+
     replyElement = (HTMLElement) DomGlobal.document.createElement("composer-inline-reply");
     replyHost.appendChild(replyElement);
-    replyElement.addEventListener(
-        "draft-change",
-        event -> {
-          if (listener != null) {
-            listener.onReplyDraftChanged(eventDetailValue(event));
-          }
-        });
-    replyElement.addEventListener(
-        "reply-submit",
-        event -> {
-          if (listener != null) {
-            listener.onReplySubmitted(propertyString(replyElement, "draft"));
-          }
-        });
-    replyElement.addEventListener(
-        "attachment-paste-image",
-        event -> {
-          if (listener != null) {
-            listener.onPastedImage(eventDetailProperty(event, "file"));
-          }
-        });
+    if (!inlineRichComposerEnabled) {
+      replyElement.addEventListener(
+          "draft-change",
+          event -> {
+            if (listener != null) {
+              listener.onReplyDraftChanged(eventDetailValue(event));
+            }
+          });
+      replyElement.addEventListener(
+          "reply-submit",
+          event -> {
+            if (listener != null) {
+              listener.onReplySubmitted(propertyString(replyElement, "draft"));
+            }
+          });
+      replyElement.addEventListener(
+          "attachment-paste-image",
+          event -> {
+            if (listener != null) {
+              listener.onPastedImage(eventDetailProperty(event, "file"));
+            }
+          });
+    }
 
     attachmentInput = (HTMLInputElement) DomGlobal.document.createElement("input");
     attachmentInput.type = "file";
@@ -196,14 +207,6 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           attachmentInput.value = "";
           return null;
         };
-
-    // J-UI-5 (#1083): the inline rich-text composer + selection-driven
-    // toolbar are gated by the `j2cl-inline-rich-composer` flag,
-    // surfaced by the SSR as `data-j2cl-inline-rich-composer="true"`
-    // on `<shell-root>`. Read once at construction time so the listener
-    // bindings are stable for the lifetime of the page; toggling the
-    // flag at runtime requires a reload.
-    inlineRichComposerEnabled = readInlineRichComposerFlag();
 
     // F-3.S1: listen for inline-composer requests from F-2's <wave-blip>.
     if (inlineRichComposerEnabled) {
@@ -372,7 +375,16 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(createSubmit, "status", model.getCreateStatusText());
     setProperty(createSubmit, "error", model.getCreateErrorText());
 
-    setProperty(replyElement, "available", model.isReplyAvailable());
+    // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-NhCf):
+    // when the rich-composer flag is on the legacy textarea must
+    // never paint — the inline `<wavy-composer>` is the SOLE composer
+    // surface. `<composer-inline-reply>` honours `:host(:not([available]))
+    // { display: none }`, so forcing available=false hides the legacy
+    // element regardless of the model's reply-available signal.
+    setProperty(
+        replyElement,
+        "available",
+        !inlineRichComposerEnabled && model.isReplyAvailable());
     setProperty(replyElement, "targetLabel", model.getReplyTargetLabel());
     setProperty(replyElement, "draft", model.getReplyDraft());
     setProperty(replyElement, "submitting", model.isReplySubmitting());

@@ -202,6 +202,171 @@ public class J2clReadSurfaceDomRendererTest {
         host.querySelectorAll("[data-j2cl-read-blip='true']").length);
   }
 
+  // J-UI-6 (#1084, R-5.4): persisted task done state must surface as
+  // data-task-completed on the rendered <wave-blip> so the F-3.S2
+  // strikethrough CSS applies after reload + live updates from other
+  // clients. Without the renderer write the body would render unstyled
+  // even though the task/done annotation is correct on disk.
+  @Test
+  public void renderSetsDataTaskCompletedAttributeWhenTaskDone() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip done =
+        new J2clReadBlip(
+            "b+done",
+            "Pin retry",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "bob@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(done), Collections.<String>emptyList()));
+
+    HTMLElement element = blip(host, "b+done");
+    Assert.assertNotNull(element);
+    Assert.assertTrue(
+        "task done blip must carry data-task-completed",
+        element.hasAttribute("data-task-completed"));
+    Assert.assertEquals(
+        "bob@example.com", element.getAttribute("data-task-assignee"));
+    Assert.assertEquals(
+        "1970-01-01 lookup is wrong; renderer must format from epoch ms",
+        "2024-05-01",
+        element.getAttribute("data-task-due-date"));
+  }
+
+  @Test
+  public void renderOmitsTaskAttributesWhenOpen() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // Open task: no annotations recorded. Renderer must NOT write the
+    // attributes — otherwise the strikethrough CSS would paint despite
+    // the task being open.
+    J2clReadBlip open = new J2clReadBlip("b+open", "Body");
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(open), Collections.<String>emptyList()));
+
+    HTMLElement element = blip(host, "b+open");
+    Assert.assertNotNull(element);
+    Assert.assertFalse(
+        "open task blip must NOT carry data-task-completed",
+        element.hasAttribute("data-task-completed"));
+    Assert.assertFalse(element.hasAttribute("data-task-assignee"));
+    Assert.assertFalse(element.hasAttribute("data-task-due-date"));
+  }
+
+  @Test
+  public void rerenderRemovesDataTaskCompletedWhenTaskReopens() {
+    // Same-wave update where task/done flips back to false must clear the
+    // data-task-completed attribute. Without the explicit clear branch,
+    // the F-2 fast-path equality check (now extended in J-UI-6 to include
+    // task state) would still rebuild the surface, but the per-blip
+    // attribute would carry over via the host element reuse path.
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    J2clReadBlip done =
+        new J2clReadBlip(
+            "b+toggle",
+            "Body",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+    J2clReadBlip reopened = done.withTaskDone(false);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(done), Collections.<String>emptyList()));
+    Assert.assertTrue(
+        blip(host, "b+toggle").hasAttribute("data-task-completed"));
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(reopened), Collections.<String>emptyList()));
+
+    Assert.assertFalse(
+        "reopened task blip must NOT carry data-task-completed",
+        blip(host, "b+toggle").hasAttribute("data-task-completed"));
+  }
+
+  @Test
+  public void renderWindowSetsDataTaskCompletedFromWindowEntry() {
+    // The dominant production path is renderWindow over the flat render
+    // — this test guards the same data-task-completed write on the
+    // window-render path so the strikethrough/checkmark works on reload
+    // when a wave is opened with an existing task/done annotation.
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry done =
+        J2clReadWindowEntry.loadedWithTaskMetadata(
+            "blip:b+done",
+            0L,
+            9L,
+            "b+done",
+            "Pin retry",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "bob@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(done)));
+
+    HTMLElement element = blip(host, "b+done");
+    Assert.assertNotNull(element);
+    Assert.assertTrue(element.hasAttribute("data-task-completed"));
+    Assert.assertEquals(
+        "bob@example.com", element.getAttribute("data-task-assignee"));
+    Assert.assertEquals(
+        "2024-05-01", element.getAttribute("data-task-due-date"));
+  }
+
+  @Test
+  public void formatDueDateReturnsEmptyForUnknownTimestamp() {
+    Assert.assertEquals(
+        "",
+        J2clReadSurfaceDomRenderer.formatDueDate(
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP));
+    Assert.assertEquals("", J2clReadSurfaceDomRenderer.formatDueDate(0L));
+    Assert.assertEquals("", J2clReadSurfaceDomRenderer.formatDueDate(-7L));
+  }
+
+  @Test
+  public void formatDueDatePadsSingleDigitMonthAndDay() {
+    assumeBrowserDom();
+    // 2024-01-05 00:00:00 UTC
+    long jan5 = 1704412800000L;
+    Assert.assertEquals("2024-01-05", J2clReadSurfaceDomRenderer.formatDueDate(jan5));
+  }
+
   @Test
   public void collapsingWithoutFocusedBlipSanitizesHiddenTabStop() {
     assumeBrowserDom();

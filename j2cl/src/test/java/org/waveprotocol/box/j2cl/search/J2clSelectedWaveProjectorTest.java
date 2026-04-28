@@ -2363,6 +2363,217 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals("t+inline", out.getThreadId());
   }
 
+  // -- J-UI-6 (#1084, R-5.4) — task done state plumbing ------------------------
+
+  @Test
+  public void documentTaskDoneTrueWhenAnnotationCarriesTrue() {
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/done", "true", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertTrue(J2clSelectedWaveProjector.documentTaskDone(document));
+  }
+
+  @Test
+  public void documentTaskDoneFalseForFalsyOrAbsentValues() {
+    // task/done annotation with a non-"true" value reads as open. The
+    // delta-factory writes the literal string "false" when reopening.
+    SidecarSelectedWaveDocument falseDoc =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/done", "false", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertFalse(J2clSelectedWaveProjector.documentTaskDone(falseDoc));
+
+    SidecarSelectedWaveDocument noAnnotation =
+        new SidecarSelectedWaveDocument(
+            "b+root", "alice@example.com", 7L, 1714240000000L, "Pin the retry");
+    Assert.assertFalse(J2clSelectedWaveProjector.documentTaskDone(noAnnotation));
+  }
+
+  @Test
+  public void documentTaskAssigneeReadsAnnotation() {
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/assignee", "bob@example.com", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertEquals("bob@example.com", J2clSelectedWaveProjector.documentTaskAssignee(document));
+  }
+
+  @Test
+  public void documentTaskAssigneeEmptyForUnsetAnnotation() {
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+root", "alice@example.com", 7L, 1714240000000L, "Pin the retry");
+    Assert.assertEquals("", J2clSelectedWaveProjector.documentTaskAssignee(document));
+  }
+
+  @Test
+  public void documentTaskDueTimestampParsesNumericAnnotation() {
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/dueTs", "1714560000000", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertEquals(
+        1714560000000L, J2clSelectedWaveProjector.documentTaskDueTimestamp(document));
+  }
+
+  @Test
+  public void documentTaskDueTimestampUnknownForBlankOrUnparseable() {
+    SidecarSelectedWaveDocument blank =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/dueTs", "", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertEquals(
+        J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+        J2clSelectedWaveProjector.documentTaskDueTimestamp(blank));
+
+    SidecarSelectedWaveDocument garbage =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(new SidecarAnnotationRange("task/dueTs", "tomorrow", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+    Assert.assertEquals(
+        J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+        J2clSelectedWaveProjector.documentTaskDueTimestamp(garbage));
+  }
+
+  @Test
+  public void enrichReadBlipMetadataPropagatesTaskDoneFromDocument() {
+    // The enrichment pass is the bridge from wire-format documents to the
+    // read model. A blip whose document carries task/done=true MUST end up
+    // with isTaskDone() = true so the renderer can paint the strikethrough
+    // on reload + live updates.
+    J2clReadBlip viewportBlip = new J2clReadBlip("b+root", "Pin the retry");
+    SidecarSelectedWaveDocument document =
+        new SidecarSelectedWaveDocument(
+            "b+root",
+            "alice@example.com",
+            7L,
+            1714240000000L,
+            "Pin the retry",
+            Arrays.asList(
+                new SidecarAnnotationRange("task/done", "true", 0, 14),
+                new SidecarAnnotationRange("task/assignee", "bob@example.com", 0, 14),
+                new SidecarAnnotationRange("task/dueTs", "1714560000000", 0, 14)),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    java.util.List<J2clReadBlip> enriched =
+        J2clSelectedWaveProjector.enrichReadBlipMetadata(
+            Arrays.asList(viewportBlip), Arrays.asList(document));
+
+    Assert.assertEquals(1, enriched.size());
+    J2clReadBlip out = enriched.get(0);
+    Assert.assertTrue(out.isTaskDone());
+    Assert.assertEquals("bob@example.com", out.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, out.getTaskDueTimestamp());
+  }
+
+  @Test
+  public void enrichWindowEntriesFromReadBlipsCarriesTaskMetadata() {
+    // The dominant production code path is renderWindow over the flat
+    // render — without this enrichment, the wave-blip elements emitted by
+    // the renderWindow path lose data-task-completed and the strikethrough
+    // never shows on reload.
+    J2clReadBlip enrichedBlip =
+        new J2clReadBlip(
+            "b+root",
+            "Pin the retry",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "bob@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+
+    org.waveprotocol.box.j2cl.read.J2clReadWindowEntry plain =
+        org.waveprotocol.box.j2cl.read.J2clReadWindowEntry.loaded(
+            "blip:b+root", 0L, 9L, "b+root", "Pin the retry");
+
+    java.util.List<org.waveprotocol.box.j2cl.read.J2clReadWindowEntry> enriched =
+        J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips(
+            Arrays.asList(plain), Arrays.asList(enrichedBlip));
+
+    Assert.assertEquals(1, enriched.size());
+    org.waveprotocol.box.j2cl.read.J2clReadWindowEntry out = enriched.get(0);
+    Assert.assertTrue(out.isTaskDone());
+    Assert.assertEquals("bob@example.com", out.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, out.getTaskDueTimestamp());
+    // Author + timestamp metadata also propagates so the existing F-2 flat
+    // render path metadata works through the window path.
+    Assert.assertEquals("alice@example.com", out.getAuthorId());
+    Assert.assertEquals(1714240000000L, out.getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void enrichWindowEntriesFromReadBlipsLeavesPlaceholdersUnchanged() {
+    // Placeholders carry no blip text; enrichment must leave them alone so
+    // the renderer's placeholder branch keeps its contract.
+    org.waveprotocol.box.j2cl.read.J2clReadWindowEntry placeholder =
+        org.waveprotocol.box.j2cl.read.J2clReadWindowEntry.placeholder(
+            "blip:b+missing", 0L, 9L, "b+missing");
+
+    java.util.List<org.waveprotocol.box.j2cl.read.J2clReadWindowEntry> enriched =
+        J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips(
+            Arrays.asList(placeholder),
+            Arrays.asList(new J2clReadBlip("b+missing", "ignored")));
+
+    Assert.assertEquals(1, enriched.size());
+    Assert.assertSame(placeholder, enriched.get(0));
+  }
+
+  @Test
+  public void enrichWindowEntriesFromReadBlipsReturnsInputWhenInputsAreEmpty() {
+    Assert.assertSame(
+        Collections.<org.waveprotocol.box.j2cl.read.J2clReadWindowEntry>emptyList(),
+        J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips(
+            Collections.<org.waveprotocol.box.j2cl.read.J2clReadWindowEntry>emptyList(),
+            Arrays.asList(new J2clReadBlip("b+root", "ignored"))));
+
+    java.util.List<org.waveprotocol.box.j2cl.read.J2clReadWindowEntry> entries =
+        Arrays.asList(
+            org.waveprotocol.box.j2cl.read.J2clReadWindowEntry.loaded(
+                "blip:b+root", 0L, 9L, "b+root", "Pin the retry"));
+    Assert.assertSame(
+        entries,
+        J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips(
+            entries, Collections.<J2clReadBlip>emptyList()));
+  }
+
   // -- Helpers ----------------------------------------------------------------
 
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {

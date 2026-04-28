@@ -191,6 +191,51 @@ describe("<wavy-task-affordance>", () => {
     expect(detailsAfter.getAttribute("aria-expanded")).to.equal("false");
   });
 
+  // J-UI-6 (#1084, R-5.4 — "Labels translate"): every visible / aria / live
+  // string is now a settable property so the Java view (or a future
+  // lit-i18n slice) can override per-locale without re-architecting the
+  // element. English defaults match the F-3.S2 baseline so existing
+  // assertions still hold.
+  it("respects label property overrides for visible / aria / announce text", async () => {
+    const el = await fixture(html`
+      <wavy-task-affordance
+        data-blip-id="b1"
+        .labelToggleOpen=${"Tâche"}
+        .labelToggleDone=${"✓ Terminé"}
+        .labelAriaCheck=${"Marquer la tâche comme terminée"}
+        .labelAriaUncheck=${"Rouvrir la tâche"}
+        .labelDetails=${"Modifier la tâche"}
+        .labelAnnounceDone=${"Tâche terminée"}
+        .labelAnnounceOpen=${"Tâche rouverte"}
+      ></wavy-task-affordance>
+    `);
+
+    const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    const details = el.renderRoot.querySelector('[data-task-details-trigger="true"]');
+    expect(toggle.textContent.trim()).to.equal("Tâche");
+    expect(toggle.getAttribute("aria-label")).to.equal(
+      "Marquer la tâche comme terminée"
+    );
+    expect(details.getAttribute("aria-label")).to.equal("Modifier la tâche");
+
+    toggle.click();
+    await el.updateComplete;
+    const updatedToggle = el.renderRoot.querySelector(
+      '[data-task-toggle-trigger="true"]'
+    );
+    expect(updatedToggle.textContent.trim()).to.equal("✓ Terminé");
+    expect(updatedToggle.getAttribute("aria-label")).to.equal("Rouvrir la tâche");
+    expect(
+      el.renderRoot.querySelector("[data-task-announce]").textContent.trim()
+    ).to.equal("Tâche terminée");
+
+    toggle.click();
+    await el.updateComplete;
+    expect(
+      el.renderRoot.querySelector("[data-task-announce]").textContent.trim()
+    ).to.equal("Tâche rouverte");
+  });
+
   it("does not bubble overlay-close past the affordance host", async () => {
     const el = await fixture(html`
       <wavy-task-affordance data-blip-id="b1"></wavy-task-affordance>

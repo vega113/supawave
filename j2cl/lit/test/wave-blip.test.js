@@ -379,4 +379,48 @@ describe("<wave-blip>", () => {
     await el.updateComplete;
     expect(captured).to.deep.equal({ blipId: "b22", waveId: "w22", completed: true });
   });
+
+  // J-UI-6 (#1084, R-5.4): when the read renderer writes
+  // data-task-completed onto the host (because the wavelet's task/done
+  // annotation is true), the body wrapper inside the shadow root must
+  // pick up the line-through styling. Computed-style assertions are the
+  // most stable way to test this — the CSS rule sets text-decoration on
+  // ".body" inside :host([data-task-completed]).
+  it("paints the body with line-through when data-task-completed is set", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b30" data-wave-id="w30" data-task-completed>
+        Body text
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const body = el.renderRoot.querySelector(".body");
+    expect(body).to.exist;
+    const style = getComputedStyle(body);
+    // Browsers serialise text-decoration as either the legacy single-line
+    // form ("line-through") or the modern shorthand
+    // ("line-through ..."), so just check that line-through is present.
+    expect(style.textDecorationLine || style.textDecoration).to.contain(
+      "line-through"
+    );
+  });
+
+  it("propagates taskAssignee + taskDueDate to the inner affordance", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b31"
+        data-wave-id="w31"
+        data-task-assignee="bob@example.com"
+        data-task-due-date="2026-05-01"
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    const affordance = el.renderRoot.querySelector("wavy-task-affordance");
+    expect(affordance).to.exist;
+    expect(affordance.getAttribute("data-task-assignee")).to.equal(
+      "bob@example.com"
+    );
+    expect(affordance.getAttribute("data-task-due-date")).to.equal(
+      "2026-05-01"
+    );
+  });
 });

@@ -421,9 +421,7 @@ public final class J2clReadSurfaceDomRenderer {
     rootThread.setAttribute("role", "list");
     surface.appendChild(rootThread);
 
-    for (int i = 0; i < effectiveBlips.size(); i++) {
-      rootThread.appendChild(renderBlip(effectiveBlips.get(i), i));
-    }
+    appendBlipsAsTree(rootThread, effectiveBlips);
 
     host.appendChild(surface);
     renderedLiveBlips = immutableBlipCopy(effectiveBlips);
@@ -582,6 +580,74 @@ public final class J2clReadSurfaceDomRenderer {
     // A zero-blip surface is still valid no-wave/empty markup, but callers use
     // the boolean to know whether focusable read content was found.
     return !renderedBlips.isEmpty();
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — appends {@code blips} into {@code rootThread},
+   * nesting reply blips into {@code <div class="thread inline-thread">}
+   * containers under their parent blip's host whenever the blip carries
+   * a non-empty {@code parentBlipId}. Reply order is the order of the
+   * input list (the projector already laid the list out in conversation
+   * DFS pre-order via {@code applyConversationManifest}).
+   *
+   * <p>If no blip in the input list has a non-empty {@code parentBlipId},
+   * the method falls through to the original flat-append behaviour so
+   * non-conversational fixtures and legacy waves keep rendering as
+   * before.
+   */
+  private void appendBlipsAsTree(HTMLElement rootThread, List<J2clReadBlip> blips) {
+    boolean hasNesting = false;
+    for (J2clReadBlip blip : blips) {
+      if (blip != null && blip.getParentBlipId() != null
+          && !blip.getParentBlipId().isEmpty()) {
+        hasNesting = true;
+        break;
+      }
+    }
+    if (!hasNesting) {
+      for (int i = 0; i < blips.size(); i++) {
+        rootThread.appendChild(renderBlip(blips.get(i), i));
+      }
+      return;
+    }
+    Map<String, HTMLElement> blipHostsById = new HashMap<String, HTMLElement>();
+    Map<String, HTMLElement> threadHostsByThreadKey = new HashMap<String, HTMLElement>();
+    int nextIndex = 0;
+    for (J2clReadBlip blip : blips) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
+        continue;
+      }
+      HTMLElement blipElement = renderBlip(blip, nextIndex++);
+      blipHostsById.put(blip.getBlipId(), blipElement);
+      String parentBlipId = blip.getParentBlipId();
+      String threadId = blip.getThreadId() == null ? "" : blip.getThreadId();
+      if (parentBlipId == null || parentBlipId.isEmpty()) {
+        rootThread.appendChild(blipElement);
+        continue;
+      }
+      HTMLElement parentBlipHost = blipHostsById.get(parentBlipId);
+      if (parentBlipHost == null) {
+        // Manifest references a parent blip we have not seen yet — fall
+        // back to root-thread placement so the blip is still visible.
+        rootThread.appendChild(blipElement);
+        continue;
+      }
+      String threadKey = parentBlipId + "::" + threadId;
+      HTMLElement threadHost = threadHostsByThreadKey.get(threadKey);
+      if (threadHost == null) {
+        threadHost = (HTMLElement) DomGlobal.document.createElement("div");
+        threadHost.className = "thread inline-thread j2cl-read-thread";
+        if (!threadId.isEmpty()) {
+          threadHost.setAttribute("data-thread-id", threadId);
+        } else {
+          threadHost.setAttribute("data-thread-id", "inline-" + parentBlipId);
+        }
+        threadHost.setAttribute("data-parent-blip-id", parentBlipId);
+        parentBlipHost.appendChild(threadHost);
+        threadHostsByThreadKey.put(threadKey, threadHost);
+      }
+      threadHost.appendChild(blipElement);
+    }
   }
 
   private HTMLElement renderBlip(J2clReadBlip blip, int index) {

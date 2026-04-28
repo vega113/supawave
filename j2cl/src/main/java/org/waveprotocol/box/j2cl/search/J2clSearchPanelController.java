@@ -132,6 +132,16 @@ public final class J2clSearchPanelController
     requestSearch();
   }
 
+  /**
+   * J-UI-1 (#1079): re-issues the current search WITHOUT touching
+   * selection or page size. Used by the rail's refresh icon so
+   * clicking refresh keeps the open wave on screen and the URL stable.
+   */
+  @Override
+  public void onRefreshRequested() {
+    requestSearch();
+  }
+
   @Override
   public void onDigestSelected(String waveId) {
     selectedWaveId = normalizeSelectedWaveId(waveId);

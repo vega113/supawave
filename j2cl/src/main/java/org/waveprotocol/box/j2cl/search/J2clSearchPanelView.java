@@ -466,7 +466,12 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
           if (listener == null) {
             return;
           }
-          listener.onQuerySubmitted(queryInput.value);
+          // J-UI-1 (#1079) — Codex review: refresh must NOT clear the
+          // selected wave or reset the page size; that's the contract
+          // for `wavy-search-refresh-requested` (re-fetch the active
+          // query in place). onRefreshRequested re-issues the search
+          // without going through the new-query reset path.
+          listener.onRefreshRequested();
         });
   }
 

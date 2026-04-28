@@ -42,4 +42,46 @@ describe("<toolbar-button>", () => {
 
     expect(dispatched).to.equal(false);
   });
+
+  // V-3 (#1101): icon mode renders an SVG glyph instead of the text
+  // label, while keeping the label bound to aria-label and title so
+  // assistive tech and tooltips still work.
+  it("renders an SVG glyph and keeps label as aria-label + title when icon is set", async () => {
+    const el = await fixture(html`
+      <toolbar-button action="bold" icon="bold" label="Bold"></toolbar-button>
+    `);
+    const button = el.renderRoot.querySelector("button");
+    expect(button.getAttribute("aria-label")).to.equal("Bold");
+    expect(button.getAttribute("title")).to.equal("Bold");
+    const svg = button.querySelector("svg");
+    expect(svg, "icon mode must render an <svg>").to.exist;
+    expect(button.textContent.trim()).to.equal("");
+  });
+
+  it("falls back to text label when icon is unset", async () => {
+    const el = await fixture(html`
+      <toolbar-button action="archive" label="Archive"></toolbar-button>
+    `);
+    const button = el.renderRoot.querySelector("button");
+    expect(button.querySelector("svg")).to.equal(null);
+    expect(button.textContent.trim()).to.equal("Archive");
+  });
+
+  it("does not reflect an empty icon attribute for text-mode consumers", async () => {
+    const el = await fixture(html`
+      <toolbar-button action="archive" label="Archive"></toolbar-button>
+    `);
+    expect(el.hasAttribute("icon")).to.equal(false);
+  });
+
+  // V-3 (#1101): the title attribute is gated on icon presence so that
+  // text-mode consumers (wave-blip-toolbar etc.) do not gain unexpected
+  // hover tooltips from this slice. Per copilot review feedback.
+  it("does not set the title attribute in text mode", async () => {
+    const el = await fixture(html`
+      <toolbar-button action="archive" label="Archive"></toolbar-button>
+    `);
+    const button = el.renderRoot.querySelector("button");
+    expect(button.hasAttribute("title")).to.equal(false);
+  });
 });

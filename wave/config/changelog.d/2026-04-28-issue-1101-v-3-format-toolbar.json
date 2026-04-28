@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-28-issue-1101-v-3-format-toolbar",
+  "version": "PR #1105",
+  "date": "2026-04-28",
+  "title": "V-3: Real format toolbar with icons (J2CL composer)",
+  "summary": "The selection-driven format toolbar at /?view=j2cl-root now renders as a compact icon row matching the 03-inline-rich-text-composer.svg mockup. Each button shows an SVG glyph with an aria-label/title, grouped by purpose (text formatting / block / alignment / link / clear / insert). Toggled formatting (bold, italic, underline, strikethrough, lists) lights with the cyan signal accent in the active selection.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Replaced the 22 stacked text-labelled buttons with a compact dark pill of icon tiles, matching the Stitch \"Wavy — Firefly Signal\" mockup pin.",
+        "Added theme-invariant toolbar tokens (--wavy-toolbar-pill-bg/-fg, tile size/radius, divider, active + hover backgrounds) under :root in wavy-tokens.css so the pill stays dark in light/contrast themes.",
+        "<toolbar-button> gained an opt-in icon property; non-V-3 consumers (per-blip toolbar, etc.) keep their text rendering."
+      ]
+    }
+  ]
+}

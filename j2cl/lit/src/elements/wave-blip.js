@@ -188,15 +188,14 @@ export class WaveBlip extends LitElement {
       align-items: center;
       gap: var(--wavy-spacing-2, 8px);
       margin-top: var(--wavy-spacing-2, 8px);
-      text-decoration: none;
     }
-    /* Even when the parent body picks up line-through via the
-     * task-completed strikethrough rule, keep the toolbar action labels
-     * legible — strikethrough on action buttons looks broken. */
-    :host([data-task-completed]) .toolbar,
-    :host([data-task-completed]) .toolbar * {
-      text-decoration: none;
-    }
+    /* The toolbar lives as a sibling of .body inside the wavy-blip-card
+     * default slot specifically so the F-3.S2 task-completed
+     * line-through (which targets .body) does not bleed onto action
+     * labels. CSS text-decoration painted on an ancestor renders
+     * through descendants even when descendants set text-decoration
+     * none, so visual isolation must come from DOM placement rather
+     * than from a defensive rule. */
     .inline-reply-chip {
       display: inline-block;
       margin-top: var(--wavy-spacing-2, 8px);

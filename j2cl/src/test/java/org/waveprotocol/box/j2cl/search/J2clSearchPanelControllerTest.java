@@ -402,12 +402,244 @@ public class J2clSearchPanelControllerTest {
     Assert.assertTrue(userNavigation[0]);
   }
 
+  // J-UI-3 (#1081, R-5.1): the optimistic-prepend stub appears at the head
+  // of the rendered model immediately, before the gateway response lands.
+  @Test
+  public void onOptimisticDigestPrependsStubBeforeServerResponse() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Existing wave",
+                    "Snippet",
+                    "example.com/w+existing",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    // After start the rail shows the existing wave; now create a new one.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Existing wave",
+            "Snippet",
+            "example.com/w+existing",
+            1L,
+            0,
+            1,
+            Collections.singletonList("user@example.com"),
+            "user@example.com",
+            false));
+
+    controller.onOptimisticDigest("example.com/w+new", "My new wave");
+
+    List<J2clSearchDigestItem> items = view.lastModel.getDigestItems();
+    Assert.assertFalse(items.isEmpty());
+    Assert.assertEquals("example.com/w+new", items.get(0).getWaveId());
+    Assert.assertEquals("My new wave", items.get(0).getTitle());
+  }
+
+  // J-UI-3: when the server's refresh response includes the new wave the
+  // stub is dropped, leaving exactly one digest for that waveId.
+  @Test
+  public void serverResponseContainingNewWaveDropsOptimisticStub() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Existing",
+                    "Snippet",
+                    "example.com/w+existing",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    // The next gateway hit returns the new wave (server has indexed it).
+    gateway.response =
+        responseWithDigests(
+            new SidecarSearchResponse.Digest(
+                "Server-side new",
+                "Snippet",
+                "example.com/w+new",
+                2L,
+                0,
+                1,
+                Collections.singletonList("user@example.com"),
+                "user@example.com",
+                false),
+            new SidecarSearchResponse.Digest(
+                "Existing",
+                "Snippet",
+                "example.com/w+existing",
+                1L,
+                0,
+                1,
+                Collections.singletonList("user@example.com"),
+                "user@example.com",
+                false));
+    controller.onOptimisticDigest("example.com/w+new", "Stub title");
+
+    List<J2clSearchDigestItem> items = view.lastModel.getDigestItems();
+    int matches = 0;
+    for (J2clSearchDigestItem item : items) {
+      if ("example.com/w+new".equals(item.getWaveId())) {
+        matches++;
+      }
+    }
+    Assert.assertEquals("exactly one digest for the new wave", 1, matches);
+    // The server-side title wins (stub has been replaced).
+    Assert.assertEquals("Server-side new", view.lastModel.findDigestItem("example.com/w+new").getTitle());
+  }
+
+  // J-UI-3: when the server response does not yet include the new wave the
+  // stub is kept at the head of the rail so the user does not see their
+  // wave disappear during the search-index lag.
+  @Test
+  public void serverResponseMissingNewWaveKeepsOptimisticStub() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Other",
+                    "Snippet",
+                    "example.com/w+other",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    // Subsequent search returns same set without the new wave.
+    controller.onOptimisticDigest("example.com/w+slow-index", "Slow index");
+
+    List<J2clSearchDigestItem> items = view.lastModel.getDigestItems();
+    Assert.assertFalse("rail should still show entries", items.isEmpty());
+    Assert.assertEquals(
+        "stub should remain at head of rail",
+        "example.com/w+slow-index",
+        items.get(0).getWaveId());
+  }
+
+  // J-UI-3: when the search index never returns the new wave, the
+  // OPTIMISTIC_TIMEOUT_MS scheduler retires the stub so the rail does
+  // not show a stale entry forever.
+  @Test
+  public void optimisticStubClearedAfterScheduledTimeoutFires() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Other",
+                    "Snippet",
+                    "example.com/w+other",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    controller.onOptimisticDigest("example.com/w+stuck", "Stuck stub");
+    Assert.assertNotNull(view.lastModel.findDigestItem("example.com/w+stuck"));
+
+    scheduler.fire();
+
+    Assert.assertNull(
+        "stub should be retired after the scheduled timeout fires",
+        view.lastModel.findDigestItem("example.com/w+stuck"));
+  }
+
+  // J-UI-3: refreshSearch is idempotent and re-issues the active query
+  // without resetting selection or page size.
+  @Test
+  public void refreshSearchReissuesActiveQuery() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Wave",
+                    "Snippet",
+                    "example.com/w+1",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200);
+    controller.start("in:inbox", null);
+    int issuedAfterStart = gateway.searchCallCount;
+
+    controller.refreshSearch();
+
+    Assert.assertEquals("in:inbox", gateway.lastQuery);
+    Assert.assertEquals(issuedAfterStart + 1, gateway.searchCallCount);
+  }
+
+  // J-UI-3 (#1081, R-5.1): captures the stuck-stub timeout runnable so the
+  // test can drive it deterministically without sleeping. fire() runs the
+  // most recently scheduled runnable (there is only ever one outstanding
+  // per onOptimisticDigest call).
+  private static final class FakeOptimisticScheduler
+      implements J2clSearchPanelController.OptimisticScheduler {
+    private Runnable pending;
+    private int lastDelayMs = -1;
+
+    @Override
+    public void scheduleTimeout(int delayMs, Runnable action) {
+      this.lastDelayMs = delayMs;
+      this.pending = action;
+    }
+
+    void fire() {
+      Runnable next = pending;
+      pending = null;
+      if (next != null) {
+        next.run();
+      }
+    }
+  }
+
   private static final class FakeGateway implements J2clSearchPanelController.SearchGateway {
     private SidecarSearchResponse response;
     private String error;
     private String lastQuery;
     private int lastIndex = -1;
     private int lastNumResults = -1;
+    // J-UI-3 (#1081): expose a search-call counter so refreshSearch tests can
+    // distinguish "called again" from "still has the old lastQuery value".
+    private int searchCallCount;
 
     private FakeGateway(SidecarSearchResponse response) {
       this.response = response;
@@ -430,6 +662,7 @@ public class J2clSearchPanelControllerTest {
       lastQuery = query;
       lastIndex = index;
       lastNumResults = numResults;
+      searchCallCount++;
       if (error != null) {
         onError.accept(error);
         return;

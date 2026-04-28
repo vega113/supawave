@@ -2540,6 +2540,141 @@ public class J2clComposeSurfaceControllerTest {
         gateway, view, factory, created::add, refreshed::add);
   }
 
+  // J-UI-3 (#1081, R-5.1) — title input value is recorded on the model and
+  // cleared when the create succeeds.
+  @Test
+  public void onCreateTitleChangedPersistsTitleInModel() {
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(),
+            new ArrayList<String>(), new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateTitleChanged("My new wave");
+
+    Assert.assertEquals("My new wave", view.model.getCreateTitleDraft());
+    Assert.assertEquals("", view.model.getCreateDraft());
+  }
+
+  // J-UI-3 — title is normalised: leading/trailing whitespace stripped,
+  // embedded newlines replaced with spaces so a paste with newlines does
+  // not break the conv/title annotation span.
+  @Test
+  public void onCreateTitleChangedNormalisesPastedWhitespace() {
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(),
+            new ArrayList<String>(), new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateTitleChanged("  pasted\nfrom-clipboard\r\n  ");
+
+    Assert.assertEquals("pasted from-clipboard", view.model.getCreateTitleDraft());
+  }
+
+  // J-UI-3 — submit with both title and body succeeds and clears both
+  // drafts on the success render.
+  @Test
+  public void onCreateSubmittedWithTitleClearsBothDraftsOnSuccess() {
+    List<String> created = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(), created, new ArrayList<String>());
+    controller.start();
+    controller.onCreateTitleChanged("Title");
+    controller.onCreateDraftChanged("Body");
+
+    controller.onCreateSubmittedWithTitle("Title", "Body");
+
+    Assert.assertEquals("", view.model.getCreateDraft());
+    Assert.assertEquals("", view.model.getCreateTitleDraft());
+    Assert.assertEquals(Arrays.asList("example.com/w+new"), created);
+  }
+
+  // J-UI-3 — title-only submit (no body) is allowed; the user can ship a
+  // wave with just a title. The body draft remains empty.
+  @Test
+  public void onCreateSubmittedWithTitleAllowsTitleOnlySubmit() {
+    List<String> created = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(), created, new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("Title only", "");
+
+    Assert.assertEquals(Arrays.asList("example.com/w+new"), created);
+    Assert.assertEquals("Wave created.", view.model.getCreateStatusText());
+  }
+
+  // J-UI-3 — submitting with both fields blank surfaces the existing
+  // "enter some text" validation error rather than calling the gateway.
+  @Test
+  public void onCreateSubmittedWithBothBlankShowsValidationError() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("   ", "   ");
+
+    Assert.assertEquals("Enter some text before creating a wave.", view.model.getCreateErrorText());
+    Assert.assertEquals(0, gateway.submitCalls);
+  }
+
+  // J-UI-3 — the rich-content factory receives a document with a
+  // conv/title annotated component when a title was typed; the body text
+  // appears as a separate TEXT component after the title.
+  @Test
+  public void richContentSubmitCreateEmitsTitleAnnotationFollowedByBody() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    controller.onCreateTitleChanged("Sprint planning");
+    controller.onCreateDraftChanged("Standup at 10am");
+
+    controller.onCreateSubmittedWithTitle("Sprint planning", "Standup at 10am");
+
+    Assert.assertNotNull(gateway.lastSubmitRequest);
+    String deltaJson = gateway.lastSubmitRequest.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"conv/title\",\"3\":\"\"}]}}",
+        "\"2\":\"Sprint planning\"",
+        "{\"1\":{\"2\":[\"conv/title\"]}}",
+        "\"2\":\"Standup at 10am\"");
+    Assert.assertTrue(deltaJson.indexOf("Sprint planning") < deltaJson.indexOf("Standup at 10am"));
+  }
+
+  // J-UI-3 — the legacy single-arg create handler still routes through
+  // the success path (back-compat with handlers that have not adopted
+  // the title overload).
+  @Test
+  public void legacySingleArgCreateHandlerStillFiresOnSuccess() {
+    final List<String> singleArgCalls = new ArrayList<String>();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            new FakeGateway(),
+            view,
+            new FakeFactory(),
+            (J2clComposeSurfaceController.CreateSuccessHandler) singleArgCalls::add,
+            waveId -> { });
+    controller.start();
+
+    controller.onCreateSubmittedWithTitle("Title", "Body");
+
+    Assert.assertEquals(Arrays.asList("example.com/w+new"), singleArgCalls);
+  }
+
   // F-3.S2 (#1038, R-5.3) — telemetry-only assertions for the mention
   // pick / abandon paths. The controller does not change model state
   // (chip lives on the lit composer DOM); it just records telemetry.

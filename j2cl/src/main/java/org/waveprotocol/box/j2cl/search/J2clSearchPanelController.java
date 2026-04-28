@@ -93,17 +93,42 @@ public final class J2clSearchPanelController
   // it.
   private J2clSearchDigestItem optimisticStub;
   private int optimisticGeneration;
+  private final OptimisticScheduler optimisticScheduler;
   private static final int OPTIMISTIC_TIMEOUT_MS = 5_000;
+
+  /**
+   * J-UI-3 (#1081, R-5.1): pluggable timer seam for the optimistic-prepend
+   * timeout. Production wires {@link #defaultOptimisticScheduler}, which
+   * delegates to {@code DomGlobal.setTimeout}. JVM tests pass a fake that
+   * captures the runnable so they can drive the timeout deterministically.
+   */
+  public interface OptimisticScheduler {
+    void scheduleTimeout(int delayMs, Runnable action);
+  }
 
   public J2clSearchPanelController(
       SearchGateway gateway,
       View view,
       RouteStateHandler routeStateHandler,
       double viewportWidth) {
+    this(gateway, view, routeStateHandler, viewportWidth, defaultOptimisticScheduler());
+  }
+
+  public J2clSearchPanelController(
+      SearchGateway gateway,
+      View view,
+      RouteStateHandler routeStateHandler,
+      double viewportWidth,
+      OptimisticScheduler optimisticScheduler) {
     this.gateway = gateway;
     this.view = view;
     this.routeStateHandler = routeStateHandler;
     this.pageIncrement = J2clSearchResultProjector.getPageSizeForViewport(viewportWidth);
+    this.optimisticScheduler = optimisticScheduler;
+  }
+
+  private static OptimisticScheduler defaultOptimisticScheduler() {
+    return (delayMs, action) -> DomGlobal.setTimeout(ignored -> action.run(), delayMs);
   }
 
   @Override
@@ -274,7 +299,7 @@ public final class J2clSearchPanelController
     }
     String safeTitle = title == null ? "" : title;
     String safeSnippet = "";
-    long now = (long) DomGlobal.window.performance.now();
+    long now = System.currentTimeMillis();
     optimisticStub =
         new J2clSearchDigestItem(waveId, safeTitle, safeSnippet, "", 0, 1, now, false);
     final int generation = ++optimisticGeneration;
@@ -283,16 +308,16 @@ public final class J2clSearchPanelController
     requestSearch();
     // Bound a stuck stub: if the index never returns the wave, retire the
     // stub after OPTIMISTIC_TIMEOUT_MS so a stale entry does not linger.
-    DomGlobal.setTimeout(
-        ignored -> {
+    optimisticScheduler.scheduleTimeout(
+        OPTIMISTIC_TIMEOUT_MS,
+        () -> {
           if (generation == optimisticGeneration && optimisticStub != null) {
             String stuckId = optimisticStub.getWaveId();
             optimisticStub = null;
             lastModel = lastModel.withoutDigest(stuckId);
             view.render(lastModel);
           }
-        },
-        OPTIMISTIC_TIMEOUT_MS);
+        });
   }
 
   /**

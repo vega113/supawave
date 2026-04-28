@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-28-issue-1079-j-ui-1",
+  "version": "PR #1079",
+  "date": "2026-04-28",
+  "title": "J-UI-1: Wave list renders in the search rail",
+  "summary": "On /?view=j2cl-root the saved-search rail now renders one rich digest card per wave (avatar, title, snippet, count, timestamp). Clicking a card opens the wave and updates the URL.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Search digests on the J2CL root view now render as <wavy-search-rail-card> elements inside <wavy-search-rail>, replacing the empty rail surface flagged in the 2026-04-26 parity audit.",
+        "Card click routes the URL via the existing J2clSidecarRouteController so deep links and back/forward survive reload.",
+        "Gated behind the new j2cl-search-rail-cards experimental flag (default off in prod). Enable for a participant via scripts/feature-flag.sh enable j2cl-search-rail-cards."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-28-issue-1083-j-ui-5",
+  "version": "PR #J-UI-5",
+  "date": "2026-04-28",
+  "title": "J-UI-5: Inline rich-text composer + working toolbar",
+  "summary": "Clicking Reply on a blip in /?view=j2cl-root now opens an inline contenteditable composer at that blip with a selection-driven format toolbar. Bold / italic / underline / strikethrough / list / link / unlink / clear-formatting apply to the active range and the toolbar's pressed state mirrors the current selection.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Inline reply composer is contenteditable, not a textarea, and mounts at the chosen blip position rather than detached at the bottom of the right rail.",
+        "Selection-driven format toolbar applies bold (<strong>), italic (<em>), underline (<u>), strikethrough (<s>), unordered list (<ul>), ordered list (<ol>), link (via <wavy-link-modal>), unlink, and clear-formatting to the active range; toolbar pressed state lights up when the caret sits inside a matching wrap tag.",
+        "Reply submit forwards a per-fragment annotated-component list, so the user's formatting round-trips through the conversation-model DocOps (uses the existing fontWeight / fontStyle / textDecoration / link/manual / list/unordered / list/ordered annotations the GWT/J2CL read codec already understands; no new schema).",
+        "Gated behind the new j2cl-inline-rich-composer experimental flag (default off in prod). Enable for a participant via scripts/feature-flag.sh enable j2cl-inline-rich-composer."
+      ]
+    }
+  ]
+}

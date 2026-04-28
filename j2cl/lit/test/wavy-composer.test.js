@@ -57,6 +57,28 @@ describe("<wavy-composer>", () => {
     expect(body.getAttribute("aria-multiline")).to.equal("true");
   });
 
+  // V-2 (#1100): "Reply target: <id>" paragraph is dev-only.
+  it("hides the reply-target paragraph when debugOverlay is off (V-2)", async () => {
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b42" target-label="Root blip"></wavy-composer>
+    `);
+    expect(el.debugOverlay).to.equal(false);
+    const targets = Array.from(el.renderRoot.querySelectorAll("p.target"));
+    const replyParagraphs = targets.filter((p) => p.textContent.startsWith("Reply target:"));
+    expect(replyParagraphs.length).to.equal(0);
+  });
+
+  it("renders the reply-target paragraph when debugOverlay is on (V-2)", async () => {
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b42" target-label="Root blip" debug-overlay></wavy-composer>
+    `);
+    expect(el.debugOverlay).to.equal(true);
+    const targets = Array.from(el.renderRoot.querySelectorAll("p.target"));
+    const replyParagraphs = targets.filter((p) => p.textContent.startsWith("Reply target:"));
+    expect(replyParagraphs.length).to.equal(1);
+    expect(replyParagraphs[0].textContent).to.include("Root blip");
+  });
+
   it("reflects reply-target-blip-id as a data attribute on the inner wavy-compose-card", async () => {
     const el = await fixture(html`
       <wavy-composer available reply-target-blip-id="b42" target-label="Yuri"></wavy-composer>

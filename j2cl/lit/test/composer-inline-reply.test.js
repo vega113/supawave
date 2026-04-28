@@ -2,12 +2,13 @@ import { fixture, expect, html, oneEvent } from "@open-wc/testing";
 import "../src/elements/composer-inline-reply.js";
 
 describe("<composer-inline-reply>", () => {
-  it("shows disabled stale-basis state with the reply target label", async () => {
+  it("shows disabled stale-basis state with the reply target label (debug overlay on)", async () => {
     const el = await fixture(html`
       <composer-inline-reply
         target-label="Root blip"
         status="Selection changed before submit completed. Review the draft and retry."
         stale-basis
+        debug-overlay
       ></composer-inline-reply>
     `);
 
@@ -17,6 +18,25 @@ describe("<composer-inline-reply>", () => {
     expect(textarea.disabled).to.equal(true);
     expect(button.disabled).to.equal(true);
     expect(el.renderRoot.textContent).to.include("Selection changed");
+  });
+
+  // V-2 (#1100): the "Reply target: <id>" line is dev-only.
+  it("hides the reply-target paragraph when debugOverlay is off (V-2)", async () => {
+    const el = await fixture(html`
+      <composer-inline-reply target-label="Root blip"></composer-inline-reply>
+    `);
+    expect(el.debugOverlay).to.equal(false);
+    expect(el.renderRoot.textContent).to.not.include("Reply target:");
+    expect(el.renderRoot.textContent).to.not.include("Root blip");
+  });
+
+  it("renders the reply-target paragraph when debugOverlay is on (V-2)", async () => {
+    const el = await fixture(html`
+      <composer-inline-reply target-label="Root blip" debug-overlay></composer-inline-reply>
+    `);
+    expect(el.debugOverlay).to.equal(true);
+    expect(el.renderRoot.textContent).to.include("Reply target:");
+    expect(el.renderRoot.textContent).to.include("Root blip");
   });
 
   it("emits draft-change and reply-submit events when available", async () => {

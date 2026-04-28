@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import junit.framework.TestCase;
 import org.json.JSONObject;
+import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 
 /**
  * F-2 slice 5 (#1055) integration test. Asserts on the no-duplicate
@@ -58,6 +59,26 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     session.put("role", "user");
     return HtmlRenderer.renderJ2clRootShellPage(
         session, "", "commit", 0L, "rel", "/", "ws.example:443");
+  }
+
+  private static String renderSignedInPageWithDebugOverlay(boolean overlayOn) {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "user");
+    return HtmlRenderer.renderJ2clRootShellPage(
+        session,
+        "",
+        "commit",
+        0L,
+        "rel",
+        "/",
+        "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
+        null,
+        false,
+        false,
+        overlayOn);
   }
 
   private static int countOccurrences(String haystack, String needle) {
@@ -595,6 +616,54 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     assertTrue(
         "shell bundle must import wavy-wave-root-reply-trigger (F-3.S1 #1038, J.1)",
         source.contains("./elements/wavy-wave-root-reply-trigger.js"));
+  }
+
+  // ---------------------------------------------------------------------
+  // V-2 (#1100): debug overlay flag + dev-string suppression
+  // ---------------------------------------------------------------------
+
+  public void testV2DefaultBodyHasNoDebugOverlayClass() {
+    String html = renderSignedInPage();
+    assertTrue(
+        "Default body must carry j2cl-root-shell-page",
+        html.contains("<body class=\"j2cl-root-shell-page\">"));
+    assertFalse(
+        "Default body must not carry j2cl-debug-overlay-on (V-2 #1100)",
+        html.contains("j2cl-debug-overlay-on"));
+  }
+
+  public void testV2DebugOverlayOnAddsBodyClass() {
+    String html = renderSignedInPageWithDebugOverlay(true);
+    assertTrue(
+        "Flag-on must add j2cl-debug-overlay-on to <body> (V-2 #1100)",
+        html.contains("<body class=\"j2cl-root-shell-page j2cl-debug-overlay-on\">"));
+  }
+
+  public void testV2PreviewFixtureEyebrowIsTaggedDebugOnly() {
+    String html = renderSignedInPage();
+    assertTrue(
+        "Preview-fixture eyebrow must carry data-j2cl-debug-only so sidecar.css hides it (V-2 #1100)",
+        html.contains(
+            "<p class=\"sidecar-eyebrow\" data-j2cl-debug-only=\"true\">Opened wave</p>"));
+  }
+
+  public void testV2PreviewFixtureStatusAndDetailAreTaggedDebugOnly() {
+    String html = renderSignedInPage();
+    assertTrue(
+        "Preview-fixture status must carry data-j2cl-debug-only (V-2 #1100)",
+        html.contains("class=\"sidecar-selected-status\" data-j2cl-debug-only=\"true\""));
+    assertTrue(
+        "Preview-fixture detail must carry data-j2cl-debug-only (V-2 #1100)",
+        html.contains("class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\""));
+  }
+
+  public void testV2SidecarCssCarriesDebugOnlyHideRule() {
+    String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
+    assertTrue(
+        "sidecar.css must carry the V-2 debug-only hide rule so dev strings stay hidden by default",
+        css.contains("data-j2cl-debug-only")
+            && css.contains("j2cl-debug-overlay-on")
+            && css.contains("display: none"));
   }
 
   public void testJ2clComposeSurfaceViewListensForBlipReplyEvents() {

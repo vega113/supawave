@@ -92,8 +92,11 @@ describe("F-2 follow-up #1060 — no duplicate rail / no flat blip-id / no toolb
   });
 
   it("Gap 3: <composer-inline-reply> renders normally once available is set", async () => {
+    // V-2 (#1100): the "Reply target: <id>" line is dev-only; pass
+    // debug-overlay so this gap test can still assert the label
+    // round-trips through the label property when overlay is on.
     const el = await fixture(html`
-      <composer-inline-reply available target-label="Root blip"></composer-inline-reply>
+      <composer-inline-reply available target-label="Root blip" debug-overlay></composer-inline-reply>
     `);
     await el.updateComplete;
     expect(window.getComputedStyle(el).display).to.equal("block");

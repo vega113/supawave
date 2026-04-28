@@ -70,6 +70,61 @@ public final class J2clSearchResultModel {
   }
 
   /**
+   * J-UI-3 (#1081, R-5.1): returns a model with {@code item} prepended at the
+   * top of the digest list. Used by the optimistic-prepend path so the new
+   * wave appears in the rail immediately after a successful create, while
+   * the controller waits for the server search-index refresh to catch up.
+   * If a digest with the same waveId is already present it is removed so the
+   * prepended item replaces it (avoiding duplicates).
+   */
+  public J2clSearchResultModel withPrependedDigest(J2clSearchDigestItem item) {
+    if (item == null) {
+      return this;
+    }
+    List<J2clSearchDigestItem> next = new ArrayList<J2clSearchDigestItem>(digestItems.size() + 1);
+    next.add(item);
+    String waveId = item.getWaveId();
+    for (J2clSearchDigestItem existing : digestItems) {
+      if (waveId != null && waveId.equals(existing.getWaveId())) {
+        continue;
+      }
+      next.add(existing);
+    }
+    return new J2clSearchResultModel(next, waveCountText, showMoreVisible, emptyMessage);
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): returns a model with the digest matching
+   * {@code waveId} dropped. Used to retire an optimistic-prepend stub once
+   * the server response is known to include the wave (no double render).
+   */
+  public J2clSearchResultModel withoutDigest(String waveId) {
+    if (waveId == null || waveId.isEmpty() || digestItems.isEmpty()) {
+      return this;
+    }
+    List<J2clSearchDigestItem> next = null;
+    for (int i = 0; i < digestItems.size(); i++) {
+      J2clSearchDigestItem item = digestItems.get(i);
+      if (waveId.equals(item.getWaveId())) {
+        if (next == null) {
+          next = new ArrayList<J2clSearchDigestItem>(digestItems.size());
+          for (int j = 0; j < i; j++) {
+            next.add(digestItems.get(j));
+          }
+        }
+        continue;
+      }
+      if (next != null) {
+        next.add(item);
+      }
+    }
+    if (next == null) {
+      return this;
+    }
+    return new J2clSearchResultModel(next, waveCountText, showMoreVisible, emptyMessage);
+  }
+
+  /**
    * F-4 (#1039 / R-4.4): returns a model with the matching digest's unread
    * count replaced. When no digest matches the supplied waveId, this is the
    * identity. Used by the live-decrement path to keep the cached model in

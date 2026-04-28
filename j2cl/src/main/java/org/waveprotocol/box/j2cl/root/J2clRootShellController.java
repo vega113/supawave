@@ -4,6 +4,7 @@ import elemental2.dom.Event;
 import elemental2.dom.HTMLElement;
 import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController;
+import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController.CreateSuccessHandler;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceView;
 import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
@@ -62,13 +63,34 @@ public final class J2clRootShellController {
     HTMLElement selectedReplyHost =
         createChildHost(selectedWaveComposeHost, "j2cl-root-reply-host");
     String rootShellSessionSeed = buildRootShellSessionSeed();
+    final J2clSearchPanelController[] searchControllerRef = new J2clSearchPanelController[1];
+    // J-UI-3 (#1081, R-5.1): on a successful create, prepend an optimistic
+    // digest in the rail (so the new wave is visible without waiting for
+    // the search index to catch up) THEN route to the new wave so it opens
+    // in the right region. The legacy single-arg overload still routes for
+    // back-compat with callers that have not adopted the title path.
+    CreateSuccessHandler createSuccessHandler =
+        new CreateSuccessHandler() {
+          @Override
+          public void onWaveCreated(String waveId) {
+            onWaveCreated(waveId, "");
+          }
+
+          @Override
+          public void onWaveCreated(String waveId, String title) {
+            if (searchControllerRef[0] != null) {
+              searchControllerRef[0].onOptimisticDigest(waveId, title);
+            }
+            routeControllerRef[0].selectWave(waveId);
+          }
+        };
     J2clComposeSurfaceController composeController =
         new J2clComposeSurfaceController(
             gateway,
             new J2clComposeSurfaceView(searchView.getComposeHost(), selectedReplyHost),
             J2clComposeSurfaceController.richContentDeltaFactory(rootShellSessionSeed),
             J2clComposeSurfaceController.attachmentControllerFactory(rootShellSessionSeed, telemetrySink),
-            waveId -> routeControllerRef[0].selectWave(waveId),
+            createSuccessHandler,
             waveId -> {
               if (selectedWaveControllerRef[0] != null) {
                 selectedWaveControllerRef[0].refreshSelectedWave();
@@ -110,6 +132,23 @@ public final class J2clRootShellController {
                 (state, digestItem, userNavigation) ->
                     routeControllerRef[0].onRouteStateChanged(state, digestItem, userNavigation)),
             resolveViewportWidth());
+    searchControllerRef[0] = controller;
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-CyWx: stamp the
+    // active search query onto the next pending optimistic stub at the
+    // moment the user clicks submit, so a query change between submit
+    // and server-response cannot leak the stub into an unrelated rail.
+    composeController.setPreCreateSubmitHook(controller::markCreateSubmitted);
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: pair the
+    // pre-submit stamp with a failure-time drop so a failed create does
+    // not leave a stale submit-query stamp that scopes the next
+    // successful create's stub to the wrong rail.
+    composeController.setCreateFailureHook(controller::discardOldestSubmitStamp);
+    // J-UI-3 (#1081, R-5.1): the rail's New Wave button focuses the create
+    // form's title input. Listening on document.body so the event bubbles
+    // up regardless of where the rail is currently mounted.
+    elemental2.dom.DomGlobal.document.body.addEventListener(
+        "wavy-new-wave-requested",
+        evt -> composeController.focusCreateSurface());
     // F-4 (#1039 / R-4.4): bridge the selected-wave controller's live read
     // state into the search panel so the matching digest's unread badge
     // decrements without re-rendering the whole list.

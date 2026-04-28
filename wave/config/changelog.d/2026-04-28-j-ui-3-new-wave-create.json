@@ -1,0 +1,25 @@
+{
+  "releaseId": "2026-04-28-j-ui-3-new-wave-create",
+  "version": "PR #1081",
+  "date": "2026-04-28",
+  "title": "J-UI-3: New Wave create flow",
+  "summary": "Type a title and a message, then ship the wave from the J2CL root shell. The new digest lands at the top of Inbox without a page reload and the wave opens in the right panel.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "J2CL composer surface adds a single-line title input above the body textarea so users can type both a title and a message when creating a new wave (issue #1081, R-5.1)",
+        "New wave deltas now carry the canonical conv/title annotation (TitleHelper parity); server-side WaveDigester digestion of J2CL-created waves is a known gap and will be addressed in a follow-up",
+        "Rail prepends a digest stub immediately after a successful create so the new wave appears without page reload while the search index catches up; stub is dropped once the server confirms or after a 30-second safety bound",
+        "Rail's New Wave button focuses the title input on click via the wavy-new-wave-requested event"
+      ]
+    },
+    {
+      "type": "feature",
+      "items": [
+        "SidecarSessionBootstrap parses session.features from the bootstrap JSON and exposes getEnabledFeatures / isFeatureEnabled — forward-compat hook for client-side per-feature gates",
+        "j-ui-3-new-wave registered in KnownFeatureFlags as a forward-compat toggle (default off in prod). Real rollback path remains the j2cl-root-bootstrap flag that gates the J2CL UI as a whole."
+      ]
+    }
+  ]
+}

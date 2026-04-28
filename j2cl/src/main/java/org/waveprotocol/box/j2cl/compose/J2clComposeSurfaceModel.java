@@ -6,6 +6,11 @@ import java.util.List;
 public final class J2clComposeSurfaceModel {
   private final boolean createEnabled;
   private final String createDraft;
+  // J-UI-3 (#1081, R-5.1): the title input value separate from the body
+  // draft; the controller composes both into the rich-content document on
+  // submit. Empty when the slice flag is off or the user has not typed a
+  // title.
+  private final String createTitleDraft;
   private final boolean createSubmitting;
   private final String createStatusText;
   private final String createErrorText;
@@ -60,8 +65,33 @@ public final class J2clComposeSurfaceModel {
       String commandStatusText,
       String commandErrorText,
       List<String> participantAddresses) {
+    this(createEnabled, createDraft, "", createSubmitting, createStatusText, createErrorText,
+        replyAvailable, replyTargetLabel, replyDraft, replySubmitting, replyStaleBasis,
+        replyStatusText, replyErrorText, activeCommandId, commandStatusText, commandErrorText,
+        participantAddresses);
+  }
+
+  public J2clComposeSurfaceModel(
+      boolean createEnabled,
+      String createDraft,
+      String createTitleDraft,
+      boolean createSubmitting,
+      String createStatusText,
+      String createErrorText,
+      boolean replyAvailable,
+      String replyTargetLabel,
+      String replyDraft,
+      boolean replySubmitting,
+      boolean replyStaleBasis,
+      String replyStatusText,
+      String replyErrorText,
+      String activeCommandId,
+      String commandStatusText,
+      String commandErrorText,
+      List<String> participantAddresses) {
     this.createEnabled = createEnabled;
     this.createDraft = nullToEmpty(createDraft);
+    this.createTitleDraft = nullToEmpty(createTitleDraft);
     this.createSubmitting = createSubmitting;
     this.createStatusText = nullToEmpty(createStatusText);
     this.createErrorText = nullToEmpty(createErrorText);
@@ -87,6 +117,14 @@ public final class J2clComposeSurfaceModel {
 
   public String getCreateDraft() {
     return createDraft;
+  }
+
+  /**
+   * J-UI-3 (#1081, R-5.1): the title-input value that the controller composes
+   * into the rich-content document on submit alongside the body draft.
+   */
+  public String getCreateTitleDraft() {
+    return createTitleDraft;
   }
 
   public boolean isCreateSubmitting() {

@@ -52,6 +52,56 @@ public class J2clRichContentDeltaFactoryTest {
             < deltaJson.indexOf("\"1\":\"b+root\""));
   }
 
+  // J-UI-3 (#1081, R-5.1): titleText emits an ANNOTATED_TEXT component
+  // whose key is conv/title and whose value is the AUTO_VALUE empty string,
+  // so WaveDigester.extractTitle (TitleHelper) picks it up server-side.
+  @Test
+  public void createWaveRequestWithTitleAnnotatesConvTitleAroundTitleText() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .titleText("Hello world")
+            .text("Body line one")
+            .build();
+
+    J2clRichContentDeltaFactory.CreateWaveRequest request =
+        factory.createWaveRequest("user@example.com", document);
+
+    String deltaJson = request.getSubmitRequest().getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"conv/title\",\"3\":\"\"}]}}",
+        "\"2\":\"Hello world\"",
+        "{\"1\":{\"2\":[\"conv/title\"]}}",
+        "\"2\":\"Body line one\"");
+    // Title annotation must precede the body text.
+    Assert.assertTrue(
+        deltaJson.indexOf("Hello world") < deltaJson.indexOf("Body line one"));
+  }
+
+  // J-UI-3: titleText is a no-op for null/blank input so reply paths and
+  // legacy create paths that pass an empty title compile and work
+  // unchanged. The resulting document carries no annotation ops.
+  @Test
+  public void titleTextIsNoOpOnBlankInput() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .titleText("")
+            .titleText("   ")
+            .titleText(null)
+            .text("Body only")
+            .build();
+
+    String deltaJson =
+        factory.createWaveRequest("user@example.com", document).getSubmitRequest().getDeltaJson();
+
+    Assert.assertFalse(
+        "expected no conv/title annotation in delta but got: " + deltaJson,
+        deltaJson.contains("conv/title"));
+    assertContains(deltaJson, "\"2\":\"Body only\"");
+  }
+
   @Test
   public void replyRequestPreservesWriteSessionBasisAndChannel() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");

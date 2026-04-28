@@ -236,6 +236,18 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
     }
+    /* J-UI-1 (#1079): slotted <wavy-search-rail-card> digest cards.
+       Inter-card spacing is owned by the card's :host style
+       (margin-bottom: var(--wavy-spacing-2)) — we DO NOT add another
+       margin here, otherwise the gap doubles. The last card uses a
+       slightly larger trailing margin to separate the digest list from
+       the filter strip below it. */
+    slot[name="cards"]::slotted(wavy-search-rail-card) {
+      display: block;
+    }
+    slot[name="cards"]::slotted(wavy-search-rail-card:last-of-type) {
+      margin-bottom: var(--wavy-spacing-3, 12px);
+    }
     /* F-4 (#1039 / R-4.7): filter strip — chips that compose with the
      * active query. Hidden inside <details> so the rail stays compact
      * by default; the user opens "Filters" to see them. */
@@ -480,6 +492,7 @@ export class WavySearchRail extends LitElement {
           `;
         })}
       </ul>
+      <slot name="cards"></slot>
       <details class="filters" data-j2cl-filter-strip>
         <summary>Filters</summary>
         <div class="filter-chips" role="group" aria-label="Search filters">

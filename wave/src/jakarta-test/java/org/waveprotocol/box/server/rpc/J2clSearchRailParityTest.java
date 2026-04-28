@@ -197,6 +197,63 @@ public final class J2clSearchRailParityTest {
   }
 
   /**
+   * J-UI-1 (#1079): when the {@code j2cl-search-rail-cards} flag is OFF
+   * (default for prod) the rail SSR must NOT carry
+   * {@code data-rail-cards-enabled="true"}. The legacy plain-DOM digest
+   * path stays in place for OFF viewers.
+   */
+  @Test
+  public void j2clRootShellOmitsRailCardsAttributeWhenFlagOff() throws Exception {
+    String html = renderJ2clRootShell();
+    assertFalse(
+        "Default flag-OFF render must not advertise rail-cards-enabled",
+        html.contains("data-rail-cards-enabled=\"true\""));
+  }
+
+  /**
+   * J-UI-1 (#1079): when the SSR is invoked with the rail-cards path
+   * enabled the rail must carry {@code data-rail-cards-enabled="true"}.
+   * The view layer reads this attribute on construction to decide which
+   * rendering path to take.
+   */
+  @Test
+  public void j2clRootShellEmitsRailCardsAttributeWhenFlagOn() throws Exception {
+    String html = renderJ2clRootShellWithRailCards();
+    assertTrue(
+        "Flag-ON render must advertise rail-cards-enabled on the rail host",
+        html.contains("data-rail-cards-enabled=\"true\""));
+    // The chrome (folders, filter strip, result-count) stays the same on
+    // the SSR side — only the attribute changes.
+    assertTrue(
+        "Flag-ON render still emits the saved-search folders",
+        html.contains("data-folder-id=\"inbox\""));
+  }
+
+  /**
+   * J-UI-1 (#1079) follow-up: the flag value is also emitted on
+   * {@code <shell-root>} as {@code data-j2cl-search-rail-cards="true"}
+   * so the J2CL view layer can resolve it independently of the rail.
+   * If the rail is missing post-upgrade, the view raises a status
+   * error rather than silently falling back to the legacy digest
+   * list. Sister assertion to the rail-attribute test above.
+   */
+  @Test
+  public void j2clRootShellEmitsShellRootRailCardsMarkerWhenFlagOn() throws Exception {
+    String html = renderJ2clRootShellWithRailCards();
+    assertTrue(
+        "Flag-ON render must advertise data-j2cl-search-rail-cards on <shell-root>",
+        html.contains("data-j2cl-search-rail-cards=\"true\""));
+  }
+
+  @Test
+  public void j2clRootShellOmitsShellRootRailCardsMarkerWhenFlagOff() throws Exception {
+    String html = renderJ2clRootShell();
+    assertFalse(
+        "Default flag-OFF render must not advertise data-j2cl-search-rail-cards on <shell-root>",
+        html.contains("data-j2cl-search-rail-cards=\"true\""));
+  }
+
+  /**
    * B.5–B.10 — six saved-search folders with the canonical query
    * strings AND the canonical visible labels. Each folder carries a
    * {@code data-folder-id} so the client-side rail can route clicks
@@ -461,6 +518,62 @@ public final class J2clSearchRailParityTest {
     J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
     WaveClientServlet servlet = createServlet(VIEWER, renderer);
     return invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+  }
+
+  /**
+   * J-UI-1 (#1079): renders the same J2CL root shell with the
+   * {@code j2cl-search-rail-cards} flag enabled globally so the SSR
+   * emits {@code data-rail-cards-enabled="true"} on the rail.
+   */
+  private static String renderJ2clRootShellWithRailCards() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(6));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServletWithRailCardsFlag(VIEWER, renderer);
+    return invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
+  }
+
+  private static WaveClientServlet createServletWithRailCardsFlag(
+      ParticipantId user, J2clSelectedWaveSnapshotRenderer snapshotRenderer) throws Exception {
+    Config config = ConfigFactory.parseString(
+        "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
+            + "core.http_websocket_public_address=\"\"\n"
+            + "core.http_websocket_presented_address=\"\"\n"
+            + "core.search_type=\"memory\"\n"
+            + "administration.analytics_account=\"\"\n");
+    SessionManager sessionManager = mock(SessionManager.class);
+    AccountStore accountStore = mock(AccountStore.class);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(user);
+    when(sessionManager.getLoggedInUser((WebSession) null)).thenReturn(user);
+    if (user != null) {
+      AccountData accountData = mock(AccountData.class);
+      HumanAccountData humanAccountData = mock(HumanAccountData.class);
+      when(accountData.isHuman()).thenReturn(true);
+      when(accountData.asHuman()).thenReturn(humanAccountData);
+      when(humanAccountData.getRole()).thenReturn(HumanAccountData.ROLE_USER);
+      when(accountStore.getAccount(user)).thenReturn(accountData);
+      when(sessionManager.getLoggedInAccount(any(WebSession.class))).thenReturn(accountData);
+      when(sessionManager.getLoggedInAccount((WebSession) null)).thenReturn(accountData);
+    }
+    return new WaveClientServlet(
+        "example.com",
+        config,
+        sessionManager,
+        accountStore,
+        new VersionServlet("test", 0L),
+        mock(WavePreRenderer.class),
+        snapshotRenderer,
+        new FeatureFlagService(railCardsFeatureFlagStore()));
+  }
+
+  private static FeatureFlagStore railCardsFeatureFlagStore() throws Exception {
+    FeatureFlagStore store = mock(FeatureFlagStore.class);
+    when(store.getAll()).thenReturn(java.util.List.of(
+        new FeatureFlagStore.FeatureFlag(
+            "j2cl-search-rail-cards",
+            "Render J2CL search digests as <wavy-search-rail-card> elements",
+            true,
+            Collections.emptyMap())));
+    return store;
   }
 
   private static List<ObservableWaveletData> buildWaveletData(int blipCount) {

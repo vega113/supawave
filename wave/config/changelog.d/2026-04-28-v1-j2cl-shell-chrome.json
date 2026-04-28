@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-28-v1-j2cl-shell-chrome",
-  "version": "PR #TBD",
+  "version": "PR #1104",
   "date": "2026-04-28",
   "title": "J2CL shell chrome rebuild",
   "summary": "The /?view=j2cl-root shell composes as a full-bleed header bar plus rail and wave panel that match the Wavy design mockup.",

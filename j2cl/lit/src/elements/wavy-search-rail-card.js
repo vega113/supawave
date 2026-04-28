@@ -75,8 +75,11 @@ export class WavySearchRailCard extends LitElement {
       border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
       border-radius: var(--wavy-radius-card, 12px);
       cursor: pointer;
-      transition: border-color var(--wavy-motion-focus-duration, 180ms)
-        var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+      transition:
+        border-color var(--wavy-motion-focus-duration, 180ms)
+          var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
+        box-shadow var(--wavy-motion-pulse-duration, 600ms)
+          var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
     :host(:hover),
     :host(:focus-within) {
@@ -160,17 +163,6 @@ export class WavySearchRailCard extends LitElement {
       background: var(--wavy-signal-cyan, #22d3ee);
       color: var(--wavy-bg-base, #0b1120);
       font-weight: 600;
-    }
-    /*
-     * J-UI-7 (#1085, R-4.4): pulse lives on the host, not on the badge.
-     * The most important transition is 1 -> 0 (open the wave, badge
-     * disappears) — at that point .badge.unread no longer renders, so
-     * scoping the pulse to it would mean no visible cue. Putting the
-     * pulse on the host means a zero-out still announces the change.
-     */
-    :host {
-      transition: box-shadow var(--wavy-motion-pulse-duration, 600ms)
-        var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
     :host([data-pulse="ring"]) {
       box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(34, 211, 238, 0.22));

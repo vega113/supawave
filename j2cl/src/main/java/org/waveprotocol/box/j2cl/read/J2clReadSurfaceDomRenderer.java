@@ -530,7 +530,27 @@ public final class J2clReadSurfaceDomRenderer {
       J2clReadWindowEntry entry = entries.get(i);
       if (!entry.isLoaded()) {
         hasPlaceholder = true;
-        rootThread.appendChild(renderPlaceholder(entry));
+        HTMLElement placeholderEl = renderPlaceholder(entry);
+        // review-1089 round-5 (codex P2): apply the same manifest
+        // lookup used for loaded entries so that a placeholder blip
+        // which is a reply is nested inside its parent thread rather
+        // than appended to rootThread. If the parent hasn't rendered
+        // yet (out-of-order or itself a placeholder) we fall back to
+        // rootThread, matching the loaded-blip defense-in-depth path.
+        String phParent = "";
+        String phThread = "";
+        if (!conversationManifest.isEmpty() && !entry.getBlipId().isEmpty()) {
+          SidecarConversationManifest.Entry phManifestEntry =
+              conversationManifest.findByBlipId(entry.getBlipId());
+          if (phManifestEntry != null) {
+            phParent = phManifestEntry.getParentBlipId() == null ? "" : phManifestEntry.getParentBlipId();
+            phThread = phManifestEntry.getThreadId() == null ? "" : phManifestEntry.getThreadId();
+          }
+        }
+        HTMLElement placeholderTarget = resolveWinThreadTarget(
+            phParent, phThread, rootThread,
+            winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
+        placeholderTarget.appendChild(placeholderEl);
         continue;
       }
       // J-UI-4 (#1082, R-3.1): prefer the entry's own parent /
@@ -566,52 +586,12 @@ public final class J2clReadSurfaceDomRenderer {
               entry.hasMention());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
       winBlipHostsById.put(blip.getBlipId(), blipElement);
-      String parentBlipId = entryParent == null ? "" : entryParent;
-      String threadId = entryThread == null ? "" : entryThread;
-      if (parentBlipId.isEmpty()) {
-        rootThread.appendChild(blipElement);
-      } else {
-        HTMLElement parentHost = winBlipHostsById.get(parentBlipId);
-        if (parentHost == null) {
-          // Defense-in-depth: parent not yet rendered (out-of-order
-          // manifest or missing blip). Show the content at root level.
-          rootThread.appendChild(blipElement);
-        } else {
-          String threadKey = parentBlipId + "::" + threadId;
-          HTMLElement threadHost = winThreadHostsByKey.get(threadKey);
-          if (threadHost == null) {
-            threadHost = (HTMLElement) DomGlobal.document.createElement("div");
-            threadHost.className = "thread inline-thread j2cl-read-thread";
-            // review-1089 round-3: scope data-thread-id by parent so
-            // collapse state does not bleed across threads that share
-            // the same raw manifest threadId under different parents.
-            String scopedId =
-                !threadId.isEmpty() ? (parentBlipId + "::" + threadId) : ("inline-" + parentBlipId);
-            threadHost.setAttribute("data-thread-id", scopedId);
-            threadHost.setAttribute("data-parent-blip-id", parentBlipId);
-            // review-1089 round-4 (codex P2): if a previous thread was
-            // already mounted for this parent, anchor the new thread
-            // after that thread host instead of after the parent so
-            // sibling threads stay in manifest DFS order.
-            HTMLElement winAnchor = winLastThreadHostByParent.get(parentBlipId);
-            if (winAnchor == null) {
-              winAnchor = parentHost;
-            }
-            if (winAnchor.parentNode != null) {
-              if (winAnchor.nextSibling != null) {
-                winAnchor.parentNode.insertBefore(threadHost, winAnchor.nextSibling);
-              } else {
-                winAnchor.parentNode.appendChild(threadHost);
-              }
-            } else {
-              parentHost.appendChild(threadHost);
-            }
-            winThreadHostsByKey.put(threadKey, threadHost);
-            winLastThreadHostByParent.put(parentBlipId, threadHost);
-          }
-          threadHost.appendChild(blipElement);
-        }
-      }
+      HTMLElement blipTarget = resolveWinThreadTarget(
+          blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),
+          blip.getThreadId() == null ? "" : blip.getThreadId(),
+          rootThread,
+          winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
+      blipTarget.appendChild(blipElement);
     }
     if (hasPlaceholder) {
       surface.setAttribute("aria-live", "polite");
@@ -1177,6 +1157,54 @@ public final class J2clReadSurfaceDomRenderer {
       return "pending";
     }
     return "ready";
+  }
+
+  /**
+   * Returns the inline-thread container element for a blip (or placeholder)
+   * in renderWindow, creating it on demand when a parent has been rendered.
+   * Falls back to {@code rootThread} when {@code parentBlipId} is empty or
+   * the parent element hasn't been inserted yet.
+   */
+  private HTMLElement resolveWinThreadTarget(
+      String parentBlipId,
+      String threadId,
+      HTMLElement rootThread,
+      Map<String, HTMLElement> winBlipHostsById,
+      Map<String, HTMLElement> winThreadHostsByKey,
+      Map<String, HTMLElement> winLastThreadHostByParent) {
+    if (parentBlipId == null || parentBlipId.isEmpty()) {
+      return rootThread;
+    }
+    HTMLElement parentHost = winBlipHostsById.get(parentBlipId);
+    if (parentHost == null) {
+      return rootThread;
+    }
+    String threadKey = parentBlipId + "::" + (threadId == null ? "" : threadId);
+    HTMLElement threadHost = winThreadHostsByKey.get(threadKey);
+    if (threadHost == null) {
+      threadHost = (HTMLElement) DomGlobal.document.createElement("div");
+      threadHost.className = "thread inline-thread j2cl-read-thread";
+      String tid = threadId == null ? "" : threadId;
+      String scopedId = !tid.isEmpty() ? (parentBlipId + "::" + tid) : ("inline-" + parentBlipId);
+      threadHost.setAttribute("data-thread-id", scopedId);
+      threadHost.setAttribute("data-parent-blip-id", parentBlipId);
+      HTMLElement winAnchor = winLastThreadHostByParent.get(parentBlipId);
+      if (winAnchor == null) {
+        winAnchor = parentHost;
+      }
+      if (winAnchor.parentNode != null) {
+        if (winAnchor.nextSibling != null) {
+          winAnchor.parentNode.insertBefore(threadHost, winAnchor.nextSibling);
+        } else {
+          winAnchor.parentNode.appendChild(threadHost);
+        }
+      } else {
+        parentHost.appendChild(threadHost);
+      }
+      winThreadHostsByKey.put(threadKey, threadHost);
+      winLastThreadHostByParent.put(parentBlipId, threadHost);
+    }
+    return threadHost;
   }
 
   private HTMLElement renderPlaceholder(J2clReadWindowEntry entry) {

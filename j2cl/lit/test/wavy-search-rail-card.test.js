@@ -174,13 +174,13 @@ describe("<wavy-search-rail-card>", () => {
   // on the inner <article> so the route controller can drive selection
   // from the URL state.
   describe("J-UI-1 selection (#1079)", () => {
-    it("aria-current defaults to 'false'", async () => {
+    it("aria-current is omitted by default (no false attribute that AT might announce)", async () => {
       const el = await fixture(html`
         <wavy-search-rail-card data-wave-id="w-1" title="A"></wavy-search-rail-card>
       `);
       await el.updateComplete;
       const article = el.renderRoot.querySelector("article");
-      expect(article.getAttribute("aria-current")).to.equal("false");
+      expect(article.hasAttribute("aria-current")).to.equal(false);
     });
 
     it("setting selected=true reflects aria-current='true' on the article", async () => {
@@ -195,7 +195,7 @@ describe("<wavy-search-rail-card>", () => {
       expect(el.hasAttribute("selected")).to.equal(true);
     });
 
-    it("clearing selected drops aria-current back to 'false'", async () => {
+    it("clearing selected removes aria-current entirely", async () => {
       const el = await fixture(html`
         <wavy-search-rail-card data-wave-id="w-1" title="A" selected></wavy-search-rail-card>
       `);
@@ -203,7 +203,7 @@ describe("<wavy-search-rail-card>", () => {
       el.selected = false;
       await el.updateComplete;
       const article = el.renderRoot.querySelector("article");
-      expect(article.getAttribute("aria-current")).to.equal("false");
+      expect(article.hasAttribute("aria-current")).to.equal(false);
       expect(el.hasAttribute("selected")).to.equal(false);
     });
   });

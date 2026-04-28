@@ -113,14 +113,12 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
             }
             return null;
           };
-      // J-UI-1 (#1079): wire rail-emitted events into the panel listener so
-      // user interaction with the rail's query box, saved-search folders,
-      // and refresh button drives the sidecar search controller. The rail's
-      // shadow-DOM input is the canonical query surface; the legacy
-      // .sidecar-search-input form stays in the DOM (hidden) only so the
-      // legacy queryInput.value writes from setQuery() continue to round-
-      // trip with parity tests that read the legacy attribute.
-      bindRailEventsToListener();
+      // J-UI-1 (#1079): wire rail-emitted events into the panel listener
+      // ONLY when the rail-cards path is the active rendering surface.
+      // Gating keeps flag-off behavior identical to before this change.
+      if (railCardsEnabled) {
+        bindRailEventsToListener();
+      }
       return;
     }
 
@@ -242,11 +240,12 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     String safeValue = query == null ? "" : query;
     queryInput.value = safeValue;
     // J-UI-1 (#1079): mirror the controller's normalised query onto the
-    // rail's `query` attribute so the rail's saved-folder
-    // aria-current derivation and the input box stay in sync with the
-    // sidecar's view of the active query (matters when the controller
-    // applies normaliseQuery() that fills in the default `in:inbox`).
-    if (searchRail != null) {
+    // rail's `query` attribute so the rail's saved-folder aria-current
+    // derivation and the input box stay in sync with the sidecar's view
+    // of the active query. Gated by railCardsEnabled to avoid changing
+    // flag-off behavior; the rail's `query` setter does not re-emit
+    // wavy-search-submit so this is loop-safe.
+    if (railCardsEnabled && searchRail != null) {
       searchRail.setAttribute("query", safeValue);
     }
   }
@@ -308,9 +307,10 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
       emptyState.textContent = model.getEmptyMessage().isEmpty()
           ? "No waves matched this query."
           : model.getEmptyMessage();
-      // Mirror the empty-state copy onto the rail's result-count slot so
-      // the user sees it inside the rail (the workflow card is hidden).
-      searchRail.setAttribute("result-count", emptyState.textContent);
+      // Empty state copy lives in the workflow's status text via
+      // setStatus() — do not mirror long-form copy into the rail's
+      // numeric result-count slot.
+      searchRail.setAttribute("result-count", "");
       return;
     }
     emptyState.hidden = true;

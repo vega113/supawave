@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 
 /**
  * <wavy-search-rail-card> — F-2 (#1037, #1047 slice 3) per-digest card
@@ -234,7 +234,7 @@ export class WavySearchRailCard extends LitElement {
         tabindex="0"
         role="article"
         aria-label=${this.title || "(no title)"}
-        aria-current=${this.selected ? "true" : "false"}
+        aria-current=${this.selected ? "true" : nothing}
       >
         <div class="top">
           <div class="avatar-stack" aria-label="Authors">

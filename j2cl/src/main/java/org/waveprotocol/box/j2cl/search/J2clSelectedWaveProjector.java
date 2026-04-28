@@ -10,6 +10,7 @@ import java.util.Set;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
@@ -84,6 +85,27 @@ public final class J2clSelectedWaveProjector {
     // documents list when the same wire payload carries both shapes. The
     // document path is still authoritative when it exists.
     readBlips = enrichReadBlipMetadata(readBlips, update.getDocuments());
+    // J-UI-4 (#1082, R-3.1) — apply the parsed conversation manifest:
+    // graft parent-blip-id + thread-id onto each read blip and reorder
+    // the list into manifest depth-first pre-order traversal so reply
+    // ordering matches the conversation model. Empty manifest = no
+    // change (fall back to enrichment-derived ordering).
+    // review-1089 round-4 (codex P1 + coderabbitai major): use the
+    // *effective* manifest (chooseManifest) here too — same-wave
+    // fragment-only updates omit the conversation document, and
+    // passing an empty manifest would leave readBlips flat until a
+    // full snapshot resends. The same effective manifest is then
+    // stored on the model below so ordering and stored state agree.
+    // review-1089 round-5 (coderabbit P2): skip manifest expansion on
+    // the viewport-window path — renderWindow() reads threadId/parentBlipId
+    // directly from the stored conversationManifest rather than from
+    // model.getReadBlips(), so allocating full-conversation placeholder
+    // blips here is wasted work that grows linearly with wave size.
+    SidecarConversationManifest effectiveManifest =
+        chooseManifest(update.getConversationManifest(), previousMatchesWave, previous);
+    if (!hasViewportWindow) {
+      readBlips = applyConversationManifest(readBlips, effectiveManifest);
+    }
     J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous, participantIds);
     boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
@@ -149,7 +171,37 @@ public final class J2clSelectedWaveProjector {
         unreadCount,
         read,
         readStateKnown,
-        readStateKnown && readStateStale);
+        readStateKnown && readStateStale)
+        // J-UI-4 (#1082, R-3.1): plumb the parsed manifest through so
+        // J2clSelectedWaveView can publish it to the renderer ahead of
+        // each render pass. review-1089 round-3 (codex P1 +
+        // coderabbitai): if the current update omits the conversation
+        // document (live/fragment-only updates do this), preserve the
+        // previous wave's manifest so the next renderWindow() does not
+        // fall back to flat threading until a full snapshot resends.
+        .withConversationManifest(effectiveManifest);
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1): if the new update has no conversation
+   * document (manifest is empty), keep the previous same-wave model's
+   * manifest. A non-empty new manifest always wins (so manifest edits
+   * do propagate). Empty + no previous-same-wave = empty.
+   */
+  private static SidecarConversationManifest chooseManifest(
+      SidecarConversationManifest fromUpdate,
+      boolean previousMatchesWave,
+      J2clSelectedWaveModel previous) {
+    if (fromUpdate != null && !fromUpdate.isEmpty()) {
+      return fromUpdate;
+    }
+    if (previousMatchesWave && previous != null) {
+      SidecarConversationManifest previousManifest = previous.getConversationManifest();
+      if (previousManifest != null && !previousManifest.isEmpty()) {
+        return previousManifest;
+      }
+    }
+    return SidecarConversationManifest.empty();
   }
 
   /**
@@ -210,7 +262,11 @@ public final class J2clSelectedWaveProjector {
         unreadCount,
         read,
         readStateKnown,
-        readStateKnown && readStateStale);
+        readStateKnown && readStateStale)
+        // J-UI-4 (#1082, R-3.1): preserve manifest across read-state
+        // re-projections — read-state updates carry no conversation
+        // document and must not flatten threading.
+        .withConversationManifest(previous.getConversationManifest());
   }
 
   private static String appendStatus(String base, String suffix) {
@@ -433,6 +489,103 @@ public final class J2clSelectedWaveProjector {
               /* deleted= */ documentIsDeleted(doc) || blip.isDeleted()));
     }
     return enriched;
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — applies the parsed conversation manifest
+   * to a list of read blips. For each manifest entry in DFS pre-order:
+   *
+   * <ul>
+   *   <li>If a matching read blip exists, emit it with the manifest's
+   *       {@code parentBlipId} / {@code threadId} grafted on (other
+   *       fields preserved from enrichment).
+   *   <li>If no matching read blip exists (manifest references a blip
+   *       whose document hasn't arrived in this update yet), emit a
+   *       placeholder {@link J2clReadBlip} so the user sees the
+   *       conversation skeleton; the next update will fill in the
+   *       text once the fragment is loaded.
+   * </ul>
+   *
+   * <p>Blips that exist in {@code readBlips} but are not in the
+   * manifest (e.g. data documents, stray blips with no conversation
+   * entry) are appended at the end in their original order so no
+   * content is dropped silently.
+   *
+   * <p>An empty manifest is a no-op — the projector falls back to
+   * the document/viewport ordering already in {@code readBlips}.
+   */
+  static List<J2clReadBlip> applyConversationManifest(
+      List<J2clReadBlip> readBlips, SidecarConversationManifest manifest) {
+    if (manifest == null || manifest.isEmpty()) {
+      return readBlips;
+    }
+    if (readBlips == null) {
+      readBlips = Collections.emptyList();
+    }
+    Map<String, J2clReadBlip> blipsByBlipId = new LinkedHashMap<String, J2clReadBlip>();
+    for (J2clReadBlip blip : readBlips) {
+      if (blip != null && blip.getBlipId() != null && !blip.getBlipId().isEmpty()) {
+        blipsByBlipId.put(blip.getBlipId(), blip);
+      }
+    }
+    List<J2clReadBlip> ordered = new ArrayList<J2clReadBlip>(readBlips.size());
+    Set<String> seenBlipIds = new LinkedHashSet<String>();
+    for (SidecarConversationManifest.Entry entry : manifest.getOrderedEntries()) {
+      if (entry == null || entry.getBlipId().isEmpty()) {
+        continue;
+      }
+      String blipId = entry.getBlipId();
+      // review-1089 round-2 (Copilot): a malformed manifest with the
+      // same blip id repeated would otherwise emit the blip twice.
+      // Manifest.of() already dedupes its by-id map, but the ordered
+      // list must also be deduped here so the read surface stays
+      // single-instance even if a future manifest source skips the
+      // de-dup.
+      if (!seenBlipIds.add(blipId)) {
+        continue;
+      }
+      J2clReadBlip existing = blipsByBlipId.get(blipId);
+      if (existing == null) {
+        ordered.add(
+            new J2clReadBlip(
+                blipId,
+                /* text= */ "",
+                java.util.Collections.<org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel>emptyList(),
+                /* authorId= */ "",
+                /* authorDisplayName= */ "",
+                /* lastModifiedTimeMillis= */ 0L,
+                entry.getParentBlipId(),
+                entry.getThreadId(),
+                /* unread= */ false,
+                /* hasMention= */ false,
+                /* deleted= */ false));
+        continue;
+      }
+      ordered.add(
+          new J2clReadBlip(
+              existing.getBlipId(),
+              existing.getText(),
+              existing.getAttachments(),
+              existing.getAuthorId(),
+              existing.getAuthorDisplayName(),
+              existing.getLastModifiedTimeMillis(),
+              entry.getParentBlipId(),
+              entry.getThreadId(),
+              existing.isUnread(),
+              existing.hasMention(),
+              existing.isDeleted()));
+    }
+    // Append any blip that the manifest didn't reference so we don't
+    // silently drop content from non-conversational data documents.
+    for (J2clReadBlip blip : readBlips) {
+      if (blip != null
+          && blip.getBlipId() != null
+          && !blip.getBlipId().isEmpty()
+          && seenBlipIds.add(blip.getBlipId())) {
+        ordered.add(blip);
+      }
+    }
+    return Collections.unmodifiableList(ordered);
   }
 
   /**

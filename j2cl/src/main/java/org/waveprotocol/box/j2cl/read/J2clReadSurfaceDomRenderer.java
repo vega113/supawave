@@ -23,6 +23,7 @@ import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clReadSurfaceDomRenderer {
@@ -108,6 +109,21 @@ public final class J2clReadSurfaceDomRenderer {
   // view layer (J2clSelectedWaveView). Null binder means "no reactions
   // wiring yet" — the row is still mounted as an empty add-only state.
   private ReactionBinder reactionBinder;
+  // J-UI-4 (#1082, R-3.1): conversation manifest for the current wave.
+  // Set by the view layer before each render call. The renderer uses
+  // this to graft parent-blip-id / thread-id onto each blip in the
+  // viewport-windowed render path so renderWindow nests reply threads
+  // the same way the live-blip render path does. Empty manifest = no
+  // enrichment (legacy waves keep rendering flat).
+  private SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
+  // J-UI-4 (#1082, R-3.1): snapshot of the manifest applied to the
+  // current rendered surface. Used by matchesRenderedWindowEntries to
+  // detect a manifest swap that arrived without any change to the
+  // viewport entry list — without it, a late-arriving conversation
+  // document would be silently ignored until some unrelated entry
+  // mutation forced a rebuild.
+  private SidecarConversationManifest renderedConversationManifest =
+      SidecarConversationManifest.empty();
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -146,6 +162,18 @@ public final class J2clReadSurfaceDomRenderer {
    */
   public void setReactionBinder(ReactionBinder binder) {
     this.reactionBinder = binder;
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1): publishes the parsed conversation manifest
+   * for the current wave so the renderer can graft parent-blip-id /
+   * thread-id onto each loaded entry on the viewport-windowed render
+   * path. Pass {@link SidecarConversationManifest#empty()} (or null)
+   * to disable manifest enrichment (legacy / non-conversational
+   * waves keep rendering flat).
+   */
+  public void setConversationManifest(SidecarConversationManifest manifest) {
+    this.conversationManifest = manifest == null ? SidecarConversationManifest.empty() : manifest;
   }
 
   /**
@@ -421,9 +449,7 @@ public final class J2clReadSurfaceDomRenderer {
     rootThread.setAttribute("role", "list");
     surface.appendChild(rootThread);
 
-    for (int i = 0; i < effectiveBlips.size(); i++) {
-      rootThread.appendChild(renderBlip(effectiveBlips.get(i), i));
-    }
+    appendBlipsAsTree(rootThread, effectiveBlips);
 
     host.appendChild(surface);
     renderedLiveBlips = immutableBlipCopy(effectiveBlips);
@@ -445,6 +471,7 @@ public final class J2clReadSurfaceDomRenderer {
       renderedBlips.clear();
       renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
       renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
+      renderedConversationManifest = SidecarConversationManifest.empty();
       renderedSurface = null;
       focusedBlip = null;
       return false;
@@ -454,7 +481,10 @@ public final class J2clReadSurfaceDomRenderer {
     String scrollAnchorBlipId = firstRenderedBlipId();
     double scrollAnchorTop = renderedBlipTop(scrollAnchorBlipId);
     List<String> previouslyCollapsedThreadIds = captureCollapsedThreadIds();
-    if (matchesRenderedWindowEntries(entries)) {
+    // J-UI-4 (#1082, R-3.1): also invalidate the cache when the manifest
+    // has changed (reference equality is intentional — a new manifest from
+    // a new update is always a different object reference).
+    if (matchesRenderedWindowEntries(entries) && conversationManifest == renderedConversationManifest) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -465,6 +495,7 @@ public final class J2clReadSurfaceDomRenderer {
     renderedBlips.clear();
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
+    renderedConversationManifest = SidecarConversationManifest.empty();
     renderedSurface = null;
     focusedBlip = null;
 
@@ -479,29 +510,94 @@ public final class J2clReadSurfaceDomRenderer {
     rootThread.setAttribute("role", "list");
     surface.appendChild(rootThread);
 
-    int blipIndex = 0;
+    // J-UI-4 (#1082, R-3.1) — build the nested-thread DOM in a single
+    // pass so placeholders and loaded blips stay in their original server
+    // sequence (review-1089 round-3: the previous two-loop approach
+    // appended placeholders during the first loop and deferred all loaded
+    // blips to appendBlipsAsTree after it, which reordered DOM children
+    // whenever a loaded entry preceded a placeholder in the window).
     boolean hasPlaceholder = false;
+    int blipIndex = 0;
+    Map<String, HTMLElement> winBlipHostsById = new HashMap<String, HTMLElement>();
+    Map<String, HTMLElement> winThreadHostsByKey = new HashMap<String, HTMLElement>();
+    // review-1089 round-4 (codex P2): track the last inline-thread host
+    // inserted under each parent so subsequent sibling threads land
+    // *after* earlier threads. Inserting before parentHost.nextSibling
+    // unconditionally would mount thread B in front of the already-
+    // inserted thread A, reversing manifest DFS sibling order.
+    Map<String, HTMLElement> winLastThreadHostByParent = new HashMap<String, HTMLElement>();
     for (int i = 0; i < entries.size(); i++) {
       J2clReadWindowEntry entry = entries.get(i);
-      if (entry.isLoaded()) {
-        rootThread.appendChild(
-            renderBlip(
-                new J2clReadBlip(
-                    entry.getBlipId(),
-                    entry.getText(),
-                    entry.getAttachments(),
-                    entry.getAuthorId(),
-                    entry.getAuthorDisplayName(),
-                    entry.getLastModifiedTimeMillis(),
-                    entry.getParentBlipId(),
-                    entry.getThreadId(),
-                    entry.isUnread(),
-                    entry.hasMention()),
-                blipIndex++));
-      } else {
+      if (!entry.isLoaded()) {
         hasPlaceholder = true;
-        rootThread.appendChild(renderPlaceholder(entry));
+        HTMLElement placeholderEl = renderPlaceholder(entry);
+        // review-1089 round-5 (codex P2): apply the same manifest
+        // lookup used for loaded entries so that a placeholder blip
+        // which is a reply is nested inside its parent thread rather
+        // than appended to rootThread. If the parent hasn't rendered
+        // yet (out-of-order or itself a placeholder) we fall back to
+        // rootThread, matching the loaded-blip defense-in-depth path.
+        String phParent = "";
+        String phThread = "";
+        if (!conversationManifest.isEmpty() && !entry.getBlipId().isEmpty()) {
+          SidecarConversationManifest.Entry phManifestEntry =
+              conversationManifest.findByBlipId(entry.getBlipId());
+          if (phManifestEntry != null) {
+            phParent = phManifestEntry.getParentBlipId() == null ? "" : phManifestEntry.getParentBlipId();
+            phThread = phManifestEntry.getThreadId() == null ? "" : phManifestEntry.getThreadId();
+          }
+        }
+        HTMLElement placeholderTarget = resolveWinThreadTarget(
+            phParent, phThread, rootThread,
+            winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
+        placeholderTarget.appendChild(placeholderEl);
+        // Index the placeholder host so subsequent entries in the same
+        // window that have this blip as their parent can resolve it via
+        // resolveWinThreadTarget rather than falling back to rootThread.
+        if (!entry.getBlipId().isEmpty()) {
+          winBlipHostsById.put(entry.getBlipId(), placeholderEl);
+        }
+        continue;
       }
+      // J-UI-4 (#1082, R-3.1): prefer the entry's own parent /
+      // thread metadata when present, but otherwise fall back to
+      // the renderer's conversation manifest so the windowed
+      // render path can nest replies the same way the live-blip
+      // path does. The viewport state today builds entries via
+      // the simple loaded(...) factory which leaves parent /
+      // thread empty; the manifest fills the gap.
+      String entryParent = entry.getParentBlipId();
+      String entryThread = entry.getThreadId();
+      if ((entryParent == null || entryParent.isEmpty())
+          && (entryThread == null || entryThread.isEmpty())
+          && !conversationManifest.isEmpty()) {
+        SidecarConversationManifest.Entry manifestEntry =
+            conversationManifest.findByBlipId(entry.getBlipId());
+        if (manifestEntry != null) {
+          entryParent = manifestEntry.getParentBlipId();
+          entryThread = manifestEntry.getThreadId();
+        }
+      }
+      J2clReadBlip blip =
+          new J2clReadBlip(
+              entry.getBlipId(),
+              entry.getText(),
+              entry.getAttachments(),
+              entry.getAuthorId(),
+              entry.getAuthorDisplayName(),
+              entry.getLastModifiedTimeMillis(),
+              entryParent,
+              entryThread,
+              entry.isUnread(),
+              entry.hasMention());
+      HTMLElement blipElement = renderBlip(blip, blipIndex++);
+      winBlipHostsById.put(blip.getBlipId(), blipElement);
+      HTMLElement blipTarget = resolveWinThreadTarget(
+          blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),
+          blip.getThreadId() == null ? "" : blip.getThreadId(),
+          rootThread,
+          winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
+      blipTarget.appendChild(blipElement);
     }
     if (hasPlaceholder) {
       surface.setAttribute("aria-live", "polite");
@@ -513,6 +609,10 @@ public final class J2clReadSurfaceDomRenderer {
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedSurface = surface;
+    // J-UI-4 (#1082, R-3.1): record the manifest that was active for this
+    // render so the early-return check above can detect a later manifest
+    // swap even when the entry list itself hasn't changed.
+    renderedConversationManifest = conversationManifest;
     enhanceSurface(surface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
@@ -582,6 +682,122 @@ public final class J2clReadSurfaceDomRenderer {
     // A zero-blip surface is still valid no-wave/empty markup, but callers use
     // the boolean to know whether focusable read content was found.
     return !renderedBlips.isEmpty();
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — appends {@code blips} into {@code rootThread},
+   * nesting reply blips into {@code <div class="thread inline-thread">}
+   * containers under their parent blip's host whenever the blip carries
+   * a non-empty {@code parentBlipId}. Reply order is the order of the
+   * input list (the projector already laid the list out in conversation
+   * DFS pre-order via {@code applyConversationManifest}).
+   *
+   * <p>If no blip in the input list has a non-empty {@code parentBlipId},
+   * the method falls through to the original flat-append behaviour so
+   * non-conversational fixtures and legacy waves keep rendering as
+   * before.
+   */
+  private void appendBlipsAsTree(HTMLElement rootThread, List<J2clReadBlip> blips) {
+    // First, drop nulls / empty-id entries up front so both code
+    // branches index against the same effective list (review-1082
+    // round-1: prevents the flat path's i-counter and the nested
+    // path's nextIndex counter from disagreeing on tabindex/aria
+    // when a list happens to contain placeholder records).
+    List<J2clReadBlip> effective = new ArrayList<J2clReadBlip>(blips.size());
+    boolean hasNesting = false;
+    for (J2clReadBlip blip : blips) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
+        continue;
+      }
+      effective.add(blip);
+      if (blip.getParentBlipId() != null && !blip.getParentBlipId().isEmpty()) {
+        hasNesting = true;
+      }
+    }
+    if (!hasNesting) {
+      for (int i = 0; i < effective.size(); i++) {
+        rootThread.appendChild(renderBlip(effective.get(i), i));
+      }
+      return;
+    }
+    Map<String, HTMLElement> blipHostsById = new HashMap<String, HTMLElement>();
+    Map<String, HTMLElement> threadHostsByThreadKey = new HashMap<String, HTMLElement>();
+    // review-1089 round-4 (codex P2): track the last inline-thread host
+    // mounted under each parent so subsequent sibling threads land
+    // *after* earlier ones, matching manifest DFS sibling order.
+    Map<String, HTMLElement> lastThreadHostByParent = new HashMap<String, HTMLElement>();
+    for (int i = 0; i < effective.size(); i++) {
+      J2clReadBlip blip = effective.get(i);
+      HTMLElement blipElement = renderBlip(blip, i);
+      blipHostsById.put(blip.getBlipId(), blipElement);
+      String parentBlipId = blip.getParentBlipId();
+      String threadId = blip.getThreadId() == null ? "" : blip.getThreadId();
+      if (parentBlipId == null || parentBlipId.isEmpty()) {
+        rootThread.appendChild(blipElement);
+        continue;
+      }
+      HTMLElement parentBlipHost = blipHostsById.get(parentBlipId);
+      if (parentBlipHost == null) {
+        // Defense-in-depth for a malformed manifest. The projector's
+        // DFS pre-order guarantees the parent renders before the
+        // child for any well-formed manifest, so this branch only
+        // fires when an upstream codec / manifest emits a child
+        // before its parent (or references a parent that does not
+        // exist in the streamed snapshot). Fall back to root-thread
+        // placement so the user still sees the blip's content
+        // instead of having it silently dropped.
+        rootThread.appendChild(blipElement);
+        continue;
+      }
+      String threadKey = parentBlipId + "::" + threadId;
+      HTMLElement threadHost = threadHostsByThreadKey.get(threadKey);
+      if (threadHost == null) {
+        threadHost = (HTMLElement) DomGlobal.document.createElement("div");
+        threadHost.className = "thread inline-thread j2cl-read-thread";
+        // review-1089 round-3: scope data-thread-id by parent so
+        // collapse state does not bleed across threads that share
+        // the same raw manifest threadId under different parents.
+        if (!threadId.isEmpty()) {
+          threadHost.setAttribute("data-thread-id", parentBlipId + "::" + threadId);
+        } else {
+          threadHost.setAttribute("data-thread-id", "inline-" + parentBlipId);
+        }
+        threadHost.setAttribute("data-parent-blip-id", parentBlipId);
+        // review-1089 round-2 (Copilot): mount the reply thread as a
+        // *sibling after* the parent <wave-blip> rather than as a
+        // child of its default slot. The wave-blip element places
+        // its default slot inside the .body wrapper, which inherits
+        // styling like the F-3.S2 task-completed strikethrough
+        // (`:host([data-task-completed]) .body { text-decoration:
+        // line-through; color: var(--wavy-text-quiet); }`). Nested
+        // replies are unrelated to the parent's task state and must
+        // not pick up that visual treatment.
+        // review-1089 round-4 (codex P2): anchor after the last thread
+        // host for this parent (if any) so sibling threads stay in
+        // manifest DFS order — otherwise the second thread would be
+        // inserted before the first.
+        HTMLElement anchor = lastThreadHostByParent.get(parentBlipId);
+        if (anchor == null) {
+          anchor = parentBlipHost;
+        }
+        if (anchor.parentNode != null) {
+          if (anchor.nextSibling != null) {
+            anchor.parentNode.insertBefore(threadHost, anchor.nextSibling);
+          } else {
+            anchor.parentNode.appendChild(threadHost);
+          }
+        } else {
+          // The parent is somehow detached (defensive — should not
+          // happen for blips we just appended above). Fall back to
+          // appending under the parent so the content remains
+          // reachable.
+          parentBlipHost.appendChild(threadHost);
+        }
+        threadHostsByThreadKey.put(threadKey, threadHost);
+        lastThreadHostByParent.put(parentBlipId, threadHost);
+      }
+      threadHost.appendChild(blipElement);
+    }
   }
 
   private HTMLElement renderBlip(J2clReadBlip blip, int index) {
@@ -947,6 +1163,54 @@ public final class J2clReadSurfaceDomRenderer {
       return "pending";
     }
     return "ready";
+  }
+
+  /**
+   * Returns the inline-thread container element for a blip (or placeholder)
+   * in renderWindow, creating it on demand when a parent has been rendered.
+   * Falls back to {@code rootThread} when {@code parentBlipId} is empty or
+   * the parent element hasn't been inserted yet.
+   */
+  private HTMLElement resolveWinThreadTarget(
+      String parentBlipId,
+      String threadId,
+      HTMLElement rootThread,
+      Map<String, HTMLElement> winBlipHostsById,
+      Map<String, HTMLElement> winThreadHostsByKey,
+      Map<String, HTMLElement> winLastThreadHostByParent) {
+    if (parentBlipId == null || parentBlipId.isEmpty()) {
+      return rootThread;
+    }
+    HTMLElement parentHost = winBlipHostsById.get(parentBlipId);
+    if (parentHost == null) {
+      return rootThread;
+    }
+    String threadKey = parentBlipId + "::" + (threadId == null ? "" : threadId);
+    HTMLElement threadHost = winThreadHostsByKey.get(threadKey);
+    if (threadHost == null) {
+      threadHost = (HTMLElement) DomGlobal.document.createElement("div");
+      threadHost.className = "thread inline-thread j2cl-read-thread";
+      String tid = threadId == null ? "" : threadId;
+      String scopedId = !tid.isEmpty() ? (parentBlipId + "::" + tid) : ("inline-" + parentBlipId);
+      threadHost.setAttribute("data-thread-id", scopedId);
+      threadHost.setAttribute("data-parent-blip-id", parentBlipId);
+      HTMLElement winAnchor = winLastThreadHostByParent.get(parentBlipId);
+      if (winAnchor == null) {
+        winAnchor = parentHost;
+      }
+      if (winAnchor.parentNode != null) {
+        if (winAnchor.nextSibling != null) {
+          winAnchor.parentNode.insertBefore(threadHost, winAnchor.nextSibling);
+        } else {
+          winAnchor.parentNode.appendChild(threadHost);
+        }
+      } else {
+        parentHost.appendChild(threadHost);
+      }
+      winThreadHostsByKey.put(threadKey, threadHost);
+      winLastThreadHostByParent.put(parentBlipId, threadHost);
+    }
+    return threadHost;
   }
 
   private HTMLElement renderPlaceholder(J2clReadWindowEntry entry) {
@@ -1624,7 +1888,12 @@ public final class J2clReadSurfaceDomRenderer {
         && left.getAuthorId().equals(right.getAuthorId())
         && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
         && left.isUnread() == right.isUnread()
-        && left.hasMention() == right.hasMention();
+        && left.hasMention() == right.hasMention()
+        // J-UI-4 (#1082, R-3.1) — include manifest linkage fields so a
+        // rebuild fires when only parent/thread changes (e.g. a new reply
+        // arrives that re-parents an existing blip into a nested thread).
+        && left.getParentBlipId().equals(right.getParentBlipId())
+        && left.getThreadId().equals(right.getThreadId());
   }
 
   private boolean matchesRenderedWindowEntries(List<J2clReadWindowEntry> entries) {

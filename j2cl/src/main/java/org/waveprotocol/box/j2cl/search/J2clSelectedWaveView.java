@@ -403,6 +403,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     snippet.textContent = model.getSnippetText();
     snippet.hidden = model.getSnippetText().isEmpty();
 
+    // J-UI-4 (#1082, R-3.1): publish the conversation manifest before
+    // each render pass so the renderer's renderWindow path can graft
+    // parent-blip-id / thread-id onto each loaded entry from the
+    // manifest by blip-id lookup.
+    readSurface.setConversationManifest(model.getConversationManifest());
     List<J2clReadWindowEntry> readWindowEntries = model.getViewportState().getReadWindowEntries();
     boolean hasViewportReadWindow = !readWindowEntries.isEmpty();
     boolean hasRenderedReadSurface =

@@ -609,4 +609,236 @@ public class SidecarTransportCodecTest {
   private static Map<String, Object> asObject(Object value) {
     return (Map<String, Object>) value;
   }
+
+  // ─── J-UI-4 (#1082, R-3.1) — conversation manifest extraction ──────────
+
+  @Test
+  public void decodeSelectedWaveUpdateLeavesManifestEmptyWhenNoConversationDocument() {
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"b+1\",\"2\":{\"1\":[{\"2\":\"hello\"}]},"
+            + "\"3\":\"a@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertTrue(update.getConversationManifest().isEmpty());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateExtractsRootThreadBlipsFromConversationManifest() {
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{\"1\":["
+            + "{\"3\":{\"1\":\"conversation\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"root\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+a\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+b\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true}]}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    SidecarConversationManifest manifest = update.getConversationManifest();
+    Assert.assertFalse(manifest.isEmpty());
+    Assert.assertEquals(2, manifest.getOrderedEntries().size());
+    SidecarConversationManifest.Entry first = manifest.getOrderedEntries().get(0);
+    Assert.assertEquals("b+a", first.getBlipId());
+    Assert.assertEquals("", first.getParentBlipId());
+    Assert.assertEquals("root", first.getThreadId());
+    Assert.assertEquals(0, first.getDepth());
+    Assert.assertEquals(0, first.getSiblingIndex());
+    SidecarConversationManifest.Entry second = manifest.getOrderedEntries().get(1);
+    Assert.assertEquals("b+b", second.getBlipId());
+    Assert.assertEquals("", second.getParentBlipId());
+    Assert.assertEquals("root", second.getThreadId());
+    Assert.assertEquals(1, second.getSiblingIndex());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateExtractsNestedReplyThreadFromConversationManifest() {
+    // <conversation>
+    //   <thread id="root">
+    //     <blip id="b+parent"/>
+    //     <thread id="t+reply">
+    //       <blip id="b+child"/>
+    //     </thread>
+    //   </thread>
+    // </conversation>
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{\"1\":["
+            + "{\"3\":{\"1\":\"conversation\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"root\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+parent\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+reply\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+child\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true}]}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarConversationManifest manifest =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getConversationManifest();
+
+    Assert.assertEquals(2, manifest.getOrderedEntries().size());
+    SidecarConversationManifest.Entry parent = manifest.findByBlipId("b+parent");
+    Assert.assertNotNull(parent);
+    Assert.assertEquals("", parent.getParentBlipId());
+    Assert.assertEquals("root", parent.getThreadId());
+    Assert.assertEquals(0, parent.getDepth());
+    SidecarConversationManifest.Entry child = manifest.findByBlipId("b+child");
+    Assert.assertNotNull(child);
+    Assert.assertEquals("b+parent", child.getParentBlipId());
+    Assert.assertEquals("t+reply", child.getThreadId());
+    Assert.assertEquals(1, child.getDepth());
+    Assert.assertEquals(0, child.getSiblingIndex());
+    Assert.assertEquals(
+        Arrays.asList("b+child"), manifest.getChildBlipIds("b+parent"));
+    Assert.assertEquals(
+        Arrays.asList("b+parent"), manifest.getChildBlipIds(""));
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateExtractsThreeLevelDeepReplyChain() {
+    // <conversation>
+    //   <thread id="root">
+    //     <blip id="b+1"/>
+    //     <thread id="t+a"><blip id="b+2"/>
+    //       <thread id="t+b"><blip id="b+3"/></thread>
+    //     </thread>
+    //   </thread>
+    // </conversation>
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{\"1\":["
+            + "{\"3\":{\"1\":\"conversation\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"root\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+1\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+a\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+2\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+b\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+3\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true}]}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarConversationManifest manifest =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getConversationManifest();
+
+    Assert.assertEquals(3, manifest.getOrderedEntries().size());
+    Assert.assertEquals("b+1", manifest.getOrderedEntries().get(0).getBlipId());
+    Assert.assertEquals(0, manifest.getOrderedEntries().get(0).getDepth());
+    Assert.assertEquals("b+2", manifest.getOrderedEntries().get(1).getBlipId());
+    Assert.assertEquals("b+1", manifest.getOrderedEntries().get(1).getParentBlipId());
+    Assert.assertEquals(1, manifest.getOrderedEntries().get(1).getDepth());
+    Assert.assertEquals("b+3", manifest.getOrderedEntries().get(2).getBlipId());
+    Assert.assertEquals("b+2", manifest.getOrderedEntries().get(2).getParentBlipId());
+    Assert.assertEquals(2, manifest.getOrderedEntries().get(2).getDepth());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateGivesEachOpenThreadItsOwnSiblingCounter() {
+    // <conversation>
+    //   <thread id="root">
+    //     <blip id="b+1"/>
+    //     <thread id="t+a">
+    //       <blip id="b+1a"/>
+    //       <blip id="b+1b"/>     <!-- siblingIndex 1 inside t+a under b+1 -->
+    //     </thread>
+    //     <blip id="b+2"/>
+    //     <thread id="t+a">       <!-- re-used id under a different parent -->
+    //       <blip id="b+2a"/>     <!-- must be siblingIndex 0, not 2 -->
+    //     </thread>
+    //   </thread>
+    // </conversation>
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{\"1\":["
+            + "{\"3\":{\"1\":\"conversation\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"root\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+1\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+a\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+1a\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+1b\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+2\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+a\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+2a\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true},"
+            + "{\"4\":true}]}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarConversationManifest manifest =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getConversationManifest();
+
+    Assert.assertEquals(0, manifest.findByBlipId("b+1a").getSiblingIndex());
+    Assert.assertEquals(1, manifest.findByBlipId("b+1b").getSiblingIndex());
+    // b+2a must be siblingIndex 0 inside its own (separate) t+a
+    // thread, not 2 — review-1089 round-1 collision check.
+    Assert.assertEquals(0, manifest.findByBlipId("b+2a").getSiblingIndex());
+    Assert.assertEquals("b+2", manifest.findByBlipId("b+2a").getParentBlipId());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateLeavesManifestEmptyWhenConversationDocOpHasNoComponents() {
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    Assert.assertTrue(update.getConversationManifest().isEmpty());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateSkipsBlipElementsWithMissingId() {
+    String json =
+        "{\"sequenceNumber\":13,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"a@example.com\"],"
+            + "\"3\":[{\"1\":\"conversation\",\"2\":{\"1\":["
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"root\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+real\"}]}},"
+            + "{\"4\":true},"
+            + "{\"4\":true}]}}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarConversationManifest manifest =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getConversationManifest();
+
+    Assert.assertEquals(1, manifest.getOrderedEntries().size());
+    Assert.assertEquals("b+real", manifest.getOrderedEntries().get(0).getBlipId());
+  }
 }

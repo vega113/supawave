@@ -13,6 +13,7 @@ public final class SidecarSelectedWaveUpdate {
   private final List<String> participantIds;
   private final List<SidecarSelectedWaveDocument> documents;
   private final SidecarSelectedWaveFragments fragments;
+  private final SidecarConversationManifest conversationManifest;
 
   public SidecarSelectedWaveUpdate(
       int sequenceNumber,
@@ -24,6 +25,36 @@ public final class SidecarSelectedWaveUpdate {
       List<String> participantIds,
       List<SidecarSelectedWaveDocument> documents,
       SidecarSelectedWaveFragments fragments) {
+    this(
+        sequenceNumber,
+        waveletName,
+        marker,
+        channelId,
+        resultingVersion,
+        resultingVersionHistoryHash,
+        participantIds,
+        documents,
+        fragments,
+        SidecarConversationManifest.empty());
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — overload that carries the parsed
+   * conversation manifest alongside the streamed documents. The
+   * older constructor remains so non-J-UI-4 call sites keep working
+   * without changes; they implicitly pass an empty manifest.
+   */
+  public SidecarSelectedWaveUpdate(
+      int sequenceNumber,
+      String waveletName,
+      boolean marker,
+      String channelId,
+      long resultingVersion,
+      String resultingVersionHistoryHash,
+      List<String> participantIds,
+      List<SidecarSelectedWaveDocument> documents,
+      SidecarSelectedWaveFragments fragments,
+      SidecarConversationManifest conversationManifest) {
     this.sequenceNumber = sequenceNumber;
     this.waveletName = waveletName;
     this.marker = marker;
@@ -33,6 +64,8 @@ public final class SidecarSelectedWaveUpdate {
     this.participantIds = Collections.unmodifiableList(participantIds);
     this.documents = Collections.unmodifiableList(documents);
     this.fragments = fragments;
+    this.conversationManifest =
+        conversationManifest == null ? SidecarConversationManifest.empty() : conversationManifest;
   }
 
   public int getSequenceNumber() {
@@ -69,5 +102,14 @@ public final class SidecarSelectedWaveUpdate {
 
   public SidecarSelectedWaveFragments getFragments() {
     return fragments;
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — parsed conversation manifest. Empty when the
+   * update did not include a {@code conversation} document or when the
+   * manifest was malformed.
+   */
+  public SidecarConversationManifest getConversationManifest() {
+    return conversationManifest;
   }
 }

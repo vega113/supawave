@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-28-issue-1082-j-ui-4-threaded-reading",
+  "version": "PR #1089",
+  "date": "2026-04-28",
+  "title": "J2CL Open-Wave Threaded Reading View",
+  "summary": "The J2CL open-wave panel now nests reply threads under their parent blip instead of flattening every blip into a single root thread. R-3.1 hard-acceptance for deep nesting + reply ordering matching the conversation model is met; the existing focus frame, collapse toggles, and aria contracts inherit the nested DOM unchanged.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "SidecarTransportCodec parses the wave's conversation manifest document into a SidecarConversationManifest as a side-output of the same scan that already extracts per-document text (no extra protocol round-trip).",
+        "J2clSelectedWaveProjector.applyConversationManifest grafts manifest parentBlipId / threadId onto each J2clReadBlip and reorders the read-blip list into manifest depth-first pre-order so reply ordering matches the conversation model.",
+        "J2clReadSurfaceDomRenderer builds a nested <div class=\"thread inline-thread\" data-thread-id=\"...\"> container under each parent blip's host whenever the input blips carry a non-empty parentBlipId; legacy waves with no conversation manifest fall through to the existing flat-list path with no behavior change.",
+        "wavy-thread-collapse.css adds a 12px left indent + cyan hairline rail on inline-thread containers so deep nesting is visually distinguishable on both light and dark themes."
+      ]
+    }
+  ]
+}

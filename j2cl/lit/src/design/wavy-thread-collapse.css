@@ -28,6 +28,18 @@
   max-height: 10000px;
 }
 
+/* J-UI-4 (#1082, R-3.1) — inline reply threads nested under their parent
+ * blip render with a visible left-side cyan rail and a depth-derived
+ * indent so deep nesting is visually distinguishable. The rail uses the
+ * same wavy signal-cyan token as the unread pulse; the indent uses the
+ * existing spacing scale so it stays in step with other wavy chrome. */
+.j2cl-read-thread.inline-thread {
+  margin-top: var(--wavy-spacing-2, 8px);
+  margin-left: var(--wavy-spacing-3, 12px);
+  padding-left: var(--wavy-spacing-3, 12px);
+  border-left: 2px solid var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
+}
+
 .j2cl-read-thread-collapsed {
   max-height: 0;
   opacity: 0;

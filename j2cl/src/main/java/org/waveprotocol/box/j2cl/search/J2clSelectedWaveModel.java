@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 
 public final class J2clSelectedWaveModel {
   public static final int UNKNOWN_UNREAD_COUNT = -1;
@@ -29,6 +30,11 @@ public final class J2clSelectedWaveModel {
   private final boolean read;
   private final boolean readStateKnown;
   private final boolean readStateStale;
+  // J-UI-4 (#1082, R-3.1): conversation manifest is plumbed through
+  // the model so the view can publish it to the read renderer for the
+  // viewport-windowed render path. Projector populates from
+  // SidecarSelectedWaveUpdate.getConversationManifest().
+  private SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
 
   J2clSelectedWaveModel(
       boolean hasSelection,
@@ -391,6 +397,17 @@ public final class J2clSelectedWaveModel {
     return readBlips;
   }
 
+  /** J-UI-4 (#1082, R-3.1): parsed conversation manifest for the wave. Empty when unavailable. */
+  public SidecarConversationManifest getConversationManifest() {
+    return conversationManifest;
+  }
+
+  /** J-UI-4 (#1082, R-3.1): package-private setter used by the projector. */
+  J2clSelectedWaveModel withConversationManifest(SidecarConversationManifest manifest) {
+    this.conversationManifest = manifest == null ? SidecarConversationManifest.empty() : manifest;
+    return this;
+  }
+
   public J2clSelectedWaveViewportState getViewportState() {
     return viewportState;
   }
@@ -428,7 +445,10 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        // J-UI-4 (#1082, R-3.1): preserve manifest across clones so
+        // viewport-windowed renders keep nesting after fragment growth.
+        .withConversationManifest(conversationManifest);
   }
 
   J2clSelectedWaveModel withReadBlips(List<J2clReadBlip> newReadBlips) {
@@ -452,7 +472,8 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        .withConversationManifest(conversationManifest);
   }
 
   J2clSelectedWaveModel withStatus(String nextStatusText, String nextDetailText) {
@@ -478,7 +499,8 @@ public final class J2clSelectedWaveModel {
         unreadCount,
         read,
         readStateKnown,
-        readStateStale);
+        readStateStale)
+        .withConversationManifest(conversationManifest);
   }
 
   public int getUnreadCount() {

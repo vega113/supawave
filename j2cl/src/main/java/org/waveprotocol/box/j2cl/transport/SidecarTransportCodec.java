@@ -100,21 +100,26 @@ public final class SidecarTransportCodec {
     Map<String, Object> snapshot = getOptionalObject(payload, "5");
     List<String> participantIds = getStringList(snapshot, "2");
     List<SidecarSelectedWaveDocument> documents = new ArrayList<SidecarSelectedWaveDocument>();
+    SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
     Object rawDocuments = snapshot.get("3");
     if (rawDocuments != null) {
       for (Object rawDocument : asList(rawDocuments)) {
         Map<String, Object> document = asObject(rawDocument);
-        DocumentExtraction extraction =
-            extractDocument(getOptionalObject(document, "2"), getString(document, "1"));
+        String documentId = getString(document, "1");
+        Map<String, Object> documentOperation = getOptionalObject(document, "2");
+        DocumentExtraction extraction = extractDocument(documentOperation, documentId);
         documents.add(
             new SidecarSelectedWaveDocument(
-                getString(document, "1"),
+                documentId,
                 getString(document, "3"),
                 getLong(document, "5"),
                 getLong(document, "6"),
                 extraction.textContent,
                 extraction.annotationRanges,
                 extraction.reactionEntries));
+        if ("conversation".equals(documentId) && conversationManifest.isEmpty()) {
+          conversationManifest = extractConversationManifest(documentOperation);
+        }
       }
     }
 
@@ -161,7 +166,114 @@ public final class SidecarTransportCodec {
             getOptionalLong(fragments, "2", 0L),
             getOptionalLong(fragments, "3", 0L),
             ranges,
-            entries));
+            entries),
+        conversationManifest);
+  }
+
+  /**
+   * J-UI-4 (#1082, R-3.1) — parses the {@code conversation} manifest
+   * document operation into a depth-first pre-order
+   * {@link SidecarConversationManifest}.
+   *
+   * <p>The manifest XML is a tree of {@code <thread id="…">} and
+   * {@code <blip id="b+…"/>} elements. The codec walks the document
+   * operation components (element-start / element-end), maintaining
+   * a stack of open threads + the most-recent blip on each thread,
+   * and emits one {@link SidecarConversationManifest.Entry} per
+   * {@code <blip>}.
+   *
+   * <p>Unknown tags are ignored. {@code <blip>} elements without an
+   * {@code id} attribute or with an empty id are skipped silently —
+   * the renderer simply has no manifest entry for them and falls
+   * back to flat rendering for that blip.
+   */
+  static SidecarConversationManifest extractConversationManifest(
+      Map<String, Object> documentOperation) {
+    if (documentOperation == null || documentOperation.isEmpty()) {
+      return SidecarConversationManifest.empty();
+    }
+    Object rawComponents = documentOperation.get("1");
+    if (rawComponents == null) {
+      return SidecarConversationManifest.empty();
+    }
+    List<SidecarConversationManifest.Entry> entries =
+        new ArrayList<SidecarConversationManifest.Entry>();
+    // Stack of currently-open <thread> ids (top = innermost). Empty
+    // string is used when a <thread> element has no id attribute.
+    List<String> threadStack = new ArrayList<String>();
+    // Per-open-thread: most recently encountered <blip> in the same
+    // thread. Used as the parent-blip for any reply <thread> that
+    // opens before the next sibling blip on the same thread.
+    List<String> mostRecentBlipPerThread = new ArrayList<String>();
+    // Per-open-thread sibling counter (parallel to threadStack so
+    // re-used thread ids in different subtrees do not collide —
+    // review-1089 round-1: a `<thread id="t+a">` nested under one
+    // blip and a sibling `<thread id="t+a">` under a different blip
+    // each get their own counter).
+    List<Integer> siblingCounterStack = new ArrayList<Integer>();
+    // Stack of element types (lowercase). Used so we know which
+    // mirror state to pop on element-end.
+    List<String> elementStack = new ArrayList<String>();
+
+    for (Object rawComponent : asList(rawComponents)) {
+      Map<String, Object> component = asObject(rawComponent);
+      if (component.containsKey("3")) {
+        Map<String, Object> elementStart = getOptionalObject(component, "3");
+        String type = getString(elementStart, "1");
+        String safeType = type == null ? "" : type;
+        elementStack.add(safeType);
+        if ("thread".equals(safeType)) {
+          String threadId = getAttribute(elementStart, "id");
+          threadStack.add(threadId == null ? "" : threadId);
+          mostRecentBlipPerThread.add("");
+          siblingCounterStack.add(Integer.valueOf(0));
+        } else if ("blip".equals(safeType)) {
+          String blipId = getAttribute(elementStart, "id");
+          if (blipId == null || blipId.isEmpty()) {
+            continue;
+          }
+          String threadId = threadStack.isEmpty() ? "" : threadStack.get(threadStack.size() - 1);
+          int depth = Math.max(0, threadStack.size() - 1);
+          // The blip's parent is the most recent blip on the
+          // *enclosing* thread (i.e. the blip whose reply <thread>
+          // we are currently inside). For the outermost thread, this
+          // is empty.
+          String parentBlipId = "";
+          if (threadStack.size() >= 2) {
+            parentBlipId = mostRecentBlipPerThread.get(mostRecentBlipPerThread.size() - 2);
+          }
+          int siblingIndex = 0;
+          if (!siblingCounterStack.isEmpty()) {
+            siblingIndex = siblingCounterStack.get(siblingCounterStack.size() - 1).intValue();
+            siblingCounterStack.set(
+                siblingCounterStack.size() - 1, Integer.valueOf(siblingIndex + 1));
+          }
+          entries.add(
+              new SidecarConversationManifest.Entry(
+                  blipId, parentBlipId, threadId, depth, siblingIndex));
+          if (!mostRecentBlipPerThread.isEmpty()) {
+            mostRecentBlipPerThread.set(mostRecentBlipPerThread.size() - 1, blipId);
+          }
+        }
+      } else if (component.containsKey("4")) {
+        if (elementStack.isEmpty()) {
+          continue;
+        }
+        String ended = elementStack.remove(elementStack.size() - 1);
+        if ("thread".equals(ended)) {
+          if (!threadStack.isEmpty()) {
+            threadStack.remove(threadStack.size() - 1);
+          }
+          if (!mostRecentBlipPerThread.isEmpty()) {
+            mostRecentBlipPerThread.remove(mostRecentBlipPerThread.size() - 1);
+          }
+          if (!siblingCounterStack.isEmpty()) {
+            siblingCounterStack.remove(siblingCounterStack.size() - 1);
+          }
+        }
+      }
+    }
+    return SidecarConversationManifest.of(entries);
   }
 
   public static SidecarSelectedWaveReadState decodeSelectedWaveReadState(String json) {

@@ -1175,8 +1175,7 @@ public class J2clSearchPanelControllerTest {
       cancelCallCount++;
       pendingByHandle.remove(handle);
       if (handle != null && handle == pendingHandle) {
-        pending = null;
-        pendingHandle = null;
+        syncPendingToLatest();
       }
     }
 
@@ -1185,10 +1184,18 @@ public class J2clSearchPanelControllerTest {
       if (pendingHandle != null) {
         pendingByHandle.remove(pendingHandle);
       }
-      pending = null;
-      pendingHandle = null;
+      syncPendingToLatest();
       if (next != null) {
         next.run();
+      }
+    }
+
+    private void syncPendingToLatest() {
+      pending = null;
+      pendingHandle = null;
+      for (java.util.Map.Entry<Object, Runnable> entry : pendingByHandle.entrySet()) {
+        pendingHandle = entry.getKey();
+        pending = entry.getValue();
       }
     }
 

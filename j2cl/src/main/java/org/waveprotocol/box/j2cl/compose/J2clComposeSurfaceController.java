@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentComposerController;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentIdGenerator;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentUploadClient;
@@ -343,6 +345,15 @@ public final class J2clComposeSurfaceController {
   // pairing a failed attempt's stamp leaks forward and scopes the next
   // successful create's optimistic stub to the wrong rail.
   private Runnable createFailureHook;
+  // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DZqM: idempotency
+  // set tracking which create generations already had their submit-query
+  // stamp retired. Each preCreateSubmitHook fires under one generation;
+  // any one of {handleCreateFailure, bootstrap-mismatch, response-
+  // mismatch, onSignedOut} may retire it, but only the first such call
+  // for that generation should run createFailureHook. Without this, a
+  // late stale callback firing AFTER onSignedOut already dropped the
+  // stamp would dequeue a NEWER submit's stamp from the search panel.
+  private final Set<Integer> retiredCreateStampGenerations = new HashSet<>();
   private String createDraft = "";
   // J-UI-3 (#1081, R-5.1): the title-input value separate from createDraft.
   // Composed into the rich-content document on submit alongside the body so
@@ -635,6 +646,7 @@ public final class J2clComposeSurfaceController {
     // BEFORE we clear createSubmitting, then run the failure hook to
     // drop the orphaned stamp.
     boolean abortedInFlightCreate = createSubmitting;
+    int abortedCreateGeneration = createGeneration;
     createGeneration++;
     replyGeneration++;
     createSubmitting = false;
@@ -658,16 +670,16 @@ public final class J2clComposeSurfaceController {
     createStatusText = "Sign in to create or reply in the J2CL root shell.";
     replyStatusText = createStatusText;
     render();
-    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DQdB: drop the
-    // submit-query stamp left behind by an in-flight create that the
-    // generation guard will now silently discard. Run AFTER render so
-    // the view sees the signed-out chrome before any downstream effect.
-    if (abortedInFlightCreate && createFailureHook != null) {
-      try {
-        createFailureHook.run();
-      } catch (RuntimeException ignored) {
-        // Best-effort: never re-throw out of an integration callback.
-      }
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DQdB +
+    // PRRT_kwDOBwxLXs5-DZqM: drop the submit-query stamp left behind
+    // by an in-flight create that the generation guard will now silently
+    // discard. retireCreateStampOnce records the aborted generation in
+    // retiredCreateStampGenerations so a stale bootstrap/submit
+    // callback firing later for the same generation cannot dequeue a
+    // newer submission's stamp. Run AFTER render so the view sees the
+    // signed-out chrome before any downstream effect.
+    if (abortedInFlightCreate) {
+      retireCreateStampOnce(abortedCreateGeneration);
     }
   }
 
@@ -1210,6 +1222,27 @@ public final class J2clComposeSurfaceController {
   }
 
   /**
+   * J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DZqM: retire the
+   * submit-query stamp queued by preCreateSubmitHook for {@code
+   * generation}. Idempotent per generation: a second call for the same
+   * generation is a silent no-op so a stale bootstrap/submit callback
+   * cannot dequeue a newer submission's stamp after onSignedOut already
+   * dropped this one. Best-effort: a hook RuntimeException is swallowed.
+   */
+  private void retireCreateStampOnce(int generation) {
+    if (createFailureHook == null) {
+      return;
+    }
+    if (retiredCreateStampGenerations.add(generation)) {
+      try {
+        createFailureHook.run();
+      } catch (RuntimeException ignored) {
+        // Best-effort: never re-throw out of an integration callback.
+      }
+    }
+  }
+
+  /**
    * F-3.S3 (#1038, R-5.5): publish the latest per-blip reaction
    * snapshot from the model. The controller uses this on each toggle
    * click to decide whether the user is adding or removing their
@@ -1437,11 +1470,12 @@ public final class J2clComposeSurfaceController {
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
           if (generation != createGeneration) {
-            // This generation was superseded; clear the stamp queued by preCreateSubmitHook
-            // so the next successful create doesn't consume a stale submit-query entry.
-            if (createFailureHook != null) {
-              try { createFailureHook.run(); } catch (RuntimeException ignored) {}
-            }
+            // J-UI-3 codex P2 PRRT_kwDOBwxLXs5-DZqM: superseded generation;
+            // retire this generation's stamp once. The idempotency set
+            // prevents a stale callback from dequeuing a newer
+            // submission's stamp after onSignedOut already retired this
+            // one.
+            retireCreateStampOnce(generation);
             return;
           }
           notifyCurrentUserAddress(bootstrap.getAddress());
@@ -1474,10 +1508,9 @@ public final class J2clComposeSurfaceController {
       String submittedDraft,
       SidecarSubmitResponse response) {
     if (generation != createGeneration) {
-      // Superseded; clear the stamp just as a real failure would.
-      if (createFailureHook != null) {
-        try { createFailureHook.run(); } catch (RuntimeException ignored) {}
-      }
+      // J-UI-3 codex P2 PRRT_kwDOBwxLXs5-DZqM: superseded; retire this
+      // generation's stamp idempotently.
+      retireCreateStampOnce(generation);
       return;
     }
     if (!response.getErrorMessage().isEmpty()) {
@@ -1509,26 +1542,21 @@ public final class J2clComposeSurfaceController {
 
   private void handleCreateFailure(int generation, String error) {
     if (generation != createGeneration) {
-      // Superseded; still clear the stamp so no stale entry lingers in the queue.
-      if (createFailureHook != null) {
-        try { createFailureHook.run(); } catch (RuntimeException ignored) {}
-      }
+      // J-UI-3 codex P2 PRRT_kwDOBwxLXs5-DZqM: superseded; retire this
+      // generation's stamp idempotently.
+      retireCreateStampOnce(generation);
       return;
     }
     createSubmitting = false;
     createStatusText = "";
     createErrorText = error == null || error.isEmpty() ? "Create wave failed." : error;
     render();
-    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T: pair the
-    // pre-submit stamp with a failure-time drop so a failed create does
-    // not leave a stale submit-query entry that the next successful
-    // create would consume.
-    if (createFailureHook != null) {
-      try {
-        createFailureHook.run();
-      } catch (RuntimeException ignored) {
-        // Best-effort: never re-throw out of an integration callback.
-      }
+    // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-DA7T + PRRT_kwDOBwxLXs5-DZqM:
+    // pair the pre-submit stamp with a failure-time drop, gated by
+    // generation so a later stale callback can't double-drop. retire-
+    // CreateStampOnce is idempotent per generation.
+    {
+      retireCreateStampOnce(generation);
     }
   }
 

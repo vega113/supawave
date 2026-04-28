@@ -116,6 +116,14 @@ public final class J2clReadSurfaceDomRenderer {
   // the same way the live-blip render path does. Empty manifest = no
   // enrichment (legacy waves keep rendering flat).
   private SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
+  // J-UI-4 (#1082, R-3.1): snapshot of the manifest applied to the
+  // current rendered surface. Used by matchesRenderedWindowEntries to
+  // detect a manifest swap that arrived without any change to the
+  // viewport entry list — without it, a late-arriving conversation
+  // document would be silently ignored until some unrelated entry
+  // mutation forced a rebuild.
+  private SidecarConversationManifest renderedConversationManifest =
+      SidecarConversationManifest.empty();
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -463,6 +471,7 @@ public final class J2clReadSurfaceDomRenderer {
       renderedBlips.clear();
       renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
       renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
+      renderedConversationManifest = SidecarConversationManifest.empty();
       renderedSurface = null;
       focusedBlip = null;
       return false;
@@ -472,7 +481,10 @@ public final class J2clReadSurfaceDomRenderer {
     String scrollAnchorBlipId = firstRenderedBlipId();
     double scrollAnchorTop = renderedBlipTop(scrollAnchorBlipId);
     List<String> previouslyCollapsedThreadIds = captureCollapsedThreadIds();
-    if (matchesRenderedWindowEntries(entries)) {
+    // J-UI-4 (#1082, R-3.1): also invalidate the cache when the manifest
+    // has changed (reference equality is intentional — a new manifest from
+    // a new update is always a different object reference).
+    if (matchesRenderedWindowEntries(entries) && conversationManifest == renderedConversationManifest) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -483,6 +495,7 @@ public final class J2clReadSurfaceDomRenderer {
     renderedBlips.clear();
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
+    renderedConversationManifest = SidecarConversationManifest.empty();
     renderedSurface = null;
     focusedBlip = null;
 
@@ -595,6 +608,10 @@ public final class J2clReadSurfaceDomRenderer {
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedSurface = surface;
+    // J-UI-4 (#1082, R-3.1): record the manifest that was active for this
+    // render so the early-return check above can detect a later manifest
+    // swap even when the entry list itself hasn't changed.
+    renderedConversationManifest = conversationManifest;
     enhanceSurface(surface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);

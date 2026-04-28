@@ -118,6 +118,39 @@ public class QueryHelperTest extends TestCase {
     assertNull(queryParams.get(TokenQueryType.CONTENT));
   }
 
+  /**
+   * J-UI-2 (#1080 / R-4.5): {@link QueryHelper#hasIsValue} backs the
+   * rail's {@code is:unread} chip alias. Both Simple and Solr search
+   * providers consult it to decide whether to treat the chip as a
+   * synonym for {@code unread:true}.
+   */
+  public void testHasIsValueReturnsTrueForMatchingToken() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("in:inbox is:unread");
+    assertTrue(QueryHelper.hasIsValue(queryParams, "unread"));
+  }
+
+  public void testHasIsValueIsCaseInsensitive() throws Exception {
+    // The parser keeps token VALUES with their original case (only the
+    // prefix is normalised by the enum lookup). hasIsValue must match
+    // case-insensitively so the chip works regardless of URL casing.
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("is:UNREAD");
+    assertTrue(QueryHelper.hasIsValue(queryParams, "unread"));
+    assertTrue(QueryHelper.hasIsValue(queryParams, "UNREAD"));
+  }
+
+  public void testHasIsValueReturnsFalseForMissingToken() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams = QueryHelper.parseQuery("in:inbox");
+    assertFalse(QueryHelper.hasIsValue(queryParams, "unread"));
+  }
+
+  public void testHasIsValueReturnsFalseForDifferentValue() throws Exception {
+    Map<TokenQueryType, Set<String>> queryParams =
+        QueryHelper.parseQuery("is:starred");
+    assertFalse(QueryHelper.hasIsValue(queryParams, "unread"));
+  }
+
   public void testParseQueryRejectsInvalidUnreadFilterValue() {
     try {
       QueryHelper.parseQuery("unread:maybe");

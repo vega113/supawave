@@ -140,7 +140,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // to the in-memory one.
     final boolean isUnreadOnlyQuery =
         queryParams.containsKey(TokenQueryType.UNREAD)
-            || SimpleSearchProviderImpl.hasIsValue(queryParams, "unread");
+            || QueryHelper.hasIsValue(queryParams, "unread");
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);

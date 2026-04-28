@@ -3,7 +3,7 @@
   "version": "PR #1080",
   "date": "2026-04-28",
   "title": "J-UI-2: Folder + filter chip switching is functional",
-  "summary": "On /?view=j2cl-root the saved-search folders (Inbox / Mentions / Tasks / Public / Archive / Pinned) and the filter chips (Unread only / With attachments / From me) now drive real query changes. The active folder + chip composition rounds-trips through the URL so back/forward, reload, and deep links preserve the active filter.",
+  "summary": "On /?view=j2cl-root the saved-search folders (Inbox / Mentions / Tasks / Public / Archive / Pinned) and the filter chips (Unread only / With attachments / From me) now drive real query changes. The active folder + chip composition round-trips through the URL so back/forward, reload, and deep links preserve the active filter.",
   "sections": [
     {
       "type": "feature",

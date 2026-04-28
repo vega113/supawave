@@ -721,12 +721,34 @@ public final class J2clRichContentDeltaFactory {
           appendCharacters(components, component.text);
           break;
         case ANNOTATED_TEXT:
-          appendComponentSeparator(components);
-          appendAnnotationStart(components, component.annotationKey, component.annotationValue);
-          appendComponentSeparator(components);
-          appendCharacters(components, component.text);
-          appendComponentSeparator(components);
-          appendAnnotationEnd(components, component.annotationKey);
+          // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84a):
+          // multi-annotation runs (e.g. `<strong><em>x</em></strong>`)
+          // open every annotation in declaration order, emit chars
+          // once, then close annotations in reverse order so the
+          // resulting wave-doc op stream is well-nested.
+          List<J2clComposerDocument.Annotation> anns = component.annotations;
+          if (anns == null || anns.isEmpty()) {
+            // Singular annotation fields are the source of truth when
+            // no list was supplied (legacy callers).
+            appendComponentSeparator(components);
+            appendAnnotationStart(
+                components, component.annotationKey, component.annotationValue);
+            appendComponentSeparator(components);
+            appendCharacters(components, component.text);
+            appendComponentSeparator(components);
+            appendAnnotationEnd(components, component.annotationKey);
+          } else {
+            for (J2clComposerDocument.Annotation ann : anns) {
+              appendComponentSeparator(components);
+              appendAnnotationStart(components, ann.key, ann.value);
+            }
+            appendComponentSeparator(components);
+            appendCharacters(components, component.text);
+            for (int i = anns.size() - 1; i >= 0; i--) {
+              appendComponentSeparator(components);
+              appendAnnotationEnd(components, anns.get(i).key);
+            }
+          }
           break;
         case IMAGE_ATTACHMENT:
           appendComponentSeparator(components);

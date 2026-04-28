@@ -306,4 +306,155 @@ describe("wavy-composer reply-submit components payload", () => {
     expect(u).to.exist;
     expect(s).to.exist;
   });
+
+  // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84a):
+  // <strong><em>x</em></strong> must produce a single component
+  // carrying BOTH fontStyle=italic AND fontWeight=bold so combined
+  // styles round-trip on reload — not just the inner italic.
+  it("emits combined annotations for nested inline wraps", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(el).innerHTML = "<strong><em>combined</em></strong>";
+    el._onBodyInput();
+
+    const submitPromise = oneEvent(el, "reply-submit");
+    el._submit();
+    const evt = await submitPromise;
+
+    const combined = evt.detail.components.find(
+      (c) =>
+        c.type === "annotated" &&
+        Array.isArray(c.annotations) &&
+        c.annotations.some((a) => a.key === "fontStyle" && a.value === "italic") &&
+        c.annotations.some((a) => a.key === "fontWeight" && a.value === "bold")
+    );
+    expect(combined, "annotations array carries both italic + bold").to.exist;
+    expect(combined.text).to.equal("combined");
+  });
+
+  it("emits combined annotations for bold around an inline link", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(el).innerHTML =
+      '<strong><a href="https://example.com">linked</a></strong>';
+    el._onBodyInput();
+
+    const submitPromise = oneEvent(el, "reply-submit");
+    el._submit();
+    const evt = await submitPromise;
+
+    const combined = evt.detail.components.find(
+      (c) =>
+        c.type === "annotated" &&
+        Array.isArray(c.annotations) &&
+        c.annotations.some((a) => a.key === "link/manual" && a.value === "https://example.com") &&
+        c.annotations.some((a) => a.key === "fontWeight" && a.value === "bold")
+    );
+    expect(combined, "annotations array carries both link + bold").to.exist;
+    expect(combined.text).to.equal("linked");
+  });
+});
+
+// J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84T):
+// clear-formatting on one <li> must NOT unwrap the surrounding <ul>.
+describe("wavy-composer clear-formatting list scoping", () => {
+  it("does not unwrap a <ul> when only one <li> is selected", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = "<ul><li>keep</li><li>strip-this</li></ul>";
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body.querySelectorAll("li")[1]);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: { actionId: "clear-formatting", selectionDescriptor: {} },
+        bubbles: true,
+        composed: true
+      })
+    );
+
+    expect(body.querySelector("ul"), "outer <ul> is preserved").to.exist;
+    expect(body.querySelector("li").textContent).to.equal("keep");
+  });
+
+  it("unwraps <ul> when the entire list is inside the selection", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = "<ul><li>a</li><li>b</li></ul>";
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: { actionId: "clear-formatting", selectionDescriptor: {} },
+        bubbles: true,
+        composed: true
+      })
+    );
+
+    expect(body.querySelector("ul")).to.not.exist;
+  });
+});
+
+// J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-C84X):
+// align-* / rtl have no submit-pipeline serialization, so the click
+// must NOT mutate the body locally and must bubble for any future
+// listener.
+describe("wavy-composer align/rtl actions", () => {
+  it("align-center does not apply local DOM mutation", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "alignme";
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+    const initialHtml = body.innerHTML;
+
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: { actionId: "align-center", selectionDescriptor: {} },
+        bubbles: true,
+        composed: true
+      })
+    );
+
+    expect(body.innerHTML).to.equal(initialHtml);
+  });
+
+  it("rtl does not apply local DOM mutation", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "rtl-test";
+    body.focus();
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+    const initialHtml = body.innerHTML;
+
+    el.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: { actionId: "rtl", selectionDescriptor: {} },
+        bubbles: true,
+        composed: true
+      })
+    );
+
+    expect(body.innerHTML).to.equal(initialHtml);
+    expect(body.getAttribute("dir") || "").to.not.equal("rtl");
+  });
 });

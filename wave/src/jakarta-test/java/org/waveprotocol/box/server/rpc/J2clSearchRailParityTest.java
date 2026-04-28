@@ -230,6 +230,30 @@ public final class J2clSearchRailParityTest {
   }
 
   /**
+   * J-UI-1 (#1079) follow-up: the flag value is also emitted on
+   * {@code <shell-root>} as {@code data-j2cl-search-rail-cards="true"}
+   * so the J2CL view layer can resolve it independently of the rail.
+   * If the rail is missing post-upgrade, the view raises a status
+   * error rather than silently falling back to the legacy digest
+   * list. Sister assertion to the rail-attribute test above.
+   */
+  @Test
+  public void j2clRootShellEmitsShellRootRailCardsMarkerWhenFlagOn() throws Exception {
+    String html = renderJ2clRootShellWithRailCards();
+    assertTrue(
+        "Flag-ON render must advertise data-j2cl-search-rail-cards on <shell-root>",
+        html.contains("data-j2cl-search-rail-cards=\"true\""));
+  }
+
+  @Test
+  public void j2clRootShellOmitsShellRootRailCardsMarkerWhenFlagOff() throws Exception {
+    String html = renderJ2clRootShell();
+    assertFalse(
+        "Default flag-OFF render must not advertise data-j2cl-search-rail-cards on <shell-root>",
+        html.contains("data-j2cl-search-rail-cards=\"true\""));
+  }
+
+  /**
    * B.5–B.10 — six saved-search folders with the canonical query
    * strings AND the canonical visible labels. Each folder carries a
    * {@code data-folder-id} so the client-side rail can route clicks

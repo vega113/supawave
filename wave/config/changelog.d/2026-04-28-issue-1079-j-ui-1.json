@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-28-issue-1079-j-ui-1",
-  "version": "PR #1079",
+  "version": "PR #1088",
   "date": "2026-04-28",
   "title": "J-UI-1: Wave list renders in the search rail",
   "summary": "On /?view=j2cl-root the saved-search rail now renders one rich digest card per wave (avatar, title, snippet, count, timestamp). Clicking a card opens the wave and updates the URL.",

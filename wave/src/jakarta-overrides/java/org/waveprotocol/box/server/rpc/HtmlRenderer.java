@@ -3425,7 +3425,16 @@ public final class HtmlRenderer {
           .append(safeResolvedReturnTarget)
           .append("\" data-j2cl-root-base-path=\"")
           .append(safeResolvedBasePath)
-          .append("\">\n");
+          .append("\"");
+      if (railCardsEnabled) {
+        // J-UI-1 (#1079): emit the flag value on <shell-root> so the
+        // J2CL view layer can resolve it independently of the rail
+        // element. If the rail is missing post-upgrade but the flag is
+        // on, the view raises a status error rather than silently
+        // falling back to the legacy digest list.
+        sb.append(" data-j2cl-search-rail-cards=\"true\"");
+      }
+      sb.append(">\n");
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
           .append("</shell-skip-link>\n");

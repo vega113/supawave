@@ -92,11 +92,17 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
       // J-UI-1 (#1079): the <wavy-search-rail> lives in the shell-root
       // nav slot, NOT inside the workflow host. Resolve it from the
-      // document root. Absence is treated as flag-off.
+      // document root.
       searchRail = findRail();
-      railCardsEnabled =
-          searchRail != null
-              && "true".equals(searchRail.getAttribute("data-rail-cards-enabled"));
+      // The flag value is emitted independently on <shell-root> as
+      // data-j2cl-search-rail-cards. Reading it from <shell-root>
+      // (rather than from the rail) means a missing-rail regression
+      // surfaces as an error instead of a silent fallback to the
+      // legacy digest list — matching the project rule "no legacy
+      // fallbacks for flagged features". The data-rail-cards-enabled
+      // attribute on the rail itself is preserved for SSR-side parity
+      // tests but is no longer the source of truth.
+      railCardsEnabled = readRailCardsFlag();
 
       form.onsubmit =
           event -> {
@@ -407,6 +413,18 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   private static HTMLElement findRail() {
     Object element = DomGlobal.document.querySelector("wavy-search-rail");
     return element == null ? null : (HTMLElement) element;
+  }
+
+  /**
+   * J-UI-1 (#1079): reads {@code data-j2cl-search-rail-cards} from the
+   * {@code <shell-root>} element so the flag value is independent of
+   * the rail element's lifecycle. SSR writes this attribute when the
+   * {@code j2cl-search-rail-cards} feature flag is enabled for the
+   * current viewer.
+   */
+  private static boolean readRailCardsFlag() {
+    Object shell = DomGlobal.document.querySelector("shell-root[data-j2cl-search-rail-cards=\"true\"]");
+    return shell != null;
   }
 
   /**

@@ -54,6 +54,33 @@ public final class J2clComposeSurfaceController {
 
     void onReplySubmitted(String draft);
 
+    /**
+     * J-UI-5 (#1083, R-5.1 + R-5.7): the user submitted a reply from the
+     * inline rich-text composer. {@code components} carries the
+     * per-fragment text + annotation runs serialized by
+     * {@code wavy-composer.js#serializeRichComponents}. The controller
+     * builds a {@link J2clComposerDocument} straight from these
+     * components (text + annotated text runs) so the submit delta
+     * preserves the user's bold / italic / underline / strikethrough /
+     * unordered-list / ordered-list / link / blockquote formatting.
+     *
+     * <p>Default implementation falls back to plain text by joining
+     * the supplied components' text. Existing test doubles continue
+     * to compile against {@link #onReplySubmitted(String)} without
+     * changes; production wiring overrides this method.
+     */
+    default void onReplySubmittedWithComponents(List<SubmittedComponent> components) {
+      StringBuilder builder = new StringBuilder();
+      if (components != null) {
+        for (SubmittedComponent component : components) {
+          if (component != null && component.getText() != null) {
+            builder.append(component.getText());
+          }
+        }
+      }
+      onReplySubmitted(builder.toString());
+    }
+
     void onAttachmentFilesSelected(List<AttachmentFileSelection> selections);
 
     void onPastedImage(Object imagePayload);
@@ -136,6 +163,62 @@ public final class J2clComposeSurfaceController {
      * doubles compile unchanged.
      */
     default void onDeleteBlipRequested(String blipId, String expectedWaveId) {}
+  }
+
+  /**
+   * J-UI-5 (#1083, R-5.7): a single text or annotated-text run forwarded
+   * by `wavy-composer.js#serializeRichComponents` on reply submit.
+   * Mirrors the JS schema: a TEXT component carries plain text; an
+   * ANNOTATED component wraps its text in a single `(annotationKey,
+   * annotationValue)` pair the read codec already understands.
+   */
+  public static final class SubmittedComponent {
+    public enum Kind {
+      TEXT,
+      ANNOTATED
+    }
+
+    private final Kind kind;
+    private final String text;
+    private final String annotationKey;
+    private final String annotationValue;
+
+    public static SubmittedComponent text(String text) {
+      return new SubmittedComponent(Kind.TEXT, text == null ? "" : text, "", "");
+    }
+
+    public static SubmittedComponent annotated(
+        String text, String annotationKey, String annotationValue) {
+      return new SubmittedComponent(
+          Kind.ANNOTATED,
+          text == null ? "" : text,
+          annotationKey == null ? "" : annotationKey,
+          annotationValue == null ? "" : annotationValue);
+    }
+
+    private SubmittedComponent(
+        Kind kind, String text, String annotationKey, String annotationValue) {
+      this.kind = kind;
+      this.text = text;
+      this.annotationKey = annotationKey;
+      this.annotationValue = annotationValue;
+    }
+
+    public Kind getKind() {
+      return kind;
+    }
+
+    public String getText() {
+      return text;
+    }
+
+    public String getAnnotationKey() {
+      return annotationKey;
+    }
+
+    public String getAnnotationValue() {
+      return annotationValue;
+    }
   }
 
   @FunctionalInterface
@@ -326,6 +409,12 @@ public final class J2clComposeSurfaceController {
   // Tracks rich-text formatting only. Attachment actions reuse activeCommandId for status live
   // regions, so formatting stays separate from upload progress and error state.
   private String annotationCommandId = "";
+  // J-UI-5 (#1083, R-5.7): per-fragment annotated runs serialized by
+  // the inline rich-text composer. When non-null and non-empty, the
+  // next submitReply call builds the J2clComposerDocument from these
+  // components instead of the legacy single-annotation-on-whole-draft
+  // path. Cleared on submit success / failure / wave change.
+  private List<SubmittedComponent> pendingSubmittedComponents;
   private String commandStatusText = "";
   private String commandErrorText = "";
   private J2clAttachmentComposerController attachmentController;
@@ -500,6 +589,11 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
+          public void onReplySubmittedWithComponents(List<SubmittedComponent> components) {
+            J2clComposeSurfaceController.this.onReplySubmittedWithComponents(components);
+          }
+
+          @Override
           public void onAttachmentFilesSelected(List<AttachmentFileSelection> selections) {
             J2clComposeSurfaceController.this.onAttachmentFilesSelected(selections);
           }
@@ -609,6 +703,32 @@ public final class J2clComposeSurfaceController {
 
   public void onReplySubmitted(String draft) {
     replyDraft = normalizeDraft(draft);
+    pendingSubmittedComponents = null;
+    submitReply();
+  }
+
+  /**
+   * J-UI-5 (#1083, R-5.1 + R-5.7): submit a reply whose body is a list
+   * of structured text + annotated-text runs serialized by the inline
+   * `<wavy-composer>`. Builds a {@link J2clComposerDocument} that
+   * preserves the user's per-fragment formatting (bold / italic /
+   * underline / strikethrough / list / link) instead of collapsing
+   * the whole draft to a single annotation.
+   */
+  public void onReplySubmittedWithComponents(List<SubmittedComponent> components) {
+    if (components == null) {
+      pendingSubmittedComponents = null;
+      onReplySubmitted("");
+      return;
+    }
+    StringBuilder plainBuilder = new StringBuilder();
+    for (SubmittedComponent component : components) {
+      if (component != null && component.getText() != null) {
+        plainBuilder.append(component.getText());
+      }
+    }
+    replyDraft = normalizeDraft(plainBuilder.toString());
+    pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
     submitReply();
   }
 
@@ -1411,6 +1531,10 @@ public final class J2clComposeSurfaceController {
     // a successful submit consumes pending mention picks; failures
     // preserve the list so a retry submits the same chips.
     pendingMentions.clear();
+    // J-UI-5 (#1083): success consumes the structured component list
+    // forwarded by the inline composer; failures preserve it so a
+    // retry submits the same formatting.
+    pendingSubmittedComponents = null;
     // A sent reply closes the attachment batch; failures preserve size and attachments for retry.
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
@@ -1486,6 +1610,41 @@ public final class J2clComposeSurfaceController {
       String submittedAnnotationCommandId,
       boolean includeMentions) {
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder();
+    // J-UI-5 (#1083, R-5.7): when the inline rich-text composer
+    // forwarded a structured component list, build the document
+    // straight from it (per-fragment formatting). The components
+    // already encode mention chips (link/manual annotations), list
+    // and link annotations, and the new inline-format runs (fontWeight
+    // / fontStyle / textDecoration), so the legacy single-annotation
+    // path is bypassed entirely.
+    if (includeMentions
+        && pendingSubmittedComponents != null
+        && !pendingSubmittedComponents.isEmpty()) {
+      for (SubmittedComponent component : pendingSubmittedComponents) {
+        if (component == null) continue;
+        if (component.getKind() == SubmittedComponent.Kind.ANNOTATED) {
+          if (!component.getText().isEmpty()
+              && !component.getAnnotationKey().isEmpty()
+              && !component.getAnnotationValue().isEmpty()) {
+            builder.annotatedText(
+                component.getAnnotationKey(),
+                component.getAnnotationValue(),
+                component.getText());
+            continue;
+          }
+        }
+        builder.text(component.getText());
+      }
+      if (includeAttachments) {
+        for (J2clAttachmentComposerController.AttachmentInsertion insertion : insertedAttachments) {
+          builder.imageAttachment(
+              insertion.getAttachmentId(),
+              insertion.getCaption(),
+              insertion.getDisplaySize().getDocumentValue());
+        }
+      }
+      return builder.build();
+    }
     // Reply submits pass the snapshotted command id; create submits pass an empty id.
     J2clDailyToolbarAction action = J2clDailyToolbarAction.fromId(submittedAnnotationCommandId);
     String annotationKey = annotationKey(action);
@@ -1971,6 +2130,10 @@ public final class J2clComposeSurfaceController {
     // state; sign-out and wave-change resets must drop them so a
     // mention picked on wave A cannot leak into a reply on wave B.
     pendingMentions.clear();
+    // J-UI-5 (#1083): same rule for the inline composer's structured
+    // component list — clear on wave change so formatting from wave A
+    // cannot leak into wave B.
+    pendingSubmittedComponents = null;
     // F-3.S3 (#1038, R-5.5): same rule for reaction snapshots — wave
     // change drops the prior wave's per-blip reaction state.
     reactionSnapshotsByBlip.clear();

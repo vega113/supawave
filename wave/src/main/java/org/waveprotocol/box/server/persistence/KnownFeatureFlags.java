@@ -45,6 +45,7 @@ public final class KnownFeatureFlags {
     defaults.add(new FeatureFlag("ime-debug-tracer", "Enable IME diagnostic trace overlay and remote log upload", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("j2cl-root-bootstrap", "Bootstrap the J2CL root shell on / while keeping /webclient rollback ready", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("j2cl-search-rail-cards", "Render J2CL search digests as <wavy-search-rail-card> elements inside <wavy-search-rail> instead of the legacy plain-DOM digest list", false, Collections.emptyMap()));
+    defaults.add(new FeatureFlag("j-ui-3-new-wave", "J-UI-3 new-wave create flow: title input + optimistic rail prepend (#1081)", false, Collections.emptyMap()));
     defaults.add(new FeatureFlag("social-auth", "Enable Google and GitHub social sign-in and sign-up", false, Collections.emptyMap()));
     DEFAULTS = Collections.unmodifiableList(defaults);
   }

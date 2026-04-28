@@ -267,9 +267,17 @@ public final class J2clViewportFirstPaintParityTest {
     assertTrue(cardIdx >= 0);
     int cardEnd = html.indexOf('>', cardIdx);
     String cardOpenTag = html.substring(cardIdx, cardEnd);
+    // aria-busy is now injected via an inline script so the no-JS path never
+    // leaves the region permanently busy. Verify the open tag is attribute-free
+    // and the inline script is present in the section body.
+    assertFalse(
+        "Snapshot card open tag must not carry aria-busy as a static attribute"
+            + " — that would be permanent on the no-JS path",
+        cardOpenTag.contains("aria-busy"));
     assertTrue(
-        "Snapshot mode must mark the card aria-busy=\"true\"",
-        cardOpenTag.contains("aria-busy=\"true\""));
+        "Snapshot mode must emit the aria-busy inline script so AT clients know"
+            + " the pre-upgrade content is in flux",
+        html.indexOf("document.currentScript.parentElement.setAttribute('aria-busy'", cardIdx) > 0);
   }
 
   /**

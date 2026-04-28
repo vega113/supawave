@@ -4512,16 +4512,17 @@ public final class HtmlRenderer {
           .append(StringEscapeUtils.escapeHtml4(effectiveResult.getWaveId()))
           .append("\"");
     }
+    sb.append(" data-j2cl-server-first-mode=\"")
+        .append(effectiveResult.getModeValue())
+        .append("\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
     if (hasSnapshot) {
       // J-UI-8 (#1086, R-6.3): mark the card busy so AT clients know the
       // pre-upgrade content is in flux. J2clSelectedWaveView clears the
       // attribute in clearServerFirstMarkers() once the live render
-      // replaces the server-first state.
-      sb.append(" aria-busy=\"true\"");
+      // replaces the server-first state. Set via inline script so the
+      // no-JS path never leaves the region permanently aria-busy.
+      sb.append("              <script>document.currentScript.parentElement.setAttribute('aria-busy','true');</script>\n");
     }
-    sb.append(" data-j2cl-server-first-mode=\"")
-        .append(effectiveResult.getModeValue())
-        .append("\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
     sb.append("              <p class=\"sidecar-eyebrow\">Opened wave</p>\n");
     // F-2 slice 2 (#1046, R-3.7-chrome): depth-nav-bar landmark.
     // Hidden by default; the J2CL client (S5) writes the current depth

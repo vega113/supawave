@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-04-28-issue-1086-j-ui-8",
-  "version": "PR #J-UI-8",
+  "version": "PR #1096",
   "date": "2026-04-28",
   "title": "J-UI-8: Server-first first-paint of selected wave",
   "summary": "Hardens the J2CL root-shell first-paint guarantees from the parity audit — locale-aware <html lang>, aria-busy on the server-first snapshot card until JS replaces it, and a flag-gated <noscript> banner so visitors with JavaScript disabled understand the static read-only state.",

@@ -49,11 +49,16 @@ shell-root-signed-out {
 shell-root {
   grid-template-columns: minmax(260px, 296px) 1fr;
   grid-template-rows: auto auto 1fr auto auto;
+  /* V-1 (#1099): the rail-extension row leaves the left column empty
+   * (".") so the nav rail does not span into row 4. When the slotted
+   * <wavy-rail-panel> is hidden, the auto-sized row 4 collapses to 0
+   * and there is no blank strip under the wave panel even if the nav
+   * rail has tall content (long digest list on a short viewport). */
   grid-template-areas:
     "skip skip"
     "header header"
     "nav main"
-    "nav rail-extension"
+    ".   rail-extension"
     "status status";
 }
 

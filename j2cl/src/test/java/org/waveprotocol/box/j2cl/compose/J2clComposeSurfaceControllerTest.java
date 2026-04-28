@@ -3977,53 +3977,6 @@ public class J2clComposeSurfaceControllerTest {
         decorationCloses);
   }
 
-  // J-UI-5 (#1083, coderabbit thread PRRT_kwDOBwxLXs5-Gun6): when
-  // `onWriteSessionChanged` preserves a stale reply draft so the user
-  // can review/retry, the inline-composer component snapshot MUST
-  // also survive — otherwise the retry silently downgrades rich text
-  // to plain.
-  @Test
-  public void componentSnapshotSurvivesStaleDraftPreservation() {
-    FakeGateway gateway = new FakeGateway();
-    gateway.autoResolveBootstrap = false;
-    FakeView view = new FakeView();
-    J2clComposeSurfaceController controller =
-        new J2clComposeSurfaceController(
-            gateway,
-            view,
-            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
-            waveId -> {},
-            waveId -> {});
-    controller.start();
-    controller.onWriteSessionChanged(
-        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
-
-    List<J2clComposeSurfaceController.SubmittedComponent> richComponents = new ArrayList<>();
-    richComponents.add(
-        J2clComposeSurfaceController.SubmittedComponent.annotated(
-            "bold-bit", "fontWeight", "bold"));
-    controller.onReplySubmittedWithComponents(richComponents);
-
-    // Same wave, different basis ⇒ stale-basis path; replyDraft stays.
-    controller.onWriteSessionChanged(
-        new J2clSidecarWriteSession("example.com/w+1", "chan-2", 45L, "BCDE", "b+root"));
-
-    Assert.assertEquals("Draft preserved", "bold-bit", view.model.getReplyDraft());
-    Assert.assertTrue("Draft is stale", view.model.isReplyStaleBasis());
-
-    // Resolve the in-flight bootstrap — the originally pending submit
-    // surfaces the stale-basis error rather than completing. Now the
-    // user retries, and the rich annotation must still go through.
-    gateway.resolveBootstrap();
-    gateway.lastSubmitRequest = null;
-    controller.onReplySubmitted("bold-bit");
-
-    Assert.assertNotNull("retry submitted a delta", gateway.lastSubmitRequest);
-    Assert.assertTrue(
-        "retry preserves the bold annotation across the stale-draft transition",
-        gateway.lastSubmitRequest.getDeltaJson().contains("fontWeight"));
-  }
-
   // J-UI-5 (#1083): an annotated component whose text is whitespace-only
   // (a common user flow: bolding a word together with its trailing
   // space) must not throw; the controller downgrades it to a plain

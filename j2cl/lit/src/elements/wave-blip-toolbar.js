@@ -13,13 +13,14 @@ import { LitElement, css, html } from "lit";
  * V-4 (#1102): the toolbar visual chrome was upgraded to match
  * `02-open-wave-threaded-reading.svg` — a single pill-shaped surface
  * with vertical dividers between glyph-prefixed action labels. The
- * focused-blip variant repaints with a cyan-soft fill via the parent
- * `<wave-blip>` `[focused]` selector.
+ * focused-blip variant repaints with a cyan-soft fill via
+ * `data-variant="focused"` set on this element by the parent `<wave-blip>`.
  *
- * The toolbar is structurally inside `<wave-blip>`'s `metadata` slot so
- * the F-0 `<wavy-blip-card>` recipe envelope stays in charge of focus +
- * unread + pulse. Visibility is driven by the parent's :focus-within
- * + :hover rules; the toolbar itself just renders the buttons.
+ * The toolbar is rendered inside `<wave-blip>`'s `.body` container so
+ * that the F-0 `<wavy-blip-card>` recipe envelope stays in charge of
+ * focus + unread + pulse. Visibility is driven by the parent's
+ * :focus-within + :hover rules; the toolbar itself just renders the
+ * buttons.
  *
  * Each button emits its own event so the parent <wave-blip> can re-emit
  * the public `wave-blip-*-requested` events with the blip context.

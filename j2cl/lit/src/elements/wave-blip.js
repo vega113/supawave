@@ -531,28 +531,28 @@ export class WaveBlip extends LitElement {
         <div class="body">
           <slot></slot>
           ${chip}
-          <div class="toolbar" data-blip-toolbar-row="true">
-            <wave-blip-toolbar
+        </div>
+        <div class="toolbar" data-blip-toolbar-row="true">
+          <wave-blip-toolbar
+            data-blip-id=${this.blipId}
+            data-wave-id=${this.waveId}
+            data-variant=${this.focused ? "focused" : "default"}
+            @wave-blip-toolbar-reply=${this._onReplyClick}
+            @wave-blip-toolbar-edit=${this._onEditClick}
+            @wave-blip-toolbar-link=${this._onLinkClick}
+            @wave-blip-toolbar-delete=${this._onDeleteClick}
+          ></wave-blip-toolbar>
+          <span class="task-affordance-slot" data-task-affordance-slot>
+            <wavy-task-affordance
               data-blip-id=${this.blipId}
               data-wave-id=${this.waveId}
-              data-variant=${this.focused ? "focused" : "default"}
-              @wave-blip-toolbar-reply=${this._onReplyClick}
-              @wave-blip-toolbar-edit=${this._onEditClick}
-              @wave-blip-toolbar-link=${this._onLinkClick}
-              @wave-blip-toolbar-delete=${this._onDeleteClick}
-            ></wave-blip-toolbar>
-            <span class="task-affordance-slot" data-task-affordance-slot>
-              <wavy-task-affordance
-                data-blip-id=${this.blipId}
-                data-wave-id=${this.waveId}
-                ?data-task-completed=${this.taskCompleted}
-                data-task-assignee=${this.taskAssignee || ""}
-                data-task-due-date=${this.taskDueDate || ""}
-                .participants=${this._participants}
-                @wave-blip-task-toggled=${this._onTaskToggled}
-              ></wavy-task-affordance>
-            </span>
-          </div>
+              ?data-task-completed=${this.taskCompleted}
+              data-task-assignee=${this.taskAssignee || ""}
+              data-task-due-date=${this.taskDueDate || ""}
+              .participants=${this._participants}
+              @wave-blip-task-toggled=${this._onTaskToggled}
+            ></wavy-task-affordance>
+          </span>
         </div>
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>

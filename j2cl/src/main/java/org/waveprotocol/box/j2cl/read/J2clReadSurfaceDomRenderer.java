@@ -645,11 +645,14 @@ public final class J2clReadSurfaceDomRenderer {
               /* taskDueTimestamp= */ entry.getTaskDueTimestamp());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
       // V-4 (#1102): mark blip depth so the larger root avatar paints
-      // and the timestamp picks up the ` · root` suffix.
+      // and the timestamp picks up the ` · root` suffix. Check parent
+      // presence in winBlipHostsById to match the fallback in
+      // resolveWinThreadTarget — a blip whose parent hasn't been inserted
+      // yet will be placed at the root thread, so treat it as root.
       String winParentForDepth = blip.getParentBlipId();
-      blipElement.setAttribute(
-          "data-blip-depth",
-          (winParentForDepth == null || winParentForDepth.isEmpty()) ? "root" : "reply");
+      boolean parentPresent = winParentForDepth != null && !winParentForDepth.isEmpty()
+          && winBlipHostsById.containsKey(winParentForDepth);
+      blipElement.setAttribute("data-blip-depth", parentPresent ? "reply" : "root");
       winBlipHostsById.put(blip.getBlipId(), blipElement);
       HTMLElement blipTarget = resolveWinThreadTarget(
           blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),

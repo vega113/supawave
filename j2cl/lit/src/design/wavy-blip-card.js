@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 
 /**
  * <wavy-blip-card> — F-0 (#1035) recipe for a single blip card in the
@@ -175,7 +175,7 @@ export class WavyBlipCard extends LitElement {
     const hasHeaderText = (this.authorName || "") || (this.postedAt || "");
     const renderInternalHeader = hasHeaderText && !hasMetadataSlot;
     return html`
-      <article role="article" aria-labelledby="author">
+      <article role="article" aria-labelledby=${renderInternalHeader ? "author" : nothing}>
         ${renderInternalHeader
           ? html`<header>
               <span class="author" id="author">${this.authorName || ""}</span>

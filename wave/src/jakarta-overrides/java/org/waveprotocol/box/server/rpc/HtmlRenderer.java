@@ -3450,13 +3450,15 @@ public final class HtmlRenderer {
     appendJ2clRootShellStatsShim(sb);
     appendAnalyticsFragment(sb, analyticsAccount, null);
     sb.append("</head>\n<body class=\"j2cl-root-shell-page\">\n");
-    if (serverFirstPaintEnabled) {
-      // J-UI-8 (#1086, R-6.1): static info banner for visitors with
-      // JavaScript disabled. The <noscript> wrapper makes the entire
-      // block a no-op when JS is enabled, so flag-on with JS-on is
-      // identical to flag-off; we only ship the banner for the
-      // JS-disabled audience that R-6.1 explicitly addresses.
-      appendJ2clRootShellNoscriptBanner(sb, signedIn);
+    if (serverFirstPaintEnabled && signedIn) {
+      // J-UI-8 (#1086, R-6.1): static info banner for signed-in
+      // visitors with JavaScript disabled. The <noscript> wrapper makes
+      // the entire block a no-op when JS is enabled, so flag-on with
+      // JS-on is identical to flag-off. Signed-out users already see a
+      // sign-in CTA via the regular signed-out chrome, so they do not
+      // need the banner — keeping the signed-out experience untouched
+      // matches the plan's "signed in only" scoping.
+      appendJ2clRootShellNoscriptBanner(sb);
     }
     if (signedIn) {
       sb.append("<shell-root data-j2cl-root-shell=\"true\" data-j2cl-root-return-target=\"")
@@ -3978,11 +3980,11 @@ public final class HtmlRenderer {
           return "en"; // empty subtag / leading separator
         }
         int subtagLen = i - subtagStart;
-        if (subtagLen < 1 || subtagLen > 8) {
-          return "en";
-        }
-        // Primary subtag is letters only; secondary subtags can be
-        // alphanumeric (region codes like 419, script tags like Hans).
+        // Primary subtag is letters only and 2-3 chars; secondary
+        // subtags are alphanumeric (region codes like 419, script tags
+        // like Hans) and 2-8 chars per BCP-47. Allowing single-char
+        // trailing subtags would let things like "en-a" through, which
+        // we explicitly reject — the plan specifies the 2-8 shape.
         if (dashCount == 0) {
           if (subtagLen < 2 || subtagLen > 3) {
             return "en";
@@ -3990,8 +3992,13 @@ public final class HtmlRenderer {
           if (!isAsciiLetters(locale, subtagStart, i)) {
             return "en";
           }
-        } else if (!isAsciiAlnum(locale, subtagStart, i)) {
-          return "en";
+        } else {
+          if (subtagLen < 2 || subtagLen > 8) {
+            return "en";
+          }
+          if (!isAsciiAlnum(locale, subtagStart, i)) {
+            return "en";
+          }
         }
         subtagStart = i + 1;
         dashCount++;
@@ -4001,14 +4008,11 @@ public final class HtmlRenderer {
       }
     }
     int finalLen = len - subtagStart;
-    if (finalLen < 1 || finalLen > 8) {
-      return "en";
-    }
     if (dashCount == 0) {
       if (finalLen < 2 || finalLen > 3 || !isAsciiLetters(locale, subtagStart, len)) {
         return "en";
       }
-    } else if (!isAsciiAlnum(locale, subtagStart, len)) {
+    } else if (finalLen < 2 || finalLen > 8 || !isAsciiAlnum(locale, subtagStart, len)) {
       return "en";
     }
     // Normalize separators to '-' (BCP-47) — Java's java.util.Locale
@@ -4046,7 +4050,7 @@ public final class HtmlRenderer {
    * The banner styles are inlined inside the noscript block so they only
    * apply when the banner itself renders.
    */
-  private static void appendJ2clRootShellNoscriptBanner(StringBuilder sb, boolean signedIn) {
+  private static void appendJ2clRootShellNoscriptBanner(StringBuilder sb) {
     sb.append("<noscript>\n");
     sb.append("<style>\n");
     sb.append(".j2cl-noscript-banner {\n");
@@ -4058,11 +4062,7 @@ public final class HtmlRenderer {
     sb.append("</style>\n");
     sb.append("<div class=\"j2cl-noscript-banner\" data-j2cl-noscript-banner=\"true\" role=\"note\">\n");
     sb.append("<strong>JavaScript is disabled in this browser.</strong>\n");
-    if (signedIn) {
-      sb.append("This page is showing a static read-only snapshot of the selected wave. Compose, reactions, and live updates are unavailable until JavaScript is enabled.\n");
-    } else {
-      sb.append("Sign in to load waves; once signed in, JavaScript is required for compose, reactions, and live updates.\n");
-    }
+    sb.append("This page is showing a static read-only snapshot of the selected wave. Compose, reactions, and live updates are unavailable until JavaScript is enabled.\n");
     sb.append("</div>\n");
     sb.append("</noscript>\n");
   }

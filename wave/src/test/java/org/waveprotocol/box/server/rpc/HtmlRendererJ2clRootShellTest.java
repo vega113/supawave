@@ -379,7 +379,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         html.contains("data-j2cl-noscript-banner"));
   }
 
-  public void testNoscriptBannerCopyDiffersForSignedInVsSignedOut() {
+  public void testNoscriptBannerOnlyShipsForSignedInUsers() {
     JSONObject signedIn = new JSONObject();
     signedIn.put("address", "alice@example.com");
     JSONObject signedOut = new JSONObject();
@@ -391,8 +391,66 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         signedOut, "", "commit", 0L, "rel", "/", "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", true);
 
+    assertTrue(
+        "Signed-in flag-on shell ships the banner",
+        htmlSignedIn.contains("data-j2cl-noscript-banner=\"true\""));
     assertTrue(htmlSignedIn.contains("static read-only snapshot"));
-    assertTrue(htmlSignedOut.contains("Sign in to load waves"));
+    // Signed-out chrome already provides a sign-in CTA; the banner is
+    // signed-in only per the J-UI-8 plan to keep the signed-out
+    // experience untouched.
+    assertFalse(
+        "Signed-out flag-on shell must not ship the banner — keeps signed-out chrome unchanged",
+        htmlSignedOut.contains("data-j2cl-noscript-banner"));
+  }
+
+  // Defense-in-depth + plan compliance: secondary BCP-47 subtags must be
+  // 2-8 chars per the spec. Single-char trailing subtags ("en-a",
+  // "en-1") would still be HTML-safe but violate the contract; pin them
+  // to "en" so the SSR never produces a malformed lang attribute.
+  public void testHtmlLangRejectsSingleCharSecondarySubtag() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String htmlLetterSubtag = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en-a", false);
+    String htmlDigitSubtag = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en-1", false);
+
+    assertTrue(
+        "1-char letter secondary subtag must clamp to en",
+        htmlLetterSubtag.contains("<html lang=\"en\">"));
+    assertTrue(
+        "1-char digit secondary subtag must clamp to en",
+        htmlDigitSubtag.contains("<html lang=\"en\">"));
+  }
+
+  public void testHtmlLangAcceptsLongerRegionSubtag() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    // 3-digit region code (UN M.49) — valid BCP-47, must round-trip.
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "es-419", false);
+
+    assertTrue(
+        "3-digit region code must round-trip",
+        html.contains("<html lang=\"es-419\">"));
+  }
+
+  public void testHtmlLangAcceptsScriptSubtag() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-Hans-CN", false);
+
+    assertTrue(
+        "BCP-47 script + region chain must round-trip",
+        html.contains("<html lang=\"zh-Hans-CN\">"));
   }
 
   // J-UI-8 (#1086, R-6.1): the snapshot HTML must land inside

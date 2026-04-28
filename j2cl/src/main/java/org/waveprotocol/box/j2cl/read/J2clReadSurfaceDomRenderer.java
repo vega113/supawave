@@ -551,6 +551,12 @@ public final class J2clReadSurfaceDomRenderer {
             phParent, phThread, rootThread,
             winBlipHostsById, winThreadHostsByKey, winLastThreadHostByParent);
         placeholderTarget.appendChild(placeholderEl);
+        // Index the placeholder host so subsequent entries in the same
+        // window that have this blip as their parent can resolve it via
+        // resolveWinThreadTarget rather than falling back to rootThread.
+        if (!entry.getBlipId().isEmpty()) {
+          winBlipHostsById.put(entry.getBlipId(), placeholderEl);
+        }
         continue;
       }
       // J-UI-4 (#1082, R-3.1): prefer the entry's own parent /

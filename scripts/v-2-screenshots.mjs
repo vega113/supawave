@@ -108,6 +108,11 @@ console.log("saved", htmlOut);
 if (debugOverlay) {
   await page.evaluate(() => {
     document.body.classList.add("j2cl-debug-overlay-on");
+    // Composers read body class once in connectedCallback; explicitly push the
+    // flag to any already-mounted instances so overlay-on artifacts are faithful.
+    for (const el of document.querySelectorAll("wavy-composer, composer-inline-reply")) {
+      el.debugOverlay = true;
+    }
   });
   await page.waitForTimeout(500);
   const overlay = path.join(outDir, `${tag}-debug-on.png`);

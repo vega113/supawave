@@ -77,8 +77,9 @@ export class ComposerInlineReply extends LitElement {
     this.addEventListener("composer-focus-request", this._handleFocusRequest);
     // V-2 (#1100): default the debug-overlay property from the body
     // class set by HtmlRenderer. Page-load value is stable, so a
-    // single read here is sufficient. Tests set the property directly.
-    if (!this.hasAttribute("debug-overlay")) {
+    // single read here is sufficient. Skip if already set programmatically
+    // (property would be true) so a pre-connect assignment isn't clobbered.
+    if (!this.hasAttribute("debug-overlay") && this.debugOverlay === false) {
       this.debugOverlay = !!(
         typeof document !== "undefined" &&
         document.body &&

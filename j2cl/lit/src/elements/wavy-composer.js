@@ -482,9 +482,10 @@ export class WavyComposer extends LitElement {
     document.addEventListener("selectionchange", this._handleSelectionChange);
     // V-2 (#1100): default debugOverlay from the body class set by
     // HtmlRenderer when j2cl-debug-overlay is on. Body-class is page-
-    // load-stable, so a single read at connect is sufficient. Tests set
-    // the property directly to exercise both branches.
-    if (!this.hasAttribute("debug-overlay")) {
+    // load-stable, so a single read at connect is sufficient. Skip if
+    // already set programmatically (true) so a pre-connect assignment
+    // isn't clobbered when the attribute is absent.
+    if (!this.hasAttribute("debug-overlay") && this.debugOverlay === false) {
       this.debugOverlay = !!(
         typeof document !== "undefined" &&
         document.body &&

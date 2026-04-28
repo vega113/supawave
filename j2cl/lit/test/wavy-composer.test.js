@@ -59,13 +59,19 @@ describe("<wavy-composer>", () => {
 
   // V-2 (#1100): "Reply target: <id>" paragraph is dev-only.
   it("hides the reply-target paragraph when debugOverlay is off (V-2)", async () => {
-    const el = await fixture(html`
-      <wavy-composer available reply-target-blip-id="b42" target-label="Root blip"></wavy-composer>
-    `);
-    expect(el.debugOverlay).to.equal(false);
-    const targets = Array.from(el.renderRoot.querySelectorAll("p.target"));
-    const replyParagraphs = targets.filter((p) => p.textContent.startsWith("Reply target:"));
-    expect(replyParagraphs.length).to.equal(0);
+    const hadDebugClass = document.body.classList.contains("j2cl-debug-overlay-on");
+    document.body.classList.remove("j2cl-debug-overlay-on");
+    try {
+      const el = await fixture(html`
+        <wavy-composer available reply-target-blip-id="b42" target-label="Root blip"></wavy-composer>
+      `);
+      expect(el.debugOverlay).to.equal(false);
+      const targets = Array.from(el.renderRoot.querySelectorAll("p.target"));
+      const replyParagraphs = targets.filter((p) => p.textContent.startsWith("Reply target:"));
+      expect(replyParagraphs.length).to.equal(0);
+    } finally {
+      if (hadDebugClass) document.body.classList.add("j2cl-debug-overlay-on");
+    }
   });
 
   it("renders the reply-target paragraph when debugOverlay is on (V-2)", async () => {

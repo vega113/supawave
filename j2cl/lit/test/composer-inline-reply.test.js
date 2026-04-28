@@ -22,12 +22,18 @@ describe("<composer-inline-reply>", () => {
 
   // V-2 (#1100): the "Reply target: <id>" line is dev-only.
   it("hides the reply-target paragraph when debugOverlay is off (V-2)", async () => {
-    const el = await fixture(html`
-      <composer-inline-reply target-label="Root blip"></composer-inline-reply>
-    `);
-    expect(el.debugOverlay).to.equal(false);
-    expect(el.renderRoot.textContent).to.not.include("Reply target:");
-    expect(el.renderRoot.textContent).to.not.include("Root blip");
+    const hadDebugClass = document.body.classList.contains("j2cl-debug-overlay-on");
+    document.body.classList.remove("j2cl-debug-overlay-on");
+    try {
+      const el = await fixture(html`
+        <composer-inline-reply target-label="Root blip"></composer-inline-reply>
+      `);
+      expect(el.debugOverlay).to.equal(false);
+      expect(el.renderRoot.textContent).to.not.include("Reply target:");
+      expect(el.renderRoot.textContent).to.not.include("Root blip");
+    } finally {
+      if (hadDebugClass) document.body.classList.add("j2cl-debug-overlay-on");
+    }
   });
 
   it("renders the reply-target paragraph when debugOverlay is on (V-2)", async () => {

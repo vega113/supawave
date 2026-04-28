@@ -1,5 +1,6 @@
 package org.waveprotocol.box.j2cl.richtext;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
@@ -738,15 +739,33 @@ public final class J2clRichContentDeltaFactory {
             appendComponentSeparator(components);
             appendAnnotationEnd(components, component.annotationKey);
           } else {
+            // Codex review #1095 thread PRRT_kwDOBwxLXs5-F-8o: collapse
+            // duplicate annotation keys before emitting boundaries —
+            // nested formatting that re-uses the same key (e.g.
+            // `<u>under <s>strike-through</s></u>` produces two
+            // `textDecoration` entries with different values) would
+            // otherwise emit two `annotation_start` ops with the same
+            // key, and the wave-doc reader's "later wins" rule drops
+            // one of the values on submit/reload. The last-wins
+            // policy here mirrors the reader so the surviving value
+            // is the same one the read codec would render.
+            java.util.LinkedHashMap<String, J2clComposerDocument.Annotation> dedup =
+                new java.util.LinkedHashMap<String, J2clComposerDocument.Annotation>();
             for (J2clComposerDocument.Annotation ann : anns) {
+              dedup.remove(ann.key);
+              dedup.put(ann.key, ann);
+            }
+            List<J2clComposerDocument.Annotation> uniqueAnns =
+                new ArrayList<J2clComposerDocument.Annotation>(dedup.values());
+            for (J2clComposerDocument.Annotation ann : uniqueAnns) {
               appendComponentSeparator(components);
               appendAnnotationStart(components, ann.key, ann.value);
             }
             appendComponentSeparator(components);
             appendCharacters(components, component.text);
-            for (int i = anns.size() - 1; i >= 0; i--) {
+            for (int i = uniqueAnns.size() - 1; i >= 0; i--) {
               appendComponentSeparator(components);
-              appendAnnotationEnd(components, anns.get(i).key);
+              appendAnnotationEnd(components, uniqueAnns.get(i).key);
             }
           }
           break;

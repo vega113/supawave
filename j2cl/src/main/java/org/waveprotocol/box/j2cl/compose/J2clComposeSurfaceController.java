@@ -2462,10 +2462,16 @@ public final class J2clComposeSurfaceController {
     // state; sign-out and wave-change resets must drop them so a
     // mention picked on wave A cannot leak into a reply on wave B.
     pendingMentions.clear();
-    // J-UI-5 (#1083): same rule for the inline composer's structured
-    // component list — clear on wave change so formatting from wave A
-    // cannot leak into wave B.
-    pendingSubmittedComponents = null;
+    // J-UI-5 (#1083, coderabbit thread PRRT_kwDOBwxLXs5-Gun6): the
+    // structured component list mirrors the same lifecycle as the
+    // reply draft — when `onWriteSessionChanged` decides to PRESERVE
+    // a stale draft so the user can review/retry it, the components
+    // snapshot must also survive so the retry does not silently
+    // downgrade rich text to plain. Clear only when the draft was
+    // also cleared (or never existed).
+    if (isEmpty(replyDraft)) {
+      pendingSubmittedComponents = null;
+    }
     // F-3.S3 (#1038, R-5.5): same rule for reaction snapshots — wave
     // change drops the prior wave's per-blip reaction state.
     reactionSnapshotsByBlip.clear();

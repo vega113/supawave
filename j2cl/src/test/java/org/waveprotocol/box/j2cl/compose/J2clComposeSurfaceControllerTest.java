@@ -3925,6 +3925,105 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertTrue("bold closes before italic (well-nested)", boldEnd < italicEnd);
   }
 
+  // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-F-8o):
+  // multi-annotation runs that re-use the same key (e.g. nested
+  // `<u><s>x</s></u>` produces two `textDecoration` entries with
+  // different values: `underline` then `line-through`) must collapse
+  // to one start/end pair so the wave-doc reader's "later wins" rule
+  // does not silently drop one of the values.
+  @Test
+  public void onReplySubmittedWithComponentsCollapsesDuplicateAnnotationKeys() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> {},
+            waveId -> {});
+    controller.start();
+    openWaveForReply(controller);
+
+    List<J2clComposeSurfaceController.SubmittedComponent.Annotation> ann = new ArrayList<>();
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "textDecoration", "underline"));
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "textDecoration", "line-through"));
+    List<J2clComposeSurfaceController.SubmittedComponent> components = new ArrayList<>();
+    components.add(
+        J2clComposeSurfaceController.SubmittedComponent.annotatedMulti("decorated", ann));
+
+    controller.onReplySubmittedWithComponents(components);
+
+    String delta = gateway.lastSubmitRequest.getDeltaJson();
+    int firstStart = delta.indexOf("\"1\":\"textDecoration\",\"3\":\"underline\"");
+    int secondStart = delta.indexOf("\"1\":\"textDecoration\",\"3\":\"line-through\"");
+    int decorationCloses = delta.split("\\[\"textDecoration\"\\]", -1).length - 1;
+    // Last-wins: the `line-through` value survives; the `underline`
+    // duplicate is dropped before boundary emission.
+    Assert.assertEquals(
+        "no duplicate underline start emitted",
+        -1,
+        firstStart);
+    Assert.assertTrue(
+        "the surviving textDecoration value reaches the delta",
+        secondStart >= 0);
+    Assert.assertEquals(
+        "exactly one textDecoration close emitted",
+        1,
+        decorationCloses);
+  }
+
+  // J-UI-5 (#1083, coderabbit thread PRRT_kwDOBwxLXs5-Gun6): when
+  // `onWriteSessionChanged` preserves a stale reply draft so the user
+  // can review/retry, the inline-composer component snapshot MUST
+  // also survive — otherwise the retry silently downgrades rich text
+  // to plain.
+  @Test
+  public void componentSnapshotSurvivesStaleDraftPreservation() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> {},
+            waveId -> {});
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+
+    List<J2clComposeSurfaceController.SubmittedComponent> richComponents = new ArrayList<>();
+    richComponents.add(
+        J2clComposeSurfaceController.SubmittedComponent.annotated(
+            "bold-bit", "fontWeight", "bold"));
+    controller.onReplySubmittedWithComponents(richComponents);
+
+    // Same wave, different basis ⇒ stale-basis path; replyDraft stays.
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-2", 45L, "BCDE", "b+root"));
+
+    Assert.assertEquals("Draft preserved", "bold-bit", view.model.getReplyDraft());
+    Assert.assertTrue("Draft is stale", view.model.isReplyStaleBasis());
+
+    // Resolve the in-flight bootstrap — the originally pending submit
+    // surfaces the stale-basis error rather than completing. Now the
+    // user retries, and the rich annotation must still go through.
+    gateway.resolveBootstrap();
+    gateway.lastSubmitRequest = null;
+    controller.onReplySubmitted("bold-bit");
+
+    Assert.assertNotNull("retry submitted a delta", gateway.lastSubmitRequest);
+    Assert.assertTrue(
+        "retry preserves the bold annotation across the stale-draft transition",
+        gateway.lastSubmitRequest.getDeltaJson().contains("fontWeight"));
+  }
+
   // J-UI-5 (#1083): an annotated component whose text is whitespace-only
   // (a common user flow: bolding a word together with its trailing
   // space) must not throw; the controller downgrades it to a plain

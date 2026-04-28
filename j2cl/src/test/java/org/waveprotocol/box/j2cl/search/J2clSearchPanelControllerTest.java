@@ -624,6 +624,149 @@ public class J2clSearchPanelControllerTest {
         view.lastModel.findDigestItem("example.com/w+stuck"));
   }
 
+  // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-CM-e: rapid back-to-
+  // back creates each get their own pending entry; the second submit must
+  // not erase the first stub. Both stubs stay visible until the server
+  // refresh confirms each one independently.
+  @Test
+  public void backToBackCreatesPreserveAllPendingOptimisticStubs() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Existing",
+                    "Snippet",
+                    "example.com/w+existing",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    controller.onOptimisticDigest("example.com/w+first", "First wave");
+    controller.onOptimisticDigest("example.com/w+second", "Second wave");
+
+    Assert.assertNotNull(
+        "first stub must survive a subsequent create",
+        view.lastModel.findDigestItem("example.com/w+first"));
+    Assert.assertNotNull(
+        "second stub must be present alongside the first",
+        view.lastModel.findDigestItem("example.com/w+second"));
+    // Most-recent submission renders first.
+    Assert.assertEquals(
+        "example.com/w+second",
+        view.lastModel.getDigestItems().get(0).getWaveId());
+  }
+
+  // J-UI-3 — codex P2 PRRT_kwDOBwxLXs5-CU22: a stub created under one query
+  // must not be injected into an unrelated rail when the user navigates to
+  // a different query before indexing catches up.
+  @Test
+  public void optimisticStubScopedToActiveQueryDoesNotLeakAcrossRails() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Inbox wave",
+                    "Snippet",
+                    "example.com/w+inbox",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+    controller.onOptimisticDigest("example.com/w+pending", "Pending wave");
+    Assert.assertNotNull(view.lastModel.findDigestItem("example.com/w+pending"));
+
+    // User changes rail to a narrower query before indexing catches up.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Mention",
+            "Snippet",
+            "example.com/w+mention",
+            2L,
+            0,
+            1,
+            Collections.singletonList("user@example.com"),
+            "user@example.com",
+            false));
+    controller.onQuerySubmitted("with:@me");
+
+    Assert.assertNull(
+        "pending stub from in:inbox must not appear in with:@me rail",
+        view.lastModel.findDigestItem("example.com/w+pending"));
+
+    // Navigating back to the original query brings the stub back.
+    gateway.response = responseWithDigests(
+        new SidecarSearchResponse.Digest(
+            "Inbox wave",
+            "Snippet",
+            "example.com/w+inbox",
+            1L,
+            0,
+            1,
+            Collections.singletonList("user@example.com"),
+            "user@example.com",
+            false));
+    controller.onQuerySubmitted("in:inbox");
+
+    Assert.assertNotNull(
+        "pending stub reappears once the user navigates back to its query",
+        view.lastModel.findDigestItem("example.com/w+pending"));
+  }
+
+  // J-UI-3 — codex P2 PRRT_kwDOBwxLXs5-CU24: a transient gateway error
+  // right after onOptimisticDigest must not wipe the just-created wave
+  // from the rail. The error path re-applies the optimistic stub onto an
+  // empty model so the user keeps seeing their wave.
+  @Test
+  public void refreshErrorPreservesOptimisticStub() {
+    FakeGateway gateway =
+        new FakeGateway(
+            responseWithDigests(
+                new SidecarSearchResponse.Digest(
+                    "Other",
+                    "Snippet",
+                    "example.com/w+other",
+                    1L,
+                    0,
+                    1,
+                    Collections.singletonList("user@example.com"),
+                    "user@example.com",
+                    false)));
+    FakeView view = new FakeView();
+    FakeOptimisticScheduler scheduler = new FakeOptimisticScheduler();
+    J2clSearchPanelController controller =
+        new J2clSearchPanelController(
+            gateway, view, (state, digestItem, userNavigation) -> { }, 1200, scheduler);
+    controller.start("in:inbox", null);
+
+    // Next gateway call will fail.
+    gateway.error = "search-cluster timeout";
+    controller.onOptimisticDigest("example.com/w+resilient", "Survives outage");
+
+    Assert.assertNotNull(
+        "stub must survive a transient refresh failure",
+        view.lastModel.findDigestItem("example.com/w+resilient"));
+    Assert.assertEquals(
+        "example.com/w+resilient",
+        view.lastModel.getDigestItems().get(0).getWaveId());
+  }
+
   // J-UI-3: refreshSearch is idempotent and re-issues the active query
   // without resetting selection or page size.
   @Test
@@ -654,12 +797,15 @@ public class J2clSearchPanelControllerTest {
     Assert.assertEquals(issuedAfterStart + 1, gateway.searchCallCount);
   }
 
-  // J-UI-3 (#1081, R-5.1): captures the stuck-stub timeout runnable so the
-  // test can drive it deterministically without sleeping. fire() runs the
-  // most recently scheduled runnable (there is only ever one outstanding
-  // per onOptimisticDigest call). cancel() removes a pending runnable.
+  // J-UI-3 (#1081, R-5.1): captures the stuck-stub timeout runnables so
+  // tests can drive them deterministically without sleeping. Supports
+  // multiple concurrent schedules (one per pending optimistic stub) so the
+  // multi-stub path can be exercised. fire() runs the most-recently
+  // scheduled runnable; fireAll() drains the queue.
   private static final class FakeOptimisticScheduler
       implements J2clSearchPanelController.OptimisticScheduler {
+    private final java.util.LinkedHashMap<Object, Runnable> pendingByHandle =
+        new java.util.LinkedHashMap<Object, Runnable>();
     private Runnable pending;
     private Object pendingHandle;
     private int lastDelayMs = -1;
@@ -670,12 +816,14 @@ public class J2clSearchPanelControllerTest {
       this.lastDelayMs = delayMs;
       this.pending = action;
       this.pendingHandle = new Object();
+      pendingByHandle.put(pendingHandle, action);
       return pendingHandle;
     }
 
     @Override
     public void cancel(Object handle) {
       cancelCallCount++;
+      pendingByHandle.remove(handle);
       if (handle != null && handle == pendingHandle) {
         pending = null;
         pendingHandle = null;
@@ -684,11 +832,28 @@ public class J2clSearchPanelControllerTest {
 
     void fire() {
       Runnable next = pending;
+      if (pendingHandle != null) {
+        pendingByHandle.remove(pendingHandle);
+      }
       pending = null;
       pendingHandle = null;
       if (next != null) {
         next.run();
       }
+    }
+
+    void fireAll() {
+      java.util.List<Runnable> snapshot = new java.util.ArrayList<>(pendingByHandle.values());
+      pendingByHandle.clear();
+      pending = null;
+      pendingHandle = null;
+      for (Runnable r : snapshot) {
+        r.run();
+      }
+    }
+
+    int pendingCount() {
+      return pendingByHandle.size();
     }
   }
 

@@ -1,6 +1,11 @@
 package org.waveprotocol.box.j2cl.search;
 
 import elemental2.dom.DomGlobal;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
 
 public final class J2clSearchPanelController
@@ -87,14 +92,31 @@ public final class J2clSearchPanelController
   private J2clSearchResultModel lastModel = J2clSearchResultModel.empty("Search results will appear here.");
   // J-UI-3 (#1081, R-5.1): optimistic-prepend bookkeeping. After a successful
   // create the controller stores a stub digest here so the rail shows the new
-  // wave immediately while the server search index catches up. The stub is
+  // wave immediately while the server search index catches up. Each stub is
   // dropped once a refresh response includes the matching waveId, or after
   // OPTIMISTIC_TIMEOUT_MS to bound a stuck stub if the index never returns
-  // it.
-  private J2clSearchDigestItem optimisticStub;
-  private int optimisticGeneration;
-  private Object optimisticTimeoutHandle;
+  // it. The map is keyed by waveId so back-to-back creates each get their own
+  // entry (no overwrite), and each stub is scoped to the query active at
+  // submit time so it only renders into the rail it was created for.
+  private final Map<String, PendingStub> pendingStubs = new LinkedHashMap<>();
   private final OptimisticScheduler optimisticScheduler;
+
+  /**
+   * J-UI-3 (#1081, R-5.1): one per outstanding optimistic create. Holds the
+   * stub digest, the query active when the create was submitted (so the
+   * stub does not leak into unrelated rails), and the cancellable timeout
+   * handle that retires the stub if the server never indexes the wave.
+   */
+  private static final class PendingStub {
+    final J2clSearchDigestItem digest;
+    final String query;
+    Object timeoutHandle;
+
+    PendingStub(J2clSearchDigestItem digest, String query) {
+      this.digest = digest;
+      this.query = query;
+    }
+  }
   // J-UI-3 (#1081): bound on a stuck optimistic stub. Set to 30s so the
   // race "timeout fires before slow gateway response arrives" is rare in
   // practice (Lucene refresh interval is typically <2s; 30s is well past
@@ -275,11 +297,11 @@ public final class J2clSearchPanelController
             return;
           }
           J2clSearchResultModel projected = J2clSearchResultProjector.project(response, numResults);
-          // J-UI-3 (#1081, R-5.1): if the just-created wave is still missing
-          // from the server response, keep the optimistic stub at the top of
+          // J-UI-3 (#1081, R-5.1): if any just-created wave is still missing
+          // from the server response, keep its optimistic stub at the top of
           // the rail; otherwise drop the stub now that the real digest is
           // present.
-          lastModel = applyOptimisticStub(projected);
+          lastModel = applyOptimisticStubs(projected);
           view.render(lastModel);
           view.setSelectedWaveId(selectedWaveId);
           if (selectedWaveId != null) {
@@ -292,7 +314,13 @@ public final class J2clSearchPanelController
           if (generation != requestGeneration) {
             return;
           }
-          lastModel = J2clSearchResultModel.empty("Unable to load search results.");
+          // J-UI-3 (#1081, R-5.1): preserve outstanding optimistic stubs on
+          // a transient gateway failure so a wave the user just created does
+          // not vanish from the rail when the search index is briefly
+          // unreachable. The empty model is what we'd render without stubs;
+          // re-applying stubs prepends any waves we know are pending.
+          J2clSearchResultModel base = J2clSearchResultModel.empty("Unable to load search results.");
+          lastModel = applyOptimisticStubs(base);
           view.render(lastModel);
           view.setSelectedWaveId(selectedWaveId);
           view.setStatus("Search request failed: " + error, true);
@@ -317,6 +345,12 @@ public final class J2clSearchPanelController
    * {@link #OPTIMISTIC_TIMEOUT_MS}, whichever comes first. {@code title}
    * is what the user typed; the stub author is left empty since we do not
    * yet know the bootstrap address at this site.
+   *
+   * <p>Multiple back-to-back creates each get their own pending entry so a
+   * second submit before indexing catches up does not erase the first
+   * (codex review thread on PR #1090). Each stub is scoped to the query
+   * active at submit time, so changing the rail query hides the stub from
+   * unrelated result sets and brings it back when the user navigates back.
    */
   public void onOptimisticDigest(String waveId, String title) {
     if (waveId == null || waveId.isEmpty()) {
@@ -325,27 +359,27 @@ public final class J2clSearchPanelController
     String safeTitle = (title == null || title.isEmpty()) ? "(untitled wave)" : title;
     String safeSnippet = "";
     long now = System.currentTimeMillis();
-    optimisticStub =
+    J2clSearchDigestItem stub =
         new J2clSearchDigestItem(waveId, safeTitle, safeSnippet, "", 0, 1, now, false);
-    final int generation = ++optimisticGeneration;
-    if (optimisticTimeoutHandle != null) {
-      optimisticScheduler.cancel(optimisticTimeoutHandle);
-      optimisticTimeoutHandle = null;
+    PendingStub previous = pendingStubs.remove(waveId);
+    if (previous != null && previous.timeoutHandle != null) {
+      optimisticScheduler.cancel(previous.timeoutHandle);
     }
-    lastModel = lastModel.withPrependedDigest(optimisticStub);
+    final PendingStub pending = new PendingStub(stub, currentQuery);
+    pendingStubs.put(waveId, pending);
+    lastModel = lastModel.withPrependedDigest(stub);
     view.render(lastModel);
     // Schedule the stuck-stub bound BEFORE issuing requestSearch so a
     // synchronous response callback (in tests, or a hot-cache server) can
-    // cancel the timeout via applyOptimisticStub instead of stranding it.
-    optimisticTimeoutHandle =
+    // cancel the timeout via applyOptimisticStubs instead of stranding it.
+    pending.timeoutHandle =
         optimisticScheduler.scheduleTimeout(
             OPTIMISTIC_TIMEOUT_MS,
             () -> {
-              optimisticTimeoutHandle = null;
-              if (generation == optimisticGeneration && optimisticStub != null) {
-                String stuckId = optimisticStub.getWaveId();
-                optimisticStub = null;
-                lastModel = lastModel.withoutDigest(stuckId);
+              PendingStub stillPending = pendingStubs.get(waveId);
+              if (stillPending == pending) {
+                pendingStubs.remove(waveId);
+                lastModel = lastModel.withoutDigest(waveId);
                 view.render(lastModel);
               }
             });
@@ -353,26 +387,44 @@ public final class J2clSearchPanelController
   }
 
   /**
-   * Returns {@code projected} with the optimistic stub re-applied if the
-   * server response did not include the matching waveId. Clears the stub
-   * when the response already lists the new wave.
+   * Returns {@code projected} with all outstanding optimistic stubs
+   * reconciled: stubs whose waveId is now present in the server response
+   * are dropped and their timeouts cancelled (the real digest wins);
+   * stubs whose waveId is still missing are kept prepended on the rail
+   * IF they were submitted under the active query; stubs from a different
+   * query are skipped here but remain in the pending map so they
+   * reappear when the user navigates back to that query.
    */
-  private J2clSearchResultModel applyOptimisticStub(J2clSearchResultModel projected) {
-    if (optimisticStub == null) {
+  private J2clSearchResultModel applyOptimisticStubs(J2clSearchResultModel projected) {
+    if (pendingStubs.isEmpty()) {
       return projected;
     }
-    String stubId = optimisticStub.getWaveId();
-    if (projected.containsWave(stubId)) {
-      optimisticStub = null;
-      // The server confirmed the new wave is indexed; cancel the stuck-stub
-      // timeout so the rail does not flicker if the timer fires later.
-      if (optimisticTimeoutHandle != null) {
-        optimisticScheduler.cancel(optimisticTimeoutHandle);
-        optimisticTimeoutHandle = null;
+    Iterator<Map.Entry<String, PendingStub>> iter = pendingStubs.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry<String, PendingStub> entry = iter.next();
+      PendingStub pending = entry.getValue();
+      if (projected.containsWave(pending.digest.getWaveId())) {
+        if (pending.timeoutHandle != null) {
+          optimisticScheduler.cancel(pending.timeoutHandle);
+        }
+        iter.remove();
       }
+    }
+    if (pendingStubs.isEmpty()) {
       return projected;
     }
-    return projected.withPrependedDigest(optimisticStub);
+    // Walk the LinkedHashMap in insertion order and prepend each stub. Each
+    // prepend pushes the previously-prepended item down by one row, so the
+    // last (most-recent) submission ends up at the top of the rail.
+    J2clSearchResultModel result = projected;
+    for (PendingStub pending : pendingStubs.values()) {
+      if (pending.query == null
+          ? currentQuery == null
+          : pending.query.equals(currentQuery)) {
+        result = result.withPrependedDigest(pending.digest);
+      }
+    }
+    return result;
   }
 
   private void clearSelection(boolean userNavigation) {

@@ -92,6 +92,23 @@
   --wavy-toolbar-tile-active-bg: var(--wavy-signal-cyan);
   --wavy-toolbar-tile-active-fg: #0b1320;
   --wavy-toolbar-tile-hover-bg: rgba(255, 255, 255, 0.08);
+
+  /* V-5 (#1103) — density tokens for 01-shell-inbox-with-waves.svg.
+   * Mockup measurements at 1440×900: rail 296 px (20.5%), search-result
+   * panel 448 px, wave panel 696 px; digest cards 92–120 px tall with
+   * 16 px internal padding and 16 px stack gap. The Lit shell collapses
+   * the rail+search-result panel into one column today, so the rail
+   * here covers the visible nav strip and the wave panel takes the
+   * rest. Pane gutter shrinks the inner inset of the wave-panel
+   * surface to remove the V-1 top-of-pane gap. */
+  --wavy-rail-width-min: 248px;
+  --wavy-rail-width-max: 280px;
+  --wavy-pane-gutter-y: 12px;
+  --wavy-pane-gutter-x: 20px;
+  --wavy-rail-card-padding-y: var(--wavy-spacing-3, 12px);
+  --wavy-rail-card-padding-x: var(--wavy-spacing-4, 16px);
+  --wavy-rail-card-gap: var(--wavy-spacing-3, 12px);
+  --wavy-rail-card-snippet-mb: var(--wavy-spacing-1, 4px);
 }
 
 /* Light variant — applies under prefers-color-scheme: light unless an

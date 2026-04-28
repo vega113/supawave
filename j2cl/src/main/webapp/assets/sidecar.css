@@ -161,13 +161,20 @@ body {
  * the shell's flat main region, so the rounded-card chrome on the
  * selected card creates redundant nesting. Drop the card chrome there
  * and let the wave panel breathe with simple padding — the inner blip
- * cards keep their own surfaces. */
+ * cards keep their own surfaces.
+ *
+ * V-5 (#1103): the V-1 24 px symmetric inset left a perceptible top
+ * gap between the 64 px header bar and the first row of wave content
+ * (e.g. "OPENED WAVE"). The pane-gutter tokens from wavy-tokens.css
+ * tighten the top inset to 12 px and keep 20 px on the sides so the
+ * wave panel widens visibly without cropping. */
 [data-j2cl-server-first-workflow="true"] .sidecar-selected-card {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  padding: 24px;
+  padding: var(--wavy-pane-gutter-y, 12px) var(--wavy-pane-gutter-x, 20px)
+    var(--wavy-pane-gutter-x, 20px);
 }
 
 .sidecar-selected-title {

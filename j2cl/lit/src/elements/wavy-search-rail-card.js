@@ -68,8 +68,14 @@ export class WavySearchRailCard extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      padding: var(--wavy-spacing-3, 12px);
-      margin-bottom: var(--wavy-spacing-2, 8px);
+      /* V-5 (#1103): density-tunable padding + stack gap so digest cards
+       * land in the 92-120 px range from 01-shell-inbox-with-waves.svg.
+       * Falls back to the prior --wavy-spacing-3 / --wavy-spacing-2
+       * values when the V-5 tokens are absent so older callers keep
+       * their padding. */
+      padding: var(--wavy-rail-card-padding-y, var(--wavy-spacing-3, 12px))
+        var(--wavy-rail-card-padding-x, var(--wavy-spacing-3, 12px));
+      margin-bottom: var(--wavy-rail-card-gap, var(--wavy-spacing-2, 8px));
       background: var(--wavy-bg-surface, #11192a);
       color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
       border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
@@ -130,7 +136,7 @@ export class WavySearchRailCard extends LitElement {
       color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
     }
     p.snippet {
-      margin: 0 0 var(--wavy-spacing-2, 8px);
+      margin: 0 0 var(--wavy-rail-card-snippet-mb, var(--wavy-spacing-2, 8px));
       font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
       display: -webkit-box;

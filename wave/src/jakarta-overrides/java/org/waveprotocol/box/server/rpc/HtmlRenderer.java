@@ -3329,13 +3329,38 @@ public final class HtmlRenderer {
         currentReleaseId,
         rootShellReturnTarget,
         websocketAddress,
-        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave());
+        J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false);
   }
 
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
       String rootShellReturnTarget, String websocketAddress,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult) {
+    return renderJ2clRootShellPage(
+        sessionJson,
+        analyticsAccount,
+        buildCommit,
+        serverBuildTime,
+        currentReleaseId,
+        rootShellReturnTarget,
+        websocketAddress,
+        snapshotResult,
+        false);
+  }
+
+  /**
+   * J-UI-1 (#1079): full overload that surfaces the
+   * {@code j2cl-search-rail-cards} flag value to the SSR so the
+   * {@code <wavy-search-rail>} element carries
+   * {@code data-rail-cards-enabled="true"} when enabled. When the flag
+   * is OFF the legacy plain-DOM digest rendering path stays in place.
+   */
+  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
+      String buildCommit, long serverBuildTime, String currentReleaseId,
+      String rootShellReturnTarget, String websocketAddress,
+      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
+      boolean railCardsEnabled) {
     J2clSelectedWaveSnapshotRenderer.SnapshotResult resolvedSnapshotResult =
         snapshotResult == null
             ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
@@ -3438,7 +3463,7 @@ public final class HtmlRenderer {
       // <shell-nav-rail> wrapper is preserved so future slices can
       // co-mount additional nav-area elements alongside the rail.
       sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-      appendWavySearchRail(sb, safeInitialQuery);
+      appendWavySearchRail(sb, safeInitialQuery, railCardsEnabled);
       sb.append("  </shell-nav-rail>\n");
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
@@ -3678,7 +3703,7 @@ public final class HtmlRenderer {
         sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath);
     sb.append("  </shell-header>\n");
     sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-    appendWavySearchRail(sb, safeInitialQuery);
+    appendWavySearchRail(sb, safeInitialQuery, false);
     sb.append("  </shell-nav-rail>\n");
     appendWavySearchHelpModal(sb);
     sb.append("  <shell-main-region slot=\"main\">\n");
@@ -3962,12 +3987,22 @@ public final class HtmlRenderer {
    * existing {@code <shell-nav-rail slot="nav">} wrapper. SSR'd inner
    * light DOM covers B.1–B.12.
    */
-  private static void appendWavySearchRail(StringBuilder sb, String safeInitialQuery) {
+  private static void appendWavySearchRail(
+      StringBuilder sb, String safeInitialQuery, boolean railCardsEnabled) {
     // Derive the active folder from the initial query so the SSR folder highlight
     // matches the query pre-upgrade (mirrors WavySearchRail._deriveActiveFolder).
     String activeFolder = deriveActiveFolder(safeInitialQuery);
     sb.append("    <wavy-search-rail query=\"").append(safeInitialQuery)
-        .append("\" data-active-folder=\"").append(activeFolder).append("\" result-count=\"\">\n");
+        .append("\" data-active-folder=\"").append(activeFolder)
+        .append("\" result-count=\"\"");
+    if (railCardsEnabled) {
+      // J-UI-1 (#1079): when the flag is on the J2CL search panel projects
+      // <wavy-search-rail-card> instances into this rail's `cards` slot
+      // instead of the legacy plain-DOM digest list. The attribute is the
+      // single contract J2clSearchPanelView reads on construction.
+      sb.append(" data-rail-cards-enabled=\"true\"");
+    }
+    sb.append(">\n");
     sb.append("      <div class=\"search\">\n");
     // F-2 slice 5 (#1055, A.4): explicit width/height on the SVG element.
     // Pre-upgrade, the Lit `:host { display:block }` rule has not attached

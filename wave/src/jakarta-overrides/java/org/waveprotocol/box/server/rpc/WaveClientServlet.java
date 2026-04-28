@@ -247,6 +247,10 @@ public class WaveClientServlet extends HttpServlet {
           j2clSelectedWaveSnapshotRenderer == null
               ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
               : j2clSelectedWaveSnapshotRenderer.renderRequestedWave(request.getParameter("wave"), id);
+      // J-UI-1 (#1079): per-viewer flag gating for the new rail-card path.
+      boolean railCardsEnabled =
+          featureFlagService.isEnabled(
+              "j2cl-search-rail-cards", id != null ? id.getAddress() : null);
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setHeader("Cache-Control", "private, no-store");
@@ -263,7 +267,8 @@ public class WaveClientServlet extends HttpServlet {
             currentReleaseId,
             rootShellReturnTarget,
             resolveWebsocketAddressForPage(request, true), // codeql[java/xss]
-            snapshotResult)); // codeql[java/xss]
+            snapshotResult,
+            railCardsEnabled)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

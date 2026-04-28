@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.search;
 
 import elemental2.dom.DomGlobal;
+import elemental2.dom.Event;
 import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
@@ -8,6 +9,7 @@ import elemental2.dom.HTMLFormElement;
 import elemental2.dom.HTMLInputElement;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 
 public final class J2clSearchPanelView implements J2clSearchPanelController.View {
@@ -40,6 +42,24 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   private final HTMLButtonElement showMoreButton;
   private final HTMLElement selectedWaveHost;
   private final Map<String, J2clDigestView> digestViews = new LinkedHashMap<String, J2clDigestView>();
+  /**
+   * J-UI-1 (#1079): per-digest views when the {@code j2cl-search-rail-cards}
+   * flag is on; the legacy {@code digestViews} map stays in place for the
+   * flag-off path so the two coexist while the flag bakes.
+   */
+  private final Map<String, J2clSearchRailCardView> railCardViews =
+      new LinkedHashMap<String, J2clSearchRailCardView>();
+  /** J-UI-1 (#1079): the {@code <wavy-search-rail>} host (when adopted). */
+  private final HTMLElement searchRail;
+  /**
+   * J-UI-1 (#1079): when true, render digests as {@code <wavy-search-rail-card>}
+   * children of the rail instead of plain-DOM {@code J2clDigestView}s.
+   * Bound at construction from the SSR'd
+   * {@code data-rail-cards-enabled="true"} attribute on the rail, written
+   * by the server based on the {@code j2cl-search-rail-cards} flag value
+   * for the current viewer.
+   */
+  private final boolean railCardsEnabled;
   private J2clSearchViewListener listener;
 
   public J2clSearchPanelView(HTMLElement host) {
@@ -70,6 +90,14 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
       showMoreButton = queryRequired(card, ".sidecar-show-more");
       selectedWaveHost = J2clServerFirstRootShellDom.findSelectedWaveHost(host);
 
+      // J-UI-1 (#1079): the <wavy-search-rail> lives in the shell-root
+      // nav slot, NOT inside the workflow host. Resolve it from the
+      // document root. Absence is treated as flag-off.
+      searchRail = findRail();
+      railCardsEnabled =
+          searchRail != null
+              && "true".equals(searchRail.getAttribute("data-rail-cards-enabled"));
+
       form.onsubmit =
           event -> {
             event.preventDefault();
@@ -85,6 +113,14 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
             }
             return null;
           };
+      // J-UI-1 (#1079): wire rail-emitted events into the panel listener so
+      // user interaction with the rail's query box, saved-search folders,
+      // and refresh button drives the sidecar search controller. The rail's
+      // shadow-DOM input is the canonical query surface; the legacy
+      // .sidecar-search-input form stays in the DOM (hidden) only so the
+      // legacy queryInput.value writes from setQuery() continue to round-
+      // trip with parity tests that read the legacy attribute.
+      bindRailEventsToListener();
       return;
     }
 
@@ -189,6 +225,11 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     selectedWaveHost.className = "sidecar-selected-host";
     selectedWaveHost.setAttribute("data-j2cl-selected-wave-host", "true");
     layout.appendChild(selectedWaveHost);
+
+    // J-UI-1 (#1079): the legacy non-adopted (sidecar-only) constructor
+    // does not mount a <wavy-search-rail>; cards path stays disabled.
+    searchRail = null;
+    railCardsEnabled = false;
   }
 
   @Override
@@ -198,11 +239,16 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
   @Override
   public void setQuery(String query) {
-    if (query == null) {
-      queryInput.value = "";
-      return;
+    String safeValue = query == null ? "" : query;
+    queryInput.value = safeValue;
+    // J-UI-1 (#1079): mirror the controller's normalised query onto the
+    // rail's `query` attribute so the rail's saved-folder
+    // aria-current derivation and the input box stay in sync with the
+    // sidecar's view of the active query (matters when the controller
+    // applies normaliseQuery() that fills in the default `in:inbox`).
+    if (searchRail != null) {
+      searchRail.setAttribute("query", safeValue);
     }
-    queryInput.value = query;
   }
 
   @Override
@@ -227,7 +273,68 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
   @Override
   public void render(J2clSearchResultModel model) {
     waveCount.textContent = model.getWaveCountText();
+    if (railCardsEnabled) {
+      renderRailCards(model);
+    } else {
+      renderLegacyDigests(model);
+    }
+    showMoreButton.hidden = !model.isShowMoreVisible();
+  }
+
+  /**
+   * J-UI-1 (#1079): the new rendering path — projects each digest as a
+   * {@code <wavy-search-rail-card>} child of the {@code <wavy-search-rail>}'s
+   * {@code cards} slot. Per the project rule "no legacy fallbacks for
+   * flagged features", a missing rail with the flag on raises a status
+   * error; we do not silently fall back to the legacy plain-DOM digest list.
+   */
+  private void renderRailCards(J2clSearchResultModel model) {
+    if (searchRail == null) {
+      // The flag is on but the rail is unreachable — surface the error
+      // through the existing aria-live status slot.
+      setStatus(
+          "Search rail is unavailable; cards cannot render. Reload the page.",
+          true);
+      return;
+    }
     digestList.innerHTML = "";
+    digestList.hidden = true;
+    digestViews.clear();
+    clearRailCards();
+    railCardViews.clear();
+
+    if (model.isEmpty()) {
+      emptyState.hidden = false;
+      emptyState.textContent = model.getEmptyMessage().isEmpty()
+          ? "No waves matched this query."
+          : model.getEmptyMessage();
+      // Mirror the empty-state copy onto the rail's result-count slot so
+      // the user sees it inside the rail (the workflow card is hidden).
+      searchRail.setAttribute("result-count", emptyState.textContent);
+      return;
+    }
+    emptyState.hidden = true;
+    for (J2clSearchDigestItem item : model.getDigestItems()) {
+      if (item.getWaveId() == null) {
+        continue;
+      }
+      J2clSearchRailCardView cardView =
+          new J2clSearchRailCardView(
+              item,
+              waveId -> {
+                if (listener != null) {
+                  listener.onDigestSelected(waveId);
+                }
+              });
+      railCardViews.put(item.getWaveId(), cardView);
+      searchRail.appendChild(cardView.element());
+    }
+    searchRail.setAttribute("result-count", model.getWaveCountText());
+  }
+
+  private void renderLegacyDigests(J2clSearchResultModel model) {
+    digestList.innerHTML = "";
+    digestList.hidden = false;
     digestViews.clear();
 
     if (model.isEmpty()) {
@@ -235,31 +342,32 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
       emptyState.textContent = model.getEmptyMessage().isEmpty()
           ? "No waves matched this query."
           : model.getEmptyMessage();
-    } else {
-      emptyState.hidden = true;
-      for (J2clSearchDigestItem item : model.getDigestItems()) {
-        if (item.getWaveId() == null) {
-          continue;
-        }
-        J2clDigestView digestView =
-            new J2clDigestView(
-                item,
-                waveId -> {
-                  if (listener != null) {
-                    listener.onDigestSelected(waveId);
-                  }
-                });
-        digestViews.put(item.getWaveId(), digestView);
-        digestList.appendChild(digestView.element());
-      }
+      return;
     }
-
-    showMoreButton.hidden = !model.isShowMoreVisible();
+    emptyState.hidden = true;
+    for (J2clSearchDigestItem item : model.getDigestItems()) {
+      if (item.getWaveId() == null) {
+        continue;
+      }
+      J2clDigestView digestView =
+          new J2clDigestView(
+              item,
+              waveId -> {
+                if (listener != null) {
+                  listener.onDigestSelected(waveId);
+                }
+              });
+      digestViews.put(item.getWaveId(), digestView);
+      digestList.appendChild(digestView.element());
+    }
   }
 
   @Override
   public void setSelectedWaveId(String waveId) {
     for (Map.Entry<String, J2clDigestView> entry : digestViews.entrySet()) {
+      entry.getValue().setSelected(entry.getKey() != null && entry.getKey().equals(waveId));
+    }
+    for (Map.Entry<String, J2clSearchRailCardView> entry : railCardViews.entrySet()) {
       entry.getValue().setSelected(entry.getKey() != null && entry.getKey().equals(waveId));
     }
   }
@@ -269,11 +377,16 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
     if (waveId == null || waveId.isEmpty()) {
       return false;
     }
+    boolean updated = false;
     J2clDigestView digest = digestViews.get(waveId);
-    if (digest == null) {
-      return false;
+    if (digest != null) {
+      updated |= digest.setUnreadCount(unreadCount);
     }
-    return digest.setUnreadCount(unreadCount);
+    J2clSearchRailCardView card = railCardViews.get(waveId);
+    if (card != null) {
+      updated |= card.setUnreadCount(unreadCount);
+    }
+    return updated;
   }
 
   public HTMLElement getSelectedWaveHost() {
@@ -282,6 +395,88 @@ public final class J2clSearchPanelView implements J2clSearchPanelController.View
 
   public HTMLElement getComposeHost() {
     return composeHost;
+  }
+
+  /**
+   * J-UI-1 (#1079): looks up the {@code <wavy-search-rail>} element from
+   * the document. The rail lives in the {@code shell-root} nav slot so it
+   * is not a descendant of the workflow {@code host}. Returns {@code null}
+   * when missing (e.g. legacy view contexts that have not mounted the
+   * rail).
+   */
+  private static HTMLElement findRail() {
+    Object element = DomGlobal.document.querySelector("wavy-search-rail");
+    return element == null ? null : (HTMLElement) element;
+  }
+
+  /**
+   * J-UI-1 (#1079): removes any previously-projected
+   * {@code <wavy-search-rail-card>} children from the rail so a new render
+   * does not stack duplicates on top of the prior result set.
+   */
+  private void clearRailCards() {
+    if (searchRail == null) {
+      return;
+    }
+    elemental2.dom.NodeList<elemental2.dom.Element> existing =
+        searchRail.querySelectorAll(":scope > wavy-search-rail-card");
+    for (int i = (int) existing.length - 1; i >= 0; i--) {
+      elemental2.dom.Element child = existing.getAt(i);
+      if (child != null && child.parentNode != null) {
+        child.parentNode.removeChild(child);
+      }
+    }
+  }
+
+  /**
+   * J-UI-1 (#1079): subscribes the search panel listener to the rail's
+   * emitted events so user interaction with the rail's query box,
+   * saved-search folders, filter chips, and refresh button drives the
+   * sidecar search controller. The legacy hidden form binding stays in
+   * place so SSR-driven smoke tests and re-entrancy via setQuery
+   * continue to work.
+   */
+  private void bindRailEventsToListener() {
+    if (searchRail == null) {
+      return;
+    }
+    searchRail.addEventListener(
+        "wavy-search-submit",
+        (Event evt) -> {
+          if (listener == null) {
+            return;
+          }
+          String query = readDetailString(evt, "query");
+          listener.onQuerySubmitted(query == null ? queryInput.value : query);
+        });
+    searchRail.addEventListener(
+        "wavy-saved-search-selected",
+        (Event evt) -> {
+          if (listener == null) {
+            return;
+          }
+          String query = readDetailString(evt, "query");
+          if (query != null && !query.isEmpty()) {
+            listener.onQuerySubmitted(query);
+          }
+        });
+    searchRail.addEventListener(
+        "wavy-search-refresh-requested",
+        (Event evt) -> {
+          if (listener == null) {
+            return;
+          }
+          listener.onQuerySubmitted(queryInput.value);
+        });
+  }
+
+  private static String readDetailString(Event evt, String key) {
+    Object detail = Js.asPropertyMap(evt).get("detail");
+    if (detail == null) {
+      return null;
+    }
+    Object value = Js.asPropertyMap(detail).get(key);
+    return value == null ? null : String.valueOf(value);
   }
 
   static Copy copyFor(ShellPresentation shellPresentation) {

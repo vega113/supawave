@@ -48,7 +48,13 @@ export class WavySearchRailCard extends LitElement {
     msgCount: { type: Number, attribute: "msg-count" },
     unreadCount: { type: Number, attribute: "unread-count" },
     pinned: { type: Boolean, reflect: true },
-    authors: { type: String }
+    authors: { type: String },
+    /**
+     * J-UI-1 (#1079, R-4.5): selected card reflects aria-current="true" on
+     * its inner <article>; the host also reflects `selected` so callers
+     * can target `wavy-search-rail-card[selected]` from CSS or queries.
+     */
+    selected: { type: Boolean, reflect: true }
   };
 
   static styles = css`
@@ -68,6 +74,10 @@ export class WavySearchRailCard extends LitElement {
     :host(:hover),
     :host(:focus-within) {
       border-color: var(--wavy-signal-cyan, #22d3ee);
+    }
+    :host([selected]) {
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      background: rgba(34, 211, 238, 0.08);
     }
     .top {
       display: flex;
@@ -166,6 +176,7 @@ export class WavySearchRailCard extends LitElement {
     this.unreadCount = 0;
     this.pinned = false;
     this.authors = "";
+    this.selected = false;
   }
 
   firePulse() {
@@ -223,6 +234,7 @@ export class WavySearchRailCard extends LitElement {
         tabindex="0"
         role="article"
         aria-label=${this.title || "(no title)"}
+        aria-current=${this.selected ? "true" : "false"}
       >
         <div class="top">
           <div class="avatar-stack" aria-label="Authors">

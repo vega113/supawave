@@ -125,6 +125,16 @@ public final class J2clReadSurfaceDomRenderer {
   // mutation forced a rebuild.
   private SidecarConversationManifest renderedConversationManifest =
       SidecarConversationManifest.empty();
+  // J-UI-6 (#1084, R-5.4): per-blip optimistic toggle state set by the
+  // view's wave-blip-task-toggled body listener. The renderer applies
+  // these as overrides on top of the model's projected taskDone so a
+  // concurrent unrelated live update arriving inside the self-toggle's
+  // in-flight window does not flicker the strikethrough back to its
+  // pre-toggle state. Entries are cleared automatically when the model's
+  // projected state catches up to the optimistic value (server echo
+  // observed) so a server rejection naturally reverts the UI on the
+  // next projection.
+  private final Map<String, Boolean> optimisticTaskState = new HashMap<String, Boolean>();
 
   public J2clReadSurfaceDomRenderer(HTMLDivElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -870,9 +880,13 @@ public final class J2clReadSurfaceDomRenderer {
     // `:host([data-task-completed]) .body { …line-through; }` paints. The
     // task-affordance child element reads the same attribute on this host
     // via property binding, so its aria-checked state stays in sync after
-    // reload + live updates from other clients.
+    // reload + live updates from other clients. The applyTaskState helper
+    // also consults the optimistic-toggle registry so a self-initiated
+    // toggle that is still in flight is preserved across unrelated
+    // live updates.
     applyTaskState(
         element,
+        blip.getBlipId(),
         blip.isTaskDone(),
         blip.getTaskAssignee(),
         blip.getTaskDueTimestamp());
@@ -934,14 +948,34 @@ public final class J2clReadSurfaceDomRenderer {
    * removes the strikethrough on the next render. Without explicit clears the
    * F-2 fast-path would leave a stale attribute after the renderer reuses an
    * existing host on a partial re-render.
+   *
+   * <p>Optimistic state precedence: if the renderer has been told about a
+   * self-toggle that is still in-flight (via
+   * {@link #noteOptimisticTaskState(String, boolean)}), the optimistic value
+   * wins until the server-confirmed projection catches up. This prevents an
+   * unrelated live update from briefly reverting the strikethrough back to
+   * the pre-toggle state during the toggle's in-flight window.
    */
-  private static void applyTaskState(
+  private void applyTaskState(
       HTMLElement element,
-      boolean taskDone,
+      String blipId,
+      boolean modelTaskDone,
       String taskAssignee,
       long taskDueTimestamp) {
     if (element == null) {
       return;
+    }
+    boolean taskDone = modelTaskDone;
+    Boolean optimistic = blipId == null ? null : optimisticTaskState.get(blipId);
+    if (optimistic != null) {
+      // Server caught up — clear the optimistic override and let the model
+      // win going forward. Otherwise apply the optimistic value over the
+      // (still-stale) model snapshot.
+      if (optimistic.booleanValue() == modelTaskDone) {
+        optimisticTaskState.remove(blipId);
+      } else {
+        taskDone = optimistic.booleanValue();
+      }
     }
     if (taskDone) {
       element.setAttribute("data-task-completed", "");
@@ -960,6 +994,34 @@ public final class J2clReadSurfaceDomRenderer {
     } else {
       element.setAttribute("data-task-due-date", dueDate);
     }
+  }
+
+  /**
+   * J-UI-6 (#1084, R-5.4): record a self-initiated task toggle as the
+   * optimistic state for {@code blipId} until the server-confirmed
+   * projection agrees. Called by the view's body-level
+   * {@code wave-blip-task-toggled} listener so a same-wave update that
+   * arrives in the brief window between submit and server echo does not
+   * flicker the strikethrough.
+   *
+   * <p>Idempotent: a second call with the same value is a no-op. Setting
+   * the state explicitly to the model's already-projected value clears
+   * the entry (the optimistic intent is satisfied).
+   */
+  public void noteOptimisticTaskState(String blipId, boolean completed) {
+    if (blipId == null || blipId.isEmpty()) {
+      return;
+    }
+    optimisticTaskState.put(blipId, Boolean.valueOf(completed));
+  }
+
+  /**
+   * J-UI-6 (#1084): visible-for-test accessor for the in-flight optimistic
+   * toggle map. Consumers should treat the returned set as a read-only
+   * snapshot.
+   */
+  Map<String, Boolean> optimisticTaskStateForTest() {
+    return Collections.unmodifiableMap(optimisticTaskState);
   }
 
   /**

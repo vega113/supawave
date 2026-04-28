@@ -86,6 +86,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       configureContentList(contentList);
       readSurface = new J2clReadSurfaceDomRenderer(contentList, effectiveTelemetrySink);
       readSurface.enhanceExistingSurface();
+      bindOptimisticTaskToggleListener(contentList, readSurface);
       emptyState = queryOrCreate(existingCard, ".sidecar-empty-state", "div", "sidecar-empty-state");
       // F-2 slice 2 (#1046): mark the card as the host-binding target for
       // the <wavy-wave-nav-row> H keyboard handler.
@@ -173,6 +174,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     configureContentList(contentList);
     coldCard.appendChild(contentList);
     readSurface = new J2clReadSurfaceDomRenderer(contentList, effectiveTelemetrySink);
+    bindOptimisticTaskToggleListener(contentList, readSurface);
 
     emptyState = (HTMLElement) DomGlobal.document.createElement("div");
     emptyState.className = "sidecar-empty-state";
@@ -262,6 +264,50 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
    * surface. S2 records telemetry for each click; S5 will add the
    * controller wiring on top.
    */
+  /**
+   * J-UI-6 (#1084, R-5.4): forward {@code wave-blip-task-toggled} events to
+   * the read renderer so the optimistic toggle state survives an unrelated
+   * live update arriving inside the in-flight window between the user's
+   * click and the server's echo of the {@code task/done} delta. Listening on
+   * the content-list (rather than {@code document.body}) keeps the listener
+   * scoped to this view's read surface — multiple selected-wave views in
+   * the same DOM (e.g. the legacy server-first card and the J2CL cold-card
+   * during enhancement) do not interfere.
+   *
+   * <p>The compose surface's own body-level listener still owns the delta
+   * submission; this hook is purely about the in-flight UI state.
+   */
+  private static void bindOptimisticTaskToggleListener(
+      HTMLElement contentList, J2clReadSurfaceDomRenderer renderer) {
+    if (contentList == null || renderer == null) {
+      return;
+    }
+    contentList.addEventListener(
+        "wave-blip-task-toggled",
+        evt -> {
+          Object detail = jsinterop.base.Js.asPropertyMap(evt).get("detail");
+          if (detail == null) {
+            return;
+          }
+          Object blipIdValue = jsinterop.base.Js.asPropertyMap(detail).get("blipId");
+          if (blipIdValue == null) {
+            return;
+          }
+          String blipId = String.valueOf(blipIdValue);
+          if (blipId.isEmpty()) {
+            return;
+          }
+          Object completedValue = jsinterop.base.Js.asPropertyMap(detail).get("completed");
+          boolean completed;
+          if (completedValue instanceof Boolean) {
+            completed = (Boolean) completedValue;
+          } else {
+            completed = "true".equals(String.valueOf(completedValue));
+          }
+          renderer.noteOptimisticTaskState(blipId, completed);
+        });
+  }
+
   private static void bindChromeEvents(HTMLElement card, J2clClientTelemetry.Sink sink) {
     String[] navEvents = {
       "wave-nav-recent-requested",

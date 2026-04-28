@@ -367,6 +367,145 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("2024-01-05", J2clReadSurfaceDomRenderer.formatDueDate(jan5));
   }
 
+  // J-UI-6 (#1084, R-5.4): optimistic toggle state must survive an unrelated
+  // live-update re-render while the toggle delta is still in flight.
+  // Otherwise the equality-check fix that lets live updates from other clients
+  // re-render correctly would have a side-effect of flickering the user's own
+  // optimistic toggle back to the pre-toggle state on a same-wave update.
+  @Test
+  public void optimisticTaskStateOverridesModelDuringInFlightToggle() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    // Initial render: server says task is open.
+    J2clReadBlip open =
+        new J2clReadBlip(
+            "b+toggle",
+            "Body",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(open), Collections.<String>emptyList()));
+    Assert.assertFalse(blip(host, "b+toggle").hasAttribute("data-task-completed"));
+
+    // User clicks toggle → optimistic done. View notifies the renderer.
+    renderer.noteOptimisticTaskState("b+toggle", true);
+
+    // An unrelated live update arrives (e.g. another user's reaction). The
+    // model's task/done is still false because the server hasn't echoed
+    // our toggle yet. A re-render with a different reaction triggers a
+    // full rebuild via sameReadBlip → false (text unchanged but that
+    // fires a path through render — for this test, we trigger a rebuild
+    // by passing a contentEntries argument with an extra non-empty entry
+    // marker, which forces matchesRenderedBlips to fall through).
+    //
+    // We exercise the rebuild by re-rendering with text that differs by
+    // one character so matchesRenderedBlips returns false.
+    J2clReadBlip openWithReactionUpdate =
+        new J2clReadBlip(
+            "b+toggle",
+            "Body!",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(openWithReactionUpdate), Collections.<String>emptyList()));
+
+    // Optimistic state must have survived the rebuild.
+    Assert.assertTrue(
+        "optimistic toggle must override stale model value during in-flight",
+        blip(host, "b+toggle").hasAttribute("data-task-completed"));
+    // Optimistic state is still tracked because the model has not yet
+    // caught up.
+    Assert.assertEquals(
+        Boolean.TRUE,
+        renderer.optimisticTaskStateForTest().get("b+toggle"));
+  }
+
+  @Test
+  public void optimisticTaskStateClearsWhenServerEchoCatchesUp() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip open =
+        new J2clReadBlip(
+            "b+echoed",
+            "Body",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(open), Collections.<String>emptyList()));
+    renderer.noteOptimisticTaskState("b+echoed", true);
+
+    // Server echo: model now reports task/done=true. Re-render must clear
+    // the optimistic entry so future open transitions are not blocked by
+    // a stale optimistic-true override.
+    J2clReadBlip done = open.withTaskDone(true);
+    // Force a rebuild by changing other state too.
+    J2clReadBlip doneWithText =
+        new J2clReadBlip(
+            "b+echoed",
+            "Body!",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */
+            org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(doneWithText), Collections.<String>emptyList()));
+
+    Assert.assertTrue(blip(host, "b+echoed").hasAttribute("data-task-completed"));
+    // Optimistic entry must be cleared once the model agrees so a later
+    // open transition is not stuck.
+    Assert.assertNull(
+        "optimistic state must clear once model catches up",
+        renderer.optimisticTaskStateForTest().get("b+echoed"));
+    // Avoid unused-warning on the helper-built reference.
+    Assert.assertEquals("b+echoed", done.getBlipId());
+  }
+
   @Test
   public void collapsingWithoutFocusedBlipSanitizesHiddenTabStop() {
     assumeBrowserDom();

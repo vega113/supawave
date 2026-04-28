@@ -1,0 +1,28 @@
+{
+  "releaseId": "2026-04-28-issue-1084-j-ui-6",
+  "version": "J-UI-6 (#1084)",
+  "date": "2026-04-28",
+  "title": "J-UI-6 — Per-blip task toggle done state persists across reload + live updates",
+  "summary": "Closes the R-5.4 parity gap where the F-3.S2 task-toggle wrote the task/done annotation correctly but the J2CL ?view=j2cl-root read surface never read it back, so reload + live updates from other clients silently dropped the strikethrough/checkmark. J2clReadBlip + J2clReadWindowEntry now carry persisted taskDone, taskAssignee, taskDueTimestamp through both the flat-render and renderWindow paths; the projector reads task/done, task/assignee, task/dueTs annotations directly off the wavelet DocOps; the read renderer writes data-task-completed / data-task-assignee / data-task-due-date on each <wave-blip> host; and the fast-path equality checks (sameReadBlip + sameWindowEntry) include task state so live updates actually repaint instead of being treated as no-ops. Visible / aria / live strings on <wavy-task-affordance> are now property-driven so the Java view (or a future lit-i18n slice) can localize without re-architecting the element.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "R-5.4 reload + live-update persistence: opening a wave with a previously-completed task blip now paints the strikethrough/checkmark immediately (no flash of unchecked state), and toggling done from a second client re-renders the first client without manual reload.",
+        "Associated metadata overlays preserved (R-5.4): the task-metadata popover re-mounts with the persisted assignee + due-date when reopened on a reloaded blip, instead of starting from empty defaults.",
+        "Localizable labels (R-5.4 \"Labels translate\"): wavy-task-affordance hoists every visible / aria-label / aria-live string to a settable lit property (labelToggleOpen, labelToggleDone, labelAriaCheck, labelAriaUncheck, labelDetails, labelAnnounceDone, labelAnnounceOpen). English defaults preserved verbatim so the F-3.S2 baseline behavior is unchanged."
+      ]
+    },
+    {
+      "type": "internal",
+      "items": [
+        "J2clReadBlip + J2clReadWindowEntry: new taskDone / taskAssignee / taskDueTimestamp fields with builder-style withTaskDone(boolean) helpers and loadedWithTaskMetadata(...) factory. Existing constructors stay backward-compatible — the new fields default to false / empty / UNKNOWN_DUE_TIMESTAMP.",
+        "J2clSelectedWaveProjector: new documentTaskDone / documentTaskAssignee / documentTaskDueTimestamp helpers read directly from wavelet DocOp annotations (per project memory feedback_search_no_conversation_model — never use the conversation model for filter/state reads). Plumbed through extractDocumentReadBlips and enrichReadBlipMetadata.",
+        "J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips: new public helper that grafts per-blip metadata from the enriched read-blip list onto matching window entries. J2clSelectedWaveView calls it before passing entries to renderWindow so the dominant production code path emits the same data-task-completed attribute the flat-render path does.",
+        "J2clReadSurfaceDomRenderer: applyTaskState helper writes/clears data-task-completed, data-task-assignee, and data-task-due-date based on the read-blip state. Explicit clear branch ensures done → open transitions repaint the body (otherwise the F-2 fast-path would carry the stale attribute over). Wired into both renderBlip and the renderWindow → renderBlip adapter.",
+        "sameReadBlip + sameWindowEntry: include taskDone / taskAssignee / taskDueTimestamp in the fast-path equality so a same-wave update that only flips task/done is not treated as a no-op (previously the strikethrough never repainted on live updates from other clients).",
+        "Tests: 8 new Java cases on J2clSelectedWaveProjectorTest, 7 new Java cases on J2clReadSurfaceDomRendererTest, 1 new lit case on wavy-task-affordance.test.js (label overrides), 2 new lit cases on wave-blip.test.js (strikethrough rendering + attribute propagation). Total Java suite: 798/798 passing (117 browser-only cases skipped on JVM); total lit suite: 524/524 passing."
+      ]
+    }
+  ]
+}

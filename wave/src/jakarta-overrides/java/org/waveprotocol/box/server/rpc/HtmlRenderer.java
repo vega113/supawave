@@ -3330,6 +3330,7 @@ public final class HtmlRenderer {
         rootShellReturnTarget,
         websocketAddress,
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
+        false,
         false);
   }
 
@@ -3346,6 +3347,25 @@ public final class HtmlRenderer {
         rootShellReturnTarget,
         websocketAddress,
         snapshotResult,
+        false,
+        false);
+  }
+
+  public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
+      String buildCommit, long serverBuildTime, String currentReleaseId,
+      String rootShellReturnTarget, String websocketAddress,
+      J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
+      boolean railCardsEnabled) {
+    return renderJ2clRootShellPage(
+        sessionJson,
+        analyticsAccount,
+        buildCommit,
+        serverBuildTime,
+        currentReleaseId,
+        rootShellReturnTarget,
+        websocketAddress,
+        snapshotResult,
+        railCardsEnabled,
         false);
   }
 
@@ -3355,6 +3375,10 @@ public final class HtmlRenderer {
    * {@code <wavy-search-rail>} element carries
    * {@code data-rail-cards-enabled="true"} when enabled. When the flag
    * is OFF the legacy plain-DOM digest rendering path stays in place.
+   *
+   * <p>J-UI-5 (#1083): added {@code inlineRichComposerEnabled} so the
+   * J2CL view can mount the contenteditable {@code <wavy-composer>} at
+   * the chosen blip when the flag is on. Off ⇒ legacy textarea path.
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
@@ -3372,16 +3396,15 @@ public final class HtmlRenderer {
         snapshotResult,
         railCardsEnabled,
         null,
+        false,
         false);
   }
 
   /**
-   * J-UI-8 (#1086): full overload that surfaces the viewer's account
-   * locale (R-6.1 "locale text respects user preference on the server
-   * HTML") plus the {@code j2cl-server-first-paint} flag value to the
-   * SSR. When the flag is on, a {@code <noscript>} info banner ships
-   * inside the body so visitors with JavaScript disabled understand the
-   * page is showing a static read-only snapshot.
+   * J-UI-8 (#1086) + J-UI-5 (#1083): full overload that surfaces the viewer's account
+   * locale (R-6.1 "locale text respects user preference on the server HTML") plus the
+   * {@code j2cl-server-first-paint} flag value and the {@code j2cl-inline-rich-composer}
+   * flag value to the SSR.
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
@@ -3389,7 +3412,8 @@ public final class HtmlRenderer {
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled,
       String viewerLocale,
-      boolean serverFirstPaintEnabled) {
+      boolean serverFirstPaintEnabled,
+      boolean inlineRichComposerEnabled) {
     J2clSelectedWaveSnapshotRenderer.SnapshotResult resolvedSnapshotResult =
         snapshotResult == null
             ? J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave()
@@ -3480,6 +3504,13 @@ public final class HtmlRenderer {
         // on, the view raises a status error rather than silently
         // falling back to the legacy digest list.
         sb.append(" data-j2cl-search-rail-cards=\"true\"");
+      }
+      if (inlineRichComposerEnabled) {
+        // J-UI-5 (#1083): turn on the inline rich-text composer + the
+        // selection-driven format toolbar. Off ⇒ J2clComposeSurfaceView
+        // mounts the legacy <composer-inline-reply> textarea only and
+        // does NOT register `wave-blip-reply-requested` listeners.
+        sb.append(" data-j2cl-inline-rich-composer=\"true\"");
       }
       sb.append(">\n");
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")

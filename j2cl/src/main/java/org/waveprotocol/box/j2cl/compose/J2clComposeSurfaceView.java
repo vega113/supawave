@@ -59,6 +59,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private J2clComposeSurfaceController.Listener listener;
   private final Map<String, HTMLElement> inlineComposers = new HashMap<>();
   private String activeInlineComposerKey = "";
+  // J-UI-5 (#1083): captured at construction time from `<shell-root
+  // data-j2cl-inline-rich-composer="true">`. When false, the view does
+  // not register the body-level wave-blip-reply-requested listeners,
+  // so the legacy <composer-inline-reply> textarea remains the only
+  // composer surface.
+  private final boolean inlineRichComposerEnabled;
   // F-3.S3 (#1038, R-5.5): currently open reaction picker / authors
   // popover instances, mounted body-level so the read renderer's
   // surface rebuild does not tear them down. Keyed by blip id.
@@ -191,19 +197,29 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           return null;
         };
 
+    // J-UI-5 (#1083): the inline rich-text composer + selection-driven
+    // toolbar are gated by the `j2cl-inline-rich-composer` flag,
+    // surfaced by the SSR as `data-j2cl-inline-rich-composer="true"`
+    // on `<shell-root>`. Read once at construction time so the listener
+    // bindings are stable for the lifetime of the page; toggling the
+    // flag at runtime requires a reload.
+    inlineRichComposerEnabled = readInlineRichComposerFlag();
+
     // F-3.S1: listen for inline-composer requests from F-2's <wave-blip>.
-    DomGlobal.document.body.addEventListener(
-        "wave-blip-reply-requested",
-        event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
-    DomGlobal.document.body.addEventListener(
-        "wave-blip-edit-requested",
-        event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
-    DomGlobal.document.body.addEventListener(
-        "wave-root-reply-requested",
-        event -> openInlineComposer("", "wave-root"));
-    DomGlobal.document.body.addEventListener(
-        "wavy-composer-cancelled",
-        event -> closeInlineComposer(eventDetailString(event, "replyTargetBlipId")));
+    if (inlineRichComposerEnabled) {
+      DomGlobal.document.body.addEventListener(
+          "wave-blip-reply-requested",
+          event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
+      DomGlobal.document.body.addEventListener(
+          "wave-blip-edit-requested",
+          event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
+      DomGlobal.document.body.addEventListener(
+          "wave-root-reply-requested",
+          event -> openInlineComposer("", "wave-root"));
+      DomGlobal.document.body.addEventListener(
+          "wavy-composer-cancelled",
+          event -> closeInlineComposer(eventDetailString(event, "replyTargetBlipId")));
+    }
 
     // F-3.S2 (#1038): mention popover + per-blip task affordance events.
     DomGlobal.document.body.addEventListener(
@@ -449,8 +465,18 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     composer.addEventListener(
         "reply-submit",
         event -> {
-          if (listener != null) {
+          if (listener == null) return;
+          // J-UI-5 (#1083, R-5.7): the inline composer carries a
+          // per-fragment component list on submit. When present and
+          // non-empty, route through onReplySubmittedWithComponents so
+          // the controller preserves the user's formatting; otherwise
+          // fall through to the plain-text path.
+          List<J2clComposeSurfaceController.SubmittedComponent> components =
+              decodeSubmittedComponents(event);
+          if (components.isEmpty()) {
             listener.onReplySubmitted(propertyString(composer, "draft"));
+          } else {
+            listener.onReplySubmittedWithComponents(components);
           }
         });
     composer.addEventListener(
@@ -710,6 +736,66 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   private static Object eventDetail(Event event) {
     return Js.asPropertyMap(event).get("detail");
+  }
+
+  /**
+   * J-UI-5 (#1083): read the `data-j2cl-inline-rich-composer` attribute
+   * the SSR emits on `<shell-root>` based on the per-viewer flag value.
+   * Returns false when the attribute is absent (default-off), or when
+   * the shell element is missing entirely (sidecar / parity-test
+   * surfaces that do not paint a `<shell-root>`).
+   */
+  private static boolean readInlineRichComposerFlag() {
+    Object shell =
+        DomGlobal.document.querySelector(
+            "shell-root[data-j2cl-inline-rich-composer=\"true\"]");
+    return shell != null;
+  }
+
+  /**
+   * J-UI-5 (#1083, R-5.7): decode the {@code detail.components} JS
+   * array forwarded by `<wavy-composer>` on `reply-submit`. Each
+   * component is `{type, text, annotationKey?, annotationValue?}`.
+   * Unknown / malformed entries are skipped so a future schema bump
+   * cannot wedge the submit path.
+   */
+  private static List<J2clComposeSurfaceController.SubmittedComponent> decodeSubmittedComponents(
+      Event event) {
+    List<J2clComposeSurfaceController.SubmittedComponent> result =
+        new ArrayList<J2clComposeSurfaceController.SubmittedComponent>();
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) return result;
+    Object componentsObj = Js.asPropertyMap(detail).get("components");
+    if (componentsObj == null) return result;
+    JsArray<?> jsComponents = Js.cast(componentsObj);
+    int len = jsComponents.length;
+    for (int i = 0; i < len; i++) {
+      Object item = jsComponents.getAt(i);
+      if (item == null) continue;
+      JsPropertyMap<Object> map = Js.cast(item);
+      Object typeObj = map.get("type");
+      Object textObj = map.get("text");
+      String type = typeObj == null ? "" : String.valueOf(typeObj);
+      String text = textObj == null ? "" : String.valueOf(textObj);
+      if ("annotated".equals(type)) {
+        Object keyObj = map.get("annotationKey");
+        Object valueObj = map.get("annotationValue");
+        String key = keyObj == null ? "" : String.valueOf(keyObj);
+        String value = valueObj == null ? "" : String.valueOf(valueObj);
+        if (text.isEmpty() || key.isEmpty() || value.isEmpty()) {
+          if (!text.isEmpty()) {
+            result.add(J2clComposeSurfaceController.SubmittedComponent.text(text));
+          }
+          continue;
+        }
+        result.add(J2clComposeSurfaceController.SubmittedComponent.annotated(text, key, value));
+      } else if ("text".equals(type)) {
+        if (!text.isEmpty()) {
+          result.add(J2clComposeSurfaceController.SubmittedComponent.text(text));
+        }
+      }
+    }
+    return result;
   }
 
   /**

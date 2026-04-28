@@ -271,6 +271,11 @@ public class WaveClientServlet extends HttpServlet {
       boolean serverFirstPaintEnabled =
           featureFlagService.isEnabled(
               "j2cl-server-first-paint", id != null ? id.getAddress() : null);
+      // J-UI-5 (#1083): per-viewer flag gating for the inline rich-text
+      // composer + selection-driven format toolbar.
+      boolean inlineRichComposerEnabled =
+          featureFlagService.isEnabled(
+              "j2cl-inline-rich-composer", id != null ? id.getAddress() : null);
       response.setContentType("text/html");
       response.setCharacterEncoding("UTF-8");
       response.setHeader("Cache-Control", "private, no-store");
@@ -290,7 +295,8 @@ public class WaveClientServlet extends HttpServlet {
             snapshotResult,
             railCardsEnabled,
             viewerLocale,
-            serverFirstPaintEnabled)); // codeql[java/xss]
+            serverFirstPaintEnabled,
+            inlineRichComposerEnabled)); // codeql[java/xss]
       } catch (IOException e) {
         LOG.warning("Failed to render J2CL root shell page", e);
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

@@ -129,14 +129,16 @@ public final class J2clComposerDocument {
      * well-nested). Empty annotation list throws — callers should
      * route through {@link #text(String)} instead.
      *
-     * <p>Coderabbit review #1095 thread PRRT_kwDOBwxLXs5-NWW2:
-     * duplicate annotation keys are collapsed last-wins BEFORE the
-     * Component is constructed, so the builder's stored representation
-     * matches what the delta writer emits. Without this, callers that
-     * inspect a built {@link J2clComposerDocument} would see two
-     * `textDecoration` entries while the on-the-wire delta only
-     * carries one. Last-wins matches the wave-doc reader's resolution
-     * of overlapping annotation starts on the same key.
+     * <p>Codex review #1095 thread PRRT_kwDOBwxLXs5-NyZ7: duplicate
+     * annotation keys are collapsed BEFORE the Component is
+     * constructed, but the collapse rule depends on the key's CSS
+     * combinator. Space-combinable keys (today: {@code textDecoration},
+     * which CSS allows to take the value {@code "underline line-through"}
+     * on the same span) MERGE values into a single space-separated
+     * token list — duplicate tokens are dropped. Non-combinable keys
+     * fall back to last-wins, matching the wave-doc reader's
+     * resolution. The builder, the delta writer, and the read codec
+     * therefore agree on the surviving value(s).
      */
     public Builder annotatedTextMulti(List<KeyValuePair> annotations, String text) {
       if (annotations == null || annotations.isEmpty()) {
@@ -153,12 +155,16 @@ public final class J2clComposerDocument {
         }
         String key = requireNonEmpty(pair.getKey(), "Missing annotation key.");
         String value = requireNonEmpty(pair.getValue(), "Missing annotation value.");
-        // last-wins removal-then-insert keeps insertion order stable
-        // for keys whose value did not change while letting later
-        // duplicates overwrite earlier entries (the wave-doc reader
-        // applies the same resolution).
-        dedup.remove(key);
-        dedup.put(key, new Annotation(key, value));
+        Annotation existing = dedup.get(key);
+        if (existing != null && isSpaceCombinableAnnotationKey(key)) {
+          dedup.put(key, new Annotation(key, mergeSpaceTokens(existing.value, value)));
+        } else {
+          // Non-combinable: removal-then-insert preserves insertion
+          // order for keys whose value did not change while letting
+          // later duplicates overwrite earlier entries (last-wins).
+          dedup.remove(key);
+          dedup.put(key, new Annotation(key, value));
+        }
       }
       List<Annotation> resolved = new ArrayList<Annotation>(dedup.values());
       Annotation first = resolved.get(0);
@@ -250,6 +256,46 @@ public final class J2clComposerDocument {
       return normalized;
     }
     throw new IllegalArgumentException("Invalid attachment display size: " + displaySize);
+  }
+
+  /**
+   * Codex review #1095 thread PRRT_kwDOBwxLXs5-NyZ7: annotation keys
+   * whose CSS-style values are space-separated tokens (e.g.
+   * `text-decoration: underline line-through`). When the same key
+   * appears multiple times in a multi-annotation run we merge their
+   * values into one space-separated token set instead of last-wins.
+   */
+  private static boolean isSpaceCombinableAnnotationKey(String key) {
+    return "textDecoration".equals(key);
+  }
+
+  /**
+   * Merge two space-separated token strings into one, preserving
+   * insertion order and dropping duplicate tokens. Whitespace is
+   * collapsed.
+   */
+  private static String mergeSpaceTokens(String first, String second) {
+    java.util.LinkedHashSet<String> tokens = new java.util.LinkedHashSet<String>();
+    addTokens(tokens, first);
+    addTokens(tokens, second);
+    StringBuilder out = new StringBuilder();
+    for (String token : tokens) {
+      if (out.length() > 0) out.append(' ');
+      out.append(token);
+    }
+    return out.toString();
+  }
+
+  private static void addTokens(java.util.LinkedHashSet<String> dest, String raw) {
+    if (raw == null) return;
+    int len = raw.length();
+    int i = 0;
+    while (i < len) {
+      while (i < len && Character.isWhitespace(raw.charAt(i))) i++;
+      int start = i;
+      while (i < len && !Character.isWhitespace(raw.charAt(i))) i++;
+      if (start < i) dest.add(raw.substring(start, i));
+    }
   }
 
   private static String requireNonEmpty(String value, String message) {

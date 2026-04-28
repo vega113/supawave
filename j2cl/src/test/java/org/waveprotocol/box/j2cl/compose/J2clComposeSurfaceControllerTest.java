@@ -3925,14 +3925,16 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertTrue("bold closes before italic (well-nested)", boldEnd < italicEnd);
   }
 
-  // J-UI-5 (#1083, codex review #1095 thread PRRT_kwDOBwxLXs5-F-8o):
-  // multi-annotation runs that re-use the same key (e.g. nested
-  // `<u><s>x</s></u>` produces two `textDecoration` entries with
-  // different values: `underline` then `line-through`) must collapse
-  // to one start/end pair so the wave-doc reader's "later wins" rule
-  // does not silently drop one of the values.
+  // J-UI-5 (#1083, codex review #1095 threads PRRT_kwDOBwxLXs5-F-8o
+  // + PRRT_kwDOBwxLXs5-NyZ7): multi-annotation runs that re-use a
+  // SPACE-COMBINABLE key (today: `textDecoration`) merge their
+  // values into one space-separated token list — both decorations
+  // survive submit/reload (CSS allows
+  // `text-decoration: underline line-through`). Only ONE
+  // `annotation_start` / `annotation_end` pair reaches the delta
+  // because the builder collapsed the duplicates upstream.
   @Test
-  public void onReplySubmittedWithComponentsCollapsesDuplicateAnnotationKeys() {
+  public void onReplySubmittedWithComponentsMergesSpaceCombinableAnnotations() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
@@ -3959,22 +3961,66 @@ public class J2clComposeSurfaceControllerTest {
     controller.onReplySubmittedWithComponents(components);
 
     String delta = gateway.lastSubmitRequest.getDeltaJson();
-    int firstStart = delta.indexOf("\"1\":\"textDecoration\",\"3\":\"underline\"");
-    int secondStart = delta.indexOf("\"1\":\"textDecoration\",\"3\":\"line-through\"");
+    int mergedStart = delta.indexOf("\"1\":\"textDecoration\",\"3\":\"underline line-through\"");
     int decorationCloses = delta.split("\\[\"textDecoration\"\\]", -1).length - 1;
-    // Last-wins: the `line-through` value survives; the `underline`
-    // duplicate is dropped before boundary emission.
-    Assert.assertEquals(
-        "no duplicate underline start emitted",
-        -1,
-        firstStart);
+    int decorationStarts =
+        delta.split("\"1\":\"textDecoration\",\"3\":", -1).length - 1;
+    // Both decoration values reach the delta as a space-separated
+    // token list on a single annotation_start; the close pair is
+    // emitted exactly once because the builder collapsed the
+    // duplicates upstream.
     Assert.assertTrue(
-        "the surviving textDecoration value reaches the delta",
-        secondStart >= 0);
+        "merged textDecoration value preserves both tokens",
+        mergedStart >= 0);
+    Assert.assertEquals(
+        "exactly one textDecoration start emitted",
+        1,
+        decorationStarts);
     Assert.assertEquals(
         "exactly one textDecoration close emitted",
         1,
         decorationCloses);
+  }
+
+  // Non-combinable duplicate keys (e.g. two `fontWeight` entries) keep
+  // the last-wins fallback — CSS does not allow two simultaneous
+  // font-weight values on the same span, so collapsing is the
+  // correct semantics.
+  @Test
+  public void onReplySubmittedWithComponentsLastWinsForNonCombinableKeys() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> {},
+            waveId -> {});
+    controller.start();
+    openWaveForReply(controller);
+
+    List<J2clComposeSurfaceController.SubmittedComponent.Annotation> ann = new ArrayList<>();
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "fontWeight", "normal"));
+    ann.add(
+        new J2clComposeSurfaceController.SubmittedComponent.Annotation(
+            "fontWeight", "bold"));
+    List<J2clComposeSurfaceController.SubmittedComponent> components = new ArrayList<>();
+    components.add(
+        J2clComposeSurfaceController.SubmittedComponent.annotatedMulti("weighted", ann));
+
+    controller.onReplySubmittedWithComponents(components);
+
+    String delta = gateway.lastSubmitRequest.getDeltaJson();
+    Assert.assertEquals(
+        "no duplicate fontWeight=normal start emitted",
+        -1,
+        delta.indexOf("\"1\":\"fontWeight\",\"3\":\"normal\""));
+    Assert.assertTrue(
+        "last-wins fontWeight=bold reaches the delta",
+        delta.indexOf("\"1\":\"fontWeight\",\"3\":\"bold\"") >= 0);
   }
 
   // J-UI-5 (#1083): an annotated component whose text is whitespace-only

@@ -171,6 +171,36 @@ describe("wavy-composer toolbar action handlers", () => {
     expect(body.textContent).to.equal("linked");
   });
 
+  // Coderabbit review #1095 thread PRRT_kwDOBwxLXs5-NWWt: unlink on a
+  // partial range inside a longer link must keep the surrounding text
+  // LINKED. The anchor splits at the selection boundaries; prefix +
+  // suffix clones inherit the original href.
+  it("Remove link on partial range keeps surrounding text linked", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<a href="https://example.com">hello world</a>';
+    body.focus();
+    const anchor = body.querySelector("a");
+    // Select only "world" inside the anchor.
+    const range = document.createRange();
+    range.setStart(anchor.firstChild, 6);
+    range.setEnd(anchor.firstChild, 11);
+    const sel = document.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el._onSelectionChange();
+
+    dispatchToolbarAction(el, "unlink");
+
+    // "hello " stays inside an `<a href="https://example.com">` —
+    // the prefix clone preserved the href; "world" is now bare text.
+    const remaining = body.querySelectorAll("a");
+    expect(remaining.length, "exactly one residual <a> survives").to.equal(1);
+    expect(remaining[0].getAttribute("href")).to.equal("https://example.com");
+    expect(remaining[0].textContent).to.equal("hello ");
+    expect(body.textContent).to.equal("hello world");
+  });
+
   it("Clear formatting strips inline format wraps from the selection", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);

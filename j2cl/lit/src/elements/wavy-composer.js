@@ -682,7 +682,13 @@ export class WavyComposer extends LitElement {
     } catch (_e) {
       return;
     }
-    const insertSiblingsBefore = (target, frag, wrapTagName) => {
+    // Codex review #1095 thread PRRT_kwDOBwxLXs5-NWWt: prefix/suffix
+    // wrappers must clone the original ancestor's attributes (most
+    // importantly `href` on `<a>`) so unlinking inside a longer link
+    // keeps the surrounding text linked. `cloneNode(false)` clones
+    // the element + its attributes WITHOUT children; we then move
+    // the prefix/suffix fragment children into the clone.
+    const insertSiblingsBefore = (target, frag, wrapTemplate) => {
       // Skip empty fragments — happens when the selection starts at
       // offset 0 (no prefix) or covers the ancestor's last char (no
       // suffix). cloneContents can also produce a fragment that holds
@@ -692,8 +698,8 @@ export class WavyComposer extends LitElement {
       const text = frag.textContent || "";
       const hasElementChild = Boolean(frag.querySelector && frag.querySelector("*"));
       if (text.length === 0 && !hasElementChild) return null;
-      if (wrapTagName) {
-        const wrapper = document.createElement(wrapTagName);
+      if (wrapTemplate) {
+        const wrapper = wrapTemplate.cloneNode(false);
         wrapper.appendChild(frag);
         parent.insertBefore(wrapper, target);
         return wrapper;
@@ -703,16 +709,11 @@ export class WavyComposer extends LitElement {
       while (frag.firstChild) parent.insertBefore(frag.firstChild, target);
       return null;
     };
-    insertSiblingsBefore(ancestor, prefixFragment, ancestor.tagName.toLowerCase());
+    insertSiblingsBefore(ancestor, prefixFragment, ancestor);
     const middleAnchor = ancestor;
     insertSiblingsBefore(middleAnchor, middleFragment, null);
-    insertSiblingsBefore(ancestor, suffixFragment, ancestor.tagName.toLowerCase());
+    insertSiblingsBefore(ancestor, suffixFragment, ancestor);
     parent.removeChild(ancestor);
-    // `spec` is currently unused but kept on the call site for
-    // future tag-specific behaviour (e.g. retaining link href on
-    // `<a>` partial unwrap should preserve href on the prefix +
-    // suffix clones, which `cloneNode` handles via createElement
-    // matching the original tagName).
     void spec;
   }
 
@@ -915,7 +916,18 @@ export class WavyComposer extends LitElement {
     if (!this._bodyElement.contains(range.startContainer)) return;
     const anchor = this._findAncestorTag(range.startContainer, ["a"]);
     if (!anchor) return;
-    this._unwrapElement(anchor);
+    // Codex review #1095 thread PRRT_kwDOBwxLXs5-NWWt: partial-range
+    // unlink must SPLIT the `<a>` so text outside the selection
+    // keeps its link. The split helper clones the ancestor's
+    // attributes (href included) onto the prefix + suffix clones,
+    // so the surrounding linked text survives intact. When the
+    // selection covers the whole anchor, fall back to a plain
+    // unwrap (cheaper, identical DOM result).
+    if (rangeFullyContainsNode(range, anchor)) {
+      this._unwrapElement(anchor);
+    } else {
+      this._unwrapAncestorWithinRange(anchor, range, null);
+    }
     this._afterBodyMutation();
   }
 

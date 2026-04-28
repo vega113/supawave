@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-28-issue-1100-v-2",
+  "version": "PR #1100",
+  "date": "2026-04-28",
+  "title": "V-2: Strip developer strings from the J2CL product UI",
+  "summary": "Removes the developer-facing strings that bled into the J2CL root shell during the J-UI-1..8 sprint. The Opened wave eyebrow, the Live updates connected/reconnected status, the channel/snapshot detail line, the Read. status word, and the Reply target: b+<id> paragraph no longer render on /?view=j2cl-root for default signed-in users — the data still surfaces for developers behind a new experimental flag.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "New j2cl-debug-overlay experimental flag (default off in prod). When off, /?view=j2cl-root no longer paints Opened wave, Live updates connected., Live updates reconnected., the channel ch<N> · snapshot v<NNN> URL line, the bare Read. status word, or the Reply target: b+<id> paragraph. When on, every developer string returns in the same DOM location. Enable per participant via scripts/feature-flag.sh enable j2cl-debug-overlay."
+      ]
+    }
+  ]
+}

@@ -138,6 +138,57 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     expect(url.searchParams.get("operation")).to.equal("pin");
   });
 
+  it("does not let an in-flight request for one wave block a new wave", async () => {
+    let resolveFirst;
+    stub = installFetchStub(async (_url) => {
+      if (stub.calls.length === 1) {
+        return await new Promise((resolve) => {
+          resolveFirst = () => resolve(okResponse());
+        });
+      }
+      return okResponse();
+    });
+    const row = await fixture(
+      html`<wavy-wave-nav-row source-wave-id="w+slow"></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    row.dispatchEvent(
+      new CustomEvent("wave-nav-pin-toggle-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { sourceWaveId: "w+slow" }
+      })
+    );
+    await Promise.resolve();
+    expect(row.getAttribute("data-folder-busy-wave-id")).to.equal("w+slow");
+
+    const completedFast = new Promise((resolve) =>
+      document.addEventListener(
+        "wavy-folder-action-completed",
+        (e) => {
+          if (e.detail.waveId === "w+fast") resolve(e.detail);
+        }
+      )
+    );
+    row.setAttribute("source-wave-id", "w+fast");
+    row.dispatchEvent(
+      new CustomEvent("wave-nav-pin-toggle-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { sourceWaveId: "w+fast" }
+      })
+    );
+    const detail = await completedFast;
+    expect(detail.operation).to.equal("pin");
+    expect(stub.calls).to.have.lengthOf(2);
+
+    resolveFirst();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(row.hasAttribute("data-folder-busy")).to.be.false;
+  });
+
   it("archive click POSTs /folder?operation=move&folder=archive&waveId=…", async () => {
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(

@@ -29,6 +29,7 @@ const VERSION_HISTORY_TAG = "WAVY-VERSION-HISTORY";
 
 const ATTR_BOUND = "data-action-bar-bound";
 const ATTR_FOLDER_STATE_WAVE_ID = "data-folder-state-wave-id";
+const ATTR_BUSY_WAVE_ID = "data-folder-busy-wave-id";
 
 let installed = false;
 let observer = null;
@@ -100,12 +101,29 @@ function setBoolAttr(host, attrName, value) {
   }
 }
 
-function setBusy(host, busy) {
+function isBusyForWave(host, waveId) {
+  if (!host || typeof host.hasAttribute !== "function") return false;
+  return (
+    host.hasAttribute("data-folder-busy") &&
+    host.getAttribute(ATTR_BUSY_WAVE_ID) === waveId
+  );
+}
+
+function isCurrentWave(host, waveId) {
+  if (!host || typeof host.getAttribute !== "function") return true;
+  return host.getAttribute("source-wave-id") === waveId;
+}
+
+function setBusy(host, busy, waveId) {
   if (!host || typeof host.setAttribute !== "function") return;
   if (busy) {
     host.setAttribute("data-folder-busy", "");
+    if (waveId) host.setAttribute(ATTR_BUSY_WAVE_ID, waveId);
   } else {
+    const owner = host.getAttribute(ATTR_BUSY_WAVE_ID);
+    if (waveId && owner && owner !== waveId) return;
     host.removeAttribute("data-folder-busy");
+    host.removeAttribute(ATTR_BUSY_WAVE_ID);
   }
   // Also stamp the inner action button so CSS can show progress
   // cursor / fade. Best-effort — if shadowRoot is closed, skip.
@@ -203,15 +221,15 @@ function dispatchFailed(host, payload) {
 
 function onArchiveToggle(event) {
   const host = event.currentTarget;
-  if (host && host.hasAttribute("data-folder-busy")) return;
   const waveId = readWaveId(event);
   if (!waveId) return;
   resetFolderStateIfWaveChanged(host, waveId);
+  if (isBusyForWave(host, waveId)) return;
   const wasArchived = readBoolAttr(host, "archived");
   const folder = wasArchived ? "inbox" : "archive";
   // Optimistic flip immediately — matches GWT setDown(true) feel.
   setBoolAttr(host, "archived", !wasArchived);
-  setBusy(host, true);
+  setBusy(host, true, waveId);
   const url = buildFolderUrl({
     operation: "move",
     folder,
@@ -219,7 +237,8 @@ function onArchiveToggle(event) {
   });
   fetchFolderOp(url).then(
     (response) => {
-      setBusy(host, false);
+      setBusy(host, false, waveId);
+      if (!isCurrentWave(host, waveId)) return;
       if (response.ok) {
         dispatchCompleted(host, {
           waveId,
@@ -238,7 +257,8 @@ function onArchiveToggle(event) {
       }
     },
     (err) => {
-      setBusy(host, false);
+      setBusy(host, false, waveId);
+      if (!isCurrentWave(host, waveId)) return;
       setBoolAttr(host, "archived", wasArchived);
       dispatchFailed(host, {
         waveId,
@@ -252,18 +272,19 @@ function onArchiveToggle(event) {
 
 function onPinToggle(event) {
   const host = event.currentTarget;
-  if (host && host.hasAttribute("data-folder-busy")) return;
   const waveId = readWaveId(event);
   if (!waveId) return;
   resetFolderStateIfWaveChanged(host, waveId);
+  if (isBusyForWave(host, waveId)) return;
   const wasPinned = readBoolAttr(host, "pinned");
   const operation = wasPinned ? "unpin" : "pin";
   setBoolAttr(host, "pinned", !wasPinned);
-  setBusy(host, true);
+  setBusy(host, true, waveId);
   const url = buildFolderUrl({ operation, waveId });
   fetchFolderOp(url).then(
     (response) => {
-      setBusy(host, false);
+      setBusy(host, false, waveId);
+      if (!isCurrentWave(host, waveId)) return;
       if (response.ok) {
         dispatchCompleted(host, { waveId, operation, folder: null });
       } else {
@@ -277,7 +298,8 @@ function onPinToggle(event) {
       }
     },
     (err) => {
-      setBusy(host, false);
+      setBusy(host, false, waveId);
+      if (!isCurrentWave(host, waveId)) return;
       setBoolAttr(host, "pinned", wasPinned);
       dispatchFailed(host, {
         waveId,

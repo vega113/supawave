@@ -19,6 +19,10 @@ import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
+  // Keep in sync with j2cl/lit/src/controllers/wave-action-bar-controller.js.
+  // Java stamps model-published folder state; Lit also reconciles this marker
+  // while handling source-wave-id reuse before Java publishes for a wave.
+  private static final String ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID = "data-folder-state-wave-id";
 
   /**
    * F-3.S3 (#1038, R-5.5): hook the root-shell installs to forward
@@ -431,6 +435,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       contentList.removeAttribute("data-wave-id");
       if (waveNavRow != null) {
         waveNavRow.removeAttribute("source-wave-id");
+        waveNavRow.removeAttribute("pinned");
+        waveNavRow.removeAttribute("archived");
+        waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
       }
     } else {
       contentList.setAttribute("data-wave-id", renderedWaveId);
@@ -575,6 +582,17 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       waveNavRow.setAttribute("archived", "");
     } else {
       waveNavRow.removeAttribute("archived");
+    }
+    String sourceWaveId = waveNavRow.getAttribute("source-wave-id");
+    if (sourceWaveId == null || sourceWaveId.isEmpty()) {
+      waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
+    } else {
+      // The Lit action-bar controller also uses this marker to decide whether
+      // pinned/archived attributes are stale optimistic state or current
+      // model-published state. Stamp it even when both flags are false: that
+      // records the model-owned "not pinned and not archived" state and keeps
+      // the async MutationObserver from rehydrating stale digest state.
+      waveNavRow.setAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID, sourceWaveId);
     }
   }
 

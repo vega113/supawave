@@ -438,8 +438,9 @@ async function finishInlineReplyGwt(
     "the newly submitted GWT reply blip must carry the draft text"
   ).toBeVisible({ timeout: 20_000 });
   await expect(
+    // GWT keeps editabledocmarker on read-only documents, so only active editability signals count.
     persistedBlip.locator(
-      '[editabledocmarker="true"], .wave-editor-on, [contenteditable="true"]'
+      '.wave-editor-on, [contenteditable="true"], [style*="read-write"]'
     ),
     "the submitted GWT reply blip must not contain an open editor (must be persisted, not a draft)"
   ).toHaveCount(0, { timeout: 5_000 });

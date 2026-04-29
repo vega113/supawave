@@ -46,17 +46,34 @@ describe("moveBlipFocus", () => {
     expect(root.querySelectorAll("wave-blip[focused]").length).to.equal(1);
   });
 
-  it("j wraps from last to first", async () => {
+  it("j clamps at last blip (no wrap)", async () => {
     const root = await threeBlips();
     moveBlipFocus(-1, root); // b3
-    moveBlipFocus(1, root);  // wrap to b1
+    const result = moveBlipFocus(1, root); // at end, consume key but stay on b3
+    expect(result).to.equal(true);
+    expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b3");
+  });
+
+  it("k clamps at first blip (no wrap)", async () => {
+    const root = await threeBlips();
+    moveBlipFocus(1, root);  // b1
+    const result = moveBlipFocus(-1, root); // at start, consume key but stay on b1
+    expect(result).to.equal(true);
     expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b1");
   });
 
-  it("k wraps from first to last", async () => {
-    const root = await threeBlips();
-    moveBlipFocus(1, root);  // b1
-    moveBlipFocus(-1, root); // wrap to b3
+  it("skips blips inside collapsed thread containers", async () => {
+    const root = await fixture(html`
+      <div>
+        <wave-blip data-blip-id="b1"></wave-blip>
+        <div class="j2cl-read-thread-collapsed">
+          <wave-blip data-blip-id="b2"></wave-blip>
+        </div>
+        <wave-blip data-blip-id="b3"></wave-blip>
+      </div>
+    `);
+    moveBlipFocus(1, root); // b1
+    moveBlipFocus(1, root); // skip b2 (collapsed) -> b3
     expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b3");
   });
 
@@ -80,20 +97,35 @@ describe("moveBlipFocus", () => {
     target.addEventListener("wave-blip-focus-changed", (e) => {
       fired = e.detail;
     });
-    setFocusedBlip(target, Array.from(root.querySelectorAll("wave-blip")));
+    setFocusedBlip(target);
     expect(fired).to.deep.equal({ blipId: "b2", waveId: "w" });
   });
 
   it("setFocusedBlip adds j2cl-read-blip-focused class and removes from others", async () => {
     const root = await threeBlips();
     const blips = Array.from(root.querySelectorAll("wave-blip"));
-    setFocusedBlip(blips[1], blips);
+    setFocusedBlip(blips[1]);
     expect(blips[1].classList.contains("j2cl-read-blip-focused")).to.equal(true);
     expect(blips[0].classList.contains("j2cl-read-blip-focused")).to.equal(false);
     expect(blips[2].classList.contains("j2cl-read-blip-focused")).to.equal(false);
     // Moving focus removes the class from the previous target.
-    setFocusedBlip(blips[2], blips);
+    setFocusedBlip(blips[2]);
     expect(blips[2].classList.contains("j2cl-read-blip-focused")).to.equal(true);
+    expect(blips[1].classList.contains("j2cl-read-blip-focused")).to.equal(false);
+  });
+
+  it("setFocusedBlip clears stale markers from hidden (parked) blips", async () => {
+    const root = await fixture(html`
+      <div>
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+        <wave-blip data-blip-id="b2" data-wave-id="w" author-name="B" hidden focused data-blip-focused="true"></wave-blip>
+      </div>
+    `);
+    const blips = Array.from(root.querySelectorAll("wave-blip"));
+    // b2 is hidden but has stale focus markers from the renderer
+    setFocusedBlip(blips[0]);
+    expect(blips[1].hasAttribute("focused")).to.equal(false);
+    expect(blips[1].hasAttribute("data-blip-focused")).to.equal(false);
     expect(blips[1].classList.contains("j2cl-read-blip-focused")).to.equal(false);
   });
 
@@ -148,7 +180,7 @@ describe("setFocusedBlip aria-current cleanup", () => {
     const blips = Array.from(root.querySelectorAll("wave-blip"));
     blips[0].setAttribute("aria-current", "true");
     blips[0].classList.add("j2cl-read-blip-focused");
-    setFocusedBlip(blips[1], blips);
+    setFocusedBlip(blips[1]);
     expect(blips[0].hasAttribute("aria-current")).to.equal(false);
     expect(blips[1].hasAttribute("focused")).to.equal(true);
   });

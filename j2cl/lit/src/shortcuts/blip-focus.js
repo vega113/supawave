@@ -19,14 +19,19 @@ const RENDERER_FOCUS_CLASS = "j2cl-read-blip-focused";
 const READ_SURFACE_ATTR = "data-j2cl-read-surface";
 
 /**
- * Snapshot the visible <wave-blip> hosts, ordered by document
- * position. Hidden blips (the F-2 viewport renderer parks below-fold
- * blips with `[hidden]`) are excluded so j/k cannot land on a node
- * the user cannot see.
+ * Snapshot the navigable <wave-blip> hosts, ordered by document
+ * position. Excludes blips hidden by the F-2 viewport renderer
+ * (`[hidden]`) and blips inside collapsed reply-thread containers
+ * (`.j2cl-read-thread-collapsed`), matching the GWT renderer's own
+ * `visibleBlips()` set.
  */
 function snapshotBlips(root = document) {
   const blips = Array.from(root.querySelectorAll("wave-blip"));
-  return blips.filter((b) => !b.hasAttribute("hidden"));
+  return blips.filter((b) => {
+    if (b.hasAttribute("hidden")) return false;
+    if (b.closest && b.closest(".j2cl-read-thread-collapsed")) return false;
+    return true;
+  });
 }
 
 /**
@@ -106,14 +111,13 @@ function dispatchRendererFocusChanged(surface, blip) {
 
 /**
  * Move blip focus by `direction` (+1 = next, -1 = prev). Returns
- * `true` if focus moved (so the shell handler knows to swallow the
- * key event), or `false` if there were no blips at all (let the key
- * fall through).
+ * `true` if focus moved or was already at the boundary (key consumed),
+ * or `false` if there were no navigable blips at all.
  *
- * Wraps at the end: pressing `j` past the last blip lands on the
- * first; pressing `k` past the first lands on the last. Wrap matches
- * the GWT `FocusFramePresenter.moveDown` behaviour for consistency
- * with the umbrella parity contract.
+ * Clamps at list boundaries — pressing `j` past the last blip or `k`
+ * past the first is a no-op (matches GWT `FocusFramePresenter.moveDown`/
+ * `moveUp` and `J2clReadSurfaceDomRenderer.focusVisibleByIndex` which
+ * both clamp rather than wrap).
  */
 export function moveBlipFocus(direction, root = document) {
   const list = snapshotBlips(root);
@@ -124,17 +128,21 @@ export function moveBlipFocus(direction, root = document) {
   if (currentIdx === -1) {
     nextIdx = direction > 0 ? 0 : list.length - 1;
   } else {
-    nextIdx = (currentIdx + direction + list.length) % list.length;
+    nextIdx = currentIdx + direction;
+    if (nextIdx < 0 || nextIdx >= list.length) return true; // at boundary, consume key
   }
-  setFocusedBlip(list[nextIdx], list);
+  setFocusedBlip(list[nextIdx], root);
   return true;
 }
 
 /**
- * Clear `focused` on every other blip in `list`, then set it on
- * `target`. Reflects to `data-blip-focused` on the host (alias for
- * the existing `focused` attribute) so the parity test can target
- * the same selector across both views.
+ * Clear `focused` on every other blip, then set it on `target`.
+ * Reflects to `data-blip-focused` on the host so the parity test can
+ * target the same selector across both views.
+ *
+ * Clears ALL wave-blip nodes (including hidden/parked ones) to avoid
+ * stale markers when the viewport renderer parks the previously-focused
+ * blip off-screen between j/k presses.
  *
  * Also manages `j2cl-read-blip-focused` (the renderer CSS class) and
  * fires `wavy-focus-changed` on the nearest read surface so the
@@ -143,13 +151,12 @@ export function moveBlipFocus(direction, root = document) {
  * Fires a `wave-blip-focus-changed` CustomEvent (bubbles + composed)
  * so external consumers (telemetry, the route controller) can react.
  */
-export function setFocusedBlip(target, list = snapshotBlips()) {
+export function setFocusedBlip(target, root = document) {
   if (!target) return;
   // Clear ALL blips (including hidden/parked) so stale markers left by
-  // the viewport renderer do not accumulate. `list` still scopes j/k
-  // navigation to visible blips; clearing goes broader.
-  const allBlips = snapshotAllBlips();
-  for (const blip of allBlips) {
+  // the viewport renderer do not accumulate. `snapshotBlips` still scopes
+  // j/k navigation to visible blips; clearing goes broader.
+  for (const blip of snapshotAllBlips(root)) {
     if (blip !== target) {
       blip.removeAttribute("focused");
       blip.removeAttribute("data-blip-focused");
@@ -188,10 +195,10 @@ export function setFocusedBlip(target, list = snapshotBlips()) {
  * the <wavy-focus-frame> overlay.
  */
 export function clearBlipFocus(root = document) {
-  const list = snapshotAllBlips(root);
+  const allNodes = snapshotAllBlips(root);
   let cleared = false;
   let surface = null;
-  for (const blip of list) {
+  for (const blip of allNodes) {
     if (blip.hasAttribute("focused") || blip.classList.contains(RENDERER_FOCUS_CLASS)) {
       blip.removeAttribute("focused");
       blip.removeAttribute("data-blip-focused");

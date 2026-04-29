@@ -133,7 +133,7 @@ export class ShellRoot extends LitElement {
     // role=dialog that is open. The wavy-* dialogs reflect `open`
     // either as a property or as the `open` HTML attribute.
     const modals = document.querySelectorAll(
-      "wavy-confirm-dialog, wavy-link-modal, wavy-version-history, [role=\"dialog\"][open]"
+      "wavy-confirm-dialog, wavy-link-modal, wavy-version-history, wavy-search-help, [role=\"dialog\"][open]"
     );
     for (const m of modals) {
       if (m.open === true || (m.hasAttribute && m.hasAttribute("open"))) {

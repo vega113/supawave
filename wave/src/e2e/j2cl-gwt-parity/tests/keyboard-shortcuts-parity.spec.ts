@@ -417,6 +417,16 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
       newWaveBtn,
       "GWT toolbar must expose the documented New Wave affordance"
     ).toBeVisible({ timeout: 10_000 });
+    await newWaveBtn.click({ timeout: 5_000 });
+    await page.waitForTimeout(1_000);
+    const bodyAfterNew = await page.evaluate(() => document.body.innerText.length);
+    expect(
+      bodyAfterNew,
+      "GWT shell must still render after clicking the New Wave button"
+    ).toBeGreaterThan(40);
+    // Dismiss anything the click may have opened before continuing.
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
 
     // ------------------------------------------------------------------
     // Esc — GWT honours Esc inside the editor (closes participant

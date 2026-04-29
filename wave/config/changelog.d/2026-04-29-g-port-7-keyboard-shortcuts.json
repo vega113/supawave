@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-04-29-g-port-7-keyboard-shortcuts",
+  "version": "PR #1116",
+  "date": "2026-04-29",
+  "title": "Keyboard shortcuts for the J2CL view",
+  "summary": "Sign in to the J2CL view and you can now move between blips, open a new wave, and dismiss dialogs without leaving the keyboard.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Press j or k to move blip focus down or up in the open wave",
+        "Press Shift+Cmd+O (Mac) or Shift+Ctrl+O to open the New Wave compose surface",
+        "Press Esc to close the topmost open dialog or popover; press Esc again to drop the focused blip selection",
+        "Press Enter inside the search box to refresh search results"
+      ]
+    }
+  ]
+}

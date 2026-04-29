@@ -407,7 +407,7 @@ public final class J2clSelectedWaveController
     final String createdBlipId = submittedBlipId == null ? "" : submittedBlipId;
     if (targetVersion >= 0
         && currentVisibleViewportVersion() >= targetVersion
-        && submittedBlipObservedOrUnknown(createdBlipId)) {
+        && submittedBlipConfirmedInViewport(createdBlipId)) {
       return;
     }
     final long visibleVersionAtSubmit = currentVisibleViewportVersion();
@@ -445,17 +445,19 @@ public final class J2clSelectedWaveController
     // post-submit handoff is complete only after that exact blip is loaded in the viewport.
     return (targetVersion >= 0
             && currentVisibleVersion >= targetVersion
-            && submittedBlipObservedOrUnknown(createdBlipId))
+            && submittedBlipConfirmedInViewport(createdBlipId))
         || (targetVersion < 0
             && visibleVersionAtSubmit >= 0
             && currentVisibleVersion > visibleVersionAtSubmit
-            && submittedBlipObservedOrUnknown(createdBlipId));
+            && submittedBlipConfirmedInViewport(createdBlipId));
   }
 
-  private boolean submittedBlipObservedOrUnknown(String createdBlipId) {
-    return createdBlipId == null
-        || createdBlipId.isEmpty()
-        || currentViewportHasLoadedBlip(createdBlipId);
+  private boolean submittedBlipConfirmedInViewport(String createdBlipId) {
+    // Empty/null means the caller did not track the submitted blip's ID; we cannot confirm
+    // presence, so always proceed to the forward-fetch rather than treating unknown as "done".
+    return createdBlipId != null
+        && !createdBlipId.isEmpty()
+        && currentViewportHasLoadedBlip(createdBlipId);
   }
 
   @Override

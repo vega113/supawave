@@ -749,6 +749,32 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void replySubmitHandoffFetchesForwardViewportWhenVersionAlreadyMetButBlipIdUnknown()
+      throws Exception {
+    // Regression: submittedBlipConfirmedInViewport must return false for empty blipId so that
+    // legacy callers (no blip ID) still trigger the forward-fetch even if the viewport version
+    // has already advanced to targetVersion via an unrelated live update.
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+    // An unrelated blip advances the version to 45 before the submit acknowledgement arrives.
+    harness.deliverRawUpdate(
+        0, liveReplyFragmentUpdate("Unrelated blip from live stream", -1L, null, 45L));
+
+    // Legacy caller: knows the resulting version but not the submitted blip ID.
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(
+        "unknown blip ID must not suppress the forward-fetch even when version is already met",
+        1,
+        harness.fragmentFetchAttempts.size());
+  }
+
+  @Test
   public void channelEstablishmentUpdateIsIgnoredUntilRealWaveletArrives() throws Exception {
     Harness harness = new Harness();
     Object controller = harness.createController(false);

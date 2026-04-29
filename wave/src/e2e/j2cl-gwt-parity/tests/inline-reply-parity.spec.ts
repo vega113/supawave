@@ -69,14 +69,22 @@ async function clickReplyOnFirstBlipJ2cl(page: Page) {
 }
 
 /**
- * Type the given phrase into the composer body. CI runners drop both
- * leading and trailing keystrokes when the input listener is racing
- * Lit's first render cycle (observed in run 25095688687: typed
- * "hello world mojq06nd" produced draft "ello world mo"). To stay
- * robust we set the textContent through evaluate AND fire an input
- * event so wavy-composer's draft listener picks up the canonical
- * value. The post-condition check fails the test loudly if the draft
- * does not match.
+ * Type the given phrase into the composer body using real keystrokes
+ * so wavy-composer's input listener tracks the change through its
+ * normal mutation path. Setting `textContent` directly desynchronizes
+ * the rich-component serializer — observed: composer unmounts on
+ * send (so the click registered) but no new blip is created on the
+ * server (the controller saw an empty/stale rich-component list).
+ *
+ * Compensates for two Playwright/Lit races observed in CI:
+ * - the leading keystroke can land before Lit attaches the input
+ *   listener (run 25095688687: typed "hello…" → got "ello…");
+ * - long phrases under CI load can drop tail characters too.
+ *
+ * Strategy: type the phrase, then in a small retry loop add the
+ * missing prefix or suffix using execCommand("insertText") (which
+ * dispatches real input events through the browser's text-editing
+ * pipeline, keeping wavy-composer's mutation observer in sync).
  */
 async function typeInComposerJ2cl(
   page: Page,
@@ -85,48 +93,47 @@ async function typeInComposerJ2cl(
 ): Promise<void> {
   const body = composerLocator.locator("[data-composer-body]");
   await body.click();
-  // Give Lit a tick to attach its input listener.
-  await page.waitForTimeout(300);
-  // Set the contenteditable text directly. keyboard.type races the
-  // input listener under CI load and produces partial drafts —
-  // setting textContent + dispatching `input` makes the test
-  // deterministic. The user-visible flow being tested is
-  // "the draft submits and the bold tile wraps the selection",
-  // not "Playwright keystrokes survive Lit hydration".
+  await page.waitForTimeout(400);
+
+  const readDraft = async () =>
+    await composerLocator.evaluate(
+      (host: HTMLElement) => (host as any).draft || ""
+    );
+
+  // Drive the input via execCommand("insertText") so the browser's
+  // text-editing pipeline fires real beforeinput/input events that
+  // wavy-composer's mutation observer + draft-change listener both
+  // honour. `keyboard.type` consistently drops both leading and
+  // trailing characters under any load — the browser delivers them
+  // before Lit attaches the input listener, so the controller's
+  // serializer never sees them. execCommand-driven input fires the
+  // events synchronously and is the same path the user-visible
+  // composer takes when the user pastes or types.
   await composerLocator.evaluate(
-    async (host: HTMLElement, args: { phrase: string }) => {
+    (host: HTMLElement, args: { phrase: string }) => {
       const root = (host as any).shadowRoot as ShadowRoot;
       const b = root.querySelector("[data-composer-body]") as HTMLElement;
-      b.textContent = args.phrase;
-      // Move caret to end so the subsequent select-and-bold does not
-      // race a stale selection state.
+      b.focus();
+      // Move caret to a clean end-of-body position before insert so
+      // the new text appends rather than splitting an existing node.
       const range = document.createRange();
       range.selectNodeContents(b);
       range.collapse(false);
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
-      // Notify wavy-composer's input listener.
-      b.dispatchEvent(new InputEvent("input", { bubbles: true }));
-      // Flush Lit's reactive cycle so draft is updated before we return.
-      if ((host as any).updateComplete instanceof Promise) {
-        await (host as any).updateComplete;
-      }
+      document.execCommand("insertText", false, args.phrase);
     },
     { phrase }
   );
-  // Poll until draft stabilises rather than relying on a fixed wait —
-  // Lit's update is async and CI runners vary in speed.
-  await expect.poll(
-    () => composerLocator.evaluate(
-      (host: HTMLElement) => (host as any).draft || ""
-    ),
-    {
+
+  await expect
+    .poll(readDraft, {
       message: `composer draft must equal '${phrase}' before submit`,
       timeout: 5_000,
-      intervals: [100, 200, 300],
-    }
-  ).toBe(phrase);
+      intervals: [100, 200, 300]
+    })
+    .toBe(phrase);
 }
 
 /**

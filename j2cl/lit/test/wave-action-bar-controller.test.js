@@ -526,6 +526,63 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     expect(stub.calls).to.have.lengthOf(0);
   });
 
+  it("hydrateFromDigest seeds pinned from a matching search-rail card on initial bind", async () => {
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-search-rail-card data-wave-id="w+hydpin" pinned></wavy-search-rail-card>
+        <wavy-wave-nav-row source-wave-id="w+hydpin"></wavy-wave-nav-row>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    controllerModule.start();
+    await Promise.resolve();
+    expect(row.hasAttribute("pinned"), "pinned hydrated from digest card").to.be.true;
+  });
+
+  it("hydrateFromDigest seeds pinned when a row switches to a pinned wave — first click sends unpin", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const card = document.createElement("wavy-search-rail-card");
+    card.setAttribute("data-wave-id", "w+switch-pin");
+    card.setAttribute("pinned", "");
+    document.body.appendChild(card);
+    try {
+      const row = await fixture(
+        html`<wavy-wave-nav-row source-wave-id="w+other2"></wavy-wave-nav-row>`
+      );
+      controllerModule.start();
+      await Promise.resolve();
+      expect(row.hasAttribute("pinned")).to.be.false;
+
+      row.setAttribute("source-wave-id", "w+switch-pin");
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        row.hasAttribute("pinned"),
+        "pin state hydrated after wave switch"
+      ).to.be.true;
+
+      const completed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-folder-action-completed",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-pin-toggle-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "w+switch-pin" }
+        })
+      );
+      const detail = await completed;
+      expect(detail.operation, "first click must unpin an already-pinned wave").to.equal("unpin");
+      const url = new URL(stub.calls[0].url, window.location.origin);
+      expect(url.searchParams.get("operation")).to.equal("unpin");
+    } finally {
+      card.remove();
+    }
+  });
+
   it("binding is idempotent — repeated scans do not double-fire", async () => {
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(

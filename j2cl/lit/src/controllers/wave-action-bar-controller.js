@@ -172,6 +172,24 @@ function setBusy(host, busy, waveId) {
   }
 }
 
+function hydrateFromDigest(host, waveId) {
+  if (!waveId) return;
+  const doc =
+    (host && host.ownerDocument) ||
+    (typeof document !== "undefined" ? document : null);
+  if (!doc || typeof doc.querySelectorAll !== "function") return;
+  const cards = doc.querySelectorAll("wavy-search-rail-card");
+  for (const card of cards) {
+    if (card.getAttribute("data-wave-id") !== waveId) continue;
+    // wavy-search-rail-card reflects `pinned` as a DOM attribute.
+    // `archived` is not yet wired on the card (full hydration deferred
+    // to #1055/S5 via J2clSelectedWaveView.setNavRowFolderState).
+    if (card.hasAttribute("pinned")) host.setAttribute("pinned", "");
+    if (card.hasAttribute("archived")) host.setAttribute("archived", "");
+    return;
+  }
+}
+
 function syncFolderStateForWave(host, waveId) {
   if (!host || typeof host.getAttribute !== "function") return;
   const current = host.getAttribute(ATTR_FOLDER_STATE_WAVE_ID);
@@ -189,6 +207,12 @@ function syncFolderStateForWave(host, waveId) {
     return;
   }
   host.setAttribute(ATTR_FOLDER_STATE_WAVE_ID, waveId);
+  // Seed initial folder state from a matching search-rail digest card.
+  // Handles the case where J2clSelectedWaveView.setNavRowFolderState
+  // (#1055/S5) has not been called yet — a freshly opened already-pinned
+  // or already-archived wave would otherwise derive the wrong toggle
+  // direction on first click.
+  hydrateFromDigest(host, waveId);
 }
 
 function buildFolderUrl(params) {
@@ -387,24 +411,24 @@ export function start() {
   // Bind any nav-rows already in the DOM at install time.
   scanFor(document);
   // Watch for nav-rows added or removed as the J2CL renderer cycles.
-  observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (
-        mutation.type === "attributes" &&
-        mutation.attributeName === "source-wave-id" &&
-        isNavRow(mutation.target)
-      ) {
-        syncFolderStateForWave(mutation.target, readWaveIdFromHost(mutation.target));
-      }
-      if (mutation.addedNodes) {
-        mutation.addedNodes.forEach((node) => scanFor(node));
-      }
-      if (mutation.removedNodes) {
-        mutation.removedNodes.forEach((node) => unbindFrom(node));
-      }
-    }
-  });
   try {
+    observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "source-wave-id" &&
+          isNavRow(mutation.target)
+        ) {
+          syncFolderStateForWave(mutation.target, readWaveIdFromHost(mutation.target));
+        }
+        if (mutation.addedNodes) {
+          mutation.addedNodes.forEach((node) => scanFor(node));
+        }
+        if (mutation.removedNodes) {
+          mutation.removedNodes.forEach((node) => unbindFrom(node));
+        }
+      }
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["source-wave-id"],
@@ -412,7 +436,9 @@ export function start() {
       subtree: true
     });
   } catch (_e) {
-    // jsdom or other observer failures: fall back to one-shot scan.
+    observer = null;
+    // MutationObserver construction or observe() failed; fall back to
+    // one-shot scan already done above.
   }
 }
 

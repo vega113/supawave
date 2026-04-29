@@ -81,6 +81,10 @@ import "./elements/wavy-task-affordance.js";
 // F-3.S4 (#1038): attachments + F.6 Delete confirm dialog. The dialog
 // is body-mounted once; consumers dispatch wavy-confirm-requested.
 import "./elements/wavy-confirm-dialog.js";
+// G-PORT-8 (#1117): top-of-wave action-bar controller — wires the
+// per-row archive/pin/version-history buttons to the /folder servlet
+// and the existing <wavy-version-history> overlay.
+import "./controllers/wave-action-bar-controller.js";
 
 window.__litShellInput =
   window.__bootstrap && typeof window.__bootstrap === "object"

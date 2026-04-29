@@ -164,6 +164,76 @@ describe("<wavy-wave-nav-row>", () => {
     const button = el.renderRoot.querySelector('nav > button[data-action="pin"]');
     expect(button.getAttribute("aria-label")).to.equal("Unpin wave");
     expect(button.dataset.emphasis).to.equal("cyan");
+    expect(button.getAttribute("aria-pressed")).to.equal("true");
+  });
+
+  // G-PORT-8 (#1117): every button renders a SVG glyph cloned from
+  // GWT ViewToolbar.java. No text labels.
+  it("G-PORT-8: every nav button renders an SVG icon", async () => {
+    const el = await fixture(
+      html`<wavy-wave-nav-row></wavy-wave-nav-row>`
+    );
+    await el.updateComplete;
+    const actions = [
+      "recent",
+      "next-unread",
+      "previous",
+      "next",
+      "end",
+      "prev-mention",
+      "next-mention",
+      "archive",
+      "pin",
+      "version-history"
+    ];
+    for (const action of actions) {
+      const btn = el.renderRoot.querySelector(
+        `nav > button[data-action="${action}"]`
+      );
+      expect(btn, `button[data-action=${action}]`).to.exist;
+      expect(
+        btn.querySelector("svg"),
+        `button[data-action=${action}] must contain an <svg> glyph`
+      ).to.exist;
+      // No raw text label on the icon button (legacy mode rendered
+      // "Recent", "Archive", etc.). Only whitespace remains.
+      expect(btn.textContent.trim()).to.equal("");
+      expect(
+        btn.getAttribute("title"),
+        `button[data-action=${action}] must carry a hover title`
+      ).to.match(/.+/);
+    }
+  });
+
+  it("G-PORT-8: archive + pin buttons reflect aria-pressed for the toggle state", async () => {
+    const off = await fixture(
+      html`<wavy-wave-nav-row></wavy-wave-nav-row>`
+    );
+    await off.updateComplete;
+    expect(
+      off.renderRoot
+        .querySelector('button[data-action="archive"]')
+        .getAttribute("aria-pressed")
+    ).to.equal("false");
+    expect(
+      off.renderRoot
+        .querySelector('button[data-action="pin"]')
+        .getAttribute("aria-pressed")
+    ).to.equal("false");
+    const on = await fixture(
+      html`<wavy-wave-nav-row pinned archived></wavy-wave-nav-row>`
+    );
+    await on.updateComplete;
+    expect(
+      on.renderRoot
+        .querySelector('button[data-action="archive"]')
+        .getAttribute("aria-pressed")
+    ).to.equal("true");
+    expect(
+      on.renderRoot
+        .querySelector('button[data-action="pin"]')
+        .getAttribute("aria-pressed")
+    ).to.equal("true");
   });
 
   it("E.2 Next-unread emphasis flips to cyan when unreadCount > 0", async () => {

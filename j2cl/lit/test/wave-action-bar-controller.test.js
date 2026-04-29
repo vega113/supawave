@@ -502,6 +502,44 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     }
   });
 
+  it("falls back to one-shot binding if MutationObserver construction fails", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const originalMutationObserver = window.MutationObserver;
+    window.MutationObserver = class {
+      constructor() {
+        throw new Error("observer unavailable");
+      }
+    };
+    const row = await fixture(
+      html`<wavy-wave-nav-row source-wave-id="w+fallback"></wavy-wave-nav-row>`
+    );
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      expect(row.hasAttribute("data-action-bar-bound")).to.be.true;
+
+      const completed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-folder-action-completed",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-pin-toggle-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "w+fallback" }
+        })
+      );
+      const detail = await completed;
+      expect(detail.operation).to.equal("pin");
+    } finally {
+      controllerModule.stop();
+      window.MutationObserver = originalMutationObserver;
+    }
+  });
+
   it("MutationObserver unbinds nav-rows removed from the DOM", async () => {
     stub = installFetchStub(async () => okResponse());
     controllerModule.start();
@@ -664,6 +702,57 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
       rail.remove();
       stub.restore();
     }
+  });
+
+  it("hydrateFromDigest seeds pinned via rail active-folder when no digest card is present", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const rail = document.createElement("wavy-search-rail");
+    rail.setAttribute("data-active-folder", "pinned");
+    document.body.appendChild(rail);
+    try {
+      const row = await fixture(
+        html`<wavy-wave-nav-row source-wave-id="w+nocard-pin"></wavy-wave-nav-row>`
+      );
+      controllerModule.start();
+      await Promise.resolve();
+      expect(
+        row.hasAttribute("pinned"),
+        "pinned hydrated from rail active-folder when no card present"
+      ).to.be.true;
+
+      const completed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-folder-action-completed",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-pin-toggle-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "w+nocard-pin" }
+        })
+      );
+      const detail = await completed;
+      expect(detail.operation, "first click must unpin, not pin").to.equal("unpin");
+    } finally {
+      rail.remove();
+      stub.restore();
+    }
+  });
+
+  it("hydrateFromDigest leaves toggles unset when no digest card or active folder exists", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row source-wave-id="w+nocard-default"></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    expect(row.hasAttribute("pinned"), "no rail active-folder means no pinned fallback").to.be
+      .false;
+    expect(row.hasAttribute("archived"), "no rail active-folder means no archive fallback").to.be
+      .false;
   });
 
   it("binding is idempotent — repeated scans do not double-fire", async () => {

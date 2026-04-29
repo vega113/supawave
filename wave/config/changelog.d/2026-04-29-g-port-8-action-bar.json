@@ -15,7 +15,8 @@
     {
       "type": "fix",
       "items": [
-        "FolderServlet.verifyWaveVisibleToParticipant now falls back to probing the conv+root wavelet name when waveletProvider.getWaveletIds returns an empty set (a freshly-created wave that is alive in memory but not yet flushed to the persistent store). Mirrors the in-memory fallback already used by SimpleSearchProviderImpl.expandConversationalWavelets and unblocks pin/archive on Welcome waves seeded at sign-in time. Affected both GWT and J2CL views."
+        "FolderServlet.verifyWaveVisibleToParticipant now falls back to probing the conv+root wavelet name when waveletProvider.getWaveletIds returns an empty set (a freshly-created wave that is alive in memory but not yet flushed to the persistent store). Mirrors the in-memory fallback already used by SimpleSearchProviderImpl.expandConversationalWavelets and unblocks pin/archive on Welcome waves seeded at sign-in time. Affected both GWT and J2CL views.",
+        "J2CL viewport growth now preserves read-blip chrome metadata across fragment merges. Existing loaded blips keep their author/time/task metadata, and newly-loaded fragments use the selected digest author/time as a conservative display fallback until authoritative per-blip metadata arrives."
       ]
     },
     {

@@ -1250,6 +1250,58 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void projectUsesRawViewportManifestWhenDocumentManifestIsAbsent() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                71L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    71L,
+                    30L,
+                    71L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange(MANIFEST_SEGMENT, 30L, 71L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+root", 30L, 40L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+second", 40L, 50L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+third", 50L, 60L),
+                        new SidecarSelectedWaveFragmentRange("blip:b+nested", 60L, 71L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment(
+                            MANIFEST_SEGMENT,
+                            "<conversation><blip id=\"b+root\">"
+                                + "<thread id=\"t+first\"><blip id=\"b+second\">"
+                                + "<thread id=\"t+nested\"><blip id=\"b+nested\"/>"
+                                + "</thread></blip></thread><thread id=\"t+third\">"
+                                + "<blip id=\"b+third\"/></thread></blip></conversation>",
+                            0,
+                            0),
+                        new SidecarSelectedWaveFragment("blip:b+root", "Root", 0, 0),
+                        new SidecarSelectedWaveFragment("blip:b+second", "Second", 0, 0),
+                        new SidecarSelectedWaveFragment("blip:b+third", "Third", 0, 0),
+                        new SidecarSelectedWaveFragment("blip:b+nested", "Nested", 0, 0)))),
+            null,
+            0);
+
+    SidecarConversationManifest manifest = projected.getConversationManifest();
+    Assert.assertFalse(manifest.isEmpty());
+    Assert.assertEquals("b+root", manifest.getOrderedEntries().get(0).getBlipId());
+    Assert.assertEquals("b+second", manifest.getOrderedEntries().get(1).getBlipId());
+    Assert.assertEquals("b+nested", manifest.getOrderedEntries().get(2).getBlipId());
+    Assert.assertEquals("b+third", manifest.getOrderedEntries().get(3).getBlipId());
+    Assert.assertEquals("b+second", manifest.findByBlipId("b+nested").getParentBlipId());
+    Assert.assertEquals("b+root", manifest.findByBlipId("b+third").getParentBlipId());
+  }
+
+  @Test
   public void projectCarriesPreviousViewportWindowWhenUpdateOmitsFragments() {
     J2clSelectedWaveModel first =
         J2clSelectedWaveProjector.project(
@@ -2303,6 +2355,211 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals("bob@example.com", blip.getAuthorId());
     Assert.assertEquals(1714240000000L, blip.getLastModifiedTimeMillis());
     Assert.assertFalse(blip.hasMention());
+  }
+
+  @Test
+  public void viewportReadBlipsUseDigestMetadataFallbackWhenDocumentsLag() {
+    J2clSearchDigestItem digest =
+        new J2clSearchDigestItem(
+            WAVE_ID,
+            "Wave",
+            "snippet",
+            "author@example.com",
+            0,
+            1,
+            1714240000000L,
+            false);
+
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest,
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                42L,
+                "HASH",
+                Arrays.asList("author@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    42L,
+                    0L,
+                    42L,
+                    Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 42L)),
+                    Arrays.asList(new SidecarSelectedWaveFragment("blip:b+root", "Body", 0, 0)))),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("author@example.com", blip.getAuthorId());
+    Assert.assertEquals("author@example.com", blip.getAuthorDisplayName());
+    Assert.assertEquals(1714240000000L, blip.getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void viewportMetadataFallbacksPreservePreviousBlipsAndPatchNewFragments() {
+    J2clSearchDigestItem digest =
+        new J2clSearchDigestItem(
+            WAVE_ID,
+            "Wave",
+            "snippet",
+            "digest-author@example.com",
+            0,
+            2,
+            1714240000000L,
+            false);
+    J2clReadBlip previousRoot =
+        new J2clReadBlip(
+            "b+root",
+            "Root before growth",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "root-author@example.com",
+            "Root Author",
+            1714230000000L,
+            "",
+            "",
+            /* unread= */ true,
+            /* hasMention= */ true,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "assignee@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+
+    java.util.List<J2clReadBlip> enriched =
+        J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
+            Arrays.asList(
+                new J2clReadBlip("b+root", "Root after growth"),
+                new J2clReadBlip("b+next", "Next after growth")),
+            Arrays.asList(previousRoot),
+            digest);
+
+    Assert.assertEquals(2, enriched.size());
+    J2clReadBlip root = enriched.get(0);
+    Assert.assertEquals("Root after growth", root.getText());
+    Assert.assertEquals("root-author@example.com", root.getAuthorId());
+    Assert.assertEquals(1714230000000L, root.getLastModifiedTimeMillis());
+    Assert.assertFalse(root.isUnread());
+    Assert.assertFalse(root.hasMention());
+    Assert.assertFalse(root.isTaskDone());
+    Assert.assertEquals("assignee@example.com", root.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, root.getTaskDueTimestamp());
+
+    J2clReadBlip next = enriched.get(1);
+    Assert.assertEquals("Next after growth", next.getText());
+    Assert.assertEquals("digest-author@example.com", next.getAuthorId());
+    Assert.assertEquals(1714240000000L, next.getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void viewportMetadataFallbacksDoNotResurrectAuthoritativeFalseBooleans() {
+    J2clReadBlip previous =
+        new J2clReadBlip(
+            "b+root",
+            "Root before growth",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "root-author@example.com",
+            "Root Author",
+            1714230000000L,
+            "",
+            "",
+            /* unread= */ true,
+            /* hasMention= */ true,
+            /* deleted= */ true,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "assignee@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+    J2clReadBlip refreshed =
+        new J2clReadBlip(
+            "b+root",
+            "Root after growth",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "",
+            "",
+            0L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+
+    java.util.List<J2clReadBlip> enriched =
+        J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
+            Arrays.asList(refreshed), Arrays.asList(previous), null);
+
+    Assert.assertEquals(1, enriched.size());
+    J2clReadBlip root = enriched.get(0);
+    Assert.assertEquals("root-author@example.com", root.getAuthorId());
+    Assert.assertEquals(1714230000000L, root.getLastModifiedTimeMillis());
+    Assert.assertFalse("fresh unread=false must not be OR-merged with stale true", root.isUnread());
+    Assert.assertFalse("fresh hasMention=false must not be OR-merged with stale true", root.hasMention());
+    Assert.assertFalse("fresh deleted=false must not be OR-merged with stale true", root.isDeleted());
+    Assert.assertFalse("fresh taskDone=false must not be OR-merged with stale true", root.isTaskDone());
+    Assert.assertEquals("assignee@example.com", root.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, root.getTaskDueTimestamp());
+  }
+
+  @Test
+  public void viewportMetadataFallbacksCanPreservePreviousBooleansForFragmentGrowth() {
+    J2clReadBlip previous =
+        new J2clReadBlip(
+            "b+root",
+            "Root before growth",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "root-author@example.com",
+            "Root Author",
+            1714230000000L,
+            "b+parent",
+            "thread-1",
+            /* unread= */ true,
+            /* hasMention= */ true,
+            /* deleted= */ false,
+            /* taskDone= */ true,
+            /* taskAssignee= */ "assignee@example.com",
+            /* taskDueTimestamp= */ 1714560000000L);
+    J2clReadBlip refreshed =
+        new J2clReadBlip(
+            "b+root",
+            "Root after growth",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "",
+            "",
+            0L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+
+    java.util.List<J2clReadBlip> enriched =
+        J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
+            Arrays.asList(refreshed),
+            Arrays.asList(previous),
+            null,
+            /* preserveFallbackBooleans= */ true);
+
+    Assert.assertEquals(1, enriched.size());
+    J2clReadBlip root = enriched.get(0);
+    Assert.assertEquals("Root after growth", root.getText());
+    Assert.assertEquals("root-author@example.com", root.getAuthorId());
+    Assert.assertEquals("Root Author", root.getAuthorDisplayName());
+    Assert.assertEquals(1714230000000L, root.getLastModifiedTimeMillis());
+    Assert.assertEquals("b+parent", root.getParentBlipId());
+    Assert.assertEquals("thread-1", root.getThreadId());
+    Assert.assertTrue("fragment growth must preserve prior unread state", root.isUnread());
+    Assert.assertTrue("fragment growth must preserve prior mention state", root.hasMention());
+    Assert.assertFalse(root.isDeleted());
+    Assert.assertTrue("fragment growth must preserve prior taskDone state", root.isTaskDone());
+    Assert.assertEquals("assignee@example.com", root.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, root.getTaskDueTimestamp());
   }
 
   @Test

@@ -63,17 +63,43 @@ export class GwtPage extends WavePage {
    * editor convention).
    */
   async typeIntoBlipDocument(text: string): Promise<void> {
-    // The GWT document container has kind="document" and the
-    // .SWCAW class (compiled CSS class).
-    const editable = this.page.locator(".SWCAW [contenteditable]").last();
+    const editable = this.gwtEditableDocument().last();
     await this.ensureEditableDocumentVisible(editable);
     await editable.click({ force: true });
     await this.page.keyboard.type(text, { delay: 10 });
-    await this.page.keyboard.press("Escape");
-    // Wait for edit mode to exit: contenteditable elements disappear.
-    await expect(this.page.locator(".SWCAW [contenteditable]")).toHaveCount(0, {
+    if (!(await this.tryClickDoneForActiveEditor())) {
+      await this.page.keyboard.press("Escape");
+    }
+    // GWT keeps its editable marker mounted after Done; the committed state is
+    // indicated by the edit controls disappearing.
+    await expect(this.gwtDoneAffordance()).toHaveCount(0, {
       timeout: 5_000
     });
+  }
+
+  private async tryClickDoneForActiveEditor(): Promise<boolean> {
+    const done = this.gwtDoneAffordance().first();
+    try {
+      await done.click({ timeout: 5_000 });
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  private gwtDoneAffordance(): Locator {
+    return this.page.locator('[title="Done"]:visible, [aria-label="Done"]:visible');
+  }
+
+  private gwtEditableDocument(): Locator {
+    return this.page.locator(
+      [
+        '[kind="document"] [editabledocmarker="true"]',
+        '[kind="document"] .wave-editor-on',
+        '[kind="document"][contenteditable]',
+        '[kind="document"] [contenteditable]'
+      ].join(", ")
+    );
   }
 
   private async ensureEditableDocumentVisible(editable: Locator): Promise<void> {

@@ -2,11 +2,18 @@ package org.waveprotocol.box.j2cl.search;
 
 import elemental2.dom.DomGlobal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadataClient;
+import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.read.J2clReadBlip;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
@@ -374,9 +381,6 @@ public final class J2clSelectedWaveController
         && currentSubscription != null
         && requestGeneration > 0) {
       selectedDigestItem = digestItem;
-      // F-2 slice 5 (#1055, S2 deferral): publish pin folder state so
-      // the wavy-wave-nav-row can render its E.7 pin toggle correctly.
-      publishNavRowFolderState();
       if (lastUpdate != null) {
         currentModel =
             J2clSelectedWaveProjector.project(
@@ -388,8 +392,11 @@ public final class J2clSelectedWaveController
                 currentReadState,
                 readStateStale);
         view.render(currentModel);
+        publishNavRowFolderState();
         publishWriteSession();
         requestAttachmentMetadataForCurrentViewport(requestGeneration);
+      } else {
+        publishNavRowFolderState();
       }
       return;
     }
@@ -424,18 +431,21 @@ public final class J2clSelectedWaveController
     reconnectCount = 0;
     currentReadState = null;
     readStateStale = false;
-    publishNavRowFolderState();
     fetchBootstrapAndOpenSelectedWave(generation, 0, false);
   }
 
   /**
    * F-2 slice 5 (#1055, S2 deferral): forward pin folder state from the
-   * selected digest to the {@code <wavy-wave-nav-row>} chrome. Archived
-   * state stays {@code false} until F-4 wires the live folder feed.
+   * selected digest to the {@code <wavy-wave-nav-row>} chrome. Archive
+   * state is inferred by the search-result projector when the active
+   * authoritative result set came from an archive folder query. Direct deep
+   * links and cross-tab folder mutations stay conservative until the next
+   * rail refresh or the live folder-state feed lands.
    */
   private void publishNavRowFolderState() {
     boolean pinned = selectedDigestItem != null && selectedDigestItem.isPinned();
-    view.setNavRowFolderState(pinned, false);
+    boolean archived = selectedDigestItem != null && selectedDigestItem.isArchived();
+    view.setNavRowFolderState(pinned, archived);
   }
 
   private void fetchBootstrapAndOpenSelectedWave(
@@ -447,6 +457,10 @@ public final class J2clSelectedWaveController
     currentModel =
         J2clSelectedWaveModel.loading(selectedWaveId, selectedDigestItem, reconnectCount, currentModel);
     view.render(currentModel);
+    // Publish after render updates the nav-row's source-wave-id. Otherwise the
+    // Lit action-bar observer can treat model-backed folder state as stale when
+    // the row is reused and no digest card exists to rehydrate it.
+    publishNavRowFolderState();
     publishWriteSession();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
@@ -627,11 +641,31 @@ public final class J2clSelectedWaveController
           }
           // Capture the pre-merge state inside the callback so that any live-stream
           // updates that arrived between dispatch and response do not inflate the delta.
+          J2clSelectedWaveModel previousModel = currentModel;
           J2clSelectedWaveViewportState preState = currentModel.getViewportState();
           int loadedBlipsBeforeMerge = preState.getLoadedReadBlips().size();
           J2clSelectedWaveViewportState mergedState =
               preState.mergeFragments(response.getFragments(), normalizedDirection);
-          currentModel = currentModel.withViewportState(mergedState);
+          SidecarConversationManifest responseManifest =
+              SidecarConversationManifest.fromFragments(response.getFragments());
+          List<J2clReadBlip> metadataFallbacks =
+              mergeFragmentBlipMetadata(previousModel.getReadBlips(), response.getBlips());
+          currentModel =
+              previousModel
+                  .withViewportState(mergedState)
+                  .withReadBlips(
+                      J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
+                          mergedState.getLoadedReadBlips(),
+                          metadataFallbacks,
+                          selectedDigestItem,
+                          /* preserveFallbackBooleans= */ true));
+          if (!responseManifest.isEmpty()) {
+            // Viewport rendering consumes the manifest directly for depth and
+            // ordering. Do not expand model readBlips here: fragment windows
+            // must stay bounded to the loaded viewport, while full-manifest
+            // parent/thread grafting is tracked as a follow-up to #904.
+            currentModel = currentModel.withConversationManifest(responseManifest);
+          }
           int loadedBlipsAfter = mergedState.getLoadedReadBlips().size();
           int delta = Math.max(0, loadedBlipsAfter - loadedBlipsBeforeMerge);
           if (delta < FRAGMENT_GROWTH_LIMIT) {
@@ -695,6 +729,94 @@ public final class J2clSelectedWaveController
       return anchorBlipId;
     }
     return viewportState.edgeBlipId(direction);
+  }
+
+  private static List<J2clReadBlip> mergeFragmentBlipMetadata(
+      List<J2clReadBlip> previousReadBlips,
+      List<SidecarFragmentsResponse.BlipMetadata> blipMetadata) {
+    if (blipMetadata == null || blipMetadata.isEmpty()) {
+      return previousReadBlips;
+    }
+    Map<String, J2clReadBlip> merged = new LinkedHashMap<String, J2clReadBlip>();
+    if (previousReadBlips != null) {
+      for (J2clReadBlip blip : previousReadBlips) {
+        if (blip == null || blip.getBlipId().isEmpty()) {
+          continue;
+        }
+        merged.put(blip.getBlipId(), blip);
+      }
+    }
+    for (SidecarFragmentsResponse.BlipMetadata metadata : blipMetadata) {
+      if (metadata == null || nullToEmpty(metadata.getId()).isEmpty()) {
+        continue;
+      }
+      J2clReadBlip existing = merged.get(metadata.getId());
+      J2clReadBlip next = mergeFragmentBlipMetadata(existing, metadata);
+      if (next != null) {
+        merged.put(metadata.getId(), next);
+      }
+    }
+    return new ArrayList<J2clReadBlip>(merged.values());
+  }
+
+  private static J2clReadBlip mergeFragmentBlipMetadata(
+      J2clReadBlip existing, SidecarFragmentsResponse.BlipMetadata metadata) {
+    String author = nullToEmpty(metadata.getAuthor());
+    long lastModified = Math.max(0L, metadata.getLastModifiedTime());
+    if (existing == null) {
+      if (author.isEmpty() && lastModified <= 0L) {
+        return null;
+      }
+      // Metadata-only fallback: the projector reads author/time from this
+      // object, but the viewport blip remains the source of text and flags.
+      // Brand-new fragment-only blips intentionally start with false boolean
+      // state until read-state/task metadata catches up; only existing blips
+      // can preserve booleans through the previous-model fallback.
+      return new J2clReadBlip(
+          metadata.getId(),
+          "",
+          Collections.<J2clAttachmentRenderModel>emptyList(),
+          author,
+          author,
+          lastModified,
+          "",
+          "",
+          false,
+          false,
+          false);
+    }
+    String authorId = existing.getAuthorId();
+    if ((authorId == null || authorId.isEmpty()) && !author.isEmpty()) {
+      authorId = author;
+    }
+    String authorDisplayName = existing.getAuthorDisplayName();
+    if ((authorDisplayName == null || authorDisplayName.isEmpty()) && !author.isEmpty()) {
+      authorDisplayName = author;
+    }
+    long mergedLastModified = existing.getLastModifiedTimeMillis();
+    if (mergedLastModified <= 0L && lastModified > 0L) {
+      mergedLastModified = lastModified;
+    }
+    if (Objects.equals(authorId, existing.getAuthorId())
+        && Objects.equals(authorDisplayName, existing.getAuthorDisplayName())
+        && mergedLastModified == existing.getLastModifiedTimeMillis()) {
+      return existing;
+    }
+    return new J2clReadBlip(
+        existing.getBlipId(),
+        existing.getText(),
+        existing.getAttachments(),
+        authorId,
+        authorDisplayName,
+        mergedLastModified,
+        existing.getParentBlipId(),
+        existing.getThreadId(),
+        existing.isUnread(),
+        existing.hasMention(),
+        existing.isDeleted(),
+        existing.isTaskDone(),
+        existing.getTaskAssignee(),
+        existing.getTaskDueTimestamp());
   }
 
   private static String nullToEmpty(String value) {
@@ -1241,7 +1363,7 @@ public final class J2clSelectedWaveController
    * when a waveId itself contains the chosen separator.
    */
   private static String markBlipReadInFlightKey(String waveId, String blipId) {
-    return nullToEmpty(waveId) + ' ' + nullToEmpty(blipId);
+    return nullToEmpty(waveId) + '\u0000' + nullToEmpty(blipId);
   }
 
   /**

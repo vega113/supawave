@@ -9,6 +9,7 @@ public final class J2clSearchDigestItem {
   private final int blipCount;
   private final long lastModified;
   private final boolean pinned;
+  private final boolean archived;
 
   public J2clSearchDigestItem(
       String waveId,
@@ -19,6 +20,19 @@ public final class J2clSearchDigestItem {
       int blipCount,
       long lastModified,
       boolean pinned) {
+    this(waveId, title, snippet, author, unreadCount, blipCount, lastModified, pinned, false);
+  }
+
+  public J2clSearchDigestItem(
+      String waveId,
+      String title,
+      String snippet,
+      String author,
+      int unreadCount,
+      int blipCount,
+      long lastModified,
+      boolean pinned,
+      boolean archived) {
     this.waveId = waveId;
     this.title = title;
     this.snippet = snippet;
@@ -27,6 +41,7 @@ public final class J2clSearchDigestItem {
     this.blipCount = blipCount;
     this.lastModified = lastModified;
     this.pinned = pinned;
+    this.archived = archived;
   }
 
   public String getWaveId() {
@@ -61,6 +76,10 @@ public final class J2clSearchDigestItem {
     return pinned;
   }
 
+  public boolean isArchived() {
+    return archived;
+  }
+
   /**
    * F-4 (#1039 / R-4.4): returns a copy with the unread count replaced.
    * Used by the live-decrement path so the cached search result model
@@ -73,6 +92,6 @@ public final class J2clSearchDigestItem {
       return this;
     }
     return new J2clSearchDigestItem(
-        waveId, title, snippet, author, normalized, blipCount, lastModified, pinned);
+        waveId, title, snippet, author, normalized, blipCount, lastModified, pinned, archived);
   }
 }

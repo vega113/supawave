@@ -445,10 +445,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (waveNavRow != null) {
       int navUnread = Math.max(0, model.getUnreadCount());
       waveNavRow.setAttribute("unread-count", Integer.toString(navUnread));
-      // pinned + archived: TODO(#1046 / S5) — wire the data binding from
-      // J2clSearchDigestItem.isPinned() / inbox-folder state once those
-      // signals reach the view layer. The chrome ships and dispatches
-      // events even when these props default to false.
+      // Pin/archive state is published separately through setNavRowFolderState
+      // after render sets source-wave-id, so the Lit action-bar observer does
+      // not clear the state while reusing the nav row for another wave.
     }
     if (shouldPreserveServerFirstCard(model)) {
       renderPreservedServerFirstState(model);

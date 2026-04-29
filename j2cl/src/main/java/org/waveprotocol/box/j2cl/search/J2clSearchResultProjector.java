@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.search;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class J2clSearchResultProjector {
   static final String DEFAULT_QUERY = "in:inbox";
@@ -33,6 +34,7 @@ public final class J2clSearchResultProjector {
 
     List<J2clSearchDigestItem> items = new ArrayList<J2clSearchDigestItem>();
     int unreadWaveCount = 0;
+    boolean archivedQuery = isArchiveQuery(response.getQuery());
     for (SidecarSearchResponse.Digest digest : response.getDigests()) {
       if (digest == null || digest.getWaveId() == null) {
         continue;
@@ -49,7 +51,8 @@ public final class J2clSearchResultProjector {
               digest.getUnreadCount(),
               digest.getBlipCount(),
               digest.getLastModified(),
-              digest.isPinned()));
+              digest.isPinned(),
+              archivedQuery));
     }
 
     if (items.isEmpty()) {
@@ -90,5 +93,31 @@ public final class J2clSearchResultProjector {
     }
     List<String> participants = digest.getParticipants();
     return participants.isEmpty() ? "" : participants.get(0);
+  }
+
+  /**
+   * Detects archive-folder result sets from token-level folder qualifiers.
+   * The J2CL rail emits the canonical {@code in:archive} query; the aliases
+   * are accepted for restored URLs and manual queries. Quoted or parenthesized
+   * expressions are intentionally not parsed as folder context here.
+   */
+  private static boolean isArchiveQuery(String query) {
+    if (query == null) {
+      return false;
+    }
+    String[] tokens = query.trim().toLowerCase(Locale.ROOT).split("\\s+");
+    for (String token : tokens) {
+      if (isArchiveFolderToken(token)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isArchiveFolderToken(String token) {
+    return "in:archive".equals(token)
+        || "is:archive".equals(token)
+        || "is:archived".equals(token)
+        || "folder:archive".equals(token);
   }
 }

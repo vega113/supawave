@@ -178,31 +178,37 @@ function hydrateFromDigest(host, waveId) {
     (host && host.ownerDocument) ||
     (typeof document !== "undefined" ? document : null);
   if (!doc || typeof doc.querySelectorAll !== "function") return;
+  const rail = doc.querySelector("wavy-search-rail");
+  const activeFolder = rail ? rail.getAttribute("data-active-folder") : "";
   const cards = doc.querySelectorAll("wavy-search-rail-card");
   for (const card of cards) {
     if (card.getAttribute("data-wave-id") !== waveId) continue;
     // wavy-search-rail-card reflects `pinned` as a DOM attribute.
-    if (card.hasAttribute("pinned")) host.setAttribute("pinned", "");
+    // If the rail itself is showing in:pinned results, the active-folder
+    // context is also authoritative for route-restored rows.
+    if (card.hasAttribute("pinned") || activeFolder === "pinned") {
+      host.setAttribute("pinned", "");
+    }
     // `archived` is not yet wired on the card as a DOM attribute (#1055/S5).
     // Fall back to the rail's active-folder context: if the search rail is
     // showing in:archive results and this card is present, the wave is archived.
     if (card.hasAttribute("archived")) {
       host.setAttribute("archived", "");
     } else {
-      const rail = doc.querySelector("wavy-search-rail");
-      if (rail && rail.getAttribute("data-active-folder") === "archive") {
+      if (activeFolder === "archive") {
         host.setAttribute("archived", "");
       }
     }
     return;
   }
   // No matching digest card: the wave was opened from route state without a
-  // visible card in the current rail view. `pinned` cannot be derived without
-  // a card (deferred to #1055/S5). `archived` can still be inferred from the
-  // rail's active-folder context — if the rail is showing in:archive results,
-  // any wave the user navigates to from that view is archived.
-  const rail = doc.querySelector("wavy-search-rail");
-  if (rail && rail.getAttribute("data-active-folder") === "archive") {
+  // visible card in the current rail view. The active folder is the only
+  // available authoritative context until full selected-wave folder state is
+  // wired through #1055/S5; use it for folder-scoped route restoration.
+  if (activeFolder === "pinned") {
+    host.setAttribute("pinned", "");
+  }
+  if (activeFolder === "archive") {
     host.setAttribute("archived", "");
   }
 }
@@ -427,8 +433,8 @@ export function start() {
   installed = true;
   // Bind any nav-rows already in the DOM at install time.
   scanFor(document);
-  // Watch for nav-rows added or removed as the J2CL renderer cycles.
   try {
+    // Watch for nav-rows added or removed as the J2CL renderer cycles.
     observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (

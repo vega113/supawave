@@ -519,6 +519,7 @@ public final class J2clReadSurfaceDomRenderer {
       focusedBlip = null;
       return false;
     }
+    List<J2clReadWindowEntry> effectiveEntries = orderWindowEntriesForRender(entries);
 
     String focusedBlipId = currentFocusedBlipId();
     String scrollAnchorBlipId = firstRenderedBlipId();
@@ -527,7 +528,8 @@ public final class J2clReadSurfaceDomRenderer {
     // J-UI-4 (#1082, R-3.1): also invalidate the cache when the manifest
     // has changed (reference equality is intentional — a new manifest from
     // a new update is always a different object reference).
-    if (matchesRenderedWindowEntries(entries) && conversationManifest == renderedConversationManifest) {
+    if (matchesRenderedWindowEntries(effectiveEntries)
+        && conversationManifest == renderedConversationManifest) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -569,8 +571,8 @@ public final class J2clReadSurfaceDomRenderer {
     // unconditionally would mount thread B in front of the already-
     // inserted thread A, reversing manifest DFS sibling order.
     Map<String, HTMLElement> winLastThreadHostByParent = new HashMap<String, HTMLElement>();
-    for (int i = 0; i < entries.size(); i++) {
-      J2clReadWindowEntry entry = entries.get(i);
+    for (int i = 0; i < effectiveEntries.size(); i++) {
+      J2clReadWindowEntry entry = effectiveEntries.get(i);
       if (!entry.isLoaded()) {
         hasPlaceholder = true;
         HTMLElement placeholderEl = renderPlaceholder(entry);
@@ -700,7 +702,7 @@ public final class J2clReadSurfaceDomRenderer {
 
     host.appendChild(surface);
     renderedWindowEntries =
-        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
+        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(effectiveEntries));
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedSurface = surface;
     // J-UI-4 (#1082, R-3.1): record the manifest that was active for this
@@ -715,6 +717,53 @@ public final class J2clReadSurfaceDomRenderer {
     pruneStaleInFlightOnRebuild();
     evaluateDwellTimers();
     return true;
+  }
+
+  private List<J2clReadWindowEntry> orderWindowEntriesForRender(
+      List<J2clReadWindowEntry> entries) {
+    if (conversationManifest == null || conversationManifest.isEmpty()
+        || entries == null || entries.isEmpty()) {
+      return entries;
+    }
+    Map<String, J2clReadWindowEntry> entriesByBlipId =
+        new HashMap<String, J2clReadWindowEntry>();
+    for (J2clReadWindowEntry entry : entries) {
+      if (entry == null || entry.getBlipId() == null || entry.getBlipId().isEmpty()) {
+        continue;
+      }
+      if (!entriesByBlipId.containsKey(entry.getBlipId())) {
+        entriesByBlipId.put(entry.getBlipId(), entry);
+      }
+    }
+    if (entriesByBlipId.isEmpty()) {
+      return entries;
+    }
+    List<J2clReadWindowEntry> ordered =
+        new ArrayList<J2clReadWindowEntry>(entries.size());
+    Set<String> seen = new HashSet<String>();
+    for (SidecarConversationManifest.Entry manifestEntry : conversationManifest.getOrderedEntries()) {
+      if (manifestEntry == null || manifestEntry.getBlipId().isEmpty()) {
+        continue;
+      }
+      J2clReadWindowEntry entry = entriesByBlipId.get(manifestEntry.getBlipId());
+      if (entry != null && seen.add(entry.getBlipId())) {
+        ordered.add(entry);
+      }
+    }
+    if (ordered.isEmpty()) {
+      return entries;
+    }
+    for (J2clReadWindowEntry entry : entries) {
+      if (entry == null || entry.getBlipId() == null || entry.getBlipId().isEmpty()
+          || !seen.add(entry.getBlipId())) {
+        continue;
+      }
+      ordered.add(entry);
+    }
+    // If duplicate/empty blip ids made ordering lossy, keep the original
+    // viewport order rather than dropping content while applying manifest
+    // structure.
+    return ordered.size() == entries.size() ? ordered : entries;
   }
 
   private List<String> captureCollapsedThreadIds() {

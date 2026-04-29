@@ -136,6 +136,125 @@ public final class SidecarConversationManifest {
     return new SidecarConversationManifest(filtered, byId);
   }
 
+  /**
+   * Extracts the conversation manifest from viewport-style fragments.
+   *
+   * <p>The selected-wave stream can deliver the manifest as a full document
+   * operation (decoded by {@code SidecarTransportCodec}) or as the raw XML
+   * snapshot carried by the viewport {@code manifest} segment. Fragment growth
+   * uses the latter shape, so the J2CL renderer must be able to recover the
+   * same parent/thread tree from raw XML as it does from document operations.
+   */
+  public static SidecarConversationManifest fromFragments(SidecarSelectedWaveFragments fragments) {
+    if (fragments == null || fragments.getEntries().isEmpty()) {
+      return EMPTY;
+    }
+    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
+      if (fragment == null || !"manifest".equals(fragment.getSegment())) {
+        continue;
+      }
+      SidecarConversationManifest parsed = fromXml(fragment.getRawSnapshot());
+      if (!parsed.isEmpty()) {
+        return parsed;
+      }
+    }
+    return EMPTY;
+  }
+
+  /**
+   * Parses the compact raw XML snapshot used by the viewport manifest segment.
+   * This intentionally recognizes only {@code conversation}, {@code thread},
+   * and {@code blip} structure; unknown tags and malformed tails are ignored so
+   * a corrupt manifest cannot suppress otherwise visible blip content.
+   */
+  public static SidecarConversationManifest fromXml(String rawXml) {
+    if (rawXml == null || rawXml.isEmpty() || rawXml.indexOf("<") < 0) {
+      return EMPTY;
+    }
+    List<Entry> entries = new ArrayList<Entry>();
+    List<String> threadStack = new ArrayList<String>();
+    List<String> threadParentBlipStack = new ArrayList<String>();
+    List<Integer> siblingCounterStack = new ArrayList<Integer>();
+    List<String> openBlipStack = new ArrayList<String>();
+    int rootSiblingCounter = 0;
+    int cursor = 0;
+    while (cursor < rawXml.length()) {
+      int tagStart = rawXml.indexOf('<', cursor);
+      if (tagStart < 0) {
+        break;
+      }
+      int tagEnd = findTagEnd(rawXml, tagStart + 1);
+      if (tagEnd < 0) {
+        break;
+      }
+      String tag = rawXml.substring(tagStart + 1, tagEnd).trim();
+      cursor = tagEnd + 1;
+      if (tag.isEmpty() || tag.startsWith("?") || tag.startsWith("!")) {
+        continue;
+      }
+      boolean closing = tag.startsWith("/");
+      if (closing) {
+        String name = tagName(tag.substring(1).trim());
+        if ("thread".equals(name)) {
+          popLast(threadStack);
+          popLast(threadParentBlipStack);
+          popLast(siblingCounterStack);
+        } else if ("blip".equals(name)) {
+          popLast(openBlipStack);
+        }
+        continue;
+      }
+      boolean selfClosing = tag.endsWith("/");
+      if (selfClosing) {
+        tag = tag.substring(0, tag.length() - 1).trim();
+      }
+      String name = tagName(tag);
+      if ("thread".equals(name)) {
+        String threadId = attributeValue(tag, "id");
+        threadStack.add(threadId == null ? "" : threadId);
+        String parentBlipId =
+            openBlipStack.isEmpty() ? "" : openBlipStack.get(openBlipStack.size() - 1);
+        threadParentBlipStack.add(parentBlipId);
+        siblingCounterStack.add(Integer.valueOf(0));
+        if (selfClosing) {
+          popLast(threadStack);
+          popLast(threadParentBlipStack);
+          popLast(siblingCounterStack);
+        }
+      } else if ("blip".equals(name)) {
+        String blipId = attributeValue(tag, "id");
+        if (blipId == null || blipId.isEmpty()) {
+          continue;
+        }
+        String parentBlipId =
+            threadParentBlipStack.isEmpty()
+                ? ""
+                : threadParentBlipStack.get(threadParentBlipStack.size() - 1);
+        String threadId =
+            threadStack.isEmpty() ? "" : threadStack.get(threadStack.size() - 1);
+        int siblingIndex;
+        if (siblingCounterStack.isEmpty()) {
+          siblingIndex = rootSiblingCounter++;
+        } else {
+          int last = siblingCounterStack.size() - 1;
+          siblingIndex = siblingCounterStack.get(last).intValue();
+          siblingCounterStack.set(last, Integer.valueOf(siblingIndex + 1));
+        }
+        entries.add(
+            new Entry(
+                blipId,
+                parentBlipId,
+                threadId,
+                depthFor(threadParentBlipStack),
+                siblingIndex));
+        if (!selfClosing) {
+          openBlipStack.add(blipId);
+        }
+      }
+    }
+    return of(entries);
+  }
+
   public boolean isEmpty() {
     return orderedEntries.isEmpty();
   }
@@ -158,5 +277,108 @@ public final class SidecarConversationManifest {
     String key = parentBlipId == null ? "" : parentBlipId;
     List<String> bucket = childBlipIdsByParentBlipId.get(key);
     return bucket == null ? Collections.<String>emptyList() : bucket;
+  }
+
+  private static String tagName(String tag) {
+    if (tag == null || tag.isEmpty()) {
+      return "";
+    }
+    int end = 0;
+    while (end < tag.length()) {
+      char c = tag.charAt(end);
+      if (Character.isWhitespace(c) || c == '/') {
+        break;
+      }
+      end++;
+    }
+    return end <= 0 ? "" : tag.substring(0, end);
+  }
+
+  private static int findTagEnd(String rawXml, int cursor) {
+    char quote = 0;
+    for (int i = cursor; i < rawXml.length(); i++) {
+      char c = rawXml.charAt(i);
+      if (quote != 0) {
+        if (c == quote) {
+          quote = 0;
+        }
+        continue;
+      }
+      if (c == '"' || c == '\'') {
+        quote = c;
+      } else if (c == '>') {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static String attributeValue(String tag, String name) {
+    if (tag == null || name == null || name.isEmpty()) {
+      return null;
+    }
+    int cursor = 0;
+    while (cursor < tag.length()) {
+      int idx = tag.indexOf(name, cursor);
+      if (idx < 0) {
+        return null;
+      }
+      int before = idx - 1;
+      int afterName = idx + name.length();
+      if ((before >= 0 && isNameChar(tag.charAt(before)))
+          || (afterName < tag.length() && isNameChar(tag.charAt(afterName)))) {
+        cursor = afterName;
+        continue;
+      }
+      int pos = afterName;
+      while (pos < tag.length() && Character.isWhitespace(tag.charAt(pos))) {
+        pos++;
+      }
+      if (pos >= tag.length() || tag.charAt(pos) != '=') {
+        cursor = afterName;
+        continue;
+      }
+      pos++;
+      while (pos < tag.length() && Character.isWhitespace(tag.charAt(pos))) {
+        pos++;
+      }
+      if (pos >= tag.length()) {
+        return "";
+      }
+      char quote = tag.charAt(pos);
+      if (quote == '"' || quote == '\'') {
+        int valueStart = pos + 1;
+        int valueEnd = tag.indexOf(quote, valueStart);
+        return valueEnd < 0 ? tag.substring(valueStart) : tag.substring(valueStart, valueEnd);
+      }
+      int valueStart = pos;
+      while (pos < tag.length()
+          && !Character.isWhitespace(tag.charAt(pos))
+          && tag.charAt(pos) != '/') {
+        pos++;
+      }
+      return tag.substring(valueStart, pos);
+    }
+    return null;
+  }
+
+  private static boolean isNameChar(char c) {
+    return Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == ':';
+  }
+
+  private static int depthFor(List<String> threadParentBlipStack) {
+    int depth = 0;
+    for (String parent : threadParentBlipStack) {
+      if (parent != null && !parent.isEmpty()) {
+        depth++;
+      }
+    }
+    return depth;
+  }
+
+  private static <T> void popLast(List<T> values) {
+    if (values != null && !values.isEmpty()) {
+      values.remove(values.size() - 1);
+    }
   }
 }

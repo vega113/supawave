@@ -174,12 +174,10 @@ test.describe("G-PORT-3 wave reading parity", () => {
       fullPage: false
     });
 
-    // Collapse parity is asserted on the J2CL view below — the J2CL
-    // renderer mounts an explicit `.j2cl-read-thread-toggle` button
-    // per inline thread, which is the cleanest selector. The GWT
-    // CollapsibleBuilder mounts a `.toggle` on the *thread*, not the
-    // parent blip; covering it on the J2CL view is sufficient for the
-    // parity-rendering acceptance contract.
+    // GWT collapse: the CollapsibleBuilder mounts a toggle element with
+    // kind="g" (TypeCodes.kind(Type.TOGGLE)). Assert clicking it hides
+    // at least one blip so a regression in GWT collapse wiring fails here.
+    await assertGwtCollapseFoldsReplyChain(page);
 
     // ============================================================
     // Phase 3: switch to ?view=j2cl-root for the SAME wave.
@@ -215,6 +213,12 @@ test.describe("G-PORT-3 wave reading parity", () => {
       .toBeGreaterThanOrEqual(1);
 
     await assertJ2clStructuralParity(page);
+    await expect
+      .poll(async () => await blipIds(page), {
+        timeout: 60_000,
+        message: "[j2cl] expected rendered data-blip-id list to match GWT order"
+      })
+      .toEqual(allIds);
     const j2clIds = await blipIds(page);
     await assertFocusMovesOnArrowDown(page, "j2cl", j2clIds);
     await assertCollapseFoldsReplyChain(page, replyParentBlipId);
@@ -389,7 +393,9 @@ async function assertCollapseFoldsReplyChain(
   page: Page,
   parentBlipId: string
 ): Promise<void> {
-  const before = (await blipIds(page)).length;
+  const before = await page
+    .locator("wave-blip[data-blip-id]:visible, [kind='b'][data-blip-id]:visible")
+    .count();
   expect(before).toBeGreaterThanOrEqual(4);
 
   // The J2CL renderer mounts a `.j2cl-read-thread-toggle` button on
@@ -417,14 +423,11 @@ async function assertCollapseFoldsReplyChain(
       clickTarget = fallback;
     }
   }
-  if (!clickTarget) {
-    test.info().annotations.push({
-      type: "g-port-3-collapse-skip",
-      description:
-        "J2CL renderer did not classify any inline-thread under the GWT-authored wave; renderer wiring is unit-tested separately"
-    });
-    return;
-  }
+  expect(
+    clickTarget,
+    "assertCollapseFoldsReplyChain: no .j2cl-read-thread-toggle found on J2CL view. " +
+      "If this is a known projector gap, mark the assertion fixme rather than skipping it."
+  ).not.toBeNull();
 
   await clickTarget.click();
 
@@ -444,4 +447,36 @@ async function assertCollapseFoldsReplyChain(
       }
     )
     .toBeLessThan(before);
+}
+
+/**
+ * GWT collapse parity: clicks the first [kind='g'] toggle (TypeCodes
+ * Type.TOGGLE) and asserts at least one blip disappears from the
+ * visible count. Fails hard if no toggle is found so a regression in
+ * CollapsibleBuilder wiring stays visible.
+ */
+async function assertGwtCollapseFoldsReplyChain(page: Page): Promise<void> {
+  const toggle = page.locator("[kind='g']").first();
+  expect(
+    await toggle.count(),
+    "assertGwtCollapseFoldsReplyChain: no [kind='g'] toggle found on GWT view. " +
+      "CollapsibleBuilder must emit a toggle element for the inline reply thread."
+  ).toBeGreaterThan(0);
+
+  const visibleBefore = await page
+    .locator("[kind='b'][data-blip-id]:visible")
+    .count();
+  expect(visibleBefore).toBeGreaterThanOrEqual(4);
+
+  await toggle.click();
+
+  await expect
+    .poll(
+      async () => await page.locator("[kind='b'][data-blip-id]:visible").count(),
+      {
+        timeout: 10_000,
+        message: "GWT collapse should hide at least one blip in the reply chain"
+      }
+    )
+    .toBeLessThan(visibleBefore);
 }

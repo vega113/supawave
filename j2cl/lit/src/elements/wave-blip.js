@@ -283,7 +283,7 @@ export class WaveBlip extends LitElement {
     this.threadCollapsed = false;
     this.dataBlipAuthor = "";
     this.dataBlipTime = "";
-    this.dataBlipFocused = "";
+    this.dataBlipFocused = null;
     this._participants = [];
   }
 
@@ -307,7 +307,7 @@ export class WaveBlip extends LitElement {
       }
     }
     if (changedProperties.has("focused")) {
-      this.dataBlipFocused = this.focused ? "true" : "";
+      this.dataBlipFocused = this.focused ? "true" : null;
     }
     super.willUpdate(changedProperties);
   }

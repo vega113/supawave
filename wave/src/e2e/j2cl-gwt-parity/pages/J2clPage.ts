@@ -6,9 +6,10 @@
 //   - <shell-root-signed-out> absent
 //   - GWT bootstrap (webclient/webclient.nocache.js) absent
 //
-// G-PORT-3 (#1112): adds compose / send selectors so the parity test
-// can author a wave with multiple blips on the J2CL view. Selectors
-// are chosen against stable DOM hooks in the Lit elements:
+// G-PORT-3 (#1112): adds compose / send selectors for the parity test.
+// Note: wave-reading-parity.spec.ts authors waves on the GWT view
+// (J2CL composer is currently hidden). These selectors remain here for
+// future slices when the J2CL composer ships its visible surface.
 //   - wavy-search-rail >> button.new-wave (per source line 461)
 //   - wavy-composer >> [data-composer-body] (the contenteditable body)
 //   - composer-submit-affordance >> button[aria-label="<label>"] —

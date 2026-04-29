@@ -10,12 +10,11 @@
 //   - gotoWave(waveId) — switches the same browser session to a wave URL
 //     while preserving the view query.
 //   - newWaveAffordance(), composerBody(), composerSubmit(label) — the
-//     "create / send" surface, only meaningfully implemented on the
-//     J2CL page object. The GWT subclass throws a clear diagnostic
-//     because the GWT compose flow is not safely selector-driven yet
-//     (Copilot review of G-PORT-3 plan, 2026-04-29). The parity test
-//     authors content via J2CL only, then asserts the rendered chrome
-//     on both views.
+//     "create / send" surface. Implemented on whichever subclass supports
+//     compose interactions (currently GwtPage, because the J2CL composer
+//     is hidden). Subclasses that do not support compose throw a clear
+//     diagnostic. The parity test authors content via the GWT view, then
+//     asserts the rendered chrome on both views.
 import { Locator, Page } from "@playwright/test";
 
 export abstract class WavePage {
@@ -49,15 +48,14 @@ export abstract class WavePage {
   }
 
   /**
-   * G-PORT-3 (#1112): the inbox "New Wave" affordance. Implemented by
-   * the J2CL page; the GWT page throws a not-implemented diagnostic
-   * because the parity test only authors content on the J2CL view.
+   * G-PORT-3 (#1112): the inbox "New Wave" affordance. Subclasses that
+   * support compose/create-wave interactions should implement this.
    */
   newWaveAffordance(): Locator {
     throw new Error(
       `${this.constructor.name}.newWaveAffordance() is not implemented. ` +
-        `The G-PORT-3 parity test authors waves on J2CL only; if you need ` +
-        `GWT compose support, extend this class first.`
+        `Extend this page object to provide the compose/create-wave ` +
+        `affordance for the current view.`
     );
   }
 

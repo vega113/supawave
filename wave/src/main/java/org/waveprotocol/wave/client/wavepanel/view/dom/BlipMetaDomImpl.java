@@ -111,8 +111,10 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
     // tooltip; subsequent live updates from the server arrive via
     // setTime — without this mirror, the parity hook would drift away
     // from the visible value.
-    if (time != null) {
+    if (time != null && !time.trim().isEmpty()) {
       t.setAttribute("data-blip-time", time);
+    } else {
+      t.removeAttribute("data-blip-time");
     }
   }
 
@@ -120,8 +122,10 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
   public void setTimeTooltip(String fullDateTime) {
     Element t = getTime();
     t.setTitle(fullDateTime);
-    if (fullDateTime != null) {
+    if (fullDateTime != null && !fullDateTime.trim().isEmpty()) {
       t.setAttribute("data-blip-time", fullDateTime);
+    } else {
+      t.removeAttribute("data-blip-time");
     }
   }
 
@@ -132,12 +136,14 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
 
   @Override
   public void setAuthorAddress(String address) {
-    if (address != null) {
-      Element avatar = getAvatar();
+    Element avatar = getAvatar();
+    if (address != null && !address.trim().isEmpty()) {
       avatar.setAttribute("data-address", address);
       // G-PORT-3 (#1112): mirror the address into the parity hook so
       // live updates keep both attributes in sync.
       avatar.setAttribute("data-blip-author", address);
+    } else {
+      avatar.removeAttribute("data-blip-author");
     }
   }
 

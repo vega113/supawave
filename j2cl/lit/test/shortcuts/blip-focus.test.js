@@ -138,6 +138,18 @@ describe("moveBlipFocus", () => {
     const focused = root.querySelector("wave-blip[focused]");
     expect(focused.getAttribute("data-blip-id")).to.equal("b3");
   });
+
+  it("j continues from renderer-established Lit focused attribute", async () => {
+    const root = await threeBlips();
+    const blips = Array.from(root.querySelectorAll("wave-blip"));
+    // Simulate the Java renderer reflecting its focus owner onto the
+    // Lit host marker that repeated j/k and the parity E2E observe.
+    blips[1].setAttribute("focused", "");
+    moveBlipFocus(1, root); // should continue from b2 -> b3
+    const focused = root.querySelector("wave-blip[focused]");
+    expect(focused.getAttribute("data-blip-id")).to.equal("b3");
+    expect(blips[1].hasAttribute("focused")).to.equal(false);
+  });
 });
 
 describe("clearBlipFocus", () => {

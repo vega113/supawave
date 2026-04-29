@@ -2289,6 +2289,40 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLElement after = blip(host, "b+after");
     Assert.assertEquals("0", after.getAttribute("tabindex"));
     Assert.assertTrue(after.classList.contains("j2cl-read-blip-focused"));
+    Assert.assertEquals(
+        "renderer key handling must keep the Lit host focus marker in sync",
+        "",
+        after.getAttribute("focused"));
+    Assert.assertFalse(root.hasAttribute("focused"));
+  }
+
+  @Test
+  public void repeatedJKeyKeepsFocusedAttributeAdvancing() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"thread\" data-thread-id=\"t+root\">"
+            + "<div class=\"blip\" data-blip-id=\"b+root\">Root</div>"
+            + "<div class=\"blip\" data-blip-id=\"b+middle\">Middle</div>"
+            + "<div class=\"blip\" data-blip-id=\"b+after\">After</div>"
+            + "</div></div>";
+    new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface();
+    HTMLElement root = blip(host, "b+root");
+    HTMLElement middle = blip(host, "b+middle");
+    HTMLElement after = blip(host, "b+after");
+
+    root.focus();
+    dispatchKey(root, "j");
+    Assert.assertEquals("", middle.getAttribute("focused"));
+    Assert.assertFalse(root.hasAttribute("focused"));
+
+    dispatchKey(middle, "j");
+    Assert.assertEquals(
+        "second j press must advance the Lit host focus marker too",
+        "",
+        after.getAttribute("focused"));
+    Assert.assertFalse(middle.hasAttribute("focused"));
   }
 
   @Test
@@ -2310,6 +2344,11 @@ public class J2clReadSurfaceDomRendererTest {
         reply.classList.contains("j2cl-read-blip-focused")
             || root.classList.contains("j2cl-read-blip-focused");
     Assert.assertTrue("k must move focus to a previous visible blip", replyOrRootFocused);
+    HTMLElement focused = reply.classList.contains("j2cl-read-blip-focused") ? reply : root;
+    Assert.assertEquals(
+        "k alias must also keep the Lit host focus marker in sync",
+        "",
+        focused.getAttribute("focused"));
   }
 
   @Test

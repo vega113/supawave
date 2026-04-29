@@ -2081,14 +2081,31 @@ public final class J2clReadSurfaceDomRenderer {
     }
     clearFocusedBlip();
     focusedBlip = next;
-    focusedBlip.classList.add("j2cl-read-blip-focused");
-    focusedBlip.setAttribute("aria-current", "true");
+    setFocusMarkers(focusedBlip);
+    focusedBlip.setAttribute("tabindex", "0");
+    dispatchFocusChanged(focusedBlip, key);
+  }
+
+  private void setFocusMarkers(HTMLElement blip) {
+    blip.classList.add("j2cl-read-blip-focused");
+    blip.setAttribute("aria-current", "true");
     // G-PORT-3 (#1112): cross-view parity hook so the Playwright spec
     // can locate the focused blip with a single selector
     // ([data-blip-focused="true"]) on both J2CL and GWT.
-    focusedBlip.setAttribute("data-blip-focused", "true");
-    focusedBlip.setAttribute("tabindex", "0");
-    dispatchFocusChanged(focusedBlip, key);
+    blip.setAttribute("data-blip-focused", "true");
+    // G-PORT-7 (#1133): when keydown originates on a focused wave-blip,
+    // the renderer handles j/k before the Lit shell-level listener sees
+    // the event. Write both hooks synchronously: data-blip-focused is the
+    // immediate cross-view selector, while focused is the Lit host marker
+    // that Lit will later reflect back to the same data hook.
+    blip.setAttribute("focused", "");
+  }
+
+  private void clearFocusMarkers(HTMLElement blip) {
+    blip.classList.remove("j2cl-read-blip-focused");
+    blip.removeAttribute("aria-current");
+    blip.removeAttribute("data-blip-focused");
+    blip.removeAttribute("focused");
   }
 
   /**
@@ -2192,10 +2209,7 @@ public final class J2clReadSurfaceDomRenderer {
 
   private void clearFocusedBlip() {
     for (HTMLElement blip : renderedBlips) {
-      blip.classList.remove("j2cl-read-blip-focused");
-      blip.removeAttribute("aria-current");
-      // G-PORT-3 (#1112): keep the cross-view parity hook in sync.
-      blip.removeAttribute("data-blip-focused");
+      clearFocusMarkers(blip);
       blip.setAttribute("tabindex", "-1");
     }
     focusedBlip = null;
@@ -2410,11 +2424,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     for (HTMLElement blip : renderedBlips) {
       blip.setAttribute("tabindex", blip == tabStop ? "0" : "-1");
-      blip.classList.remove("j2cl-read-blip-focused");
-      blip.removeAttribute("aria-current");
-      // G-PORT-3 (#1112): clear the cross-view focus parity hook in
-      // step with the legacy class + aria-current.
-      blip.removeAttribute("data-blip-focused");
+      clearFocusMarkers(blip);
     }
   }
 

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-7-j-focus-followup",
+  "version": "PR #1134",
+  "date": "2026-04-29",
+  "title": "G-PORT-7 follow-up: stable J2CL blip keyboard focus",
+  "summary": "The J2CL read surface now keeps Java-owned j/k blip focus navigation synchronized with the Lit host focus marker, so repeated shortcut presses advance visibly between blips.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Mirror Java read-surface keyboard focus into the Lit `focused` host attribute and clear it alongside the existing class/data focus hooks."
+      ]
+    }
+  ]
+}

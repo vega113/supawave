@@ -953,10 +953,27 @@ public final class J2clReadSurfaceDomRenderer {
     if (displayName != null && !displayName.isEmpty()) {
       element.setAttribute("author-name", displayName);
     }
+    // G-PORT-3 (#1112): cross-view parity hook so the Playwright
+    // wave-reading-parity spec can read a single attribute on both
+    // <wave-blip> (J2CL) and <div class="blip"> (GWT). Falls back to
+    // the user id when the display name is missing — the test asserts
+    // non-empty, not equality to a specific value.
+    String parityAuthor = displayName;
+    if (parityAuthor == null || parityAuthor.isEmpty()) {
+      parityAuthor = blip.getAuthorId();
+    }
+    if (parityAuthor != null && !parityAuthor.isEmpty()) {
+      element.setAttribute("data-blip-author", parityAuthor);
+    }
     long modifiedMs = blip.getLastModifiedTimeMillis();
     if (modifiedMs > 0L) {
       element.setAttribute("posted-at", formatRelativeTimestamp(modifiedMs));
       element.setAttribute("posted-at-iso", formatIsoTimestamp(modifiedMs));
+      // G-PORT-3 parity hook: prefer the ISO timestamp so the test can
+      // do exact equality if needed; on the GWT side the same attribute
+      // carries the human-readable tooltip string. Both are non-empty
+      // — that is the only assertion.
+      element.setAttribute("data-blip-time", formatIsoTimestamp(modifiedMs));
     } else {
       // F-2 follow-up (#1060): when a blip has no real modified time
       // (e.g. fixture / fallback paths, or first paint before metadata
@@ -2007,6 +2024,10 @@ public final class J2clReadSurfaceDomRenderer {
     focusedBlip = next;
     focusedBlip.classList.add("j2cl-read-blip-focused");
     focusedBlip.setAttribute("aria-current", "true");
+    // G-PORT-3 (#1112): cross-view parity hook so the Playwright spec
+    // can locate the focused blip with a single selector
+    // ([data-blip-focused="true"]) on both J2CL and GWT.
+    focusedBlip.setAttribute("data-blip-focused", "true");
     focusedBlip.setAttribute("tabindex", "0");
     dispatchFocusChanged(focusedBlip, key);
   }
@@ -2114,6 +2135,8 @@ public final class J2clReadSurfaceDomRenderer {
     for (HTMLElement blip : renderedBlips) {
       blip.classList.remove("j2cl-read-blip-focused");
       blip.removeAttribute("aria-current");
+      // G-PORT-3 (#1112): keep the cross-view parity hook in sync.
+      blip.removeAttribute("data-blip-focused");
       blip.setAttribute("tabindex", "-1");
     }
     focusedBlip = null;
@@ -2330,6 +2353,9 @@ public final class J2clReadSurfaceDomRenderer {
       blip.setAttribute("tabindex", blip == tabStop ? "0" : "-1");
       blip.classList.remove("j2cl-read-blip-focused");
       blip.removeAttribute("aria-current");
+      // G-PORT-3 (#1112): clear the cross-view focus parity hook in
+      // step with the legacy class + aria-current.
+      blip.removeAttribute("data-blip-focused");
     }
   }
 

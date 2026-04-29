@@ -1,0 +1,23 @@
+{
+  "releaseId": "2026-04-29-g-port-2-search-panel-parity",
+  "version": "PR #1111",
+  "date": "2026-04-29",
+  "title": "G-PORT-2: Search panel parity (clone GWT digest cards)",
+  "summary": "Clone the GWT search rail layout into the J2CL <wavy-search-rail-card> and <wavy-search-rail> elements so the inbox digest list looks the same on ?view=j2cl-root and ?view=gwt. Adds a panel-level refresh / sort / filter action row, mirrors the GWT digest DOM shape (.inner > .avatars + .info + .title + .snippet), and tags both views with shared data-digest-* parity selectors so the new Playwright test can resolve the same DOM on either view with one selector.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Cloned GWT digest-card layout into J2CL <wavy-search-rail-card>: avatars float left, timestamp + msg count + pin glyph at the top-right .info block, bold title and ellipsised snippet below.",
+        "Added a panel-level action row to <wavy-search-rail> with refresh / sort / filter buttons mirroring the GWT SearchPresenter toolbar; the filter button toggles the existing filter chip strip open/closed."
+      ]
+    },
+    {
+      "type": "feature",
+      "items": [
+        "Tagged the GWT DigestDomImpl.ui.xml and the J2CL search rail card with shared data-digest-card / data-digest-{avatars,title,snippet,msg-count,time} selectors so a single Playwright selector resolves digest cards on either ?view=gwt or ?view=j2cl-root.",
+        "Added wave/src/e2e/j2cl-gwt-parity/tests/search-panel-parity.spec.ts asserting refresh affordance + digest list parity between the two views."
+      ]
+    }
+  ]
+}

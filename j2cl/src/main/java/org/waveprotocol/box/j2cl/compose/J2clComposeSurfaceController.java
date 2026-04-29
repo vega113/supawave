@@ -1633,7 +1633,8 @@ public final class J2clComposeSurfaceController {
     } else {
       boolean contextChanged =
           selectedWaveParticipantContextId != null
-              && !nextContextId.equals(selectedWaveParticipantContextId);
+              ? !nextContextId.equals(selectedWaveParticipantContextId)
+              : lastSelectedWaveId != null && !nextContextId.equals(lastSelectedWaveId);
       selectedWaveParticipantContextId = nextContextId;
       lastSelectedWaveId = nextContextId;
       if (contextChanged) {
@@ -1647,7 +1648,13 @@ public final class J2clComposeSurfaceController {
         selectedWaveParticipantIds = nextParticipantIds;
       }
     }
-    onWriteSessionChanged(nextWriteSession);
+    J2clSidecarWriteSession effectiveWriteSession = nextWriteSession;
+    if (!nextContextId.isEmpty()
+        && effectiveWriteSession != null
+        && !nextContextId.equals(effectiveWriteSession.getSelectedWaveId())) {
+      effectiveWriteSession = null;
+    }
+    onWriteSessionChanged(effectiveWriteSession);
   }
 
   private void submitCreate() {

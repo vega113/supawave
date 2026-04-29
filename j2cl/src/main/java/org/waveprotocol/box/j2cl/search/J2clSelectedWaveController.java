@@ -402,9 +402,6 @@ public final class J2clSelectedWaveController
     final int generation = requestGeneration;
     final long targetVersion = Math.max(-1L, resultingVersion);
     final String createdBlipId = submittedBlipId == null ? "" : submittedBlipId;
-    if (targetVersion >= 0 && currentVisibleViewportVersion() >= targetVersion) {
-      return;
-    }
     final long visibleVersionAtSubmit = currentVisibleViewportVersion();
     final int loadedBlipsAtSubmit = currentLoadedViewportBlipCount();
     retryScheduler.scheduleRetry(

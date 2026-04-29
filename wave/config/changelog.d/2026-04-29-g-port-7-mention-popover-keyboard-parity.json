@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-7-mention-popover-keyboard-parity",
+  "version": "PR #1136",
+  "date": "2026-04-29",
+  "title": "G-PORT-7 follow-up: mention popover keyboard parity coverage",
+  "summary": "The J2CL/GWT parity harness now keeps mention-popover ArrowDown, ArrowUp, and Enter behavior live instead of deferred, so keyboard regressions are caught before J2CL root cutover.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Enabled J2CL mention-popover keyboard parity coverage with live participant hydration, ArrowDown/ArrowUp navigation, Enter chip insertion, and explicit GWT follow-up annotation for the remaining #1121 harness gap."
+      ]
+    }
+  ]
+}

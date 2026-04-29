@@ -6,29 +6,38 @@
 //   - Shift+Cmd+O   open New Wave compose surface              [SHIPPED]
 //   - Esc           close topmost dialog or popover            [SHIPPED]
 //   - Enter (search input) refresh search results              [SHIPPED]
-//   - Arrow up/down (mention popover) navigate suggestions     [DEFERRED #1125]
-//   - Enter (mention popover) select highlighted suggestion    [DEFERRED #1125]
+//   - Arrow up/down (mention popover) navigate suggestions     [SHIPPED #1125]
+//   - Enter (mention popover) select highlighted suggestion    [SHIPPED #1125]
 //
-// The mention-popover navigation portion is deferred to follow-up
-// #1125: Playwright page.keyboard.press did not route ArrowDown to
-// the composer body's keydown listener once the popover had opened
-// (likely a shadow-DOM focus / event-target artefact). The popover
-// element itself owns ArrowUp/Down/Enter/Escape per its own keydown
-// handler (mention-suggestion-popover.js:111-138), and the shell-
-// level matcher does NOT route those keys, so the per-context
-// behaviour is unchanged by this slice — we just could not assert it
-// from the harness in the time available.
+// #1125 closes the deferred mention-popover navigation assertion. The
+// production owner for ArrowUp/Down/Enter/Escape is the
+// <wavy-composer> shadow-DOM body; <mention-suggestion-popover> is a
+// view-only listbox and intentionally does not take focus. Playwright
+// page.keyboard.press is not deterministic after the Lit re-render
+// that mounts the popover, so the harness dispatches KeyboardEvents
+// directly to [data-composer-body], the same element that receives
+// real user keydown events in production.
 //
-// Per the harness rule (G-PORT-1 / #1110), the test sends the SAME
-// literal keystrokes to both views. Where GWT genuinely does not bind
-// a key today (j/k vs ArrowDown/Up; Shift+Cmd+O has no key handler at
-// all), the test annotates the gap and ALSO drives the documented GWT
-// equivalent so the same observable outcome is asserted on both
-// views — no silent skips.
+// Per the harness rule (G-PORT-1 / #1110), the shell-level shortcut
+// tests send the SAME literal keystrokes to both views. Where GWT
+// genuinely does not bind a key today (j/k vs ArrowDown/Up;
+// Shift+Cmd+O has no key handler at all), the test annotates the gap
+// and ALSO drives the documented GWT equivalent so the same observable
+// outcome is asserted on both views. The mention-popover assertion is
+// J2CL-only until #1121 gives GWT a stable inline-reply harness path;
+// that gap is annotated in the live GWT baseline, not silently skipped.
 import { test, expect, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
+import {
+  dispatchComposerKeyJ2cl,
+  openInlineComposerJ2cl,
+  readMentionStateJ2cl,
+  readMentionTriggerLetterJ2cl,
+  typeAtMentionTriggerJ2cl,
+  waitForParticipantsJ2cl
+} from "./helpers/mention";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
@@ -274,54 +283,156 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     await page.keyboard.press("Enter");
   });
 
-  // Mention popover ArrowDown / ArrowUp / Enter parity is deferred to
-  // follow-up #1125. The shell-level keyboard handler dispatches the
-  // canonical events correctly (covered in the unit tests at
-  // j2cl/lit/test/shortcuts/), but driving ArrowDown via Playwright
-  // page.keyboard.press after the popover opens does not advance
-  // `_mentionActiveIndex` — likely a focus/event-routing artefact in
-  // the composer's shadow DOM. The popover element itself already
-  // owns ArrowUp/Down/Enter/Escape inside its own keydown handler
-  // (mention-suggestion-popover.js:111-138), and per the task brief
-  // we deliberately leave that data structure alone for G-PORT-5
-  // (mention autocomplete) to refactor.
-  test.fixme(
+  test(
     "J2CL: mention popover ArrowDown/ArrowUp/Enter selects a candidate",
     async ({ page }) => {
-      // See follow-up issue #1125. WIP scaffolding kept intentionally
-      // so the next implementer can pick up where we left off.
+      test.setTimeout(180_000);
       const creds = freshCredentials("g7m");
+      test.info().annotations.push({ type: "test-user", description: creds.address });
       await registerAndSignIn(page, BASE_URL, creds);
       const j2cl = new J2clPage(page, BASE_URL);
       await j2cl.goto("/");
       await j2cl.assertInboxLoaded();
       await openFirstWaveJ2cl(page);
-      const firstBlip = page.locator("wave-blip").first();
-      await firstBlip.scrollIntoViewIfNeeded();
-      await firstBlip.hover();
-      await firstBlip
-        .locator("wave-blip-toolbar")
-        .locator("button[data-toolbar-action='reply']")
-        .click({ timeout: 10_000 });
-      const composer = firstBlip.locator(
-        "wavy-composer[data-inline-composer='true']"
-      );
-      await expect(composer).toHaveCount(1, { timeout: 10_000 });
+      const composer = await openInlineComposerJ2cl(page);
 
-      const body = composer.locator("[data-composer-body]");
-      await body.click();
-      await page.waitForTimeout(400);
-      await page.keyboard.type("@v", { delay: 80 });
+      const realParticipantCount = await waitForParticipantsJ2cl(composer, 10_000);
+      expect(
+        realParticipantCount,
+        "production participants flow must populate composer participants before @-mention typing"
+      ).toBeGreaterThanOrEqual(1);
+      const triggerLetter = await readMentionTriggerLetterJ2cl(composer);
+      expect(
+        triggerLetter,
+        "hydrated production participants must provide a trigger letter"
+      ).not.toBe("");
 
-      // The next assertion currently does not pass — Playwright key
-      // presses do not route to the composer body's keydown listener
-      // once the popover has opened. Tracked at #1125.
-      await page.keyboard.press("ArrowDown");
-      await page.keyboard.press("Enter");
-      const bodyHtml = await composer.evaluate((host: any) =>
-        host.shadowRoot?.querySelector("[data-composer-body]")?.innerHTML ?? ""
+      await typeAtMentionTriggerJ2cl(page, composer, `@${triggerLetter}`);
+      let mention = await readMentionStateJ2cl(composer);
+      expect(
+        mention.open,
+        `popover must open after typing @${triggerLetter}; saw ${JSON.stringify(mention)}`
+      ).toBe(true);
+      expect(
+        mention.candidateCount,
+        `popover must have at least one production candidate for @${triggerLetter}; saw ${JSON.stringify(mention)}`
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        mention.activeInBody,
+        `composer body must retain focus after mention popover opens; saw ${JSON.stringify(mention)}`
+      ).toBe(true);
+      await expect(
+        composer.locator("mention-suggestion-popover[open]"),
+        "mention popover must reflect open=true before keyboard navigation"
+      ).toHaveCount(1, { timeout: 5_000 });
+
+      const initialIndex = mention.activeIndex;
+      await dispatchComposerKeyJ2cl(composer, "ArrowDown");
+      if (mention.candidateCount > 1) {
+        await expect
+          .poll(
+            async () => (await readMentionStateJ2cl(composer)).activeIndex,
+            {
+              message: `ArrowDown must advance the active index from ${initialIndex}`,
+              timeout: 5_000
+            }
+          )
+          .not.toBe(initialIndex);
+        mention = await readMentionStateJ2cl(composer);
+      } else {
+        mention = await readMentionStateJ2cl(composer);
+        expect(
+          mention.activeIndex,
+          `ArrowDown should wrap to the sole production candidate; saw ${JSON.stringify(mention)}`
+        ).toBe(initialIndex);
+      }
+
+      const afterDownIndex = mention.activeIndex;
+      await dispatchComposerKeyJ2cl(composer, "ArrowUp");
+      if (mention.candidateCount > 1) {
+        await expect
+          .poll(
+            async () => (await readMentionStateJ2cl(composer)).activeIndex,
+            {
+              message: `ArrowUp must return from ${afterDownIndex} to ${initialIndex}`,
+              timeout: 5_000
+            }
+          )
+          .toBe(initialIndex);
+        mention = await readMentionStateJ2cl(composer);
+      } else {
+        mention = await readMentionStateJ2cl(composer);
+        expect(
+          mention.activeIndex,
+          `ArrowUp should wrap to the sole production candidate; saw ${JSON.stringify(mention)}`
+        ).toBe(afterDownIndex);
+      }
+
+      const expectedAddress = await composer.evaluate((host: any) => {
+        const list = host._filteredMentionCandidates();
+        const idx = host._mentionActiveIndex || 0;
+        return list[idx % list.length]?.address || "";
+      });
+      // wavy-composer persists the chosen candidate's address as the
+      // chip's data-mention-id; keep the E2E pinned to that round-trip
+      // contract instead of only asserting a generic "mention" span.
+      expect(
+        expectedAddress,
+        "active mention candidate must carry an address before Enter"
+      ).not.toBe("");
+
+      await dispatchComposerKeyJ2cl(composer, "Enter");
+      await expect
+        .poll(
+          async () =>
+            await composer.evaluate((host: any) => Boolean(host._mentionOpen)),
+          {
+            message: "popover must close after Enter selects a candidate",
+            timeout: 5_000
+          }
+        )
+        .toBe(false);
+      await expect(
+        composer.locator("mention-suggestion-popover[open]"),
+        "mention popover must unmount after Enter selects a candidate"
+      ).toHaveCount(0, { timeout: 5_000 });
+
+      const chipInfo = await composer.evaluate((host: any) => {
+        const body = host.shadowRoot?.querySelector("[data-composer-body]");
+        const chip = body?.querySelector(".wavy-mention-chip");
+        return chip
+          ? {
+              mentionId: chip.getAttribute("data-mention-id") || "",
+              text: chip.textContent || ""
+            }
+          : null;
+      });
+      expect(
+        chipInfo,
+        "mention chip must be inserted into the composer body after Enter"
+      ).not.toBeNull();
+      expect(
+        chipInfo!.mentionId,
+        `chip must carry data-mention-id=${expectedAddress}; saw ${chipInfo!.mentionId}`
+      ).toBe(expectedAddress);
+      expect(
+        chipInfo!.text.startsWith("@"),
+        `chip text must start with @; saw '${chipInfo!.text}'`
+      ).toBe(true);
+
+      const leftoverTriggerText = await composer.evaluate(
+        (host: any, trigger: string) => {
+          const body = host.shadowRoot?.querySelector("[data-composer-body]");
+          return Array.from(body?.childNodes || [])
+            .filter((node: any) => node.nodeType === Node.TEXT_NODE)
+            .some((node: any) => (node.textContent || "").includes(trigger));
+        },
+        `@${triggerLetter}`
       );
-      expect(bodyHtml).toMatch(/data-mention|<wave-mention|<span[^>]*mention/i);
+      expect(
+        leftoverTriggerText,
+        `raw @${triggerLetter} trigger text must be replaced by the mention chip`
+      ).toBe(false);
     }
   );
 
@@ -345,6 +456,12 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
         "toolbar tooltip advertises the combo. Parity: assert the " +
         "advertised affordance exists, then drive the same outcome via " +
         "the toolbar click. Tracked at #1116."
+    });
+    test.info().annotations.push({
+      type: "gwt-gap",
+      description:
+        "Full GWT mention-popover keyboard drive is blocked by the " +
+        "hover-only inline Reply harness gap tracked at #1121."
     });
 
     await registerAndSignIn(page, BASE_URL, creds);

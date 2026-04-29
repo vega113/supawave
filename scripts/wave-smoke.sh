@@ -186,7 +186,7 @@ wait_ready() {
 }
 
 status() {
-  http_status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
+  http_status=$(curl --connect-timeout 5 --max-time 15 -sS -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
   echo "HTTP_STATUS=${http_status:-000}"
 }
 

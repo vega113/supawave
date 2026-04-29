@@ -57,7 +57,23 @@ jobs:
         run: PORT=9898 bash scripts/wave-smoke.sh start
 
       - name: Sanity-check server
-        run: PORT=9898 bash scripts/wave-smoke.sh check
+        # G-PORT-4 (#1113): the original `wave-smoke.sh check` subcommand
+        # asserts that the unauthenticated root path serves the GWT
+        # bootstrap asset (webclient.nocache.js). That stopped being
+        # true once `/` started routing signed-out visitors to the
+        # marketing page (this predates G-PORT-4 — see
+        # WaveClientServlet.java:165-178). The Playwright fixtures
+        # register a fresh user before exercising any view, so the
+        # signed-in routing does not depend on the smoke `check`. We
+        # assert a 200 from `/` directly here, which is what the
+        # harness actually needs before launching browsers.
+        run: |
+          PORT=9898 bash scripts/wave-smoke.sh status
+          status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:9898/")
+          if [[ "$status" -ne 200 ]]; then
+            echo "Root path returned non-200: $status" >&2
+            exit 1
+          fi
 
       - name: Install harness dependencies
         working-directory: wave/src/e2e/j2cl-gwt-parity

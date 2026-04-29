@@ -366,6 +366,7 @@ public class EditToolbar {
     new ToolbarButtonViewBuilder()
         .setTooltip("Bold")
         .applyTo(b, createTextSelectionController(b, "fontWeight", "bold"));
+    b.setE2eAction("bold");
     b.setVisualElement(createSvgIcon(ICON_BOLD));
   }
 

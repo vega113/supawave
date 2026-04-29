@@ -62,6 +62,12 @@ public interface ToolbarButtonView {
   void setTooltip(String tooltip);
 
   /**
+   * Sets a stable E2E action identifier on the rendered button, or clears it
+   * when {@code action} is null or empty.
+   */
+  void setE2eAction(String action);
+
+  /**
    * Sets whether the button should show the dropdown arrow.
    */
   void setShowDropdownArrow(boolean showDropdown);
@@ -100,6 +106,10 @@ public interface ToolbarButtonView {
 
     @Override
     public void setTooltip(String hovertext) {
+    }
+
+    @Override
+    public void setE2eAction(String action) {
     }
 
     @Override

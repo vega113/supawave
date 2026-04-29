@@ -232,4 +232,27 @@ public final class FragmentsServletViewportLimitTest {
     assertEquals(Collections.singletonList("b+2"), window.getRangeBlipIds());
     assertEquals(Collections.singletonList("b+2"), window.getLoadedBlipIds());
   }
+
+  @Test
+  public void servletLoadsExplicitStartWhenManifestOrderMissesKnownBlip() {
+    Map<String, FragmentsFetcherCompat.BlipMeta> metas =
+        new LinkedHashMap<String, FragmentsFetcherCompat.BlipMeta>();
+    metas.put("b+1", new FragmentsFetcherCompat.BlipMeta(
+        ParticipantId.ofUnsafe("user@example.com"), 10L));
+    metas.put("b+2", new FragmentsFetcherCompat.BlipMeta(
+        ParticipantId.ofUnsafe("user@example.com"), 20L));
+    metas.put("b+3", new FragmentsFetcherCompat.BlipMeta(
+        ParticipantId.ofUnsafe("user@example.com"), 30L));
+
+    FragmentsServlet.SliceWindow window =
+        FragmentsServlet.buildSliceWindow(
+            metas,
+            Arrays.asList("b+1", "b+2"),
+            "b+3",
+            "forward",
+            1);
+
+    assertEquals(Arrays.asList("b+3"), window.getRangeBlipIds());
+    assertEquals(Collections.singletonList("b+3"), window.getLoadedBlipIds());
+  }
 }

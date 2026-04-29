@@ -42,6 +42,7 @@ public final class ToolbarButtonViewProxy implements ToolbarButtonView {
   private String text;
   private String tooltip;
   private Element element;
+  private String e2eAction;
   private Boolean showDropdownArrow;
   private Boolean showDivider;
   private final StringSet dcs = CollectionUtils.createStringSet();
@@ -74,6 +75,14 @@ public final class ToolbarButtonViewProxy implements ToolbarButtonView {
     this.tooltip = tooltip;
     if (delegate != null) {
       delegate.setTooltip(tooltip);
+    }
+  }
+
+  @Override
+  public void setE2eAction(String action) {
+    this.e2eAction = action;
+    if (delegate != null) {
+      delegate.setE2eAction(action);
     }
   }
 
@@ -153,6 +162,7 @@ public final class ToolbarButtonViewProxy implements ToolbarButtonView {
     if (tooltip != null) {
       display.setTooltip(tooltip);
     }
+    display.setE2eAction(e2eAction);
     if (element != null) {
       display.setVisualElement(element);
     }

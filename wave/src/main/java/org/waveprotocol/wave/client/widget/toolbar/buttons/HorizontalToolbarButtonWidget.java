@@ -165,6 +165,15 @@ public final class HorizontalToolbarButtonWidget extends Composite implements To
   }
 
   @Override
+  public void setE2eAction(String action) {
+    if (action == null || action.isEmpty()) {
+      getElement().removeAttribute("data-e2e-action");
+    } else {
+      getElement().setAttribute("data-e2e-action", action);
+    }
+  }
+
+  @Override
   public void setVisualElement(Element element) {
     if (currentVisualElement != null) {
       currentVisualElement.removeFromParent();

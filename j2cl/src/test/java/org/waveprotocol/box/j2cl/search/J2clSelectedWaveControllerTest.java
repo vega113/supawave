@@ -455,6 +455,185 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void replySubmitHandoffAppliesForwardFetchAfterWriteSessionAdvances()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.deliverRawUpdate(0, metadataOnlyLiveUpdate(45L, "EFGH"));
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+created", "Reply loaded despite write-session advance", null, null));
+
+    Assert.assertEquals(
+        "post-submit fetch must not be discarded just because the same-wave write session advanced",
+        0,
+        harness.closedCount);
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply loaded despite write-session advance"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void replySubmitHandoffRejectsForwardFetchWhenWriteSessionDisappears()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.clearCurrentWriteSession(controller);
+    Assert.assertNull(harness.modelValue("getWriteSession"));
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+created", "Stale reply should not merge", null, null));
+
+    Assert.assertFalse(
+        String.valueOf(harness.modelValue("getContentEntries"))
+            .contains("Stale reply should not merge"));
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
+  public void replySubmitHandoffRejectsOlderForwardFetchOverFreshLiveBlip()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.deliverRawUpdate(
+        0,
+        liveBlipFragmentUpdate(
+            "b+created", "Fresh reply from live stream", 50L, "IJKL", 50L));
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+created", "Stale reply should not overwrite live content", null, null));
+
+    Assert.assertFalse(
+        String.valueOf(harness.modelValue("getContentEntries"))
+            .contains("Stale reply should not overwrite live content"));
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
+  public void replySubmitHandoffRetriesForwardFetchWhenSnapshotLagsSubmittedBlip()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+stale", "Stale committed window without the submitted blip", null, null));
+
+    Assert.assertEquals(
+        "stale post-submit fragment windows must not be applied as terminal success",
+        Arrays.asList("Root already loaded"),
+        harness.modelValue("getContentEntries"));
+    Assert.assertEquals(
+        "snapshot lag should schedule one more post-submit fetch before falling back to refresh",
+        Arrays.asList(Integer.valueOf(250), Integer.valueOf(250)),
+        harness.scheduledDelays);
+
+    harness.runScheduledRetry(1);
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(1).startBlipId);
+
+    harness.resolveFragmentFetch(
+        1,
+        fragmentsResponseForBlips(
+            "b+created", "Reply loaded after snapshot catches up", null, null));
+
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply loaded after snapshot catches up"),
+        harness.modelValue("getContentEntries"));
+    Assert.assertEquals(0, harness.closedCount);
+  }
+
+  @Test
+  public void replySubmitHandoffRefreshesAfterForwardFetchExhaustion()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips("b+stale-1", "Stale committed window one", null, null));
+    harness.runScheduledRetry(1);
+    Assert.assertEquals(2, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(1).startBlipId);
+
+    harness.resolveFragmentFetch(
+        1,
+        fragmentsResponseForBlips("b+stale-2", "Stale committed window two", null, null));
+    harness.runScheduledRetry(2);
+    Assert.assertEquals(3, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(2).startBlipId);
+
+    harness.resolveFragmentFetch(
+        2,
+        fragmentsResponseForBlips("b+stale-3", "Stale committed window three", null, null));
+
+    Assert.assertEquals(
+        "post-submit fetch retries must terminate with a selected-wave refresh",
+        1,
+        harness.closedCount);
+    Assert.assertEquals(
+        "post-submit fetch must stop at the configured retry cap",
+        3,
+        harness.fragmentFetchAttempts.size());
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertEquals(
+        Arrays.asList(Integer.valueOf(250), Integer.valueOf(250), Integer.valueOf(250)),
+        harness.scheduledDelays);
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
   public void replySubmitHandoffFetchesForwardViewportWhenLiveUpdateOnlyAdvancesMetadata()
       throws Exception {
     Harness harness = new Harness();
@@ -522,6 +701,49 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void replySubmitHandoffWithUnknownVersionFetchesKnownBlipAfterVersionOnlyAdvance()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", -1L, "b+created");
+    harness.deliverRawUpdate(0, metadataOnlyLiveUpdate(45L, "EFGH"));
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(
+        "unknown resultingVersion must not suppress fetch for a known submitted blip",
+        1,
+        harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(0).startBlipId);
+  }
+
+  @Test
+  public void replySubmitHandoffWithUnknownVersionFetchesKnownBlipAfterUnrelatedLiveBlip()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", -1L, "b+created");
+    harness.deliverRawUpdate(
+        0, liveReplyFragmentUpdate("Unrelated blip from live stream", -1L, null, 45L));
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(
+        "unknown resultingVersion must not treat an unrelated live blip as the submitted blip",
+        1,
+        harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(0).startBlipId);
+  }
+
+  @Test
   public void replySubmitHandoffRefreshesSelectedWaveWhenForwardFetchFails()
       throws Exception {
     Harness harness = new Harness();
@@ -584,6 +806,32 @@ public class J2clSelectedWaveControllerTest {
         1,
         harness.fragmentFetchAttempts.size());
     Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(0).startBlipId);
+  }
+
+  @Test
+  public void replySubmitHandoffFetchesForwardViewportWhenVersionAlreadyMetButBlipIdUnknown()
+      throws Exception {
+    // Regression: submittedBlipConfirmedInViewport must return false for empty blipId so that
+    // legacy callers (no blip ID) still trigger the forward-fetch even if the viewport version
+    // has already advanced to targetVersion via an unrelated live update.
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+    // An unrelated blip advances the version to 45 before the submit acknowledgement arrives.
+    harness.deliverRawUpdate(
+        0, liveReplyFragmentUpdate("Unrelated blip from live stream", -1L, null, 45L));
+
+    // Legacy caller: knows the resulting version but not the submitted blip ID.
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(
+        "unknown blip ID must not suppress the forward-fetch even when version is already met",
+        1,
+        harness.fragmentFetchAttempts.size());
   }
 
   @Test
@@ -2549,6 +2797,37 @@ public class J2clSelectedWaveControllerTest {
       lastModel = nextModel;
     }
 
+    private void clearCurrentWriteSession(Object controller) throws Exception {
+      Field currentModelField = controller.getClass().getDeclaredField("currentModel");
+      currentModelField.setAccessible(true);
+      J2clSelectedWaveModel currentModel = (J2clSelectedWaveModel) currentModelField.get(controller);
+      J2clSelectedWaveModel nextModel =
+          new J2clSelectedWaveModel(
+              currentModel.hasSelection(),
+              currentModel.isLoading(),
+              currentModel.isError(),
+              currentModel.getSelectedWaveId(),
+              currentModel.getTitleText(),
+              currentModel.getSnippetText(),
+              currentModel.getUnreadText(),
+              currentModel.getStatusText(),
+              currentModel.getDetailText(),
+              currentModel.getReconnectCount(),
+              currentModel.getParticipantIds(),
+              currentModel.getContentEntries(),
+              currentModel.getReadBlips(),
+              currentModel.getViewportState(),
+              currentModel.getInteractionBlips(),
+              null,
+              currentModel.getUnreadCount(),
+              currentModel.isRead(),
+              currentModel.isReadStateKnown(),
+              currentModel.isReadStateStale())
+              .withConversationManifest(currentModel.getConversationManifest());
+      currentModelField.set(controller, nextModel);
+      lastModel = nextModel;
+    }
+
     private String modelSelectedWaveId(Object model) throws Exception {
       Method method = model.getClass().getMethod("getSelectedWaveId");
       String waveId = (String) method.invoke(model);
@@ -2633,9 +2912,20 @@ public class J2clSelectedWaveControllerTest {
 
   private static SidecarSelectedWaveUpdate liveReplyFragmentUpdate(
       String replySnapshot, long resultingVersion, String historyHash, long fragmentVersion) {
+    return liveBlipFragmentUpdate(
+        "b+reply", replySnapshot, resultingVersion, historyHash, fragmentVersion);
+  }
+
+  private static SidecarSelectedWaveUpdate liveBlipFragmentUpdate(
+      String blipId,
+      String rawSnapshot,
+      long resultingVersion,
+      String historyHash,
+      long fragmentVersion) {
     // Live deltas pushed from the server carry snapshotVersion = -1 (the codec default when the
     // server omits the field). Using -1L here ensures the projector treats this as an incremental
     // live delta and merges it into the prior viewport rather than replacing it.
+    String segment = "blip:" + blipId;
     return new SidecarSelectedWaveUpdate(
         2,
         "example.com!w+1/example.com!conv+root",
@@ -2651,9 +2941,9 @@ public class J2clSelectedWaveControllerTest {
             fragmentVersion,
             Arrays.asList(
                 new SidecarSelectedWaveFragmentRange(
-                    "blip:b+reply", Math.max(0L, fragmentVersion - 1L), fragmentVersion)),
+                    segment, Math.max(0L, fragmentVersion - 1L), fragmentVersion)),
             Arrays.asList(
-                new SidecarSelectedWaveFragment("blip:b+reply", replySnapshot, 0, 0))));
+                new SidecarSelectedWaveFragment(segment, rawSnapshot, 0, 0))));
   }
 
   private static SidecarSelectedWaveUpdate metadataOnlyLiveUpdate(

@@ -27,6 +27,18 @@
 import { expect, Locator, Page } from "@playwright/test";
 import { WavePage } from "./WavePage";
 
+export const GWT_ACTIVE_EDITOR_SIGNAL_SELECTOR = [
+  ".wave-editor-on",
+  '[contenteditable="true"]',
+  // Intentionally matches read-write and read-write-plaintext-only; both are active editors.
+  '[style*="user-modify: read-write"]'
+].join(", ");
+
+const GWT_ACTIVE_DOCUMENT_SELECTOR = [
+  `[kind="document"]:is(${GWT_ACTIVE_EDITOR_SIGNAL_SELECTOR})`,
+  `[kind="document"] :is(${GWT_ACTIVE_EDITOR_SIGNAL_SELECTOR})`
+].join(", ");
+
 export class GwtPage extends WavePage {
   viewQuery(): string {
     return "view=gwt";
@@ -55,6 +67,25 @@ export class GwtPage extends WavePage {
   override newWaveAffordance(): Locator {
     // GWT toolbar button: <div title="New Wave (Shift+Cmd+O) (Shift+Ctrl/Cmd+O)">.
     return this.page.locator('div[title^="New Wave"]').first();
+  }
+
+  gwtBlips(): Locator {
+    return this.page.locator("[kind='b'][data-blip-id]");
+  }
+
+  gwtEditableDocuments(): Locator {
+    return this.page.locator(
+      [
+        '[kind="document"] [editabledocmarker="true"]',
+        '[kind="document"] .wave-editor-on',
+        '[kind="document"][contenteditable]',
+        '[kind="document"] [contenteditable]'
+      ].join(", ")
+    );
+  }
+
+  gwtActiveEditableDocument(): Locator {
+    return this.page.locator(GWT_ACTIVE_DOCUMENT_SELECTOR).last();
   }
 
   /**
@@ -92,14 +123,7 @@ export class GwtPage extends WavePage {
   }
 
   private gwtEditableDocument(): Locator {
-    return this.page.locator(
-      [
-        '[kind="document"] [editabledocmarker="true"]',
-        '[kind="document"] .wave-editor-on',
-        '[kind="document"][contenteditable]',
-        '[kind="document"] [contenteditable]'
-      ].join(", ")
-    );
+    return this.gwtEditableDocuments();
   }
 
   private async ensureEditableDocumentVisible(editable: Locator): Promise<void> {
@@ -116,7 +140,7 @@ export class GwtPage extends WavePage {
   }
 
   private async reopenLastBlipForEditing(): Promise<void> {
-    const blip = this.page.locator("[kind='b'][data-blip-id]").last();
+    const blip = this.gwtBlips().last();
     await expect(
       blip,
       "GWT should have a visible blip to reopen for editing"

@@ -141,6 +141,11 @@ public final class ToolbarButtonUiProxy implements ToolbarButtonUi {
   }
 
   @Override
+  public void setE2eAction(String action) {
+    proxy.setE2eAction(action);
+  }
+
+  @Override
   public void setVisualElement(Element element) {
     proxy.setVisualElement(element);
   }

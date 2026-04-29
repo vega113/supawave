@@ -166,12 +166,16 @@ public final class FragmentsFetcherCompat {
     // Filter to known metas
     List<String> filtered = new ArrayList<>(order.size());
     for (String id : order) if (metas.containsKey(id)) filtered.add(id);
-    if (filtered.isEmpty()) return Collections.emptyList();
+    if (filtered.isEmpty()) return slice(metas, startId, direction, limit);
     String dir = (direction == null) ? "forward" : direction.trim().toLowerCase();
     if (!"forward".equals(dir) && !"backward".equals(dir)) dir = "forward";
     int idx = 0;
-    if (startId != null && metas.containsKey(startId)) idx = filtered.indexOf(startId);
-    if (idx < 0) idx = 0;
+    if (startId != null && metas.containsKey(startId)) {
+      idx = filtered.indexOf(startId);
+      if (idx < 0) {
+        return slice(metas, startId, dir, limit);
+      }
+    }
     List<String> out = new ArrayList<>(limit);
     if ("backward".equals(dir)) {
       for (int i = Math.max(0, idx - limit + 1); i <= idx && out.size() < limit; i++) out.add(filtered.get(i));

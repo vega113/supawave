@@ -182,10 +182,18 @@ function hydrateFromDigest(host, waveId) {
   for (const card of cards) {
     if (card.getAttribute("data-wave-id") !== waveId) continue;
     // wavy-search-rail-card reflects `pinned` as a DOM attribute.
-    // `archived` is not yet wired on the card (full hydration deferred
-    // to #1055/S5 via J2clSelectedWaveView.setNavRowFolderState).
     if (card.hasAttribute("pinned")) host.setAttribute("pinned", "");
-    if (card.hasAttribute("archived")) host.setAttribute("archived", "");
+    // `archived` is not yet wired on the card as a DOM attribute (#1055/S5).
+    // Fall back to the rail's active-folder context: if the search rail is
+    // showing in:archive results and this card is present, the wave is archived.
+    if (card.hasAttribute("archived")) {
+      host.setAttribute("archived", "");
+    } else {
+      const rail = doc.querySelector("wavy-search-rail");
+      if (rail && rail.getAttribute("data-active-folder") === "archive") {
+        host.setAttribute("archived", "");
+      }
+    }
     return;
   }
 }

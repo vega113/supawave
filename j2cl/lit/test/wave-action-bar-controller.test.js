@@ -583,6 +583,51 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     }
   });
 
+  it("hydrateFromDigest seeds archived via rail data-active-folder when card lacks archived attr", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const rail = document.createElement("wavy-search-rail");
+    rail.setAttribute("data-active-folder", "archive");
+    document.body.appendChild(rail);
+    try {
+      const wrapper = await fixture(
+        html`<div>
+          <wavy-search-rail-card data-wave-id="w+arc-rail"></wavy-search-rail-card>
+          <wavy-wave-nav-row source-wave-id="w+arc-rail"></wavy-wave-nav-row>
+        </div>`
+      );
+      const row = wrapper.querySelector("wavy-wave-nav-row");
+      controllerModule.start();
+      await Promise.resolve();
+      expect(
+        row.hasAttribute("archived"),
+        "archived hydrated from rail active-folder=archive"
+      ).to.be.true;
+
+      // First click on an archived row must send restore-to-inbox, not re-archive.
+      const completed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-folder-action-completed",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-archive-toggle-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "w+arc-rail" }
+        })
+      );
+      const detail = await completed;
+      expect(detail.folder, "first click must restore to inbox").to.equal("inbox");
+      const url = new URL(stub.calls[0].url, window.location.origin);
+      expect(url.searchParams.get("folder")).to.equal("inbox");
+    } finally {
+      rail.remove();
+      stub.restore();
+    }
+  });
+
   it("binding is idempotent — repeated scans do not double-fire", async () => {
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(

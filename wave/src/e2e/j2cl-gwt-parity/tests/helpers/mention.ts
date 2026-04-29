@@ -1,4 +1,4 @@
-import { Locator, Page } from "@playwright/test";
+import { expect, Locator, Page } from "@playwright/test";
 
 export type MentionStateJ2cl = {
   open: boolean;
@@ -30,10 +30,10 @@ export async function readMentionTriggerLetterJ2cl(
   return await composer.evaluate((host: any) => {
     const participants = Array.isArray(host.participants) ? host.participants : [];
     const participant = participants.find((item: any) => {
-      const text = `${item?.address || ""}${item?.displayName || ""}`.trim();
-      return text.length > 0;
+      const address = `${item?.address || ""}`.trim();
+      return address.length > 0;
     });
-    const source = `${participant?.address || participant?.displayName || ""}`.trim();
+    const source = `${participant?.address || ""}`.trim();
     return source.charAt(0).toLowerCase();
   });
 }
@@ -81,7 +81,8 @@ export async function dispatchComposerKeyJ2cl(
       new KeyboardEvent("keydown", {
         key: keyName,
         bubbles: true,
-        cancelable: true
+        cancelable: true,
+        composed: true
       })
     );
   }, key);
@@ -107,4 +108,37 @@ export async function readMentionStateJ2cl(
       activeInBody: active === body
     };
   });
+}
+
+/**
+ * Click Reply on the first <wave-blip> and return the inline composer
+ * locator after it mounts. The retry loop handles the same transient
+ * wave-blip replacement during snapshot hydration that the G-PORT-5
+ * mention-autocomplete parity test already protects against.
+ */
+export async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
+  await page.waitForTimeout(1_500);
+  const firstBlip = page.locator("wave-blip").first();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      await firstBlip.scrollIntoViewIfNeeded({ timeout: 5_000 });
+      await firstBlip.hover({ timeout: 5_000 });
+      await firstBlip
+        .locator("wave-blip-toolbar")
+        .locator("button[data-toolbar-action='reply']")
+        .click({ timeout: 10_000 });
+      break;
+    } catch (e) {
+      if (attempt === 3) throw e;
+      await page.waitForTimeout(800);
+    }
+  }
+  const inlineComposer = firstBlip.locator(
+    "wavy-composer[data-inline-composer='true']"
+  );
+  await expect(
+    inlineComposer,
+    "Reply must mount <wavy-composer> inline at the blip"
+  ).toHaveCount(1, { timeout: 10_000 });
+  return inlineComposer;
 }

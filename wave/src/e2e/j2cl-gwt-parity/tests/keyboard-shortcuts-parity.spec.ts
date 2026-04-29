@@ -32,6 +32,7 @@ import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
 import {
   dispatchComposerKeyJ2cl,
+  openInlineComposerJ2cl,
   readMentionStateJ2cl,
   readMentionTriggerLetterJ2cl,
   typeAtMentionTriggerJ2cl,
@@ -293,17 +294,7 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
       await j2cl.goto("/");
       await j2cl.assertInboxLoaded();
       await openFirstWaveJ2cl(page);
-      const firstBlip = page.locator("wave-blip").first();
-      await firstBlip.scrollIntoViewIfNeeded();
-      await firstBlip.hover();
-      await firstBlip
-        .locator("wave-blip-toolbar")
-        .locator("button[data-toolbar-action='reply']")
-        .click({ timeout: 10_000 });
-      const composer = firstBlip.locator(
-        "wavy-composer[data-inline-composer='true']"
-      );
-      await expect(composer).toHaveCount(1, { timeout: 10_000 });
+      const composer = await openInlineComposerJ2cl(page);
 
       const realParticipantCount = await waitForParticipantsJ2cl(composer, 10_000);
       expect(

@@ -31,6 +31,7 @@ import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
 import {
   dispatchComposerKeyJ2cl,
+  openInlineComposerJ2cl,
   readMentionStateJ2cl,
   typeAtMentionTriggerJ2cl,
   waitForParticipantsJ2cl
@@ -49,44 +50,6 @@ async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
   await card.waitFor({ state: "attached", timeout: 30_000 });
   await card.click({ timeout: 15_000 });
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
-}
-
-/**
- * Click Reply on the first <wave-blip> and return the inline composer
- * locator. Asserts the composer mounts INLINE inside the blip subtree.
- */
-async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
-  // Allow the wave-panel renderer to settle before we touch the
-  // first blip — early renders during snapshot hydration replace
-  // wave-blip elements wholesale, which makes any locator captured
-  // before steady state detach mid-action.
-  await page.waitForTimeout(1_500);
-  const firstBlip = page.locator("wave-blip").first();
-  // Wait for the read-renderer to stop swapping wave-blip elements
-  // before we capture the first one. Retry briefly so a transient
-  // detached-element race does not fail the whole test.
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      await firstBlip.scrollIntoViewIfNeeded({ timeout: 5_000 });
-      await firstBlip.hover({ timeout: 5_000 });
-      await firstBlip
-        .locator("wave-blip-toolbar")
-        .locator("button[data-toolbar-action='reply']")
-        .click({ timeout: 10_000 });
-      break;
-    } catch (e) {
-      if (attempt === 3) throw e;
-      await page.waitForTimeout(800);
-    }
-  }
-  const inlineComposer = firstBlip.locator(
-    "wavy-composer[data-inline-composer='true']"
-  );
-  await expect(
-    inlineComposer,
-    "Reply must mount <wavy-composer> inline at the blip"
-  ).toHaveCount(1, { timeout: 10_000 });
-  return inlineComposer;
 }
 
 async function sendMentionReplyJ2cl(

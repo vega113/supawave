@@ -56,9 +56,11 @@ user's flow as described. "Test passes" is necessary but not sufficient.
 ### G-PORT-1. E2E foundation
 - Playwright harness under `wave/src/e2e/j2cl-gwt-parity/` that runs against
   a local server at both `?view=j2cl-root` and `?view=gwt`.
-- Single shared fixture: registers/signs in a fresh test user for each run.
-- Helpers: shared `j2cl()` / `gwt()` page objects focused on bootstrap/load
-  assertions in this slice; richer interaction helpers land in later slices.
+- Single shared fixture: signs in as a test user, opens an existing wave
+  with at least 1 reply, 1 task, 1 mention, 1 attachment.
+- Helpers: `j2cl()` / `gwt()` page objects exposing `findWave(title)`,
+  `openWave(idx)`, `clickReply(blipIdx)`, `typeAndSend(text)`, etc. — same
+  API both sides.
 - Wires CI: a new check `J2CL ↔ GWT Parity E2E` that runs the suite.
 - No UI changes in this slice — only the test harness.
 
@@ -138,7 +140,7 @@ user's flow as described. "Test passes" is necessary but not sufficient.
 
 ## 5. Sequencing
 
-```text
+```
 G-PORT-1 (E2E foundation) →
   G-PORT-2 (search) ┐
   G-PORT-3 (wave+read) ┐
@@ -149,8 +151,8 @@ G-PORT-1 (E2E foundation) →
                        → G-PORT-9 (visual polish, last)
 ```
 
-Slice 1 goes first (every other slice depends on the E2E harness for its
-acceptance gate), followed by 2/3/4/7 in parallel, then 5/6/8, and finally 9.
+Slice 1 first (every other slice depends on the E2E harness for its
+acceptance gate). Then 2/3/4/7 in parallel. Then 5/6/8. Then 9.
 
 ## 6. Workflow per slice
 

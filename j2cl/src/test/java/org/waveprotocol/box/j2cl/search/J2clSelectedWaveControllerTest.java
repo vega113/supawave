@@ -484,6 +484,35 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void replySubmitHandoffRejectsForwardFetchWhenWriteSessionDisappears()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+
+    harness.clearCurrentWriteSession(controller);
+    Assert.assertNull(harness.modelValue("getWriteSession"));
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+created", "Stale reply should not merge", null, null));
+
+    Assert.assertFalse(
+        String.valueOf(harness.modelValue("getContentEntries"))
+            .contains("Stale reply should not merge"));
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
   public void replySubmitHandoffRetriesForwardFetchWhenSnapshotLagsSubmittedBlip()
       throws Exception {
     Harness harness = new Harness();
@@ -2733,6 +2762,37 @@ public class J2clSelectedWaveControllerTest {
       currentModelField.setAccessible(true);
       J2clSelectedWaveModel currentModel = (J2clSelectedWaveModel) currentModelField.get(controller);
       J2clSelectedWaveModel nextModel = currentModel.withReadBlips(readBlips);
+      currentModelField.set(controller, nextModel);
+      lastModel = nextModel;
+    }
+
+    private void clearCurrentWriteSession(Object controller) throws Exception {
+      Field currentModelField = controller.getClass().getDeclaredField("currentModel");
+      currentModelField.setAccessible(true);
+      J2clSelectedWaveModel currentModel = (J2clSelectedWaveModel) currentModelField.get(controller);
+      J2clSelectedWaveModel nextModel =
+          new J2clSelectedWaveModel(
+              currentModel.hasSelection(),
+              currentModel.isLoading(),
+              currentModel.isError(),
+              currentModel.getSelectedWaveId(),
+              currentModel.getTitleText(),
+              currentModel.getSnippetText(),
+              currentModel.getUnreadText(),
+              currentModel.getStatusText(),
+              currentModel.getDetailText(),
+              currentModel.getReconnectCount(),
+              currentModel.getParticipantIds(),
+              currentModel.getContentEntries(),
+              currentModel.getReadBlips(),
+              currentModel.getViewportState(),
+              currentModel.getInteractionBlips(),
+              null,
+              currentModel.getUnreadCount(),
+              currentModel.isRead(),
+              currentModel.isReadStateKnown(),
+              currentModel.isReadStateStale())
+              .withConversationManifest(currentModel.getConversationManifest());
       currentModelField.set(controller, nextModel);
       lastModel = nextModel;
     }

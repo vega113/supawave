@@ -767,7 +767,7 @@ public final class J2clSelectedWaveController
           // For post-submit fetches (allowSameWaveWriteSessionAdvance=true) the write
           // session's version legitimately advances when the reply ACK arrives, so we
           // skip the version/hash staleness check.  However we still reject the response
-          // if the write session disappeared entirely — that indicates the wave was
+          // if the write session disappeared entirely: that indicates the wave was
           // closed or reset rather than a normal submit acknowledgement, and merging
           // those fragments could overwrite content brought in by a live-stream update.
           boolean sessionDisappeared = hadWriteSession && currentModel.getWriteSession() == null;

@@ -62,7 +62,7 @@ export class WavySearchRailCard extends LitElement {
        * existing V-5 token plumbing still wins when callers set them. */
       padding: var(--wavy-rail-card-padding-y, 10px)
         var(--wavy-rail-card-padding-x, 12px) var(--wavy-rail-card-padding-y, 10px)
-        8px;
+        var(--wavy-rail-card-padding-left, 8px);
       margin-bottom: var(--wavy-rail-card-gap, 0);
       background: var(--wavy-rail-card-bg, #fff);
       color: var(--wavy-rail-card-color, #718096);
@@ -88,6 +88,10 @@ export class WavySearchRailCard extends LitElement {
     article {
       display: block;
       outline: none;
+    }
+    article:focus-visible {
+      outline: 2px solid var(--wavy-rail-card-focus-ring, #0077b6);
+      outline-offset: -2px;
     }
 
     /* GWT: .inner — line-height 16px, exactly two text lines (32px tall),

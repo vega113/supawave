@@ -311,7 +311,7 @@ async function selectTrailingWordWithGwtWebDriver(
       throw new Error(`GWT editor model does not contain '${targetWord}': ${content}`);
     }
 
-    const searchUpperBound = Math.min(content.length + 10, 500);
+    const searchUpperBound = content.length + 10;
     let firstSelectionError = "";
     for (let start = searchUpperBound; start >= 0; start -= 1) {
       for (let extraEnd = 0; extraEnd <= 4; extraEnd += 1) {

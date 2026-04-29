@@ -247,7 +247,31 @@ public final class FolderServlet extends HttpServlet {
       throws InvalidRequestException {
     try {
       boolean hasAccessibleWavelet = false;
-      for (WaveletId waveletId : waveletProvider.getWaveletIds(waveId)) {
+      // G-PORT-8 (#1117): waveletProvider.getWaveletIds(waveId) reads the
+      // PERSISTED wavelet store and returns an empty set for a wave that
+      // is alive in memory but has not yet been flushed (e.g. the
+      // freshly-created Welcome wave). This matched
+      // SimpleSearchProviderImpl which also falls back to the in-memory
+      // wave-map (see expandConversationalWavelets). Without that
+      // fallback, every pin/archive on a brand-new wave returned 500
+      // "Access rejected" because the wavelet-id set was empty before
+      // the access check could even run. We honor the same fallback
+      // here: try persisted ids first, then read in-memory wavelet ids
+      // as a safety net so the access check runs on the actual wavelet
+      // that IS loaded.
+      java.util.Set<WaveletId> waveletIds =
+          new java.util.HashSet<>(waveletProvider.getWaveletIds(waveId));
+      if (waveletIds.isEmpty()) {
+        // Fallback: ask the conversation-root wavelet directly. If the
+        // user IS a participant of conv+root, the snapshot fetch will
+        // succeed; if not, it returns null. This avoids exposing a
+        // distinct 404-vs-403 surface (we still throw "Access rejected"
+        // either way).
+        WaveletId convRoot = WaveletId.of(
+            waveId.getDomain(), IdConstants.CONVERSATION_ROOT_WAVELET);
+        waveletIds.add(convRoot);
+      }
+      for (WaveletId waveletId : waveletIds) {
         WaveletName waveletName = WaveletName.of(waveId, waveletId);
         if (waveletProvider.checkAccessPermission(waveletName, participant)) {
           hasAccessibleWavelet = true;

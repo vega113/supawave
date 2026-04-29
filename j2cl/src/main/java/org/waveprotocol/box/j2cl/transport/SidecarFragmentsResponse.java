@@ -6,12 +6,40 @@ import java.util.List;
 import java.util.Map;
 
 public final class SidecarFragmentsResponse {
+  public static final class BlipMetadata {
+    private final String id;
+    private final String author;
+    private final long lastModifiedTime;
+
+    BlipMetadata(String id, String author, long lastModifiedTime) {
+      this.id = id == null ? "" : id;
+      this.author = author == null ? "" : author;
+      this.lastModifiedTime = Math.max(0L, lastModifiedTime);
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public String getAuthor() {
+      return author;
+    }
+
+    public long getLastModifiedTime() {
+      return lastModifiedTime;
+    }
+  }
+
   private final String status;
   private final String waveRefPath;
   private final SidecarSelectedWaveFragments fragments;
+  private final List<BlipMetadata> blips;
 
   private SidecarFragmentsResponse(
-      String status, String waveRefPath, SidecarSelectedWaveFragments fragments) {
+      String status,
+      String waveRefPath,
+      SidecarSelectedWaveFragments fragments,
+      List<BlipMetadata> blips) {
     this.status = status == null ? "" : status;
     this.waveRefPath = waveRefPath == null ? "" : waveRefPath;
     this.fragments = fragments == null
@@ -22,6 +50,10 @@ public final class SidecarFragmentsResponse {
             Collections.<SidecarSelectedWaveFragmentRange>emptyList(),
             Collections.<SidecarSelectedWaveFragment>emptyList())
         : fragments;
+    this.blips =
+        blips == null
+            ? Collections.<BlipMetadata>emptyList()
+            : Collections.unmodifiableList(new ArrayList<BlipMetadata>(blips));
   }
 
   public static SidecarFragmentsResponse fromJson(String json) {
@@ -61,6 +93,19 @@ public final class SidecarFragmentsResponse {
       }
     }
 
+    List<BlipMetadata> blips = new ArrayList<BlipMetadata>();
+    Object rawBlips = root.get("blips");
+    if (rawBlips != null) {
+      for (Object rawBlip : asList(rawBlips)) {
+        Map<String, Object> blip = getObject(rawBlip);
+        blips.add(
+            new BlipMetadata(
+                getRequiredString(blip, "id"),
+                getString(blip, "author"),
+                getOptionalLong(blip, "lastModifiedTime")));
+      }
+    }
+
     return new SidecarFragmentsResponse(
         status,
         getString(root, "waveRef"),
@@ -69,7 +114,8 @@ public final class SidecarFragmentsResponse {
             getLong(version, "start"),
             getLong(version, "end"),
             ranges,
-            entries));
+            entries),
+        blips);
   }
 
   public String getStatus() {
@@ -82,6 +128,10 @@ public final class SidecarFragmentsResponse {
 
   public SidecarSelectedWaveFragments getFragments() {
     return fragments;
+  }
+
+  public List<BlipMetadata> getBlips() {
+    return blips;
   }
 
   private static Map<String, Object> getObject(Object value) {
@@ -125,6 +175,17 @@ public final class SidecarFragmentsResponse {
 
   private static long getLong(Map<String, Object> object, String key) {
     Object value = object.get(key);
+    if (!(value instanceof Number)) {
+      throw new IllegalArgumentException("Expected numeric '" + key + "' but got " + value);
+    }
+    return ((Number) value).longValue();
+  }
+
+  private static long getOptionalLong(Map<String, Object> object, String key) {
+    Object value = object.get(key);
+    if (value == null) {
+      return 0L;
+    }
     if (!(value instanceof Number)) {
       throw new IllegalArgumentException("Expected numeric '" + key + "' but got " + value);
     }

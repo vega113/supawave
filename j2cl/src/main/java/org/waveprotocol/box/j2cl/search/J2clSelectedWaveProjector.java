@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
@@ -87,6 +88,12 @@ public final class J2clSelectedWaveProjector {
     // documents list when the same wire payload carries both shapes. The
     // document path is still authoritative when it exists.
     readBlips = enrichReadBlipMetadata(readBlips, update.getDocuments());
+    // G-PORT-3 (#1112): waves authored in the same browser session can arrive
+    // through the viewport channel before every per-blip document field is
+    // populated. The selected digest already carries wave-author and
+    // last-modified metadata from the search rail; use it as a conservative
+    // display/parity fallback without overwriting richer per-blip metadata.
+    readBlips = applyDigestMetadataFallback(readBlips, digestItem);
     // J-UI-4 (#1082, R-3.1) — apply the parsed conversation manifest:
     // graft parent-blip-id + thread-id onto each read blip and reorder
     // the list into manifest depth-first pre-order traversal so reply
@@ -104,7 +111,7 @@ public final class J2clSelectedWaveProjector {
     // model.getReadBlips(), so allocating full-conversation placeholder
     // blips here is wasted work that grows linearly with wave size.
     SidecarConversationManifest effectiveManifest =
-        chooseManifest(update.getConversationManifest(), previousMatchesWave, previous);
+        chooseManifest(updateManifest(update), previousMatchesWave, previous);
     if (!hasViewportWindow) {
       readBlips = applyConversationManifest(readBlips, effectiveManifest);
     }
@@ -204,6 +211,17 @@ public final class J2clSelectedWaveProjector {
       }
     }
     return SidecarConversationManifest.empty();
+  }
+
+  private static SidecarConversationManifest updateManifest(SidecarSelectedWaveUpdate update) {
+    if (update == null) {
+      return SidecarConversationManifest.empty();
+    }
+    SidecarConversationManifest fromDocuments = update.getConversationManifest();
+    if (fromDocuments != null && !fromDocuments.isEmpty()) {
+      return fromDocuments;
+    }
+    return SidecarConversationManifest.fromFragments(update.getFragments());
   }
 
   /**
@@ -497,6 +515,192 @@ public final class J2clSelectedWaveProjector {
               /* taskDueTimestamp= */ documentTaskDueTimestamp(doc)));
     }
     return enriched;
+  }
+
+  static List<J2clReadBlip> applyDigestMetadataFallback(
+      List<J2clReadBlip> readBlips, J2clSearchDigestItem digestItem) {
+    if (readBlips == null || readBlips.isEmpty() || digestItem == null) {
+      return readBlips;
+    }
+    String fallbackAuthor = digestItem.getAuthor() == null ? "" : digestItem.getAuthor();
+    long fallbackModified = Math.max(0L, digestItem.getLastModified());
+    if (fallbackAuthor.isEmpty() && fallbackModified <= 0L) {
+      return readBlips;
+    }
+    List<J2clReadBlip> patched = new ArrayList<J2clReadBlip>(readBlips.size());
+    boolean changed = false;
+    for (J2clReadBlip blip : readBlips) {
+      if (blip == null) {
+        patched.add(blip);
+        continue;
+      }
+      String authorId = blip.getAuthorId();
+      String authorDisplayName = blip.getAuthorDisplayName();
+      long lastModified = blip.getLastModifiedTimeMillis();
+      if ((authorId == null || authorId.isEmpty()) && !fallbackAuthor.isEmpty()) {
+        authorId = fallbackAuthor;
+      }
+      if ((authorDisplayName == null || authorDisplayName.isEmpty()) && !fallbackAuthor.isEmpty()) {
+        authorDisplayName = fallbackAuthor;
+      }
+      if (lastModified <= 0L && fallbackModified > 0L) {
+        lastModified = fallbackModified;
+      }
+      if (!Objects.equals(authorId, blip.getAuthorId())
+          || !Objects.equals(authorDisplayName, blip.getAuthorDisplayName())
+          || lastModified != blip.getLastModifiedTimeMillis()) {
+        changed = true;
+        patched.add(
+            new J2clReadBlip(
+                blip.getBlipId(),
+                blip.getText(),
+                blip.getAttachments(),
+                authorId,
+                authorDisplayName,
+                lastModified,
+                blip.getParentBlipId(),
+                blip.getThreadId(),
+                blip.isUnread(),
+                blip.hasMention(),
+                blip.isDeleted(),
+                blip.isTaskDone(),
+                blip.getTaskAssignee(),
+                blip.getTaskDueTimestamp()));
+      } else {
+        patched.add(blip);
+      }
+    }
+    return changed ? patched : readBlips;
+  }
+
+  static List<J2clReadBlip> applyViewportMetadataFallbacks(
+      List<J2clReadBlip> viewportReadBlips,
+      List<J2clReadBlip> previousReadBlips,
+      J2clSearchDigestItem digestItem) {
+    return applyViewportMetadataFallbacks(
+        viewportReadBlips,
+        previousReadBlips,
+        digestItem,
+        /* preserveFallbackBooleans= */ false);
+  }
+
+  static List<J2clReadBlip> applyViewportMetadataFallbacks(
+      List<J2clReadBlip> viewportReadBlips,
+      List<J2clReadBlip> previousReadBlips,
+      J2clSearchDigestItem digestItem,
+      boolean preserveFallbackBooleans) {
+    List<J2clReadBlip> patched =
+        applyPreviousReadBlipMetadataFallback(
+            viewportReadBlips, previousReadBlips, preserveFallbackBooleans);
+    return applyDigestMetadataFallback(patched, digestItem);
+  }
+
+  private static List<J2clReadBlip> applyPreviousReadBlipMetadataFallback(
+      List<J2clReadBlip> readBlips,
+      List<J2clReadBlip> previousReadBlips,
+      boolean preserveFallbackBooleans) {
+    if (readBlips == null || readBlips.isEmpty()
+        || previousReadBlips == null || previousReadBlips.isEmpty()) {
+      return readBlips;
+    }
+    Map<String, J2clReadBlip> previousById = new LinkedHashMap<String, J2clReadBlip>();
+    for (J2clReadBlip previous : previousReadBlips) {
+      if (previous == null || previous.getBlipId() == null || previous.getBlipId().isEmpty()) {
+        continue;
+      }
+      previousById.put(previous.getBlipId(), previous);
+    }
+    if (previousById.isEmpty()) {
+      return readBlips;
+    }
+    List<J2clReadBlip> patched = new ArrayList<J2clReadBlip>(readBlips.size());
+    boolean changed = false;
+    for (J2clReadBlip blip : readBlips) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
+        patched.add(blip);
+        continue;
+      }
+      J2clReadBlip previous = previousById.get(blip.getBlipId());
+      if (previous == null) {
+        patched.add(blip);
+        continue;
+      }
+      J2clReadBlip merged = copyMissingMetadata(blip, previous, preserveFallbackBooleans);
+      patched.add(merged);
+      changed = changed || merged != blip;
+    }
+    return changed ? patched : readBlips;
+  }
+
+  private static J2clReadBlip copyMissingMetadata(
+      J2clReadBlip blip, J2clReadBlip fallback, boolean preserveFallbackBooleans) {
+    String authorId = blip.getAuthorId();
+    if ((authorId == null || authorId.isEmpty()) && !fallback.getAuthorId().isEmpty()) {
+      authorId = fallback.getAuthorId();
+    }
+    String authorDisplayName = blip.getAuthorDisplayName();
+    if ((authorDisplayName == null || authorDisplayName.isEmpty())
+        && !fallback.getAuthorDisplayName().isEmpty()) {
+      authorDisplayName = fallback.getAuthorDisplayName();
+    }
+    long lastModified = blip.getLastModifiedTimeMillis();
+    if (lastModified <= 0L && fallback.getLastModifiedTimeMillis() > 0L) {
+      lastModified = fallback.getLastModifiedTimeMillis();
+    }
+    String parentBlipId = blip.getParentBlipId();
+    if ((parentBlipId == null || parentBlipId.isEmpty())
+        && !fallback.getParentBlipId().isEmpty()) {
+      parentBlipId = fallback.getParentBlipId();
+    }
+    String threadId = blip.getThreadId();
+    if ((threadId == null || threadId.isEmpty()) && !fallback.getThreadId().isEmpty()) {
+      threadId = fallback.getThreadId();
+    }
+    String taskAssignee = blip.getTaskAssignee();
+    if ((taskAssignee == null || taskAssignee.isEmpty()) && !fallback.getTaskAssignee().isEmpty()) {
+      taskAssignee = fallback.getTaskAssignee();
+    }
+    long taskDueTimestamp = blip.getTaskDueTimestamp();
+    if (taskDueTimestamp == J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP
+        && fallback.getTaskDueTimestamp() != J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP) {
+      taskDueTimestamp = fallback.getTaskDueTimestamp();
+    }
+    // Boolean flags have no "missing" sentinel in J2clReadBlip. The default
+    // contract treats the incoming blip as authoritative; fragment-growth
+    // callers opt in to preserving the current model's booleans because raw
+    // viewport fragments carry text/metadata but not read/task/delete state.
+    boolean unread = preserveFallbackBooleans ? fallback.isUnread() : blip.isUnread();
+    boolean hasMention = preserveFallbackBooleans ? fallback.hasMention() : blip.hasMention();
+    boolean deleted = preserveFallbackBooleans ? fallback.isDeleted() : blip.isDeleted();
+    boolean taskDone = preserveFallbackBooleans ? fallback.isTaskDone() : blip.isTaskDone();
+    if (Objects.equals(authorId, blip.getAuthorId())
+        && Objects.equals(authorDisplayName, blip.getAuthorDisplayName())
+        && lastModified == blip.getLastModifiedTimeMillis()
+        && Objects.equals(parentBlipId, blip.getParentBlipId())
+        && Objects.equals(threadId, blip.getThreadId())
+        && unread == blip.isUnread()
+        && hasMention == blip.hasMention()
+        && deleted == blip.isDeleted()
+        && taskDone == blip.isTaskDone()
+        && Objects.equals(taskAssignee, blip.getTaskAssignee())
+        && taskDueTimestamp == blip.getTaskDueTimestamp()) {
+      return blip;
+    }
+    return new J2clReadBlip(
+        blip.getBlipId(),
+        blip.getText(),
+        blip.getAttachments(),
+        authorId,
+        authorDisplayName,
+        lastModified,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        deleted,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp);
   }
 
   /**

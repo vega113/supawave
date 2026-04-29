@@ -1,0 +1,29 @@
+{
+  "releaseId": "2026-04-29-g-port-8-action-bar",
+  "version": "PR #1117",
+  "date": "2026-04-29",
+  "title": "G-PORT-8: Top-of-wave action bar parity",
+  "summary": "Clone the GWT top-of-wave action-icon strip 1-to-1 into J2CL. The <wavy-wave-nav-row> now renders the ten GWT ViewToolbar.java glyphs (recent, next-unread, prev, next, end, prev-@, next-@, archive, pin, version-history) as SVG icons with native title tooltips, and a new pure-JS controller wires archive/pin clicks to the existing /folder servlet POST and the version-history click to the existing <wavy-version-history> overlay. Also fixes a server-side bug where /folder rejected pin/archive on a freshly-created wave because the persisted wavelet store had not yet recorded any wavelets.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Replaced text labels in <wavy-wave-nav-row> with the GWT ViewToolbar SVG glyphs (1.75 stroke, round caps, 18px on a 24-unit viewBox). Tooltips ride on the native title attribute; aria-pressed reflects the pinned/archived toggle state for AT.",
+        "Added j2cl/lit/src/controllers/wave-action-bar-controller.js, a pure-JS controller that binds to each <wavy-wave-nav-row> via a MutationObserver and translates wave-nav-archive/pin/version-history-requested events into POSTs to /folder/?operation=… and into open/close on <wavy-version-history>. Optimistic flip + rollback on non-200 mirrors the GWT setDown(true) feel."
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "FolderServlet.verifyWaveVisibleToParticipant now falls back to probing the conv+root wavelet name when waveletProvider.getWaveletIds returns an empty set (a freshly-created wave that is alive in memory but not yet flushed to the persistent store). Mirrors the in-memory fallback already used by SimpleSearchProviderImpl.expandConversationalWavelets and unblocks pin/archive on Welcome waves seeded at sign-in time. Affected both GWT and J2CL views.",
+        "J2CL viewport growth now preserves read-blip chrome metadata across fragment merges. Existing loaded blips keep their author/time/task metadata, and newly-loaded fragments use the selected digest author/time as a conservative display fallback until authoritative per-blip metadata arrives."
+      ]
+    },
+    {
+      "type": "feature",
+      "items": [
+        "Added wave/src/e2e/j2cl-gwt-parity/tests/wave-actions-parity.spec.ts. The J2CL half registers a fresh user, opens the welcome wave, then exercises pin → in:pinned → unpin → archive → restore on a single mounted nav-row with each click awaiting the controller's wavy-folder-action-completed event so the test does not race the search index. The GWT half asserts the same /folder POST wire shape (operation=pin|unpin and operation=move&folder=archive|inbox) by intercepting the network request, plus a smoke check that the version-history click does not crash the shell."
+      ]
+    }
+  ]
+}

@@ -58,7 +58,41 @@ public class J2clSearchResultProjectorTest {
     Assert.assertEquals(2, model.getDigestItems().size());
     Assert.assertEquals("example.com/w+alpha", model.getDigestItems().get(0).getWaveId());
     Assert.assertEquals("author@example.com", model.getDigestItems().get(0).getAuthor());
+    Assert.assertTrue(model.getDigestItems().get(0).isArchived());
     Assert.assertTrue(model.getDigestItems().get(1).isPinned());
+    Assert.assertTrue(model.getDigestItems().get(1).isArchived());
+  }
+
+  @Test
+  public void projectLeavesDigestsUnarchivedOutsideArchiveQuery() {
+    SidecarSearchResponse response =
+        new SidecarSearchResponse(
+            "in:inbox",
+            1,
+            Collections.singletonList(
+                new SidecarSearchResponse.Digest(
+                    "Alpha",
+                    "Snippet A",
+                    "example.com/w+alpha",
+                    111L,
+                    0,
+                    4,
+                    Collections.singletonList("teammate@example.com"),
+                    "author@example.com",
+                    false)));
+
+    J2clSearchResultModel model = J2clSearchResultProjector.project(response, 30);
+
+    Assert.assertFalse(model.getDigestItems().get(0).isArchived());
+  }
+
+  @Test
+  public void projectTreatsArchiveFolderAliasesAsArchivedQueries() {
+    Assert.assertTrue(projectOne("IN:ARCHIVE").getDigestItems().get(0).isArchived());
+    Assert.assertTrue(projectOne("from:me in:archive").getDigestItems().get(0).isArchived());
+    Assert.assertTrue(projectOne("is:archived").getDigestItems().get(0).isArchived());
+    Assert.assertTrue(projectOne("folder:archive").getDigestItems().get(0).isArchived());
+    Assert.assertFalse(projectOne("in:archived").getDigestItems().get(0).isArchived());
   }
 
   @Test
@@ -129,5 +163,24 @@ public class J2clSearchResultProjectorTest {
 
     Assert.assertEquals("2 waves", model.getWaveCountText());
     Assert.assertTrue(model.isShowMoreVisible());
+  }
+
+  private static J2clSearchResultModel projectOne(String query) {
+    return J2clSearchResultProjector.project(
+        new SidecarSearchResponse(
+            query,
+            1,
+            Collections.singletonList(
+                new SidecarSearchResponse.Digest(
+                    "Alpha",
+                    "Snippet A",
+                    "example.com/w+alpha",
+                    111L,
+                    0,
+                    4,
+                    Collections.singletonList("teammate@example.com"),
+                    "author@example.com",
+                    false))),
+        30);
   }
 }

@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.search;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
@@ -115,6 +117,78 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertTrue((Boolean) harness.modelValue("isError"));
     Assert.assertEquals("Unable to open selected wave.", harness.modelValue("getStatusText"));
     Assert.assertEquals("bootstrap boom", harness.modelValue("getDetailText"));
+  }
+
+  @Test
+  public void selectingDigestPublishesFolderStateToNavRow() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+    J2clSearchDigestItem digest =
+        new J2clSearchDigestItem(
+            "example.com/w+1",
+            "Archived pinned wave",
+            "snippet",
+            "user@example.com",
+            0,
+            1,
+            1234L,
+            true,
+            true);
+
+    harness.selectWave(controller, "example.com/w+1", digest);
+
+    Assert.assertTrue(harness.lastNavRowPinned);
+    Assert.assertTrue(harness.lastNavRowArchived);
+  }
+
+  @Test
+  public void selectingDigestPublishesFolderStateAfterRenderingSelectedWaveId() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+    J2clSearchDigestItem digest =
+        new J2clSearchDigestItem(
+            "example.com/w+1",
+            "Archived pinned wave",
+            "snippet",
+            "user@example.com",
+            0,
+            1,
+            1234L,
+            true,
+            true);
+
+    harness.selectWave(controller, "example.com/w+1", digest);
+
+    Assert.assertEquals(
+        "folder state must be published after the view renders the new source-wave-id",
+        Arrays.asList(
+            "render:",
+            "render:example.com/w+1",
+            "folder-state:true:true"),
+        harness.viewEvents);
+  }
+
+  @Test
+  public void clearingSelectionClearsFolderStateOnNavRow() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+    J2clSearchDigestItem digest =
+        new J2clSearchDigestItem(
+            "example.com/w+1",
+            "Archived pinned wave",
+            "snippet",
+            "user@example.com",
+            0,
+            1,
+            1234L,
+            true,
+            true);
+
+    harness.selectWave(controller, "example.com/w+1", digest);
+    harness.selectWave(controller, "", null);
+
+    Assert.assertFalse(harness.lastNavRowPinned);
+    Assert.assertFalse(harness.lastNavRowArchived);
   }
 
   @Test
@@ -596,6 +670,141 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals(
         Arrays.asList("Root already loaded", "Next loaded", "Tail loaded"),
         harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void viewportGrowthPreservesMetadataForRenderedWindowEntries() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", digest("Wave A", "snippet", 0));
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(0, fragmentsResponse("Next loaded", "Tail loaded"));
+
+    @SuppressWarnings("unchecked")
+    List<J2clReadBlip> readBlips = (List<J2clReadBlip>) harness.modelValue("getReadBlips");
+    Assert.assertEquals(3, readBlips.size());
+    Assert.assertEquals("user@example.com", readBlips.get(0).getAuthorId());
+    Assert.assertEquals(44L, readBlips.get(0).getLastModifiedTimeMillis());
+    Assert.assertEquals("user@example.com", readBlips.get(1).getAuthorId());
+    Assert.assertEquals(1234L, readBlips.get(1).getLastModifiedTimeMillis());
+    Assert.assertEquals("user@example.com", readBlips.get(2).getAuthorId());
+    Assert.assertEquals(1234L, readBlips.get(2).getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void viewportGrowthUsesFragmentResponseBlipMetadataWithoutDigestFallback()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseWithBlipMetadata(
+            "b+next",
+            "Next loaded",
+            "next-author@example.com",
+            1777463436001L,
+            "b+tail",
+            "Tail loaded",
+            "tail-author@example.com",
+            1777463436277L));
+
+    @SuppressWarnings("unchecked")
+    List<J2clReadBlip> readBlips = (List<J2clReadBlip>) harness.modelValue("getReadBlips");
+    Assert.assertEquals(3, readBlips.size());
+    Assert.assertEquals("user@example.com", readBlips.get(0).getAuthorId());
+    Assert.assertEquals(44L, readBlips.get(0).getLastModifiedTimeMillis());
+    Assert.assertEquals("next-author@example.com", readBlips.get(1).getAuthorId());
+    Assert.assertEquals(1777463436001L, readBlips.get(1).getLastModifiedTimeMillis());
+    Assert.assertEquals("tail-author@example.com", readBlips.get(2).getAuthorId());
+    Assert.assertEquals(1777463436277L, readBlips.get(2).getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void viewportGrowthPreservesPreviousBooleanAndTaskStateThroughController()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+    harness.replaceModelReadBlips(
+        controller,
+        Arrays.asList(
+            new J2clReadBlip(
+                "b+root",
+                "Root already loaded",
+                Collections.<J2clAttachmentRenderModel>emptyList(),
+                "root-author@example.com",
+                "Root Author",
+                1714230000000L,
+                "",
+                "",
+                /* unread= */ true,
+                /* hasMention= */ true,
+                /* deleted= */ false,
+                /* taskDone= */ true,
+                /* taskAssignee= */ "assignee@example.com",
+                /* taskDueTimestamp= */ 1714560000000L)));
+
+    harness.requestViewportEdge(controller, "b+root", "forward");
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+root",
+            "Root refreshed from fragment growth",
+            null,
+            null));
+
+    @SuppressWarnings("unchecked")
+    List<J2clReadBlip> readBlips = (List<J2clReadBlip>) harness.modelValue("getReadBlips");
+    Assert.assertEquals(1, readBlips.size());
+    J2clReadBlip root = readBlips.get(0);
+    Assert.assertEquals("Root refreshed from fragment growth", root.getText());
+    Assert.assertEquals("root-author@example.com", root.getAuthorId());
+    Assert.assertEquals(1714230000000L, root.getLastModifiedTimeMillis());
+    Assert.assertTrue("controller fragment growth must preserve unread state", root.isUnread());
+    Assert.assertTrue(
+        "controller fragment growth must preserve mention state",
+        root.hasMention());
+    Assert.assertFalse(root.isDeleted());
+    Assert.assertTrue(
+        "controller fragment growth must preserve task completion state",
+        root.isTaskDone());
+    Assert.assertEquals("assignee@example.com", root.getTaskAssignee());
+    Assert.assertEquals(1714560000000L, root.getTaskDueTimestamp());
+  }
+
+  @Test
+  public void viewportGrowthAppliesManifestFromFragmentResponse() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded"));
+
+    harness.requestViewportEdge(controller, "b+next", "forward");
+    harness.resolveFragmentFetch(0, fragmentsResponseWithRawManifest());
+
+    SidecarConversationManifest manifest =
+        (SidecarConversationManifest) harness.modelValue("getConversationManifest");
+    Assert.assertFalse(manifest.isEmpty());
+    Assert.assertEquals("b+root", manifest.getOrderedEntries().get(0).getBlipId());
+    Assert.assertEquals("b+next", manifest.getOrderedEntries().get(1).getBlipId());
+    Assert.assertEquals("b+tail", manifest.getOrderedEntries().get(2).getBlipId());
+    Assert.assertEquals("b+root", manifest.findByBlipId("b+next").getParentBlipId());
+    Assert.assertEquals("b+next", manifest.findByBlipId("b+tail").getParentBlipId());
   }
 
   @Test
@@ -1665,6 +1874,9 @@ public class J2clSelectedWaveControllerTest {
     private Method onWaveSelectedMethod;
     private Method onWaveSelectedWithDigestMethod;
     private String attachmentMetadataDispatchError;
+    private final List<String> viewEvents = new ArrayList<String>();
+    private boolean lastNavRowPinned;
+    private boolean lastNavRowArchived;
     private final J2clClientTelemetry.Sink telemetrySink;
 
     private Harness() {
@@ -1798,6 +2010,7 @@ public class J2clSelectedWaveControllerTest {
               (proxy, method, args) -> {
                 if ("render".equals(method.getName())) {
                   lastModel = args[0];
+                  viewEvents.add("render:" + modelSelectedWaveId(lastModel));
                   Runnable callback = onNextRender;
                   onNextRender = null;
                   if (callback != null) {
@@ -1806,6 +2019,12 @@ public class J2clSelectedWaveControllerTest {
                 }
                 if ("initialViewportHints".equals(method.getName())) {
                   return initialViewportHints;
+                }
+                if ("setNavRowFolderState".equals(method.getName())) {
+                  lastNavRowPinned = ((Boolean) args[0]).booleanValue();
+                  lastNavRowArchived = ((Boolean) args[1]).booleanValue();
+                  viewEvents.add("folder-state:" + lastNavRowPinned + ":" + lastNavRowArchived);
+                  return null;
                 }
                 return null;
               });
@@ -2024,6 +2243,22 @@ public class J2clSelectedWaveControllerTest {
       return method.invoke(lastModel);
     }
 
+    private void replaceModelReadBlips(Object controller, List<J2clReadBlip> readBlips)
+        throws Exception {
+      Field currentModelField = controller.getClass().getDeclaredField("currentModel");
+      currentModelField.setAccessible(true);
+      J2clSelectedWaveModel currentModel = (J2clSelectedWaveModel) currentModelField.get(controller);
+      J2clSelectedWaveModel nextModel = currentModel.withReadBlips(readBlips);
+      currentModelField.set(controller, nextModel);
+      lastModel = nextModel;
+    }
+
+    private String modelSelectedWaveId(Object model) throws Exception {
+      Method method = model.getClass().getMethod("getSelectedWaveId");
+      String waveId = (String) method.invoke(model);
+      return waveId == null ? "" : waveId;
+    }
+
     private J2clAttachmentRenderModel firstReadAttachment() throws Exception {
       @SuppressWarnings("unchecked")
       List<J2clReadBlip> readBlips = (List<J2clReadBlip>) modelValue("getReadBlips");
@@ -2150,6 +2385,78 @@ public class J2clSelectedWaveControllerTest {
     json.append("]}");
     return SidecarFragmentsResponse.fromJson(
         json.toString());
+  }
+
+  private static SidecarFragmentsResponse fragmentsResponseWithBlipMetadata(
+      String firstBlipId,
+      String firstSnapshot,
+      String firstAuthor,
+      long firstLastModified,
+      String secondBlipId,
+      String secondSnapshot,
+      String secondAuthor,
+      long secondLastModified) {
+    StringBuilder json =
+        new StringBuilder(
+            "{\"status\":\"ok\",\"waveRef\":\"example.com/w+1/~/conv+root\","
+                + "\"version\":{\"snapshot\":48,\"start\":44,\"end\":48},"
+                + "\"blips\":[{\"id\":\"");
+    json.append(firstBlipId)
+        .append("\",\"author\":\"")
+        .append(firstAuthor)
+        .append("\",\"lastModifiedTime\":")
+        .append(firstLastModified)
+        .append("}");
+    if (secondBlipId != null) {
+      json.append(",{\"id\":\"")
+          .append(secondBlipId)
+          .append("\",\"author\":\"")
+          .append(secondAuthor)
+          .append("\",\"lastModifiedTime\":")
+          .append(secondLastModified)
+          .append("}");
+    }
+    json.append("],\"ranges\":[{\"segment\":\"blip:")
+        .append(firstBlipId)
+        .append("\",\"from\":44,\"to\":48}");
+    if (secondBlipId != null) {
+      json.append(",{\"segment\":\"blip:")
+          .append(secondBlipId)
+          .append("\",\"from\":44,\"to\":48}");
+    }
+    json.append("],\"fragments\":[{\"segment\":\"blip:")
+        .append(firstBlipId)
+        .append("\",\"rawSnapshot\":\"")
+        .append(firstSnapshot)
+        .append("\",\"adjust\":[],\"diff\":[]}");
+    if (secondBlipId != null) {
+      json.append(",{\"segment\":\"blip:")
+          .append(secondBlipId)
+          .append("\",\"rawSnapshot\":\"")
+          .append(secondSnapshot)
+          .append("\",\"adjust\":[],\"diff\":[]}");
+    }
+    json.append("]}");
+    return SidecarFragmentsResponse.fromJson(json.toString());
+  }
+
+  private static SidecarFragmentsResponse fragmentsResponseWithRawManifest() {
+    return SidecarFragmentsResponse.fromJson(
+        "{\"status\":\"ok\",\"waveRef\":\"example.com/w+1/~/conv+root\","
+            + "\"version\":{\"snapshot\":48,\"start\":44,\"end\":48},"
+            + "\"ranges\":[{\"segment\":\"manifest\",\"from\":44,\"to\":48},"
+            + "{\"segment\":\"blip:b+next\",\"from\":44,\"to\":48},"
+            + "{\"segment\":\"blip:b+tail\",\"from\":44,\"to\":48}],"
+            + "\"fragments\":[{\"segment\":\"manifest\","
+            + "\"rawSnapshot\":\"<conversation><blip id=\\\"b+root\\\">"
+            + "<thread id=\\\"t+next\\\"><blip id=\\\"b+next\\\">"
+            + "<thread id=\\\"t+tail\\\"><blip id=\\\"b+tail\\\"/>"
+            + "</thread></blip></thread></blip></conversation>\","
+            + "\"adjust\":[],\"diff\":[]},"
+            + "{\"segment\":\"blip:b+next\",\"rawSnapshot\":\"Next loaded\","
+            + "\"adjust\":[],\"diff\":[]},"
+            + "{\"segment\":\"blip:b+tail\",\"rawSnapshot\":\"Tail loaded\","
+            + "\"adjust\":[],\"diff\":[]}]}");
   }
 
   private static SidecarSelectedWaveUpdate snapshotOnlyUpdate(String textContent) {

@@ -2,13 +2,16 @@ package org.waveprotocol.box.j2cl.read;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
 import elemental2.dom.DomGlobal;
+import elemental2.dom.Element;
 import elemental2.dom.Event;
 import elemental2.dom.HTMLButtonElement;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
 import elemental2.dom.KeyboardEvent;
 import elemental2.dom.KeyboardEventInit;
+import elemental2.dom.NodeList;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +23,7 @@ import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
+import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 @J2clTestInput(J2clReadSurfaceDomRendererTest.class)
@@ -1421,6 +1425,65 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderWindowEntriesFollowManifestDfsOrderWhenFragmentsArriveOutOfOrder() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setConversationManifest(
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0),
+                new SidecarConversationManifest.Entry("b+second", "b+root", "t+first", 1, 0),
+                new SidecarConversationManifest.Entry("b+nested", "b+second", "t+nested", 2, 0),
+                new SidecarConversationManifest.Entry("b+third", "b+root", "t+second", 1, 1))));
+
+    boolean rendered =
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root"),
+                J2clReadWindowEntry.loaded("blip:b+second", 30L, 36L, "b+second", "Second"),
+                J2clReadWindowEntry.loaded("blip:b+third", 30L, 36L, "b+third", "Third"),
+                J2clReadWindowEntry.loaded("blip:b+nested", 30L, 36L, "b+nested", "Nested")));
+
+    Assert.assertTrue(rendered);
+    Assert.assertEquals(
+        Arrays.asList("b+root", "b+second", "b+nested", "b+third"),
+        blipIds(host));
+  }
+
+  @Test
+  public void renderWindowReordersExistingFlatWindowWhenManifestArrivesLater() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    List<J2clReadWindowEntry> entries =
+        Arrays.asList(
+            J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root"),
+            J2clReadWindowEntry.loaded("blip:b+second", 30L, 36L, "b+second", "Second"),
+            J2clReadWindowEntry.loaded("blip:b+third", 30L, 36L, "b+third", "Third"),
+            J2clReadWindowEntry.loaded("blip:b+nested", 30L, 36L, "b+nested", "Nested"));
+
+    Assert.assertTrue(renderer.renderWindow(entries));
+    Assert.assertEquals(
+        Arrays.asList("b+root", "b+second", "b+third", "b+nested"),
+        blipIds(host));
+
+    renderer.setConversationManifest(
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0),
+                new SidecarConversationManifest.Entry("b+second", "b+root", "t+first", 1, 0),
+                new SidecarConversationManifest.Entry("b+nested", "b+second", "t+nested", 2, 0),
+                new SidecarConversationManifest.Entry("b+third", "b+root", "t+second", 1, 1))));
+
+    Assert.assertTrue(renderer.renderWindow(entries));
+    Assert.assertEquals(
+        Arrays.asList("b+root", "b+second", "b+nested", "b+third"),
+        blipIds(host));
+    Assert.assertEquals("reply", blip(host, "b+nested").getAttribute("data-blip-depth"));
+  }
+
+  @Test
   public void rerenderingSameWindowEntriesPreservesFocusedNode() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -2149,6 +2212,18 @@ public class J2clReadSurfaceDomRendererTest {
 
   private static HTMLElement blip(HTMLDivElement host, String blipId) {
     return (HTMLElement) host.querySelector("[data-blip-id='" + blipId + "']");
+  }
+
+  private static List<String> blipIds(HTMLDivElement host) {
+    NodeList<Element> nodes = host.querySelectorAll("[data-j2cl-read-blip='true']");
+    List<String> ids = new ArrayList<String>();
+    for (int i = 0; i < nodes.length; i++) {
+      Element node = nodes.item(i);
+      if (node != null) {
+        ids.add(node.getAttribute("data-blip-id"));
+      }
+    }
+    return ids;
   }
 
   private static String renderedText(HTMLElement blip) {

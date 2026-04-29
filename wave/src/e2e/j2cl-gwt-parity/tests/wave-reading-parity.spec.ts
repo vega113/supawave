@@ -177,7 +177,6 @@ test.describe("G-PORT-3 wave reading parity", () => {
     // ============================================================
     await assertParityChrome(page, "gwt");
     await assertFocusMovesOnArrowDown(page, "gwt", allIds);
-
     await page.screenshot({
       path: "test-results/wave-reading-parity-gwt.png",
       fullPage: false
@@ -300,26 +299,28 @@ async function assertParityChrome(
     const blip = page.locator(`[data-blip-id="${id}"]`).first();
     // Author hook may live on the host (J2CL) or on a descendant
     // avatar img (GWT). Either is acceptable parity.
-    const authorOnHost = await blip.getAttribute("data-blip-author");
-    const authorOnAvatar = await blip
-      .locator("[data-blip-author]")
-      .first()
-      .getAttribute("data-blip-author")
-      .catch(() => null);
-    const author = authorOnHost || authorOnAvatar;
+    let author = await blip.getAttribute("data-blip-author");
+    if (!author) {
+      const authorHook = blip.locator("[data-blip-author]").first();
+      author =
+        (await authorHook.count()) > 0
+          ? await authorHook.getAttribute("data-blip-author")
+          : null;
+    }
     expect(author, `[${view}] blip ${id} missing data-blip-author`).toBeTruthy();
 
-    const timeOnHost = await blip.getAttribute("data-blip-time");
-    const timeOnTime = await blip
-      .locator("[data-blip-time]")
-      .first()
-      .getAttribute("data-blip-time")
-      .catch(() => null);
-    const time = timeOnHost || timeOnTime;
+    let time = await blip.getAttribute("data-blip-time");
+    if (!time) {
+      const timeHook = blip.locator("[data-blip-time]").first();
+      time =
+        (await timeHook.count()) > 0
+          ? await timeHook.getAttribute("data-blip-time")
+          : null;
+    }
     expect(time, `[${view}] blip ${id} missing data-blip-time`).toBeTruthy();
 
     const avatarCount = await blip
-      .locator("[data-blip-avatar], img[alt='author'], img.avatar")
+      .locator("[data-blip-avatar], img[alt='author'], img.avatar, button.avatar, .avatar")
       .count();
     expect(
       avatarCount,

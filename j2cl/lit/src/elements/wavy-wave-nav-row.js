@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { getWaveActionIcon } from "../icons/wave-action-bar-icons.js";
 
 /**
  * <wavy-wave-nav-row> — F-2 (#1037, R-3.4; slice 2 #1046) wave-level nav
@@ -6,6 +7,12 @@ import { LitElement, css, html } from "lit";
  * in fixed order (Recent, Next Unread, Previous, Next, End, Prev @,
  * Next @, Archive, Pin, Version History) and emits one CustomEvent per
  * button click.
+ *
+ * G-PORT-8 (#1117): the buttons render the GWT ViewToolbar.java SVG
+ * glyphs (cloned 1-to-1 into ../icons/wave-action-bar-icons.js) so the
+ * top-of-wave action strip matches GWT pixel-for-pixel. Tooltips ride
+ * on the native `title` attribute (mirrors GWT setTooltip); aria-label
+ * stays unchanged for AT.
  *
  * Wired ABOVE the content list (per-wave), NOT per-blip (the audit
  * called out S1's wave-list-level wiring as the bug). The nav row
@@ -73,7 +80,14 @@ export class WavyWaveNavRow extends LitElement {
       border: 1px solid transparent;
       border-radius: var(--wavy-radius-pill, 9999px);
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
+      /* G-PORT-8 (#1117): square icon buttons (32x32). The 18px SVG
+       * keeps a 7px halo on each side, matching the GWT toolbar. */
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       white-space: nowrap;
       transition: color var(--wavy-motion-focus-duration, 180ms)
@@ -82,6 +96,24 @@ export class WavyWaveNavRow extends LitElement {
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
         background-color var(--wavy-motion-focus-duration, 180ms)
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+    }
+    /* G-PORT-8: pressed visual for pin/archive toggle buttons mirrors
+     * GWT setDown(true) (a tinted background). Cyan for pinned, amber
+     * for archived so the two states read as distinct affordances. */
+    button[data-action="pin"][aria-pressed="true"] {
+      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-signal-cyan, #22d3ee);
+    }
+    button[data-action="archive"][aria-pressed="true"] {
+      background: var(--wavy-signal-amber-soft, rgba(245, 158, 11, 0.22));
+      border-color: var(--wavy-signal-amber, #f59e0b);
+      color: var(--wavy-signal-amber, #f59e0b);
+    }
+    button[data-action="archive"][data-busy="true"],
+    button[data-action="pin"][data-busy="true"] {
+      opacity: 0.55;
+      cursor: progress;
     }
     button:hover {
       color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
@@ -251,92 +283,106 @@ export class WavyWaveNavRow extends LitElement {
   }
 
   render() {
+    const archiveLabel = this._archiveAriaLabel();
+    const pinLabel = this._pinAriaLabel();
     return html`
       <nav aria-label="Wave navigation">
         <button
           type="button"
           data-action="recent"
           aria-label="Jump to recent activity"
+          title="Jump to recent activity"
           @click=${this._onClick("recent")}
         >
-          Recent
+          ${getWaveActionIcon("recent")}
         </button>
         <button
           type="button"
           data-action="next-unread"
           data-emphasis=${this._nextUnreadEmphasis()}
           aria-label="Jump to next unread blip"
+          title="Jump to next unread blip"
           @click=${this._onClick("next-unread")}
         >
-          Next unread
+          ${getWaveActionIcon("next-unread")}
         </button>
         <button
           type="button"
           data-action="previous"
           aria-label="Jump to previous blip"
+          title="Jump to previous blip"
           @click=${this._onClick("previous")}
         >
-          Previous
+          ${getWaveActionIcon("previous")}
         </button>
         <button
           type="button"
           data-action="next"
           aria-label="Jump to next blip"
+          title="Jump to next blip"
           @click=${this._onClick("next")}
         >
-          Next
+          ${getWaveActionIcon("next")}
         </button>
         <button
           type="button"
           data-action="end"
           aria-label="Jump to last blip"
+          title="Jump to last blip"
           @click=${this._onClick("end")}
         >
-          End
+          ${getWaveActionIcon("end")}
         </button>
         <button
           type="button"
           data-action="prev-mention"
           data-emphasis=${this._mentionEmphasis()}
           aria-label="Jump to previous mention"
+          title="Jump to previous mention"
           @click=${this._onClick("prev-mention")}
         >
-          Prev @
+          ${getWaveActionIcon("prev-mention")}
         </button>
         <button
           type="button"
           data-action="next-mention"
           data-emphasis=${this._mentionEmphasis()}
           aria-label="Jump to next mention"
+          title="Jump to next mention"
           @click=${this._onClick("next-mention")}
         >
-          Next @
+          ${getWaveActionIcon("next-mention")}
         </button>
         <button
           type="button"
           data-action="archive"
-          aria-label=${this._archiveAriaLabel()}
+          aria-label=${archiveLabel}
+          aria-pressed=${this.archived ? "true" : "false"}
+          title=${archiveLabel}
           @click=${this._onClick("archive-toggle")}
         >
-          ${this.archived ? "Restore" : "Archive"}
+          ${getWaveActionIcon("archive")}
         </button>
         <button
           type="button"
           data-action="pin"
           data-emphasis=${this._pinEmphasis()}
-          aria-label=${this._pinAriaLabel()}
+          aria-label=${pinLabel}
+          aria-pressed=${this.pinned ? "true" : "false"}
+          title=${pinLabel}
           @click=${this._onClick("pin-toggle")}
         >
-          ${this.pinned ? "Unpin" : "Pin"}
+          ${getWaveActionIcon("pin")}
         </button>
         <button
           type="button"
           data-action="version-history"
           aria-label="Open version history (h)"
           aria-keyshortcuts="h H"
+          title="Open version history"
           @click=${this._onClick("version-history")}
         >
-          Version history
+          ${getWaveActionIcon("version-history")}
         </button>
 
         <button
@@ -346,9 +392,10 @@ export class WavyWaveNavRow extends LitElement {
           aria-haspopup="menu"
           aria-expanded=${this._overflowOpen ? "true" : "false"}
           aria-label="More wave navigation actions"
+          title="More actions"
           @click=${this._onOverflowToggle}
         >
-          ⋯
+          <span aria-hidden="true">⋯</span>
         </button>
         <menu
           class="overflow-menu"
@@ -362,9 +409,10 @@ export class WavyWaveNavRow extends LitElement {
               data-action="prev-mention"
               data-overflow="true"
               aria-label="Jump to previous mention"
+              title="Jump to previous mention"
               @click=${this._onClick("prev-mention")}
             >
-              Prev @
+              ${getWaveActionIcon("prev-mention")}
             </button>
           </li>
           <li role="none">
@@ -374,9 +422,10 @@ export class WavyWaveNavRow extends LitElement {
               data-action="next-mention"
               data-overflow="true"
               aria-label="Jump to next mention"
+              title="Jump to next mention"
               @click=${this._onClick("next-mention")}
             >
-              Next @
+              ${getWaveActionIcon("next-mention")}
             </button>
           </li>
           <li role="none">
@@ -386,9 +435,10 @@ export class WavyWaveNavRow extends LitElement {
               data-action="version-history"
               data-overflow="true"
               aria-label="Open version history (h)"
+              title="Open version history"
               @click=${this._onClick("version-history")}
             >
-              Version history
+              ${getWaveActionIcon("version-history")}
             </button>
           </li>
         </menu>

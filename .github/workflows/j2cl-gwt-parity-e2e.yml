@@ -69,7 +69,7 @@ jobs:
         # harness actually needs before launching browsers.
         run: |
           PORT=9898 bash scripts/wave-smoke.sh status
-          status=$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:9898/")
+          status=$(curl -sS --max-time 15 --connect-timeout 5 -o /dev/null -w "%{http_code}" "http://localhost:9898/")
           if [[ "$status" -ne 200 ]]; then
             echo "Root path returned non-200: $status" >&2
             exit 1

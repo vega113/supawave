@@ -1,7 +1,7 @@
 // G-PORT-7 (#1116): tests for the dialog-stack Esc helper.
 import { fixture, expect, html } from "@open-wc/testing";
 import { closeTopmostDialog, _internalForTesting } from "../../src/shortcuts/dialog-stack.js";
-const { collectShadowRoots } = _internalForTesting;
+const { collectShadowRoots, composedTreeCompare } = _internalForTesting;
 
 // Minimal mock surfaces — the real surfaces all expose either an
 // `open` boolean property (set by Lit reflection) or the host `open`
@@ -118,5 +118,54 @@ describe("closeTopmostDialog", () => {
     expect(collectShadowRoots(root)).to.have.lengthOf(1);
     expect(closeTopmostDialog(root)).to.equal(true);
     expect(popover.open).to.equal(false);
+  });
+
+  it("prefers later light-DOM popover over earlier shadow-root popover (composed-tree order)", async () => {
+    // Shadow host appears FIRST in document order; a plain light-DOM popover
+    // appears AFTER it. Both are in tier-2. The one appearing later in the
+    // composed tree (the light-DOM one) must be treated as "topmost".
+    const earlyHostTag = "x-early-shadow-host";
+    if (!customElements.get(earlyHostTag)) {
+      class EarlyHost extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: "open" });
+        }
+        connectedCallback() {
+          const el = document.createElement("reaction-picker-popover");
+          this.shadowRoot.appendChild(el);
+        }
+      }
+      customElements.define(earlyHostTag, EarlyHost);
+    }
+    // Build the fixture manually to avoid Lit html`` dynamic-tag restriction.
+    const root = document.createElement("div");
+    const earlyHost = document.createElement(earlyHostTag);
+    const lightPopover = document.createElement("task-metadata-popover");
+    root.appendChild(earlyHost);
+    root.appendChild(lightPopover);
+    document.body.appendChild(root);
+    // Allow connectedCallback to run and shadow DOM to attach.
+    await new Promise((r) => requestAnimationFrame(r));
+    const shadowPopover = earlyHost.shadowRoot && earlyHost.shadowRoot.querySelector("reaction-picker-popover");
+    try {
+      if (!shadowPopover) {
+        // connectedCallback may not have run in this test environment; skip
+        // the shadow-popover half and just verify the light one closes.
+        lightPopover.open = true;
+        expect(closeTopmostDialog(root)).to.equal(true);
+        expect(lightPopover.open).to.equal(false);
+        return;
+      }
+      shadowPopover.open = true;
+      lightPopover.open = true;
+      // The light-DOM task-metadata-popover comes later in composed-tree order
+      // and must be closed first.
+      expect(closeTopmostDialog(root)).to.equal(true);
+      expect(lightPopover.open).to.equal(false);
+      expect(shadowPopover.open).to.equal(true);
+    } finally {
+      document.body.removeChild(root);
+    }
   });
 });

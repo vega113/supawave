@@ -98,14 +98,58 @@ function collectShadowRoots(root, result = []) {
 }
 
 /**
+ * Return the composed-tree ancestor that lives in the top-level
+ * document (i.e. the shadow host chain root). Used to compare two
+ * nodes that may live in different shadow trees.
+ */
+function topLevelAncestor(node) {
+  let el = node;
+  while (el) {
+    const r = el.getRootNode ? el.getRootNode() : null;
+    if (!r || r === document) return el;
+    // r is a ShadowRoot — step up to its host.
+    el = r.host || null;
+  }
+  return node;
+}
+
+/**
+ * Compare two elements in composed-tree order. Returns a negative
+ * number if `a` precedes `b`, 0 if they are the same, and positive
+ * if `a` follows `b`. Elements in different shadow trees are compared
+ * via their top-level document ancestors so the result always
+ * reflects visual/DOM stacking order as perceived by the user.
+ */
+function composedTreeCompare(a, b) {
+  if (a === b) return 0;
+  const aTop = topLevelAncestor(a);
+  const bTop = topLevelAncestor(b);
+  if (aTop !== bTop) {
+    // The shadow hosts live in the same light DOM — compare them.
+    const pos = aTop.compareDocumentPosition(bTop);
+    // DOCUMENT_POSITION_FOLLOWING = 4
+    if (pos & 4) return -1; // aTop comes before bTop
+    if (pos & 2) return 1;  // aTop comes after bTop (PRECEDING = 2)
+    return 0;
+  }
+  // Both in the same root (light DOM or same shadow root).
+  const pos = a.compareDocumentPosition(b);
+  if (pos & 4) return -1;
+  if (pos & 2) return 1;
+  return 0;
+}
+
+/**
  * Find every open closeable surface in tier order. Returns the first
- * tier that has at least one open surface, preserving document order
- * across all selectors in the tier so the most recently mounted
- * surface closes first.
+ * tier that has at least one open surface, then picks the one latest
+ * in composed-tree order (= the "topmost" surface the user perceives)
+ * so the most recently mounted surface closes first.
  *
  * Queries both light DOM and shadow roots so tier-2 popovers rendered
  * inside component shadow trees (e.g. task-metadata-popover inside
- * wavy-task-affordance) are reachable.
+ * wavy-task-affordance) are reachable. Sorting by composed-tree
+ * position ensures a shadow-root popover whose host appears early in
+ * the document does not incorrectly outrank a later light-DOM surface.
  */
 function findTopmostOpen(root = document) {
   const roots = [root, ...collectShadowRoots(root)];
@@ -117,7 +161,8 @@ function findTopmostOpen(root = document) {
       open.push(...nodes.filter((n) => isOpen(n)));
     }
     if (open.length > 0) {
-      // Last collected = topmost within the winning tier.
+      // Sort by composed-tree position; pick the last (= topmost).
+      open.sort(composedTreeCompare);
       return open[open.length - 1];
     }
   }
@@ -134,4 +179,4 @@ export function closeTopmostDialog(root = document) {
   return closeHost(target);
 }
 
-export const _internalForTesting = { TIERS, isOpen, closeHost, findTopmostOpen, collectShadowRoots };
+export const _internalForTesting = { TIERS, isOpen, closeHost, findTopmostOpen, collectShadowRoots, composedTreeCompare, topLevelAncestor };

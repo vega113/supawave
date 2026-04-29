@@ -2379,15 +2379,17 @@ export class WavyComposer extends LitElement {
     // nested shadow tree, document.activeElement returns the
     // outermost host. Keep descending via `shadowRoot.activeElement`
     // so we see the deepest currently-focused element. The check is
-    // satisfied iff that deepest element is exactly the composer host,
-    // inside the contenteditable body, or inside the popover host div
-    // (which already contains the mention-suggestion-popover element).
+    // satisfied iff that deepest element is the contenteditable body
+    // or anywhere inside the popover host. We deliberately do NOT
+    // count the composer host itself nor its toolbar / send-button
+    // descendants — focus on those is a real "selection left the
+    // body" event, and the blur-dismiss path should fire so the
+    // popover does not linger while the user clicks Bold / Send.
     let active = document.activeElement;
     while (active && active.shadowRoot && active.shadowRoot.activeElement) {
       active = active.shadowRoot.activeElement;
     }
     if (!active) return false;
-    if (active === this) return true;
     if (this._bodyElement && this._bodyElement.contains(active)) return true;
     if (this.renderRoot) {
       const host = this.renderRoot.querySelector(

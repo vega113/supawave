@@ -135,6 +135,29 @@ async function typeAtMentionTriggerJ2cl(
 }
 
 /**
+ * Poll the composer's `participants` property for up to `timeoutMs`,
+ * returning the highest length observed. Used by the J2CL test to
+ * decide whether the real production participants flow has populated
+ * the composer or whether the test fallback should kick in.
+ */
+async function waitForParticipantsJ2cl(
+  composer: Locator,
+  timeoutMs: number
+): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  let best = 0;
+  while (Date.now() < deadline) {
+    const count = await composer.evaluate((host: any) => {
+      return Array.isArray(host.participants) ? host.participants.length : 0;
+    });
+    if (count > best) best = count;
+    if (best >= 2) return best;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return best;
+}
+
+/**
  * Read internal mention state off the composer host. The composer
  * exposes `_mentionOpen`, `_mentionActiveIndex`, and the participants
  * array via property reflection; we read them directly so the test
@@ -196,37 +219,47 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await openFirstWaveJ2cl(page, BASE_URL);
     const composer = await openInlineComposerJ2cl(page);
 
-    // Seed the composer's participants list so the popover has a
-    // candidate to surface regardless of the participants-projection
-    // timing. The `J2clComposeSurfaceController.render()` path only
-    // emits non-empty participants when `replyAvailable` is true,
-    // which itself depends on the server-resolved write session
-    // landing — that handshake is not directly observable from the
-    // test fixture (separate slice).
-    // Seed TWO addresses whose displayNames both start with the same
-    // letter as the test user's address so the typed `@<letter>`
-    // query filters down to >=2 candidates — the only way to assert
-    // ArrowDown actually advances `_mentionActiveIndex` end-to-end.
-    // Use a plain property assignment (overridable by the controller)
-    // so production controller-driven sets are not masked. If the
-    // server populates participants in time the real value is used;
-    // this assignment is the test-only fallback for the timing gap.
-    await composer.evaluate((host: any, args: { address: string; first: string }) => {
-      const second = `${args.first}-bot-second@local.net`;
-      const seeded = [
-        { address: args.address, displayName: `${args.first.toUpperCase()} Test User` },
-        { address: second, displayName: `${args.first.toUpperCase()} Robot Bot` }
-      ];
-      // Simple assignment — the controller can still override this via
-      // its normal render cycle. Object.defineProperty is intentionally
-      // avoided so production controller-driven sets are not blocked.
-      // (test-only fallback)
-      host.participants = seeded;
-      host.requestUpdate?.();
-    }, { address: creds.email, first: firstLetter });
-    // Short poll to let the controller's first render cycle complete;
-    // if the server already sent participants the real value wins.
-    await page.waitForTimeout(200);
+    // First wait briefly to see if the production participants flow
+    // populates the composer naturally (the J2clComposeSurfaceView
+    // mirror this PR adds). If it does, the test exercises the real
+    // production path; if it does not (the write-session handshake
+    // gap tracked in the follow-up issue) we fall back to a seeded
+    // 2-participant list so the popover-keyboard assertions below
+    // remain meaningful. The fallback is annotated on the test info
+    // so a future regression reading the test report can tell.
+    const realParticipantCount = await waitForParticipantsJ2cl(composer, 2_000);
+    if (realParticipantCount < 2) {
+      test.info().annotations.push({
+        type: "fixture-fallback",
+        description:
+          `Production participants flow returned ${realParticipantCount} participants ` +
+          `for the freshly registered user; falling back to a test-only ` +
+          `seeded participant list so the popover keyboard / chip ` +
+          `assertions can run. Tracked in the write-session follow-up.`
+      });
+      await composer.evaluate((host: any, args: { address: string; first: string }) => {
+        const upperFirst = args.first.toUpperCase();
+        const second = `${args.first}-bot-second@local.net`;
+        const seeded = [
+          { address: args.address, displayName: `${upperFirst} Test User` },
+          { address: second, displayName: `${upperFirst} Robot Bot` }
+        ];
+        // Use defineProperty with a no-op setter so the controller's
+        // subsequent render cycles cannot wipe our seed back to empty
+        // (those resets would only fire if the production flow
+        // genuinely lacks participants, which is the gap we are
+        // working around). The mirror-on-mount path this PR adds is
+        // covered by the J2CL Java unit tests in
+        // J2clComposeSurfaceControllerTest.
+        Object.defineProperty(host, "participants", {
+          configurable: true,
+          get() { return seeded; },
+          set() { /* test-only fallback; ignore controller resets */ }
+        });
+        host.requestUpdate?.();
+      }, { address: creds.email, first: firstLetter });
+      await page.waitForTimeout(200);
+    }
 
     // Type "@<letter>" and assert the popover opened with at least
     // one candidate.

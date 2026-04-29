@@ -196,37 +196,37 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await openFirstWaveJ2cl(page, BASE_URL);
     const composer = await openInlineComposerJ2cl(page);
 
-    // Pin the composer's participants list so the popover has a
+    // Seed the composer's participants list so the popover has a
     // candidate to surface regardless of the participants-projection
     // timing. The `J2clComposeSurfaceController.render()` path only
     // emits non-empty participants when `replyAvailable` is true,
     // which itself depends on the server-resolved write session
     // landing — that handshake is not directly observable from the
-    // test fixture (separate slice). Pinning the array via
-    // `defineProperty` ensures subsequent re-renders cannot clobber
-    // the test fixture back to empty between mount and the first
-    // `@` keystroke.
-    // Pin TWO addresses whose displayNames both start with the same
+    // test fixture (separate slice).
+    // Seed TWO addresses whose displayNames both start with the same
     // letter as the test user's address so the typed `@<letter>`
     // query filters down to >=2 candidates — the only way to assert
     // ArrowDown actually advances `_mentionActiveIndex` end-to-end.
+    // Use a plain property assignment (overridable by the controller)
+    // so production controller-driven sets are not masked. If the
+    // server populates participants in time the real value is used;
+    // this assignment is the test-only fallback for the timing gap.
     await composer.evaluate((host: any, args: { address: string; first: string }) => {
       const second = `${args.first}-bot-second@local.net`;
-      const fixed = [
+      const seeded = [
         { address: args.address, displayName: `${args.first.toUpperCase()} Test User` },
         { address: second, displayName: `${args.first.toUpperCase()} Robot Bot` }
       ];
-      Object.defineProperty(host, "participants", {
-        configurable: true,
-        get() { return fixed; },
-        set() {
-          // Ignore controller-driven resets so the test exercises
-          // the popover behaviour deterministically. The mirror
-          // path is covered by the J2CL Java unit tests.
-        }
-      });
+      // Simple assignment — the controller can still override this via
+      // its normal render cycle. Object.defineProperty is intentionally
+      // avoided so production controller-driven sets are not blocked.
+      // (test-only fallback)
+      host.participants = seeded;
       host.requestUpdate?.();
     }, { address: creds.email, first: firstLetter });
+    // Short poll to let the controller's first render cycle complete;
+    // if the server already sent participants the real value wins.
+    await page.waitForTimeout(200);
 
     // Type "@<letter>" and assert the popover opened with at least
     // one candidate.

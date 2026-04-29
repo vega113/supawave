@@ -1973,8 +1973,11 @@ export class WavyComposer extends LitElement {
       return;
     }
     // Esc discards (with confirm if non-empty) per the issue body's
-    // Reply-composer contract.
-    if (event.key === "Escape") {
+    // Reply-composer contract. Guard with the same IME check used
+    // above: on JP/KR/CN IMEs, Escape dismisses the candidate window
+    // rather than cancelling the composer, so we must not swallow it
+    // during composition (G-PORT-5 CodeRabbit review).
+    if (event.key === "Escape" && !(event.isComposing || event.keyCode === 229)) {
       event.preventDefault();
       this._cancel();
       return;
@@ -2361,7 +2364,11 @@ export class WavyComposer extends LitElement {
   /**
    * G-PORT-5 (#1114): true when the deepest focused element (across
    * shadow-root boundaries) is the composer host itself, the
-   * contenteditable body, or anywhere inside the mention popover.
+   * contenteditable body, or anywhere inside the mention popover host
+   * div. Only these three targets are considered "inside" — toolbar
+   * buttons and other shadow-DOM descendants intentionally do NOT
+   * satisfy this predicate, so focus moving to a toolbar control
+   * correctly dismisses the popover.
    * Used to gate the blur-dismiss path in `_onSelectionChange` so a
    * transient selection drop during the popover's first render does
    * not collapse the popover.
@@ -2372,9 +2379,9 @@ export class WavyComposer extends LitElement {
     // nested shadow tree, document.activeElement returns the
     // outermost host. Keep descending via `shadowRoot.activeElement`
     // so we see the deepest currently-focused element. The check is
-    // satisfied iff that deepest element is the composer host
-    // itself, the body (including reply chips inside it), or anywhere
-    // inside the popover host.
+    // satisfied iff that deepest element is exactly the composer host,
+    // inside the contenteditable body, or inside the popover host div
+    // (which already contains the mention-suggestion-popover element).
     let active = document.activeElement;
     while (active && active.shadowRoot && active.shadowRoot.activeElement) {
       active = active.shadowRoot.activeElement;
@@ -2387,10 +2394,6 @@ export class WavyComposer extends LitElement {
         "[data-mention-popover-host]"
       );
       if (host && host.contains(active)) return true;
-      const popover = this.renderRoot.querySelector(
-        "mention-suggestion-popover"
-      );
-      if (popover && (popover === active || popover.contains(active))) return true;
     }
     return false;
   }

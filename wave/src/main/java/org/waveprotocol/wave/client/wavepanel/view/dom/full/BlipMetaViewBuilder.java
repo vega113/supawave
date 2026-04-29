@@ -358,6 +358,10 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
               + " title='" + title + "'"
               + " data-option='" + dataOption + "'"
               + (selected.contains(option) ? " " + OPTION_SELECTED_ATTRIBUTE + "='s'" : "");
+          String e2eAction = e2eActionFor(option);
+          if (e2eAction != null) {
+            extra += " data-e2e-action='" + e2eAction + "'";
+          }
           openSpanWith(out, null, style, TypeCodes.kind(Type.MENU_ITEM), extra);
           out.append(MENU_ICONS.get(option));
           closeSpan(out);
@@ -369,6 +373,17 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         }
       }
     };
+  }
+
+  private static String e2eActionFor(MenuOption option) {
+    switch (option) {
+      case REPLY:
+        return "reply";
+      case EDIT_DONE:
+        return "edit-done";
+      default:
+        return null;
+    }
   }
 
   public static MenuOption getMenuOption(String id) {

@@ -57,6 +57,25 @@ export class GwtPage extends WavePage {
     return this.page.locator('div[title^="New Wave"]').first();
   }
 
+  gwtBlips(): Locator {
+    return this.page.locator("[kind='b'][data-blip-id]");
+  }
+
+  gwtEditableDocuments(): Locator {
+    return this.page.locator(
+      [
+        '[kind="document"] [editabledocmarker="true"]',
+        '[kind="document"] .wave-editor-on',
+        '[kind="document"][contenteditable]',
+        '[kind="document"] [contenteditable]'
+      ].join(", ")
+    );
+  }
+
+  gwtActiveEditableDocument(): Locator {
+    return this.gwtEditableDocuments().last();
+  }
+
   /**
    * G-PORT-3: clicks into the document container of a blip and types
    * `text`, then presses Escape to commit (mirrors GWT's "Esc to exit"
@@ -92,14 +111,7 @@ export class GwtPage extends WavePage {
   }
 
   private gwtEditableDocument(): Locator {
-    return this.page.locator(
-      [
-        '[kind="document"] [editabledocmarker="true"]',
-        '[kind="document"] .wave-editor-on',
-        '[kind="document"][contenteditable]',
-        '[kind="document"] [contenteditable]'
-      ].join(", ")
-    );
+    return this.gwtEditableDocuments();
   }
 
   private async ensureEditableDocumentVisible(editable: Locator): Promise<void> {
@@ -116,7 +128,7 @@ export class GwtPage extends WavePage {
   }
 
   private async reopenLastBlipForEditing(): Promise<void> {
-    const blip = this.page.locator("[kind='b'][data-blip-id]").last();
+    const blip = this.gwtBlips().last();
     await expect(
       blip,
       "GWT should have a visible blip to reopen for editing"

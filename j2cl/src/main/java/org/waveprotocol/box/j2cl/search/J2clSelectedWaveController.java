@@ -15,6 +15,8 @@ import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
 import org.waveprotocol.box.j2cl.transport.SidecarFragmentsResponse;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
 import org.waveprotocol.box.j2cl.transport.SidecarSessionBootstrap;
@@ -29,6 +31,7 @@ public final class J2clSelectedWaveController
   private static final int MAX_RECONNECT_DELAY_MS = 2000;
   private static final int MAX_RECONNECT_ATTEMPTS = 8;
   private static final int POST_SUBMIT_LIVE_UPDATE_GRACE_MS = 250;
+  private static final int POST_SUBMIT_FRAGMENT_FETCH_MAX_ATTEMPTS = 3;
   // Matches the current server default viewport window until growth-size config is exposed to J2CL.
   private static final int FRAGMENT_GROWTH_LIMIT = 5;
   private static final String FRAGMENT_GROWTH_FAILURE_STATUS =
@@ -404,7 +407,7 @@ public final class J2clSelectedWaveController
     final String createdBlipId = submittedBlipId == null ? "" : submittedBlipId;
     if (targetVersion >= 0
         && currentVisibleViewportVersion() >= targetVersion
-        && currentViewportHasLoadedBlip(createdBlipId)) {
+        && submittedBlipObservedOrUnknown(createdBlipId)) {
       return;
     }
     final long visibleVersionAtSubmit = currentVisibleViewportVersion();
@@ -438,12 +441,21 @@ public final class J2clSelectedWaveController
       return true;
     }
     long currentVisibleVersion = currentVisibleViewportVersion();
+    // Version-only or metadata-only live updates are not enough for a known submitted blip; the
+    // post-submit handoff is complete only after that exact blip is loaded in the viewport.
     return (targetVersion >= 0
             && currentVisibleVersion >= targetVersion
-            && currentViewportHasLoadedBlip(createdBlipId))
+            && submittedBlipObservedOrUnknown(createdBlipId))
         || (targetVersion < 0
             && visibleVersionAtSubmit >= 0
-            && currentVisibleVersion > visibleVersionAtSubmit);
+            && currentVisibleVersion > visibleVersionAtSubmit
+            && submittedBlipObservedOrUnknown(createdBlipId));
+  }
+
+  private boolean submittedBlipObservedOrUnknown(String createdBlipId) {
+    return createdBlipId == null
+        || createdBlipId.isEmpty()
+        || currentViewportHasLoadedBlip(createdBlipId);
   }
 
   @Override
@@ -675,6 +687,36 @@ public final class J2clSelectedWaveController
 
   private boolean requestViewportEdge(
       String anchorBlipId, String direction, boolean refreshSelectedWaveOnFailure) {
+    return requestViewportEdge(
+        anchorBlipId,
+        direction,
+        refreshSelectedWaveOnFailure,
+        /* allowSameWaveWriteSessionAdvance= */ false,
+        "",
+        null);
+  }
+
+  private boolean requestViewportEdge(
+      String anchorBlipId,
+      String direction,
+      boolean refreshSelectedWaveOnFailure,
+      boolean allowSameWaveWriteSessionAdvance) {
+    return requestViewportEdge(
+        anchorBlipId,
+        direction,
+        refreshSelectedWaveOnFailure,
+        allowSameWaveWriteSessionAdvance,
+        "",
+        null);
+  }
+
+  private boolean requestViewportEdge(
+      String anchorBlipId,
+      String direction,
+      boolean refreshSelectedWaveOnFailure,
+      boolean allowSameWaveWriteSessionAdvance,
+      String requiredLoadedBlipId,
+      Runnable onMissingRequiredLoadedBlip) {
     if (selectedWaveId == null || selectedWaveId.isEmpty() || currentModel == null) {
       return false;
     }
@@ -716,10 +758,22 @@ public final class J2clSelectedWaveController
           if (!isCurrentGeneration(generation) || !waveId.equals(selectedWaveId)) {
             return;
           }
-          if (isStaleFragmentResponse(hadWriteSession, baseVersion, historyHash)) {
+          if (!allowSameWaveWriteSessionAdvance
+              && isStaleFragmentResponse(hadWriteSession, baseVersion, historyHash)) {
             emitExtensionOutcome(normalizedDirection, "stale");
             fragmentFetchesInFlight.remove(edgeKey);
             if (refreshSelectedWaveOnFailure) {
+              refreshSelectedWave();
+            }
+            return;
+          }
+          String requiredBlipId = nullToEmpty(requiredLoadedBlipId);
+          if (!requiredBlipId.isEmpty()
+              && !fragmentsContainLoadedBlip(response.getFragments(), requiredBlipId)) {
+            fragmentFetchesInFlight.remove(edgeKey);
+            if (onMissingRequiredLoadedBlip != null) {
+              onMissingRequiredLoadedBlip.run();
+            } else if (refreshSelectedWaveOnFailure) {
               refreshSelectedWave();
             }
             return;
@@ -796,6 +850,15 @@ public final class J2clSelectedWaveController
 
   private boolean requestPostSubmitForwardFetch(
       int generation, String submittedWaveId, String submittedBlipId) {
+    return requestPostSubmitForwardFetch(
+        generation,
+        submittedWaveId,
+        submittedBlipId,
+        POST_SUBMIT_FRAGMENT_FETCH_MAX_ATTEMPTS);
+  }
+
+  private boolean requestPostSubmitForwardFetch(
+      int generation, String submittedWaveId, String submittedBlipId, int attemptsRemaining) {
     if (!isCurrentGeneration(generation)
         || selectedWaveId == null
         || !submittedWaveId.equals(selectedWaveId)
@@ -816,8 +879,62 @@ public final class J2clSelectedWaveController
     if (anchor.isEmpty()) {
       return false;
     }
+    final String requiredLoadedBlipId = submittedBlipId == null ? "" : submittedBlipId;
+    final int nextAttemptsRemaining = Math.max(0, attemptsRemaining - 1);
     return requestViewportEdge(
-        anchor, J2clViewportGrowthDirection.FORWARD, /* refreshSelectedWaveOnFailure= */ true);
+        anchor,
+        J2clViewportGrowthDirection.FORWARD,
+        /* refreshSelectedWaveOnFailure= */ true,
+        /* allowSameWaveWriteSessionAdvance= */ true,
+        requiredLoadedBlipId,
+        requiredLoadedBlipId.isEmpty()
+            ? null
+            : () -> {
+              if (!isCurrentGeneration(generation)
+                  || selectedWaveId == null
+                  || !submittedWaveId.equals(selectedWaveId)
+                  || currentViewportHasLoadedBlip(requiredLoadedBlipId)) {
+                return;
+              }
+              if (nextAttemptsRemaining <= 0) {
+                refreshSelectedWave();
+                return;
+              }
+              retryScheduler.scheduleRetry(
+                  POST_SUBMIT_LIVE_UPDATE_GRACE_MS,
+                  () -> {
+                    if (!isCurrentGeneration(generation)
+                        || selectedWaveId == null
+                        || !submittedWaveId.equals(selectedWaveId)
+                        || currentViewportHasLoadedBlip(requiredLoadedBlipId)) {
+                      return;
+                    }
+                    if (requestPostSubmitForwardFetch(
+                        generation,
+                        submittedWaveId,
+                        requiredLoadedBlipId,
+                        nextAttemptsRemaining)) {
+                      return;
+                    }
+                    refreshSelectedWave();
+                  });
+            });
+  }
+
+  private static boolean fragmentsContainLoadedBlip(
+      SidecarSelectedWaveFragments fragments, String blipId) {
+    if (fragments == null || blipId == null || blipId.isEmpty()) {
+      return false;
+    }
+    String segment = J2clSelectedWaveViewportState.BLIP_SEGMENT_PREFIX + blipId;
+    for (SidecarSelectedWaveFragment fragment : fragments.getEntries()) {
+      if (fragment != null
+          && segment.equals(fragment.getSegment())
+          && fragment.getRawSnapshot() != null) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean isStaleFragmentResponse(

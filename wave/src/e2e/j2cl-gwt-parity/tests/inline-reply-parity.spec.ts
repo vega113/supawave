@@ -214,6 +214,170 @@ async function sendInlineReplyJ2cl(
   ).toBeVisible({ timeout: 20_000 });
 }
 
+async function clickReplyOnFirstBlipGwt(gwt: GwtPage): Promise<void> {
+  const firstBlip = gwt.gwtBlips().first();
+  await expect(
+    firstBlip,
+    "GWT welcome wave must expose at least one rendered blip"
+  ).toBeVisible({ timeout: 15_000 });
+  await firstBlip.hover();
+  const reply = firstBlip.locator("[data-e2e-action='reply']").first();
+  await expect(
+    reply,
+    "GWT reply action must be reachable through a stable hook"
+  ).toBeVisible({ timeout: 15_000 });
+  await reply.click({ timeout: 10_000 });
+  await expect(
+    gwt.gwtActiveEditableDocument(),
+    "GWT editor must open after Reply"
+  ).toBeVisible({ timeout: 15_000 });
+}
+
+async function typeInComposerGwt(
+  page: Page,
+  gwt: GwtPage,
+  phrase: string
+): Promise<void> {
+  const editor = gwt.gwtActiveEditableDocument();
+  await editor.click({ timeout: 10_000 });
+  await editor.evaluate((el) => (el as HTMLElement).focus());
+  await expect
+    .poll(
+      async () =>
+        await editor.evaluate(
+          (el) => el === document.activeElement || el.contains(document.activeElement)
+        ),
+      { message: "GWT editor must own focus before typing", timeout: 5_000 }
+    )
+    .toBe(true);
+  await page.keyboard.insertText(phrase);
+  await expect
+    .poll(
+      async () => await editor.evaluate((el) => (el.textContent || "").trim()),
+      { message: "GWT editor must contain the typed draft", timeout: 10_000 }
+    )
+    .toContain(phrase);
+}
+
+async function selectWordInGwtEditor(
+  page: Page,
+  gwt: GwtPage,
+  word: string
+): Promise<boolean> {
+  const editor = gwt.gwtActiveEditableDocument();
+  const selected = await editor.evaluate((el, targetWord) => {
+    (el as HTMLElement).focus();
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent || "";
+      const index = text.indexOf(targetWord);
+      if (index >= 0) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + targetWord.length);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+        return true;
+      }
+      node = walker.nextNode();
+    }
+    return false;
+  }, word);
+  if (!selected) {
+    return false;
+  }
+  return await page.evaluate(
+    (targetWord) => window.getSelection()?.toString() === targetWord,
+    word
+  );
+}
+
+async function selectTrailingWordWithKeyboard(
+  page: Page,
+  gwt: GwtPage,
+  word: string
+): Promise<void> {
+  const editor = gwt.gwtActiveEditableDocument();
+  await editor.click({ timeout: 10_000 });
+  await expect
+    .poll(
+      async () =>
+        await editor.evaluate(
+          (el, targetWord) => (el.textContent || "").trim().endsWith(targetWord),
+          word
+        ),
+      {
+        message: `GWT editor text must end with '${word}' before keyboard selection`,
+        timeout: 5_000
+      }
+    )
+    .toBe(true);
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+ArrowRight" : "Control+ArrowRight"
+  );
+  for (let i = 0; i < word.length; i += 1) {
+    await page.keyboard.press("Shift+ArrowLeft");
+  }
+  await expect
+    .poll(
+      async () => await page.evaluate(() => window.getSelection()?.toString() || ""),
+      {
+        message: `GWT keyboard fallback must select trailing '${word}'`,
+        timeout: 5_000
+      }
+    )
+    .toBe(word);
+}
+
+async function applyBoldToWordGwt(
+  page: Page,
+  gwt: GwtPage,
+  word: string
+): Promise<void> {
+  const selectedByRange = await selectWordInGwtEditor(page, gwt, word);
+  if (!selectedByRange) {
+    await selectTrailingWordWithKeyboard(page, gwt, word);
+  }
+  await expect
+    .poll(
+      async () => await page.evaluate(() => window.getSelection()?.toString() || ""),
+      { message: `GWT selection must target '${word}' before Bold`, timeout: 5_000 }
+    )
+    .toBe(word);
+
+  const bold = page.locator("[data-e2e-action='bold']").first();
+  await expect(bold, "GWT bold toolbar action must be stable").toBeVisible({
+    timeout: 10_000
+  });
+  await bold.click({ timeout: 10_000 });
+}
+
+async function finishInlineReplyGwt(
+  page: Page,
+  gwt: GwtPage,
+  initialBlipCount: number,
+  draftText: string
+): Promise<void> {
+  const done = page.locator("[data-e2e-action='edit-done']").last();
+  await expect(done, "GWT edit-done action must be stable").toBeVisible({
+    timeout: 10_000
+  });
+  await done.click({ timeout: 10_000 });
+  await expect
+    .poll(
+      async () => await gwt.gwtBlips().count(),
+      { message: "GWT reply submit must add a new blip", timeout: 25_000 }
+    )
+    .toBeGreaterThan(initialBlipCount);
+  await expect(
+    gwt.gwtBlips().filter({ hasText: draftText }).last(),
+    "the newly submitted GWT reply blip must carry the draft text"
+  ).toBeVisible({ timeout: 20_000 });
+}
+
 // Each test registers a fresh user and operates on its own
 // authenticated session, so the suite is safe to run with the
 // harness's `fullyParallel: false, workers: 1` config without a
@@ -247,24 +411,11 @@ test.describe("G-PORT-4 inline reply + working compose toolbar parity", () => {
     await sendInlineReplyJ2cl(page, composer, phrase);
   });
 
-  test("GWT: welcome wave opens with multiple blips for parity", async ({ page }) => {
-    // Per umbrella #1109 policy: the GWT half ASSERTS the parity
-    // baseline (wave opens, blips render, format toolbar present)
-    // without skipping. Driving the full bold-and-send flow on
-    // ?view=gwt is currently blocked by the GWT shell's hover-only
-    // Reply affordance; that follow-up automation is tracked
-    // separately as issue #1121 (G-PORT-4 follow-up: automate GWT
-    // inline-reply E2E for parity). This test fails LOUDLY if any
-    // of the baseline parity invariants regress.
+  test("GWT: bold-applied inline reply ships a new blip", async ({ page }) => {
     const creds = freshCredentials("g4g");
     test.info().annotations.push({
       type: "test-user",
       description: creds.address
-    });
-    test.info().annotations.push({
-      type: "follow-up",
-      description:
-        "Full GWT bold-and-send drive tracked at #1121."
     });
     await registerAndSignIn(page, BASE_URL, creds);
 
@@ -315,13 +466,15 @@ test.describe("G-PORT-4 inline reply + working compose toolbar parity", () => {
       )
       .toBe(true);
 
-    // The GWT toolbar surfaces a per-wave action strip (lock,
-    // make-public, add-participant, …) above the wave panel. Assert
-    // at least one such control renders so we know the wave is
-    // interactive — full bold-and-send drive is tracked at #1121.
+    const phrase = `hello ${Date.now().toString(36)} world`;
     await expect(
-      page.locator("[aria-label*='participant']").first(),
-      "GWT view must surface the wave action toolbar with a participant control"
-    ).toBeAttached({ timeout: 15_000 });
+      gwt.gwtBlips().filter({ hasText: phrase }),
+      "unique reply payload must not already exist in the welcome wave"
+    ).toHaveCount(0);
+    const initialBlipCount = await gwt.gwtBlips().count();
+    await clickReplyOnFirstBlipGwt(gwt);
+    await typeInComposerGwt(page, gwt, phrase);
+    await applyBoldToWordGwt(page, gwt, "world");
+    await finishInlineReplyGwt(page, gwt, initialBlipCount, phrase);
   });
 });

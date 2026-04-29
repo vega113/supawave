@@ -57,5 +57,23 @@ public final class FragmentsOrderingTest {
         "b+3", "forward", 2);
     assertEquals(java.util.Arrays.asList("b+3", "b+1"), out);
   }
-}
 
+  @Test
+  public void sliceFallsBackToMtimeWhenStartIsMissingFromOrder() {
+    Map<String, BlipMeta> m = metas(5, 1, 3);
+    List<String> order = new ArrayList<>();
+    order.add("b+2"); order.add("b+1");
+    List<String> out = FragmentsFetcherCompat.sliceUsingOrder(m, order, "b+3", "forward", 2);
+    assertEquals(java.util.Arrays.asList("b+3", "b+1"), out);
+  }
+
+  @Test
+  public void sliceUsesProvidedOrderWhenUnknownStartIsMissingFromMetas() {
+    Map<String, BlipMeta> m = metas(5, 1, 3);
+    List<String> order = new ArrayList<>();
+    order.add("b+2"); order.add("b+3"); order.add("b+1");
+    List<String> out =
+        FragmentsFetcherCompat.sliceUsingOrder(m, order, "b+missing", "forward", 2);
+    assertEquals(java.util.Arrays.asList("b+2", "b+3"), out);
+  }
+}

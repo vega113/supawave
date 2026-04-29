@@ -166,6 +166,11 @@ public abstract class AbstractToolbarButton
   }
 
   @Override
+  public void setE2eAction(String action) {
+    button.setE2eAction(action);
+  }
+
+  @Override
   public void setVisualElement(Element element) {
     button.setVisualElement(element);
   }

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-gwt-inline-reply-e2e-parity",
+  "version": "PR #1121",
+  "date": "2026-04-29",
+  "title": "G-PORT-4 follow-up: GWT inline-reply parity automation",
+  "summary": "The J2CL <-> GWT parity E2E suite now drives the legacy GWT inline reply, Bold toolbar, and Done/send path with stable inert hooks so compose parity is checked end to end.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Added stable GWT-only test hooks and Playwright coverage for replying inline, applying Bold, finishing the edit, and observing the submitted reply as a new GWT blip."
+      ]
+    }
+  ]
+}

@@ -30,6 +30,16 @@ function snapshotBlips(root = document) {
 }
 
 /**
+ * Snapshot ALL <wave-blip> hosts including parked/hidden ones.
+ * Used when clearing focus markers so a blip that was focused before
+ * the viewport renderer parked it off-screen (adding `[hidden]`) does
+ * not keep stale `focused`/`j2cl-read-blip-focused` markers.
+ */
+function snapshotAllBlips(root = document) {
+  return Array.from(root.querySelectorAll("wave-blip"));
+}
+
+/**
  * Returns the index of the currently focused blip, or -1.
  * Checks both the Lit `focused` attribute and the renderer-managed
  * `j2cl-read-blip-focused` class so j/k continues from wherever focus
@@ -135,7 +145,11 @@ export function moveBlipFocus(direction, root = document) {
  */
 export function setFocusedBlip(target, list = snapshotBlips()) {
   if (!target) return;
-  for (const blip of list) {
+  // Clear ALL blips (including hidden/parked) so stale markers left by
+  // the viewport renderer do not accumulate. `list` still scopes j/k
+  // navigation to visible blips; clearing goes broader.
+  const allBlips = snapshotAllBlips();
+  for (const blip of allBlips) {
     if (blip !== target) {
       blip.removeAttribute("focused");
       blip.removeAttribute("data-blip-focused");
@@ -174,7 +188,7 @@ export function setFocusedBlip(target, list = snapshotBlips()) {
  * the <wavy-focus-frame> overlay.
  */
 export function clearBlipFocus(root = document) {
-  const list = snapshotBlips(root);
+  const list = snapshotAllBlips(root);
   let cleared = false;
   let surface = null;
   for (const blip of list) {
@@ -196,6 +210,7 @@ export function clearBlipFocus(root = document) {
 
 export const _internalForTesting = {
   snapshotBlips,
+  snapshotAllBlips,
   findFocusedIndex,
   findReadSurface,
   dispatchRendererFocusChanged,

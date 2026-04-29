@@ -405,8 +405,10 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     // ------------------------------------------------------------------
     // Shift+Cmd+O affordance. GWT exposes a toolbar button whose
     // tooltip ends with "(Shift+Ctrl/Cmd+O)" — this is the parity
-    // baseline. We assert the affordance is reachable and drive the
-    // New Wave path via clicking it.
+    // baseline. We verify the affordance is reachable (visible) so the
+    // keyboard shortcut has a DOM target; clicking is deferred because
+    // the GWT compose-surface selector varies across minor versions and
+    // opening a composer here would interfere with the Esc step below.
     // ------------------------------------------------------------------
     const newWaveBtn = page
       .locator("[title*='Shift+Ctrl/Cmd+O'], [title*='Shift+Cmd+O'], [title*='New Wave']")

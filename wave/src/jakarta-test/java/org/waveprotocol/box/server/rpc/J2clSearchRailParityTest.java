@@ -185,10 +185,16 @@ public final class J2clSearchRailParityTest {
   @Test
   public void j2clRootShellEmitsWavySearchRailHostWithDefaultQuery() throws Exception {
     String html = renderJ2clRootShell();
+    // The rail's opening tag always carries attributes (query=...,
+    // data-active-folder=..., result-count=..., optionally
+    // data-rail-cards-enabled=...), so we match on `<wavy-search-rail `
+    // with a trailing space — that distinguishes the rail host from
+    // any nested <wavy-search-rail-card> (which always has at least one
+    // character after the dash before `>`).
     assertEquals(
         "Exactly one <wavy-search-rail> host is mounted in the J2CL root shell",
         1,
-        countOccurrences(html, "<wavy-search-rail>"));
+        countOccurrences(html, "<wavy-search-rail "));
     assertTrue(
         "Rail defaults to query=in:inbox", html.contains("query=\"in:inbox\""));
     assertTrue(

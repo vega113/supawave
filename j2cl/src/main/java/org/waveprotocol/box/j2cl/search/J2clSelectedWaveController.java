@@ -770,6 +770,7 @@ public final class J2clSelectedWaveController
           String requiredBlipId = nullToEmpty(requiredLoadedBlipId);
           if (!requiredBlipId.isEmpty()
               && !fragmentsContainLoadedBlip(response.getFragments(), requiredBlipId)) {
+            emitExtensionOutcome(normalizedDirection, "missing-required-blip");
             fragmentFetchesInFlight.remove(edgeKey);
             if (onMissingRequiredLoadedBlip != null) {
               onMissingRequiredLoadedBlip.run();

@@ -63,7 +63,7 @@ public interface ToolbarButtonView {
 
   /**
    * Sets a stable E2E action identifier on the rendered button, or clears it
-   * when {@code action} is null.
+   * when {@code action} is null or empty.
    */
   void setE2eAction(String action);
 

@@ -353,6 +353,13 @@ async function applyBoldToWordGwt(
     timeout: 10_000
   });
   await bold.click({ timeout: 10_000 });
+  const editor = gwt.gwtActiveEditableDocument();
+  const editorHtml = await editor.evaluate((el: HTMLElement) => el.innerHTML);
+  const boldMatcher = new RegExp(`<(b|strong)[^>]*>${word}<\\/\\1>`, "i");
+  expect(
+    boldMatcher.test(editorHtml),
+    `GWT bold must wrap '${word}' in <b>/<strong>; saw: ${editorHtml}`
+  ).toBe(true);
 }
 
 async function finishInlineReplyGwt(

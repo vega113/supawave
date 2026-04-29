@@ -65,13 +65,15 @@ export class GwtPage extends WavePage {
   async typeIntoBlipDocument(text: string): Promise<void> {
     // The GWT document container has kind="document" and the
     // .SWCAW class (compiled CSS class).
-    const target = this.page.locator(".SWCAW [contenteditable], .SWCAW").last();
-    await target.click({ force: true });
+    const editable = this.page.locator(".SWCAW [contenteditable]").last();
+    await editable.click({ force: true });
+    await expect(editable).toBeVisible({ timeout: 5_000 });
     await this.page.keyboard.type(text, { delay: 10 });
-    await this.page.waitForTimeout(300);
     await this.page.keyboard.press("Escape");
-    // Wait for the keyboard hint to disappear (edit mode exit).
-    await this.page.waitForTimeout(500);
+    // Wait for edit mode to exit: contenteditable elements disappear.
+    await expect(this.page.locator(".SWCAW [contenteditable]")).toHaveCount(0, {
+      timeout: 5_000
+    });
   }
 
   /**

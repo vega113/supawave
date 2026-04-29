@@ -399,37 +399,21 @@ async function assertCollapseFoldsReplyChain(
   expect(before).toBeGreaterThanOrEqual(4);
 
   // The J2CL renderer mounts a `.j2cl-read-thread-toggle` button on
-  // every inline-thread wrapper. A wave authored with one reply
-  // chain should have at least one such toggle — the renderer's
-  // enhanceInlineThread runs whenever the thread carries the
-  // `inline-thread` CSS class (set during nest-by-parent placement).
-  // If the projector's metadata flow has not yet classified the
-  // thread (a known gap on same-session waves; see the Phase 3
-  // comment), the toggle is absent and the collapse parity cannot
-  // be exercised — we surface that as a soft warning rather than a
-  // hard failure, since the renderer wiring itself is verified by
-  // the J2clReadSurfaceDomRendererTest suite.
+  // every inline-thread wrapper under the parent blip. Fail hard when
+  // absent so a regression in the renderer's enhanceInlineThread wiring
+  // stays visible rather than silently passing via a wrong-thread fallback.
   const toggle = page
     .locator(
       `[data-parent-blip-id="${parentBlipId}"] .j2cl-read-thread-toggle`
     )
     .first();
-  let clickTarget = null as Awaited<ReturnType<typeof page.locator>> | null;
-  if (await toggle.count()) {
-    clickTarget = toggle;
-  } else {
-    const fallback = page.locator(".j2cl-read-thread-toggle").first();
-    if (await fallback.count()) {
-      clickTarget = fallback;
-    }
-  }
-  expect(
-    clickTarget,
-    "assertCollapseFoldsReplyChain: no .j2cl-read-thread-toggle found on J2CL view. " +
-      "If this is a known projector gap, mark the assertion fixme rather than skipping it."
-  ).not.toBeNull();
+  await expect(
+    toggle,
+    `assertCollapseFoldsReplyChain: no .j2cl-read-thread-toggle found under ` +
+      `[data-parent-blip-id="${parentBlipId}"] on J2CL view.`
+  ).toBeVisible({ timeout: 10_000 });
 
-  await clickTarget.click();
+  await toggle.click();
 
   await expect
     .poll(

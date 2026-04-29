@@ -3,6 +3,23 @@ import { ifDefined } from "lit/directives/if-defined.js";
 
 let mentionPopoverCounter = 0;
 
+/**
+ * G-PORT-5 (#1114) — view-only mention suggestion popover.
+ *
+ * Originally (F-3.S2 / #1038) this popover owned its own keydown
+ * listener and stole focus to the listbox in `updated()`. That caused
+ * the bug tracked at #1125: focus left the composer body, the
+ * composer's `_onSelectionChange` saw the caret leave its bounds and
+ * dismissed the popover, and ArrowDown was retargeted away from the
+ * composer's keydown listener so `_mentionActiveIndex` never advanced.
+ *
+ * Per G-PORT-5: the composer body is the SOLE owner of mention
+ * keyboard navigation. This element is now view-only — it renders the
+ * filtered candidate list, reflects the host-supplied `activeIndex` as
+ * the visual highlight, and routes mouse clicks back to the host. It
+ * never takes focus, never listens for keystrokes, and does not
+ * transfer `document.activeElement` even on mousedown over an option.
+ */
 export class MentionSuggestionPopover extends LitElement {
   static properties = {
     open: { type: Boolean, reflect: true },
@@ -34,6 +51,10 @@ export class MentionSuggestionPopover extends LitElement {
       text-align: left;
       font: inherit;
       cursor: pointer;
+      /* G-PORT-5: options must NOT take focus from the composer body.
+       * outline:none ensures even programmatic focus does not paint a
+       * ring (the visual highlight comes from aria-selected styling). */
+      outline: none;
     }
 
     [aria-selected="true"] {
@@ -57,13 +78,9 @@ export class MentionSuggestionPopover extends LitElement {
     this.activeIndex = 0;
     this.focusTargetId = "";
     this.optionIdPrefix = `mention-option-${++mentionPopoverCounter}`;
-    this.addEventListener("keydown", this.onKeyDown);
-  }
-
-  updated(changed) {
-    if (changed.has("open") && this.open) {
-      queueMicrotask(() => this.renderRoot.querySelector("[role='listbox']")?.focus());
-    }
+    // G-PORT-5 (#1114): no keydown listener. The composer body owns
+    // ArrowUp/Down/Enter/Tab/Escape while the popover is open. See
+    // `wavy-composer._onBodyKeydown` and the issue body of #1125.
   }
 
   render() {
@@ -98,9 +115,10 @@ export class MentionSuggestionPopover extends LitElement {
       <div
         id=${this.optionId(index)}
         role="option"
-        tabindex="-1"
         aria-selected=${active ? "true" : "false"}
         data-address=${candidate.address || ""}
+        data-mention-option-index=${index}
+        @mousedown=${this._onOptionMouseDown}
         @click=${() => this.selectCandidate(index)}
       >
         ${candidate.displayName || candidate.address}
@@ -108,31 +126,15 @@ export class MentionSuggestionPopover extends LitElement {
     `;
   }
 
-  onKeyDown = (event) => {
-    if (!this.open) {
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.close("escape");
-      return;
-    }
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const offset = event.key === "ArrowDown" ? 1 : -1;
-      this.activeIndex = this.clampedIndex(this.activeIndex + offset);
-      return;
-    }
-    if (event.key === "Enter" && this.safeCandidates().length > 0) {
-      event.preventDefault();
-      this.selectCandidate(this.clampedIndex(this.activeIndex));
-      return;
-    }
-    if (event.key === "Tab" && this.safeCandidates().length > 0) {
-      event.preventDefault();
-      this.selectCandidate(this.clampedIndex(this.activeIndex));
-    }
-  };
+  /**
+   * G-PORT-5 (#1114): preventDefault on mousedown so the click does
+   * NOT transfer `document.activeElement` away from the composer body
+   * (which would trip the composer's blur-dismiss path before the
+   * @click handler ran). The click event still fires.
+   */
+  _onOptionMouseDown(event) {
+    event.preventDefault();
+  }
 
   selectCandidate(index) {
     const candidates = this.safeCandidates();

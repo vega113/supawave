@@ -304,8 +304,8 @@ public final class FullDomRenderer implements RenderingRules<UiBuilder> {
     BlipMetaViewBuilder metaUi = BlipMetaViewBuilder.create(viewIdMapper.metaOf(blip), document);
     blipPopulator.render(blip, metaUi);
 
-    return BlipViewBuilder.create(viewIdMapper.blipOf(blip), metaUi, renderReactions(blip),
-        threadsUi, convsUi);
+    return BlipViewBuilder.create(viewIdMapper.blipOf(blip), blip.getId(), metaUi,
+        renderReactions(blip), threadsUi, convsUi);
   }
 
   /**

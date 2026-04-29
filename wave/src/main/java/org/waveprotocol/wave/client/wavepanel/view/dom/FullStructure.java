@@ -143,11 +143,25 @@ public class FullStructure implements UpgradeableDomAsViewProvider {
         @Override
         public void insertChrome(BlipMetaDomImpl impl, FocusFrameView frame) {
           impl.getElement().appendChild(frameElement(frame));
+          // G-PORT-3 (#1112): stamp the cross-view focus parity hook
+          // on the owning blip element (the meta's parent in the GWT
+          // BlipViewBuilder output). Mirrors the J2CL renderer's
+          // data-blip-focused attribute on focusBlip().
+          Element blipEl = impl.getElement().getParentElement();
+          if (blipEl != null) {
+            blipEl.setAttribute("data-blip-focused", "true");
+          }
         }
 
         @Override
         public void removeChrome(BlipMetaDomImpl impl, FocusFrameView frame) {
           frameElement(frame).removeFromParent();
+          // G-PORT-3 (#1112): clear the parity hook in step with the
+          // chrome being removed.
+          Element blipEl = impl.getElement().getParentElement();
+          if (blipEl != null) {
+            blipEl.removeAttribute("data-blip-focused");
+          }
         }
 
         @Override

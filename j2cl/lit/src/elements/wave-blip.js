@@ -64,8 +64,26 @@ export class WaveBlip extends LitElement {
     authorName: { type: String, attribute: "author-name" },
     postedAt: { type: String, attribute: "posted-at" },
     postedAtIso: { type: String, attribute: "posted-at-iso" },
+    // G-PORT-3 (#1112): cross-view parity hooks. The J2CL renderer
+    // also stamps these on the host directly (so the test sees them
+    // pre-Lit-upgrade); this property reflection keeps them in sync
+    // when authorName / postedAt change after the initial render.
+    // Reflect-only — Lit reads from the renderer-set attribute on
+    // upgrade (the constructor default is empty string), so the
+    // upgrade-clobber pattern documented for data-blip-depth /
+    // data-thread-collapsed does NOT apply here: empty string and
+    // an absent attribute are both "no value" for the test's
+    // non-empty assertion.
+    dataBlipAuthor: { type: String, attribute: "data-blip-author", reflect: true },
+    dataBlipTime: { type: String, attribute: "data-blip-time", reflect: true },
     isAuthor: { type: Boolean, attribute: "is-author", reflect: true },
     focused: { type: Boolean, reflect: true },
+    // G-PORT-3 (#1112): cross-view parity hook for the focused blip.
+    // Mirrors the existing `focused` boolean attribute as a string
+    // attribute matching the GWT side (which will set
+    // data-blip-focused="true" on chrome insert / remove it on chrome
+    // remove). Reflected from the `focused` boolean on render.
+    dataBlipFocused: { type: String, attribute: "data-blip-focused", reflect: true },
     unread: { type: Boolean, reflect: true },
     hasMention: { type: Boolean, attribute: "has-mention", reflect: true },
     replyCount: { type: Number, attribute: "reply-count", reflect: true },
@@ -263,7 +281,39 @@ export class WaveBlip extends LitElement {
     this.taskDueDate = "";
     this.blipDepth = "";
     this.threadCollapsed = false;
+    this.dataBlipAuthor = "";
+    this.dataBlipTime = "";
+    this.dataBlipFocused = null;
     this._participants = [];
+  }
+
+  /**
+   * G-PORT-3 (#1112): keep the data-blip-* parity hooks in sync with
+   * authorName / postedAt / focused so the cross-view Playwright spec
+   * sees a stable selector regardless of which side of the upgrade
+   * the test runs on.
+   */
+  willUpdate(changedProperties) {
+    if (changedProperties.has("authorName") || changedProperties.has("authorId")) {
+      const author = this.authorName || this.authorId || "";
+      if (author) {
+        this.dataBlipAuthor = author;
+      } else {
+        this.removeAttribute("data-blip-author");
+      }
+    }
+    if (changedProperties.has("postedAtIso") || changedProperties.has("postedAt")) {
+      const time = this.postedAtIso || this.postedAt || "";
+      if (time) {
+        this.dataBlipTime = time;
+      } else {
+        this.removeAttribute("data-blip-time");
+      }
+    }
+    if (changedProperties.has("focused")) {
+      this.dataBlipFocused = this.focused ? "true" : null;
+    }
+    super.willUpdate(changedProperties);
   }
 
   /**

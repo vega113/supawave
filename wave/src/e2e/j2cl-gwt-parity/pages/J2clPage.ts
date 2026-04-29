@@ -5,7 +5,17 @@
 //   - <shell-root> present
 //   - <shell-root-signed-out> absent
 //   - GWT bootstrap (webclient/webclient.nocache.js) absent
-import { expect } from "@playwright/test";
+//
+// G-PORT-3 (#1112): adds compose / send selectors for the parity test.
+// Note: wave-reading-parity.spec.ts authors waves on the GWT view
+// (J2CL composer is currently hidden). These selectors remain here for
+// future slices when the J2CL composer ships its visible surface.
+//   - wavy-search-rail >> button.new-wave (per source line 461)
+//   - wavy-composer >> [data-composer-body] (the contenteditable body)
+//   - composer-submit-affordance >> button[aria-label="<label>"] —
+//     <wavy-composer> renders this with label "Create wave" /
+//     "Send reply" / "Save" depending on mode.
+import { expect, Locator } from "@playwright/test";
 import { WavePage } from "./WavePage";
 
 export class J2clPage extends WavePage {
@@ -29,5 +39,66 @@ export class J2clPage extends WavePage {
       html.includes("webclient/webclient.nocache.js"),
       "J2CL view should not load the GWT webclient bundle"
     ).toBe(false);
+  }
+
+  override newWaveAffordance(): Locator {
+    // Two <wavy-search-rail> instances may live in the DOM at once
+    // (the inbox rail + a hidden sidecar copy used by the search
+    // panel). Either's "New Wave" button dispatches
+    // `wavy-new-wave-requested` which the root shell controller
+    // listens to on document.body. We target the visible one by
+    // using the role+name accessor — Playwright's `getByRole`
+    // automatically scopes to the visible button.
+    return this.page.getByRole("button", { name: "New Wave" }).first();
+  }
+
+  override composerBody(): Locator {
+    // J-UI-3 / J-UI-5: J2clComposeSurfaceView builds the create form
+    // as a <textarea aria-label="New wave content"> inside a
+    // .j2cl-compose-create-form. (When the j2cl-inline-rich-composer
+    // feature flag is on, the body becomes the contenteditable
+    // <wavy-composer>'s [data-composer-body] — same locator works
+    // because the textarea is also accessible via aria-label.)
+    return this.page
+      .locator(
+        'textarea[aria-label="New wave content"], wavy-composer [data-composer-body]'
+      )
+      .first();
+  }
+
+  /**
+   * G-PORT-3 (#1112): inline reply textarea (legacy
+   * <composer-inline-reply>) once a wave is selected. When the
+   * j2cl-inline-rich-composer flag is on, the inline composer is a
+   * <wavy-composer> with [data-composer-body] instead.
+   */
+  inlineReplyBody(): Locator {
+    return this.page
+      .locator(
+        'composer-inline-reply textarea[aria-label="Reply"], wavy-composer [data-composer-body]'
+      )
+      .first();
+  }
+
+  override composerSubmit(label: string): Locator {
+    // composer-submit-affordance renders <button aria-label=${label}>.
+    return this.page
+      .locator(`composer-submit-affordance button[aria-label="${label}"]`)
+      .first();
+  }
+
+  /**
+   * G-PORT-3 (#1112): root-of-wave reply trigger ("Click here to reply"
+   * affordance at the bottom of the read surface, F-3.S1).
+   */
+  rootReplyTrigger(): Locator {
+    return this.page.locator("button[data-wave-root-reply-trigger]");
+  }
+
+  /** G-PORT-3 (#1112): per-blip reply button inside a blip's toolbar. */
+  blipReplyButton(blipId: string): Locator {
+    return this.page.locator(
+      `wave-blip[data-blip-id="${blipId}"] wave-blip-toolbar button[data-toolbar-action="reply"]`
+    );
   }
 }

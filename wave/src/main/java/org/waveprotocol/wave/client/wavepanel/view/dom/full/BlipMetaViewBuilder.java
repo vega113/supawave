@@ -260,6 +260,10 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
     open(output, id, css.meta(), TypeCodes.kind(Type.META));
     {
       // Author avatar — includes data-address for the profile card popup.
+      // G-PORT-3 (#1112): also stamps data-blip-author for the J2CL ↔ GWT
+      // parity test (mirrors the existing data-address; the parity hook
+      // is intentionally a duplicate so a single Playwright selector
+      // works against both views).
       {
         String avatarId = Components.AVATAR.getDomId(id);
         String safeUrl = avatarUrl != null ? EscapeUtils.sanitizeUri(avatarUrl) : null;
@@ -271,7 +275,9 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         }
         img.append("alt='author' ");
         if (authorAddress != null) {
-          img.append("data-address='").append(EscapeUtils.htmlEscape(authorAddress)).append("' ");
+          String safeAddress = EscapeUtils.htmlEscape(authorAddress);
+          img.append("data-address='").append(safeAddress).append("' ");
+          img.append("data-blip-author='").append(safeAddress).append("' ");
         }
         img.append("></img>");
         output.append(EscapeUtils.fromSafeConstant(img.toString()));
@@ -286,10 +292,24 @@ public final class BlipMetaViewBuilder implements UiBuilder, IntrinsicBlipMetaVi
         close(output);
 
         // Time.
+        // G-PORT-3 (#1112): stamps data-blip-time alongside the
+        // existing title= tooltip so the J2CL ↔ GWT parity test can
+        // assert a single attribute on both views. The parity contract
+        // only requires the attribute to be non-empty; the format is
+        // the same human-readable string the tooltip already shows
+        // (the J2CL side stamps an ISO timestamp — the test does not
+        // depend on either format being equal across views).
         {
-          String titleAttr = timeTooltip != null
-              ? "title='" + EscapeUtils.htmlEscape(timeTooltip) + "'" : null;
-          openWith(output, Components.TIME.getDomId(id), css.time(), null, titleAttr);
+          StringBuilder extra = new StringBuilder();
+          if (timeTooltip != null) {
+            String safeTooltip = EscapeUtils.htmlEscape(timeTooltip);
+            extra.append("title='").append(safeTooltip).append("'");
+            extra.append(" data-blip-time='").append(safeTooltip).append("'");
+          } else if (time != null) {
+            extra.append("data-blip-time='").append(EscapeUtils.htmlEscape(time)).append("'");
+          }
+          String extraAttr = extra.length() == 0 ? null : extra.toString();
+          openWith(output, Components.TIME.getDomId(id), css.time(), null, extraAttr);
         }
         if (time != null) {
           output.appendEscaped(time);

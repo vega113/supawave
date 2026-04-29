@@ -47,8 +47,8 @@ public class BlipViewBuilderTest extends TestCase {
 
     UiBuilder fakeContent = UiBuilder.Constant.of(EscapeUtils.fromSafeConstant(content));
     metaUi = new BlipMetaViewBuilder(css, constants, metaDomId, fakeContent);
-    blipUi = new BlipViewBuilder(blipDomId, metaUi, UiBuilder.EMPTY, UiBuilder.EMPTY,
-        UiBuilder.EMPTY, css);
+    blipUi = new BlipViewBuilder(blipDomId, /* modelBlipId */ null, metaUi, UiBuilder.EMPTY,
+        UiBuilder.EMPTY, UiBuilder.EMPTY, css);
   }
 
   public void testBasicContentAvailable() throws Exception {

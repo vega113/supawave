@@ -5,25 +5,26 @@
 //   - id="app" host div present
 //   - <shell-root> absent
 //
-// G-PORT-3 (#1112) / G-PORT-6 (#1115): compose / per-blip helpers
-// the parity tests need. The J2CL inbox compose surface is mounted
-// inside a hidden legacy wrapper today, so the GWT view is the only
-// path that can drive a real authoring flow from the inbox.
+// G-PORT-3 (#1112): adds compose / send selectors so the parity test
+// can author a wave with multiple blips on the GWT view. The J2CL
+// root shell's compose surface is mounted in a hidden
+// .sidecar-search-card legacy wrapper today (see
+// j2cl/lit/src/design/wavy-thread-collapse.css:90 — `display: none
+// !important`), so the GWT view is the only path that can drive a
+// real compose flow from the inbox in a Playwright test until the
+// J2CL composer ships its visible surface (out of scope for G-PORT-3).
 //
-// GWT compose surface (per BlipViewBuilder + BlipMetaViewBuilder +
-// EditToolbar):
+// GWT compose surface (per BlipViewBuilder + BlipMetaViewBuilder):
 //   - "New Wave" button: <div title^="New Wave"> in the inbox toolbar.
-//   - The blip content body is a `[kind="document"]` div hosting a
-//     contenteditable. Click into it, type plain text, then press
-//     Escape to commit (keyboard hint: "Shift+Enter to finish, Esc
-//     to exit").
+//     Clicking it creates a new wave and opens its first blip in edit
+//     mode, with the URL fragment routed to #domain/<wave-id>.
+//   - The blip content body is a `[kind="document"]` div ancestor
+//     hosting a contenteditable. Click into the document container,
+//     type plain text, then press Escape to commit (keyboard hint:
+//     "Shift+Enter to finish, Esc to exit").
 //   - Per-blip Reply menu: `[data-option="reply"]` inside the meta.
-//   - Format toolbar's "Insert task" button: `[title^="Insert task"]`
-//     (EditToolbar.java:608). Clicking it inserts a `<check>` element
-//     and immediately opens TaskMetadataPopup (a UniversalPopup
-//     mask) — the popup must be dismissed before reaching the inline
-//     checkbox.
-import { expect, Locator } from "@playwright/test";
+//     Clicking it spawns a new inline reply blip in edit mode.
+import { expect, Locator, Page } from "@playwright/test";
 import { WavePage } from "./WavePage";
 
 export class GwtPage extends WavePage {
@@ -33,7 +34,7 @@ export class GwtPage extends WavePage {
 
   async assertInboxLoaded(): Promise<void> {
     // GWT bootstrap is server-rendered HTML, so we read the source.
-    const html = await this.page.content();
+    const html = await this.pageHtml();
 
     expect(
       html.includes("webclient/webclient.nocache.js"),
@@ -57,28 +58,53 @@ export class GwtPage extends WavePage {
   }
 
   /**
-   * G-PORT-3 / G-PORT-6: clicks into the document container of the
-   * currently-edited blip and types `text`, then presses Escape to
-   * commit (mirrors GWT's "Esc to exit" editor convention).
+   * G-PORT-3: clicks into the document container of a blip and types
+   * `text`, then presses Escape to commit (mirrors GWT's "Esc to exit"
+   * editor convention).
    */
   async typeIntoBlipDocument(text: string): Promise<void> {
-    const target = this.page.locator(".SWCAW [contenteditable], .SWCAW").last();
-    await target.click({ force: true });
+    // The GWT document container has kind="document" and the
+    // .SWCAW class (compiled CSS class).
+    const editable = this.page.locator(".SWCAW [contenteditable]").last();
+    await editable.click({ force: true });
+    await expect(editable).toBeVisible({ timeout: 5_000 });
     await this.page.keyboard.type(text, { delay: 10 });
-    await this.page.waitForTimeout(300);
     await this.page.keyboard.press("Escape");
-    await this.page.waitForTimeout(500);
+    // Wait for edit mode to exit: contenteditable elements disappear.
+    await expect(this.page.locator(".SWCAW [contenteditable]")).toHaveCount(0, {
+      timeout: 5_000
+    });
   }
 
   /**
-   * G-PORT-3 / G-PORT-6: clicks the per-blip Reply menu option.
-   * Spawns an inline reply blip in edit mode.
+   * G-PORT-3: clicks the Reply menu option on the blip with the given
+   * model id (data-blip-id). Spawns an inline reply blip in edit mode.
    */
   async clickReplyOnBlip(blipId: string): Promise<void> {
-    const reply = this.page
-      .locator(`[data-blip-id="${blipId}"] [data-option="reply"]`)
-      .first();
-    await reply.click({ force: true });
+    const blip = this.page.locator(`[data-blip-id="${blipId}"]`).first();
+    await blip.hover();
+    const reply = blip.locator('[data-option="reply"]').first();
+    await expect(reply).toBeVisible({ timeout: 5_000 });
+    await reply.click();
+  }
+
+  /**
+   * G-PORT-3: returns the domain-qualified wave id encoded in the URL
+   * fragment after a wave is selected/created. Format:
+   * `#<domain>/<waveId>` → returns `<domain>/<waveId>` so the J2CL
+   * sidecar route codec accepts it as a `?wave=` value (its
+   * isValidWaveId requires the `<domain>/w+...` shape).
+   */
+  async readWaveIdFromHash(): Promise<string> {
+    const url = new URL(this.page.url());
+    const trimmed = url.hash.replace(/^#\/?/, "");
+    const match = /^([^/]+\/w\+[^/]+)/.exec(trimmed);
+    if (!match) {
+      throw new Error(
+        `readWaveIdFromHash: no waveId in URL hash: ${this.page.url()}`
+      );
+    }
+    return match[1];
   }
 
   /**
@@ -89,37 +115,20 @@ export class GwtPage extends WavePage {
    * EDIT and ActionsImpl wires it through to EditSession.startEditing).
    */
   async clickEditOnBlip(blipId: string): Promise<void> {
-    const edit = this.page
-      .locator(`[data-blip-id="${blipId}"] [data-option="edit"]`)
-      .first();
-    await edit.click({ force: true });
+    const blip = this.page.locator(`[data-blip-id="${blipId}"]`).first();
+    await blip.hover();
+    const edit = blip.locator('[data-option="edit"]').first();
+    await expect(edit).toBeVisible({ timeout: 5_000 });
+    await edit.click();
     // Give the EditSession + format toolbar a beat to mount.
     await this.page.waitForTimeout(700);
-  }
-
-  /**
-   * G-PORT-3 / G-PORT-6: returns the domain-qualified wave id encoded
-   * in the URL fragment after a wave is selected/created. Format:
-   * `#<domain>/<waveId>` → returns `<domain>/<waveId>` so the J2CL
-   * sidecar route codec accepts it as a `?wave=` value (its
-   * isValidWaveId requires the `<domain>/w+...` shape).
-   */
-  async readWaveIdFromHash(): Promise<string> {
-    const url = new URL(this.page.url());
-    const trimmed = url.hash.replace(/^#\/?/, "");
-    if (!trimmed || !/^[^/]+\/w\+/.test(trimmed)) {
-      throw new Error(
-        `readWaveIdFromHash: no waveId in URL hash: ${this.page.url()}`
-      );
-    }
-    return trimmed;
   }
 
   /**
    * G-PORT-6 (#1115): clicks the format-toolbar's "Insert task"
    * button. Caller must have an active edit session on the target
    * blip first (typeIntoBlipDocument leaves edit mode via Escape;
-   * to re-enter, click into the blip body again).
+   * to re-enter, use clickEditOnBlip(blipId)).
    *
    * Side effect: the EditToolbar opens TaskMetadataPopup
    * (UniversalPopup) immediately after inserting the <check> element
@@ -138,9 +147,9 @@ export class GwtPage extends WavePage {
   /**
    * G-PORT-6 (#1115): dismisses the TaskMetadataPopup that
    * EditToolbar opens after Insert task. The popup is a Composite
-   * Composite mounted in a UniversalPopup — its Cancel button is
-   * the safest dismissal path. We fall back to Escape if Cancel
-   * isn't reachable (e.g. focus already escaped).
+   * mounted in a UniversalPopup — its Cancel button is the safest
+   * dismissal path. We fall back to Escape if Cancel isn't reachable
+   * (e.g. focus already escaped).
    */
   async dismissTaskMetadataPopup(): Promise<void> {
     const cancel = this.page.getByRole("button", { name: /^cancel$/i });

@@ -143,6 +143,7 @@ public final class BlipMetaDomImpl implements DomView, IntrinsicBlipMetaView {
       // live updates keep both attributes in sync.
       avatar.setAttribute("data-blip-author", address);
     } else {
+      avatar.removeAttribute("data-address");
       avatar.removeAttribute("data-blip-author");
     }
   }

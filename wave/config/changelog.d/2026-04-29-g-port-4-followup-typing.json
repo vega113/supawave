@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-4-followup-typing",
+  "version": "PR #1123",
+  "date": "2026-04-29",
+  "title": "G-PORT-4 follow-up: deterministic typing in inline-reply E2E",
+  "summary": "Stabilises the J2CL <-> GWT parity E2E by replacing page.keyboard.type with a single execCommand(\"insertText\") call inside the contenteditable composer body. keyboard.type drops both leading and trailing characters when Lit's input listener races the keystrokes (observed 5/5 fail with 'ello world mo' instead of 'hello world ...' both locally and in CI). execCommand fires real beforeinput/input events through the browser's text-editing pipeline, so wavy-composer's mutation observer and draft-change listener see the canonical text. No production code changes.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced page.keyboard.type with execCommand(\"insertText\") in wave/src/e2e/j2cl-gwt-parity/tests/inline-reply-parity.spec.ts so the J2CL inline-reply E2E no longer drops leading/trailing characters under CI load."
+      ]
+    }
+  ]
+}

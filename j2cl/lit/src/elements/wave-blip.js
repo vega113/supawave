@@ -296,14 +296,18 @@ export class WaveBlip extends LitElement {
   willUpdate(changedProperties) {
     if (changedProperties.has("authorName") || changedProperties.has("authorId")) {
       const author = this.authorName || this.authorId || "";
-      if (author && this.dataBlipAuthor !== author) {
+      if (author) {
         this.dataBlipAuthor = author;
+      } else {
+        this.removeAttribute("data-blip-author");
       }
     }
     if (changedProperties.has("postedAtIso") || changedProperties.has("postedAt")) {
       const time = this.postedAtIso || this.postedAt || "";
-      if (time && this.dataBlipTime !== time) {
+      if (time) {
         this.dataBlipTime = time;
+      } else {
+        this.removeAttribute("data-blip-time");
       }
     }
     if (changedProperties.has("focused")) {

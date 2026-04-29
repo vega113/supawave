@@ -1655,7 +1655,17 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private void enhanceBlips(HTMLElement surface) {
-    NodeList<Element> blips = surface.querySelectorAll("[data-blip-id]");
+    // G-PORT-3 (#1112): scope to OUTER wave-blip elements only. The
+    // <wave-blip> recipe surfaces data-blip-id on several descendants
+    // (wavy-blip-card, reaction-row) so the unscoped query would
+    // re-bind the focus / keyboard handlers on those descendants and
+    // walk them on j/k navigation. The outer host is always the
+    // <wave-blip> custom element with [data-j2cl-read-blip="true"]
+    // (set below for the legacy <div class="blip"> code path); fall
+    // back to wave-blip in case the renderer ran before this attr
+    // was stamped.
+    NodeList<Element> blips =
+        surface.querySelectorAll("wave-blip[data-blip-id], div.blip[data-blip-id]");
     boolean tabStopAssigned = false;
     for (int index = 0; index < blips.length; index++) {
       HTMLElement blip = (HTMLElement) blips.item(index);

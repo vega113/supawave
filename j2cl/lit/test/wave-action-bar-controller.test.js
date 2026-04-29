@@ -173,6 +173,7 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     );
     const detail = await failed;
     expect(detail.waveId).to.equal("w+hang");
+    expect(detail.status).to.equal(0);
     expect(detail.error).to.be.a("string");
     expect(row.hasAttribute("data-folder-busy")).to.be.false;
   });

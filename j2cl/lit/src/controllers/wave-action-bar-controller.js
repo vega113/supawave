@@ -312,6 +312,7 @@ function onArchiveToggle(event) {
         waveId,
         operation: "move",
         folder,
+        status: 0,
         error: String(err && err.message ? err.message : err)
       });
     }
@@ -353,6 +354,7 @@ function onPinToggle(event) {
         waveId,
         operation,
         folder: null,
+        status: 0,
         error: String(err && err.message ? err.message : err)
       });
     }

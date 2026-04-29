@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-6-tasks-parity",
+  "version": "PR G-PORT-6",
+  "date": "2026-04-29",
+  "title": "G-PORT-6: Tasks + done state parity (E2E)",
+  "summary": "Adds the J2CL <-> GWT tasks-parity Playwright spec. The GWT half drives the full insert-task + done + reload + cross-context contract on ?view=gwt; the J2CL half asserts the per-blip <wavy-task-affordance> optimistic UI flips data-task-completed on click. Reload + cross-context J2CL persistence is gated behind issue #1129 (J2CL toggle delta emits adjacent annotation boundaries the wavelet validator rejects) -- once that lands, the J2CL test.fixme block goes live with no rewrites.",
+  "sections": [
+    {
+      "type": "test",
+      "items": [
+        "Add wave/src/e2e/j2cl-gwt-parity/tests/tasks-parity.spec.ts asserting GWT task insert + done + reload + cross-context, plus the J2CL per-blip task-toggle optimistic UI."
+      ]
+    }
+  ]
+}

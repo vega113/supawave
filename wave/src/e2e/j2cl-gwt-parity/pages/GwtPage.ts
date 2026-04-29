@@ -97,11 +97,12 @@ export class GwtPage extends WavePage {
   async readWaveIdFromHash(): Promise<string> {
     const url = new URL(this.page.url());
     const trimmed = url.hash.replace(/^#\/?/, "");
-    if (!trimmed || !/^[^/]+\/w\+/.test(trimmed)) {
+    const match = /^([^/]+\/w\+[^/]+)/.exec(trimmed);
+    if (!match) {
       throw new Error(
         `readWaveIdFromHash: no waveId in URL hash: ${this.page.url()}`
       );
     }
-    return trimmed;
+    return match[1];
   }
 }

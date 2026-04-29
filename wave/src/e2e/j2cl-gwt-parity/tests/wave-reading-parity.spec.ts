@@ -79,7 +79,16 @@ async function populatedBlipIds(page: Page): Promise<string[]> {
             .querySelector("[data-blip-author]")
             ?.getAttribute("data-blip-author") ||
           "";
-        if (author) out.push(id);
+        // Require both author AND time so the readiness gate matches
+        // assertParityChrome's assertions and avoids a race where
+        // author arrives before timestamp.
+        const time =
+          el.getAttribute("data-blip-time") ||
+          el
+            .querySelector("[data-blip-time]")
+            ?.getAttribute("data-blip-time") ||
+          "";
+        if (author && time) out.push(id);
       }
       return out;
     });
@@ -213,6 +222,10 @@ test.describe("G-PORT-3 wave reading parity", () => {
       .toBeGreaterThanOrEqual(1);
 
     await assertJ2clStructuralParity(page);
+    // Assert author/time parity hooks are populated on J2CL. If the
+    // projector fails to emit metadata the test fails hard (per the
+    // "do NOT skip an assertion" contract in the file header).
+    await assertParityChrome(page, "j2cl");
     await expect
       .poll(async () => await blipIds(page), {
         timeout: 60_000,

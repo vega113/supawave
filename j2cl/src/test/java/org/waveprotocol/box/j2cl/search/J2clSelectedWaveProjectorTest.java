@@ -2501,6 +2501,119 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals(8, writeSession.getReplyManifestItemCount());
   }
 
+  @Test
+  public void writeSessionDoesNotReusePreviousManifestOffsetsWithFreshBasis() {
+    SidecarConversationManifest previousManifest =
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0, 6)),
+            8);
+    J2clSidecarWriteSession previousWriteSession =
+        new J2clSidecarWriteSession(
+            WAVE_ID,
+            CHANNEL_ID,
+            44L,
+            "ABCD",
+            "b+root",
+            Arrays.asList("user@example.com"),
+            6,
+            8);
+    J2clSelectedWaveModel previous =
+        new J2clSelectedWaveModel(
+                true,
+                false,
+                false,
+                WAVE_ID,
+                "title",
+                "snippet",
+                "",
+                "",
+                "",
+                0,
+                Arrays.asList("user@example.com"),
+                Arrays.asList("old content"),
+                previousWriteSession,
+                J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+                false,
+                false,
+                false)
+            .withConversationManifest(previousManifest);
+    SidecarSelectedWaveUpdate liveBlipOnlyUpdate = updateWithVersionAndHash(45L, "EFGH");
+
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(WAVE_ID, null, liveBlipOnlyUpdate, previous, 0);
+
+    Assert.assertSame(previousManifest, projected.getConversationManifest());
+    J2clSidecarWriteSession writeSession = projected.getWriteSession();
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(45L, writeSession.getBaseVersion());
+    Assert.assertEquals("EFGH", writeSession.getHistoryHash());
+    Assert.assertEquals(-1, writeSession.getReplyManifestInsertPosition());
+    Assert.assertEquals(-1, writeSession.getReplyManifestItemCount());
+  }
+
+  @Test
+  public void writeSessionPreservesPreviousManifestOffsetsWhenBasisIsPrevious() {
+    J2clSidecarWriteSession previousWriteSession =
+        new J2clSidecarWriteSession(
+            WAVE_ID,
+            CHANNEL_ID,
+            44L,
+            "ABCD",
+            "b+root",
+            Arrays.asList("user@example.com"),
+            6,
+            8);
+    J2clSelectedWaveModel previous =
+        new J2clSelectedWaveModel(
+            true,
+            false,
+            false,
+            WAVE_ID,
+            "title",
+            "snippet",
+            "",
+            "",
+            "",
+            0,
+            Arrays.asList("user@example.com"),
+            Arrays.asList("old content"),
+            previousWriteSession,
+            J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+            false,
+            false,
+            false);
+    SidecarSelectedWaveUpdate noCoupledBasis =
+        new SidecarSelectedWaveUpdate(
+            2,
+            WAVELET_NAME,
+            true,
+            CHANNEL_ID,
+            -1L,
+            null,
+            Arrays.asList("user@example.com"),
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 45L, 45L, "live content")),
+            new SidecarSelectedWaveFragments(
+                -1L,
+                44L,
+                45L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 44L, 45L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment("blip:b+root", "live content", 0, 0))));
+
+    J2clSidecarWriteSession writeSession =
+        J2clSelectedWaveProjector.project(WAVE_ID, null, noCoupledBasis, previous, 0)
+            .getWriteSession();
+
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(44L, writeSession.getBaseVersion());
+    Assert.assertEquals("ABCD", writeSession.getHistoryHash());
+    Assert.assertEquals(6, writeSession.getReplyManifestInsertPosition());
+    Assert.assertEquals(8, writeSession.getReplyManifestItemCount());
+  }
+
   // -- F-2 (#1037) per-blip metadata enrichment --------------------------------
 
   @Test

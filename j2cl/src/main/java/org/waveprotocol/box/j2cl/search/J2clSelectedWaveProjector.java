@@ -111,13 +111,15 @@ public final class J2clSelectedWaveProjector {
     // directly from the stored conversationManifest rather than from
     // model.getReadBlips(), so allocating full-conversation placeholder
     // blips here is wasted work that grows linearly with wave size.
+    SidecarConversationManifest manifestFromUpdate = updateManifest(update);
     SidecarConversationManifest effectiveManifest =
-        chooseManifest(updateManifest(update), previousMatchesWave, previous);
+        chooseManifest(manifestFromUpdate, previousMatchesWave, previous);
     if (!hasViewportWindow) {
       readBlips = applyConversationManifest(readBlips, effectiveManifest);
     }
     J2clSidecarWriteSession writeSession =
-        buildWriteSession(selectedWaveId, update, previous, participantIds, effectiveManifest);
+        buildWriteSession(
+            selectedWaveId, update, previous, participantIds, manifestFromUpdate);
     boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
         extractInteractionBlips(update.getDocuments(), participantIds, interactionEditable);
@@ -303,21 +305,21 @@ public final class J2clSelectedWaveProjector {
       SidecarSelectedWaveUpdate update,
       J2clSelectedWaveModel previous,
       List<String> participantIds,
-      SidecarConversationManifest manifest) {
+      SidecarConversationManifest manifestFromUpdate) {
     if (selectedWaveId == null || selectedWaveId.isEmpty()) {
       return null;
     }
+    J2clSidecarWriteSession previousWriteSession =
+        previous == null ? null : previous.getWriteSession();
     String channelId = update.getChannelId();
     if ((channelId == null || channelId.isEmpty())
-        && previous != null
-        && previous.getWriteSession() != null) {
-      channelId = previous.getWriteSession().getChannelId();
+        && previousWriteSession != null) {
+      channelId = previousWriteSession.getChannelId();
     }
     String replyTargetBlipId = resolveReplyTargetBlipId(update);
     if ((replyTargetBlipId == null || replyTargetBlipId.isEmpty())
-        && previous != null
-        && previous.getWriteSession() != null) {
-      replyTargetBlipId = previous.getWriteSession().getReplyTargetBlipId();
+        && previousWriteSession != null) {
+      replyTargetBlipId = previousWriteSession.getReplyTargetBlipId();
     }
     long baseVersion;
     String historyHash;
@@ -328,9 +330,9 @@ public final class J2clSelectedWaveProjector {
     if (updateHasCoupledPair) {
       baseVersion = updateVersion;
       historyHash = updateHash;
-    } else if (previous != null && previous.getWriteSession() != null) {
-      baseVersion = previous.getWriteSession().getBaseVersion();
-      historyHash = previous.getWriteSession().getHistoryHash();
+    } else if (previousWriteSession != null) {
+      baseVersion = previousWriteSession.getBaseVersion();
+      historyHash = previousWriteSession.getHistoryHash();
     } else {
       return null;
     }
@@ -339,12 +341,23 @@ public final class J2clSelectedWaveProjector {
     }
     int replyManifestInsertPosition = -1;
     int replyManifestItemCount = -1;
-    if (manifest != null && !manifest.isEmpty()) {
-      SidecarConversationManifest.Entry replyTarget = manifest.findByBlipId(replyTargetBlipId);
+    // Rendering may reuse a cached manifest on live blip-only updates, but submit offsets must
+    // only come from a manifest coupled to the same base version/hash as the write session.
+    SidecarConversationManifest writeManifest =
+        updateHasCoupledPair && manifestFromUpdate != null && !manifestFromUpdate.isEmpty()
+            ? manifestFromUpdate
+            : SidecarConversationManifest.empty();
+    if (writeManifest != null && !writeManifest.isEmpty()) {
+      SidecarConversationManifest.Entry replyTarget = writeManifest.findByBlipId(replyTargetBlipId);
       if (replyTarget != null) {
         replyManifestInsertPosition = replyTarget.getReplyInsertPosition();
-        replyManifestItemCount = manifest.getItemCount();
+        replyManifestItemCount = writeManifest.getItemCount();
       }
+    } else if (!updateHasCoupledPair
+        && previousWriteSession != null
+        && replyTargetBlipId.equals(previousWriteSession.getReplyTargetBlipId())) {
+      replyManifestInsertPosition = previousWriteSession.getReplyManifestInsertPosition();
+      replyManifestItemCount = previousWriteSession.getReplyManifestItemCount();
     }
     return new J2clSidecarWriteSession(
         selectedWaveId,

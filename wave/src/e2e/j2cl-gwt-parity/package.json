@@ -1,0 +1,16 @@
+{
+  "name": "j2cl-gwt-parity-e2e",
+  "version": "0.1.0",
+  "description": "Playwright harness for J2CL <-> GWT parity testing (G-PORT roadmap, umbrella #1109).",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "show-report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1",
+    "@types/node": "20.14.10",
+    "typescript": "5.4.5"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-1-parity-e2e",
+  "version": "PR #1119",
+  "date": "2026-04-29",
+  "title": "G-PORT-1: J2CL ↔ GWT parity E2E foundation",
+  "summary": "Internal-only: stand up a Playwright harness that runs against ?view=j2cl-root and ?view=gwt as the acceptance gate for the G-PORT roadmap; no user-visible behavior changes.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added wave/src/e2e/j2cl-gwt-parity/ Playwright harness with shared J2CL and GWT page objects, fresh-user fixture, and a smoke test asserting both views bootstrap. Wired the J2CL ↔ GWT Parity E2E CI check that every later G-PORT slice will use as its acceptance gate."
+      ]
+    }
+  ]
+}

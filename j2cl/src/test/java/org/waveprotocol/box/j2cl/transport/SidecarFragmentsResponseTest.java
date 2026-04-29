@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.transport;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -103,6 +104,18 @@ public class SidecarFragmentsResponseTest {
     Assert.assertEquals(1, manifest.getOrderedEntries().size());
     Assert.assertEquals(2, manifest.findByBlipId("b+root").getReplyInsertPosition());
     Assert.assertEquals(4, manifest.getItemCount());
+  }
+
+  @Test
+  public void explicitManifestItemCountIsClampedToEntryInsertPositions() {
+    SidecarConversationManifest manifest =
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry(
+                    "b+root", "", "root", 0, 0, 6)),
+            3);
+
+    Assert.assertEquals(7, manifest.getItemCount());
   }
 
   @Test

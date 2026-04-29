@@ -71,9 +71,10 @@ public class J2clPlainTextDeltaFactoryTest {
     Assert.assertTrue(deltaJson.contains("\"1\":\"conversation\""));
     Assert.assertTrue(deltaJson.contains("{\"5\":6}"));
     Assert.assertTrue(deltaJson.contains("{\"5\":2}"));
-    Assert.assertTrue(
+    Assert.assertEquals(
         "reply blip must appear once in manifest and once as the new document",
-        countOccurrences(deltaJson, "b+seedA") >= 2);
+        2,
+        countOccurrences(deltaJson, "b+seedA"));
   }
 
   private static void assertSubmitRequest(
@@ -109,6 +110,9 @@ public class J2clPlainTextDeltaFactoryTest {
   }
 
   private static int countOccurrences(String value, String fragment) {
+    if (fragment == null || fragment.isEmpty()) {
+      throw new IllegalArgumentException("fragment must be non-empty");
+    }
     int count = 0;
     int cursor = 0;
     while (cursor >= 0) {

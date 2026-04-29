@@ -450,16 +450,16 @@ public final class SidecarConversationManifest {
   }
 
   private static int resolveItemCount(List<Entry> entries, int explicitItemCount) {
-    if (explicitItemCount >= 0) {
-      return explicitItemCount;
-    }
-    int max = 0;
+    int inferredMin = 0;
     for (Entry entry : entries) {
       if (entry != null) {
-        max = Math.max(max, entry.getReplyInsertPosition() + 1);
+        inferredMin = Math.max(inferredMin, entry.getReplyInsertPosition() + 1);
       }
     }
-    return max;
+    if (explicitItemCount >= 0) {
+      return Math.max(explicitItemCount, inferredMin);
+    }
+    return inferredMin;
   }
 
   private static void setReplyInsertPosition(List<Entry> entries, int index, int position) {

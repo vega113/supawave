@@ -402,6 +402,11 @@ public final class J2clSelectedWaveController
     final int generation = requestGeneration;
     final long targetVersion = Math.max(-1L, resultingVersion);
     final String createdBlipId = submittedBlipId == null ? "" : submittedBlipId;
+    if (targetVersion >= 0
+        && currentVisibleViewportVersion() >= targetVersion
+        && currentViewportHasLoadedBlip(createdBlipId)) {
+      return;
+    }
     final long visibleVersionAtSubmit = currentVisibleViewportVersion();
     final int loadedBlipsAtSubmit = currentLoadedViewportBlipCount();
     retryScheduler.scheduleRetry(
@@ -414,7 +419,9 @@ public final class J2clSelectedWaveController
           }
           long currentVisibleVersion = currentVisibleViewportVersion();
           int currentLoadedBlips = currentLoadedViewportBlipCount();
-          if ((targetVersion >= 0 && currentVisibleVersion >= targetVersion)
+          if ((targetVersion >= 0
+                  && currentVisibleVersion >= targetVersion
+                  && currentViewportHasLoadedBlip(createdBlipId))
               || (targetVersion < 0
                   && visibleVersionAtSubmit >= 0
                   && currentVisibleVersion > visibleVersionAtSubmit)
@@ -652,21 +659,26 @@ public final class J2clSelectedWaveController
   }
 
   void onViewportEdge(String anchorBlipId, String direction) {
+    requestViewportEdge(anchorBlipId, direction, false);
+  }
+
+  private boolean requestViewportEdge(
+      String anchorBlipId, String direction, boolean refreshSelectedWaveOnFailure) {
     if (selectedWaveId == null || selectedWaveId.isEmpty() || currentModel == null) {
-      return;
+      return false;
     }
     J2clSelectedWaveViewportState viewportState = currentModel.getViewportState();
     if (viewportState == null || viewportState.isEmpty()) {
-      return;
+      return false;
     }
     String normalizedDirection = normalizeGrowthDirection(direction);
     String anchor = normalizeAnchor(anchorBlipId, viewportState, normalizedDirection);
     if (anchor.isEmpty()) {
-      return;
+      return false;
     }
     String edgeKey = normalizedDirection + ":" + anchor;
     if (fragmentFetchesInFlight.contains(edgeKey)) {
-      return;
+      return false;
     }
     fragmentFetchesInFlight.add(edgeKey);
     int generation = requestGeneration;
@@ -696,6 +708,9 @@ public final class J2clSelectedWaveController
           if (isStaleFragmentResponse(hadWriteSession, baseVersion, historyHash)) {
             emitExtensionOutcome(normalizedDirection, "stale");
             fragmentFetchesInFlight.remove(edgeKey);
+            if (refreshSelectedWaveOnFailure) {
+              refreshSelectedWave();
+            }
             return;
           }
           // Capture the pre-merge state inside the callback so that any live-stream
@@ -761,7 +776,11 @@ public final class J2clSelectedWaveController
           view.render(currentModel);
           publishWriteSession();
           fragmentFetchesInFlight.remove(edgeKey);
+          if (refreshSelectedWaveOnFailure) {
+            refreshSelectedWave();
+          }
         });
+    return true;
   }
 
   private boolean requestPostSubmitForwardFetch(
@@ -786,8 +805,8 @@ public final class J2clSelectedWaveController
     if (anchor.isEmpty()) {
       return false;
     }
-    onViewportEdge(anchor, J2clViewportGrowthDirection.FORWARD);
-    return true;
+    return requestViewportEdge(
+        anchor, J2clViewportGrowthDirection.FORWARD, /* refreshSelectedWaveOnFailure= */ true);
   }
 
   private boolean isStaleFragmentResponse(
@@ -951,6 +970,22 @@ public final class J2clSelectedWaveController
       return 0;
     }
     return currentModel.getViewportState().getLoadedReadBlips().size();
+  }
+
+  private boolean currentViewportHasLoadedBlip(String blipId) {
+    if (blipId == null || blipId.isEmpty() || currentModel == null) {
+      return false;
+    }
+    J2clSelectedWaveViewportState viewportState = currentModel.getViewportState();
+    if (viewportState == null) {
+      return false;
+    }
+    for (J2clReadBlip blip : viewportState.getLoadedReadBlips()) {
+      if (blipId.equals(blip.getBlipId())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static boolean isChannelEstablishmentUpdate(SidecarSelectedWaveUpdate update) {

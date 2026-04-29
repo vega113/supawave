@@ -1631,10 +1631,12 @@ public final class J2clComposeSurfaceController {
       selectedWaveParticipantContextId = null;
       selectedWaveParticipantIds = Collections.emptyList();
     } else {
-      boolean contextChanged =
+      String previousContextId =
           selectedWaveParticipantContextId != null
-              ? !nextContextId.equals(selectedWaveParticipantContextId)
-              : lastSelectedWaveId != null && !nextContextId.equals(lastSelectedWaveId);
+              ? selectedWaveParticipantContextId
+              : lastSelectedWaveId;
+      boolean contextChanged =
+          previousContextId != null && !nextContextId.equals(previousContextId);
       selectedWaveParticipantContextId = nextContextId;
       lastSelectedWaveId = nextContextId;
       if (contextChanged) {
@@ -1649,10 +1651,16 @@ public final class J2clComposeSurfaceController {
       }
     }
     J2clSidecarWriteSession effectiveWriteSession = nextWriteSession;
-    if (!nextContextId.isEmpty()
-        && effectiveWriteSession != null
+    if (nextContextId.isEmpty()) {
+      effectiveWriteSession = null;
+    } else if (effectiveWriteSession != null
         && !nextContextId.equals(effectiveWriteSession.getSelectedWaveId())) {
       effectiveWriteSession = null;
+      replySubmitting = false;
+      replyErrorText = "";
+      replyStaleBasis = false;
+      replyStaleWaveId = null;
+      resetAttachmentState();
     }
     onWriteSessionChanged(effectiveWriteSession);
   }

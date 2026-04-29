@@ -144,6 +144,55 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void selectedWaveContextRejectsMismatchedWriteSession() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+
+    controller.start();
+    controller.onSelectedWaveComposeContextChanged(
+        "example.com/w+1",
+        new J2clSidecarWriteSession(
+            "example.com/w+2",
+            "chan-2",
+            45L,
+            "BCDE",
+            "b+root",
+            Arrays.asList("carol@example.com")),
+        Arrays.asList("alice@example.com"));
+
+    Assert.assertTrue(view.model.isReplyAvailable());
+    Assert.assertEquals(
+        Arrays.asList("alice@example.com"), view.model.getParticipantAddresses());
+    Assert.assertEquals("", view.model.getReplyTargetLabel());
+    controller.onReplySubmitted("Draft");
+
+    Assert.assertEquals(
+        J2clComposeSurfaceController.WAITING_FOR_WRITE_SESSION_REPLY_MESSAGE,
+        view.model.getReplyErrorText());
+    Assert.assertEquals(0, gateway.fetchBootstrapCalls);
+  }
+
+  @Test
+  public void selectedWaveContextChangeFromNoWaveClearsPreviousDraft() {
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+    controller.onReplyDraftChanged("Draft from first wave");
+    controller.onSelectedWaveComposeContextChanged(
+        null, null, Collections.<String>emptyList());
+    controller.onSelectedWaveComposeContextChanged(
+        "example.com/w+2", null, Arrays.asList("alice@example.com"));
+
+    Assert.assertEquals("", view.model.getReplyDraft());
+  }
+
+  @Test
   public void divergentWriteSessionUsesWriteSessionParticipants() {
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =

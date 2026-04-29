@@ -1,5 +1,6 @@
 package org.waveprotocol.box.j2cl.search;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -111,7 +112,9 @@ public final class J2clSidecarWriteSession {
     this.historyHash = historyHash;
     this.replyTargetBlipId = replyTargetBlipId;
     this.participantIds =
-        participantIds == null ? Collections.emptyList() : Collections.unmodifiableList(participantIds);
+        participantIds == null
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<String>(participantIds));
     this.replyManifestInsertPosition = Math.max(-1, replyManifestInsertPosition);
     this.replyManifestItemCount = Math.max(-1, replyManifestItemCount);
   }

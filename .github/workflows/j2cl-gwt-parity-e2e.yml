@@ -1,0 +1,94 @@
+name: J2CL GWT Parity E2E
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('Parity E2E PR #{0} @ {1}', github.event.pull_request.number, github.event.pull_request.head.sha) || github.event_name == 'push' && format('Parity E2E {0} @ {1}', github.ref_name, github.sha) || github.event_name == 'workflow_dispatch' && format('Parity E2E {0} @ {1}', github.ref_name, github.sha) || format('Parity E2E {0}', github.event_name) }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  parity-e2e:
+    # The check name must stay in sync with the umbrella roadmap; later
+    # G-PORT slices reference it as their acceptance gate.
+    name: J2CL ↔ GWT Parity E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'sbt'
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: wave/src/e2e/j2cl-gwt-parity/package-lock.json
+
+      - name: Assemble changelog from fragments
+        run: python3 scripts/assemble-changelog.py
+
+      - name: Compile PST and Wave
+        run: sbt --batch pst/compile wave/compile
+
+      - name: Stage distribution
+        run: sbt --batch Universal/stage
+
+      - name: Start Wave server
+        # wave-smoke.sh start nohups bin/wave itself and waits for
+        # readiness before returning (scripts/wave-smoke.sh:125-186).
+        # Do not wrap it in another nohup or background it.
+        run: PORT=9898 bash scripts/wave-smoke.sh start
+
+      - name: Sanity-check server
+        run: PORT=9898 bash scripts/wave-smoke.sh check
+
+      - name: Install harness dependencies
+        working-directory: wave/src/e2e/j2cl-gwt-parity
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: wave/src/e2e/j2cl-gwt-parity
+        run: npx playwright install --with-deps chromium
+
+      - name: Run parity smoke test
+        working-directory: wave/src/e2e/j2cl-gwt-parity
+        env:
+          WAVE_E2E_BASE_URL: http://127.0.0.1:9898
+          CI: 'true'
+        run: npx playwright test
+
+      - name: Stop Wave server
+        if: always()
+        run: PORT=9898 bash scripts/wave-smoke.sh stop || true
+
+      - name: Upload Playwright HTML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-e2e-playwright-report
+          path: |
+            wave/src/e2e/j2cl-gwt-parity/playwright-report
+            wave/src/e2e/j2cl-gwt-parity/test-results
+          if-no-files-found: ignore
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-e2e-server-log
+          path: target/universal/stage/wave_server.out
+          if-no-files-found: ignore

@@ -268,10 +268,15 @@ public final class J2clSearchRailParityTest {
   }
 
   @Test
-  public void j2clRootShellOmitsInlineRichComposerMarkerWhenFlagOff() throws Exception {
+  public void j2clRootShellEmitsInlineRichComposerMarkerByDefault() throws Exception {
+    // G-PORT-4 (#1113): the j2cl-inline-rich-composer flag now
+    // defaults to ON so every J2CL-root visitor gets the inline
+    // contenteditable composer + selection-driven format toolbar.
+    // The legacy textarea-shaped composer-inline-reply was the user's
+    // #1 complaint precisely because this default was previously OFF.
     String html = renderJ2clRootShell();
-    assertFalse(
-        "Default flag-OFF render must not advertise data-j2cl-inline-rich-composer on <shell-root>",
+    assertTrue(
+        "Default render (G-PORT-4) must advertise data-j2cl-inline-rich-composer on <shell-root>",
         html.contains("data-j2cl-inline-rich-composer=\"true\""));
   }
 

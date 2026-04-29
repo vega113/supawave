@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-29-issue-1113-g-port-4",
+  "version": "PR #1113",
+  "date": "2026-04-29",
+  "title": "G-PORT-4: Inline reply + working compose toolbar (default on)",
+  "summary": "The j2cl-inline-rich-composer feature flag now defaults to ON. Every visitor at /?view=j2cl-root sees the inline contenteditable composer at the chosen blip with a real selection-driven format toolbar — clicking Bold / Italic / Underline / Strikethrough / lists / link applies formatting to the active range, and Send delivers the reply as a new blip. The legacy <composer-inline-reply> textarea is retained as the per-participant rollback path; ops can still opt out individual users via scripts/feature-flag.sh disable j2cl-inline-rich-composer <address>.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Inline rich-text reply composer is now the default at /?view=j2cl-root, replacing the textarea-shaped <composer-inline-reply> that previously painted a non-functional editor wall in the right column.",
+        "Toolbar buttons (bold, italic, underline, strikethrough, bulleted list, numbered list, link) now apply formatting to the selected range AND light with the cyan signal accent when the cursor sits inside formatted content.",
+        "Send delivers the reply through the rich-content component path so <strong>, <em>, <u>, <s>, <ul>, <ol> wrappings round-trip into the new blip."
+      ]
+    }
+  ]
+}

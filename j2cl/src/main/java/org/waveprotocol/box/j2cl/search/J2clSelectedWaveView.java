@@ -573,6 +573,13 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (waveNavRow == null) {
       return;
     }
+    String sourceWaveId = waveNavRow.getAttribute("source-wave-id");
+    if (sourceWaveId == null || sourceWaveId.isEmpty()) {
+      waveNavRow.removeAttribute("pinned");
+      waveNavRow.removeAttribute("archived");
+      waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
+      return;
+    }
     if (pinned) {
       waveNavRow.setAttribute("pinned", "");
     } else {
@@ -583,17 +590,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     } else {
       waveNavRow.removeAttribute("archived");
     }
-    String sourceWaveId = waveNavRow.getAttribute("source-wave-id");
-    if (sourceWaveId == null || sourceWaveId.isEmpty()) {
-      waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
-    } else {
-      // The Lit action-bar controller also uses this marker to decide whether
-      // pinned/archived attributes are stale optimistic state or current
-      // model-published state. Stamp it even when both flags are false: that
-      // records the model-owned "not pinned and not archived" state and keeps
-      // the async MutationObserver from rehydrating stale digest state.
-      waveNavRow.setAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID, sourceWaveId);
-    }
+    // The Lit action-bar controller also uses this marker to decide whether
+    // pinned/archived attributes are stale optimistic state or current
+    // model-published state. Stamp it even when both flags are false: that
+    // records the model-owned "not pinned and not archived" state and keeps
+    // the async MutationObserver from rehydrating stale digest state.
+    waveNavRow.setAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID, sourceWaveId);
   }
 
   /**

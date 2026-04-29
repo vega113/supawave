@@ -160,7 +160,7 @@ public class J2clSelectedWaveViewChromeTest {
     HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
     row.setAttribute("data-folder-state-wave-id", "example.com/w+old");
 
-    view.setNavRowFolderState(false, false);
+    view.setNavRowFolderState(true, true);
 
     Assert.assertFalse(row.hasAttribute("pinned"));
     Assert.assertFalse(row.hasAttribute("archived"));
@@ -176,7 +176,7 @@ public class J2clSelectedWaveViewChromeTest {
     row.setAttribute("source-wave-id", "");
     row.setAttribute("data-folder-state-wave-id", "example.com/w+old");
 
-    view.setNavRowFolderState(false, false);
+    view.setNavRowFolderState(true, true);
 
     Assert.assertFalse(row.hasAttribute("pinned"));
     Assert.assertFalse(row.hasAttribute("archived"));

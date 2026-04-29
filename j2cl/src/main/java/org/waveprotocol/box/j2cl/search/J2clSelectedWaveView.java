@@ -577,9 +577,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (sourceWaveId == null || sourceWaveId.isEmpty()) {
       waveNavRow.removeAttribute("pinned");
       waveNavRow.removeAttribute("archived");
-      // Keep the ownership marker so the async source-wave-id MutationObserver
-      // pass can call setBusy(host, false, current) to clear any in-flight busy
-      // affordance before removing the marker itself.
+      waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
       return;
     }
     if (pinned) {

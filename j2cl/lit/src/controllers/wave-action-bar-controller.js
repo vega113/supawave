@@ -228,7 +228,14 @@ function syncFolderStateForWave(host, waveId) {
     host.removeAttribute(ATTR_FOLDER_STATE_WAVE_ID);
     return;
   }
-  if (current === waveId) return;
+  if (current === waveId) {
+    // Java may stamp the new wave's marker synchronously before the
+    // source-wave-id MutationObserver fires, so the `current != null` path
+    // below never ran for the previous wave. Clear any stale busy owner now.
+    const busyOwner = host.getAttribute(ATTR_BUSY_WAVE_ID);
+    if (busyOwner && busyOwner !== waveId) setBusy(host, false, busyOwner);
+    return;
+  }
   if (current != null) {
     setBusy(host, false, current);
     // A mismatched marker means the visible folder flags still belong to the

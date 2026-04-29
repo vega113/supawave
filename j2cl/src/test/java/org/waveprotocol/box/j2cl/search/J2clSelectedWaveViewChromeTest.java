@@ -153,7 +153,7 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
-  public void setNavRowFolderStatePreservesMarkerWhenSourceWaveIsAbsent() {
+  public void setNavRowFolderStateClearsOwnershipWhenSourceWaveIsAbsent() {
     assumeBrowserDom();
     HTMLElement host = createHost();
     J2clSelectedWaveView view = new J2clSelectedWaveView(host);
@@ -164,13 +164,11 @@ public class J2clSelectedWaveViewChromeTest {
 
     Assert.assertFalse(row.hasAttribute("pinned"));
     Assert.assertFalse(row.hasAttribute("archived"));
-    // Marker kept so the async source-wave-id observer can clear busy state.
-    Assert.assertTrue(row.hasAttribute("data-folder-state-wave-id"));
-    Assert.assertEquals("example.com/w+old", row.getAttribute("data-folder-state-wave-id"));
+    Assert.assertFalse(row.hasAttribute("data-folder-state-wave-id"));
   }
 
   @Test
-  public void setNavRowFolderStatePreservesMarkerWhenSourceWaveIsEmpty() {
+  public void setNavRowFolderStateClearsOwnershipWhenSourceWaveIsEmpty() {
     assumeBrowserDom();
     HTMLElement host = createHost();
     J2clSelectedWaveView view = new J2clSelectedWaveView(host);
@@ -182,9 +180,7 @@ public class J2clSelectedWaveViewChromeTest {
 
     Assert.assertFalse(row.hasAttribute("pinned"));
     Assert.assertFalse(row.hasAttribute("archived"));
-    // Marker kept so the async source-wave-id observer can clear busy state.
-    Assert.assertTrue(row.hasAttribute("data-folder-state-wave-id"));
-    Assert.assertEquals("example.com/w+old", row.getAttribute("data-folder-state-wave-id"));
+    Assert.assertFalse(row.hasAttribute("data-folder-state-wave-id"));
   }
 
   @Test

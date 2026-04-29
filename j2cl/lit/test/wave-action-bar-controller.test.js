@@ -834,6 +834,31 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+stale-b");
   });
 
+  it("clears stale busy owner when Java stamps new marker before observer fires", async () => {
+    // Wave A had an in-flight folder action; user switches to wave B.
+    // Java stamps data-folder-state-wave-id=B synchronously, so the observer
+    // sees current===waveId and must still clear the stale busy from A.
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+wave-a"
+        data-folder-state-wave-id="w+wave-a"
+        data-folder-busy
+        data-folder-busy-wave-id="w+wave-a"
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    // Java switches selection and stamps the new marker before the observer fires.
+    row.setAttribute("data-folder-state-wave-id", "w+wave-b");
+    row.setAttribute("source-wave-id", "w+wave-b");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("data-folder-busy"), "stale busy from wave-a must be cleared").to.be.false;
+    expect(row.hasAttribute("data-folder-busy-wave-id"), "stale busy-wave-id from wave-a must be cleared").to.be.false;
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+wave-b");
+  });
+
   it("preserves model-published archived state when source wave changes before observer flush", async () => {
     const row = await fixture(
       html`<wavy-wave-nav-row

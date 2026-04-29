@@ -441,6 +441,11 @@ public final class J2clSelectedWaveController
    * authoritative result set came from an archive folder query. Direct deep
    * links and cross-tab folder mutations stay conservative until the next
    * rail refresh or the live folder-state feed lands.
+   *
+   * <p>CONTRACT: keep this synchronous and immediately after any {@link View#render}
+   * call that can change the nav-row {@code source-wave-id}. The Lit action-bar
+   * MutationObserver uses the same-task marker stamp to distinguish model-owned
+   * folder state from stale optimistic state on reused rows.
    */
   private void publishNavRowFolderState() {
     boolean pinned = selectedDigestItem != null && selectedDigestItem.isPinned();

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-8-folder-state-marker-followup",
+  "version": "PR #1132",
+  "date": "2026-04-29",
+  "title": "G-PORT-8 follow-up: stable J2CL pin and archive state",
+  "summary": "The J2CL top-of-wave action bar now keeps server-published pin and archive state tied to the selected wave so stale optimistic state cannot leak across wave changes.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Track the source wave id on the J2CL nav-row folder-state attributes, preserve matching server-published pin/archive state during controller hydration, and clear stale optimistic state when the selected wave changes."
+      ]
+    }
+  ]
+}

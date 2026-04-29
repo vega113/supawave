@@ -764,19 +764,25 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
 
   it("syncFolderStateForWave preserves model-published pinned state when no rail card exists", async () => {
     // Simulates J2clSelectedWaveController.publishNavRowFolderState() setting
-    // pinned=true synchronously in the same JS task as render() sets source-wave-id.
+    // marker+pinned synchronously in the same JS task as render() sets source-wave-id.
     // The MutationObserver fires after both, so syncFolderStateForWave must
-    // restore model-backed state instead of leaving the attribute cleared.
+    // preserve model-backed state instead of treating it as stale optimistic state.
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(
-      html`<wavy-wave-nav-row source-wave-id="w+modpin-a"></wavy-wave-nav-row>`
+      html`<wavy-wave-nav-row
+        source-wave-id="w+modpin-a"
+        data-folder-state-wave-id="w+modpin-a"
+        pinned
+      ></wavy-wave-nav-row>`
     );
     controllerModule.start();
     await Promise.resolve();
 
-    // Simulate the Java model setting source-wave-id AND pinned in one sync task:
-    // the setAttribute calls below both complete before the MutationObserver fires.
+    // Simulate Java setting source-wave-id, ownership marker, and pinned in
+    // one sync task: any order inside this task completes before
+    // MutationObserver fires.
     row.setAttribute("source-wave-id", "w+modpin-b");
+    row.setAttribute("data-folder-state-wave-id", "w+modpin-b");
     row.setAttribute("pinned", ""); // model published pinned=true for wave b
     await new Promise((r) => setTimeout(r, 0)); // let observer fire
 
@@ -784,6 +790,7 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
       row.hasAttribute("pinned"),
       "model-published pinned must survive wave-id switch with no rail card"
     ).to.be.true;
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+modpin-b");
 
     // First click must send unpin (wave is already pinned per model).
     const completed = new Promise((resolve) =>
@@ -805,19 +812,181 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
   it("syncFolderStateForWave does not restore stale pinned when model clears it on wave switch", async () => {
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(
-      html`<wavy-wave-nav-row source-wave-id="w+stale-a" pinned></wavy-wave-nav-row>`
+      html`<wavy-wave-nav-row
+        source-wave-id="w+stale-a"
+        data-folder-state-wave-id="w+stale-a"
+        pinned
+      ></wavy-wave-nav-row>`
     );
     controllerModule.start();
     await Promise.resolve();
 
-    // Model switches wave and clears pinned (wave-b is not pinned).
+    // Model switches wave and publishes cleared pinned state for wave-b.
     row.setAttribute("source-wave-id", "w+stale-b");
+    row.setAttribute("data-folder-state-wave-id", "w+stale-b");
     row.removeAttribute("pinned"); // model published pinned=false for wave b
     await new Promise((r) => setTimeout(r, 0));
 
     expect(
       row.hasAttribute("pinned"),
       "stale pinned from previous wave must not be restored"
+    ).to.be.false;
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+stale-b");
+  });
+
+  it("clears stale busy owner when Java stamps new marker before observer fires", async () => {
+    // Wave A had an in-flight folder action; user switches to wave B.
+    // Java stamps data-folder-state-wave-id=B synchronously, so the observer
+    // sees current===waveId and must still clear the stale busy from A.
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+wave-a"
+        data-folder-state-wave-id="w+wave-a"
+        data-folder-busy
+        data-folder-busy-wave-id="w+wave-a"
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    // Java switches selection and stamps the new marker before the observer fires.
+    row.setAttribute("data-folder-state-wave-id", "w+wave-b");
+    row.setAttribute("source-wave-id", "w+wave-b");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("data-folder-busy"), "stale busy from wave-a must be cleared").to.be.false;
+    expect(row.hasAttribute("data-folder-busy-wave-id"), "stale busy-wave-id from wave-a must be cleared").to.be.false;
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+wave-b");
+  });
+
+  it("preserves model-published archived state when source wave changes before observer flush", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+old"
+        data-folder-state-wave-id="w+old"
+        archived
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    row.setAttribute("source-wave-id", "w+new");
+    row.setAttribute("data-folder-state-wave-id", "w+new");
+    row.setAttribute("archived", "");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("archived"), "model-published archived must survive observer sync")
+      .to.be.true;
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+new");
+  });
+
+  it("does not hydrate stale digest state over a model-published cleared state", async () => {
+    const card = document.createElement("wavy-search-rail-card");
+    card.setAttribute("data-wave-id", "w+clear");
+    card.setAttribute("pinned", "");
+    document.body.appendChild(card);
+    try {
+      const row = await fixture(
+        html`<wavy-wave-nav-row
+          source-wave-id="w+clear"
+          data-folder-state-wave-id="w+clear"
+        ></wavy-wave-nav-row>`
+      );
+      controllerModule.start();
+      await Promise.resolve();
+
+      expect(row.hasAttribute("pinned"), "model-owned cleared state must win over stale digest")
+        .to.be.false;
+      expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+clear");
+    } finally {
+      card.remove();
+    }
+  });
+
+  it("clears folder state and marker when source wave id is removed", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+old"
+        data-folder-state-wave-id="w+old"
+        pinned
+        archived
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    row.removeAttribute("source-wave-id");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("pinned")).to.be.false;
+    expect(row.hasAttribute("archived")).to.be.false;
+    expect(row.hasAttribute("data-folder-state-wave-id")).to.be.false;
+  });
+
+  it("clears in-flight busy state when source wave id is removed after marker cleanup", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+old"
+        data-folder-state-wave-id="w+old"
+        data-folder-busy
+        data-folder-busy-wave-id="w+old"
+        pinned
+        archived
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    // Java clears the ownership marker synchronously with deselect before the
+    // source-wave-id MutationObserver callback runs. The controller still owns
+    // the pending optimistic busy affordance and must clear it on no-source.
+    row.removeAttribute("data-folder-state-wave-id");
+    row.removeAttribute("source-wave-id");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("data-folder-busy")).to.be.false;
+    expect(row.hasAttribute("data-folder-busy-wave-id")).to.be.false;
+    expect(row.hasAttribute("pinned")).to.be.false;
+    expect(row.hasAttribute("archived")).to.be.false;
+    expect(row.hasAttribute("data-folder-state-wave-id")).to.be.false;
+  });
+
+  it("clears busy state for any previous owner when source wave id is removed", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+old"
+        data-folder-busy
+        data-folder-busy-wave-id="w+other"
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    row.removeAttribute("source-wave-id");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.hasAttribute("data-folder-busy")).to.be.false;
+    expect(row.hasAttribute("data-folder-busy-wave-id")).to.be.false;
+  });
+
+  it("clears stale optimistic folder state when ownership marker does not match source wave", async () => {
+    const row = await fixture(
+      html`<wavy-wave-nav-row
+        source-wave-id="w+old"
+        data-folder-state-wave-id="w+old"
+        pinned
+      ></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    row.setAttribute("source-wave-id", "w+new");
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(row.getAttribute("data-folder-state-wave-id")).to.equal("w+new");
+    expect(
+      row.hasAttribute("pinned"),
+      "stale optimistic pinned must clear when Java has not stamped model ownership"
     ).to.be.false;
   });
 

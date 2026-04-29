@@ -136,15 +136,136 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void setNavRowFolderStateStampsCurrentSourceWaveOwnership() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(selectedModel("example.com/w+folder"));
+    view.setNavRowFolderState(true, true);
+
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertTrue(row.hasAttribute("pinned"));
+    Assert.assertTrue(row.hasAttribute("archived"));
+    Assert.assertEquals(
+        "Model-published folder state must be keyed to the current source-wave-id",
+        "example.com/w+folder",
+        row.getAttribute("data-folder-state-wave-id"));
+  }
+
+  @Test
+  public void setNavRowFolderStateClearsOwnershipWhenSourceWaveIsAbsent() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    row.setAttribute("pinned", "");
+    row.setAttribute("archived", "");
+    row.setAttribute("data-folder-state-wave-id", "example.com/w+old");
+
+    view.setNavRowFolderState(true, true);
+
+    Assert.assertFalse(row.hasAttribute("pinned"));
+    Assert.assertFalse(row.hasAttribute("archived"));
+    Assert.assertFalse(row.hasAttribute("data-folder-state-wave-id"));
+  }
+
+  @Test
+  public void setNavRowFolderStateClearsOwnershipWhenSourceWaveIsEmpty() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    row.setAttribute("source-wave-id", "");
+    row.setAttribute("pinned", "");
+    row.setAttribute("archived", "");
+    row.setAttribute("data-folder-state-wave-id", "example.com/w+old");
+
+    view.setNavRowFolderState(true, true);
+
+    Assert.assertFalse(row.hasAttribute("pinned"));
+    Assert.assertFalse(row.hasAttribute("archived"));
+    Assert.assertFalse(row.hasAttribute("data-folder-state-wave-id"));
+  }
+
+  @Test
+  public void setNavRowFolderStateStampsModelClearedStateForCurrentSourceWave() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+clear"));
+    view.setNavRowFolderState(true, true);
+    view.setNavRowFolderState(false, false);
+
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertFalse(row.hasAttribute("pinned"));
+    Assert.assertFalse(row.hasAttribute("archived"));
+    Assert.assertEquals(
+        "example.com/w+clear",
+        row.getAttribute("data-folder-state-wave-id"));
+  }
+
+  @Test
+  public void setNavRowFolderStateKeepsOwnershipStableForSameWaveFolderSwitch() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+same"));
+    view.setNavRowFolderState(true, false);
+    view.setNavRowFolderState(false, true);
+
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertEquals(
+        "example.com/w+same",
+        row.getAttribute("data-folder-state-wave-id"));
+    Assert.assertFalse(row.hasAttribute("pinned"));
+    Assert.assertTrue(row.hasAttribute("archived"));
+  }
+
+  @Test
+  public void setNavRowFolderStateRewritesOwnershipAcrossRenders() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+a"));
+    view.setNavRowFolderState(true, false);
+    view.render(selectedModel("example.com/w+b"));
+    view.setNavRowFolderState(false, true);
+
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertEquals("example.com/w+b", row.getAttribute("source-wave-id"));
+    Assert.assertEquals(
+        "example.com/w+b",
+        row.getAttribute("data-folder-state-wave-id"));
+    Assert.assertFalse(row.hasAttribute("pinned"));
+    Assert.assertTrue(row.hasAttribute("archived"));
+  }
+
+  @Test
   public void renderClearsSourceWaveIdWhenSelectionIsEmpty() {
     assumeBrowserDom();
     HTMLElement host = createHost();
     J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(selectedModel("example.com/w+old"));
+    view.setNavRowFolderState(true, true);
+
     view.render(J2clSelectedWaveModel.clearedSelection());
+
     HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
     Assert.assertFalse(
         "Cleared selection clears the source wave id on the nav row",
         row.hasAttribute("source-wave-id"));
+    Assert.assertFalse(
+        "Cleared selection clears stale pinned state",
+        row.hasAttribute("pinned"));
+    Assert.assertFalse(
+        "Cleared selection clears stale archived state",
+        row.hasAttribute("archived"));
+    Assert.assertFalse(
+        "Cleared selection clears stale model ownership marker",
+        row.hasAttribute("data-folder-state-wave-id"));
   }
 
   @Test
@@ -238,7 +359,7 @@ public class J2clSelectedWaveViewChromeTest {
             + "</div>";
     HTMLElement bar = (HTMLElement) host.querySelector("wavy-depth-nav-bar");
     HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
-    new J2clSelectedWaveView(host);
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
     Assert.assertSame(
         "Server-first re-bind must re-use the same depth-nav-bar element (no replaceChild)",
         bar,
@@ -247,6 +368,16 @@ public class J2clSelectedWaveViewChromeTest {
         "Server-first re-bind must re-use the same wave-nav-row element (no replaceChild)",
         row,
         host.querySelector("wavy-wave-nav-row"));
+    Assert.assertFalse(
+        "Server-first re-bind starts without model-owned folder marker",
+        row.hasAttribute("data-folder-state-wave-id"));
+
+    view.render(selectedModel("example.com/w+server-first"));
+    view.setNavRowFolderState(true, false);
+
+    Assert.assertEquals(
+        "example.com/w+server-first",
+        row.getAttribute("data-folder-state-wave-id"));
   }
 
   // J-UI-8 (#1086, R-6.3): aria-busy is set by HtmlRenderer on the
@@ -325,6 +456,28 @@ public class J2clSelectedWaveViewChromeTest {
     currentHost = (HTMLElement) DomGlobal.document.createElement("div");
     DomGlobal.document.body.appendChild(currentHost);
     return currentHost;
+  }
+
+  private static J2clSelectedWaveModel selectedModel(String waveId) {
+    return new J2clSelectedWaveModel(
+        true,
+        false,
+        false,
+        waveId,
+        "Selected wave",
+        "",
+        "Read.",
+        "",
+        "",
+        0,
+        Collections.<String>emptyList(),
+        Arrays.<String>asList(),
+        Arrays.<J2clReadBlip>asList(),
+        null,
+        0,
+        true,
+        true,
+        false);
   }
 
   private static void assumeBrowserDom() {

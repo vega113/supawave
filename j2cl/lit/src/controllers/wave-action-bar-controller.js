@@ -28,6 +28,9 @@ const NAV_ROW_TAG = "WAVY-WAVE-NAV-ROW";
 const VERSION_HISTORY_TAG = "WAVY-VERSION-HISTORY";
 
 const ATTR_BOUND = "data-action-bar-bound";
+// Shared with J2clSelectedWaveView. Java owns model-published folder state;
+// Lit writes this marker on initial bind and source-wave-id reuse, and Java
+// overwrites it whenever it publishes authoritative folder state.
 const ATTR_FOLDER_STATE_WAVE_ID = "data-folder-state-wave-id";
 const ATTR_BUSY_WAVE_ID = "data-folder-busy-wave-id";
 
@@ -216,37 +219,33 @@ function hydrateFromDigest(host, waveId) {
 function syncFolderStateForWave(host, waveId) {
   if (!host || typeof host.getAttribute !== "function") return;
   const current = host.getAttribute(ATTR_FOLDER_STATE_WAVE_ID);
-  if (current === waveId) return;
-  if (current != null) {
-    setBusy(host, false, current);
-    // Capture any values the Java model may have already published for the
-    // new wave via setNavRowFolderState before the MutationObserver fired.
-    // J2clSelectedWaveController always calls publishNavRowFolderState()
-    // synchronously after render(), so these reflect model-backed state for
-    // the incoming wave — not stale optimistic state from the previous wave.
-    const modelPinned = host.hasAttribute("pinned");
-    const modelArchived = host.hasAttribute("archived");
+  if (!waveId) {
+    // No selected wave owns the row anymore, so clear any pending optimistic
+    // affordance regardless of the previous busy-wave-id owner.
+    setBusy(host, false);
     host.removeAttribute("pinned");
     host.removeAttribute("archived");
-    if (!waveId) {
-      host.removeAttribute(ATTR_FOLDER_STATE_WAVE_ID);
-      return;
-    }
-    host.setAttribute(ATTR_FOLDER_STATE_WAVE_ID, waveId);
-    hydrateFromDigest(host, waveId);
-    // Restore model-published state when hydrateFromDigest found no
-    // matching rail card or active-folder context to recover it from.
-    if (modelPinned && !host.hasAttribute("pinned")) {
-      host.setAttribute("pinned", "");
-    }
-    if (modelArchived && !host.hasAttribute("archived")) {
-      host.setAttribute("archived", "");
-    }
-    return;
-  }
-  if (!waveId) {
     host.removeAttribute(ATTR_FOLDER_STATE_WAVE_ID);
     return;
+  }
+  if (current === waveId) {
+    // Java may stamp the new wave's marker synchronously before the
+    // source-wave-id MutationObserver fires, so the `current != null` path
+    // below never ran for the previous wave. Clear any stale busy owner now.
+    const busyOwner = host.getAttribute(ATTR_BUSY_WAVE_ID);
+    if (busyOwner && busyOwner !== waveId) setBusy(host, false, busyOwner);
+    return;
+  }
+  if (current != null) {
+    setBusy(host, false, current);
+    // A mismatched marker means the visible folder flags still belong to the
+    // previous wave or an optimistic request. Java-stamped model state updates
+    // the marker to waveId before this observer flushes, so current === waveId
+    // returns above and preserves authoritative model-published flags. After
+    // clearing stale flags, fall through to stamp the new wave and re-seed
+    // from rail digest as the only available pre-publish hint.
+    host.removeAttribute("pinned");
+    host.removeAttribute("archived");
   }
   host.setAttribute(ATTR_FOLDER_STATE_WAVE_ID, waveId);
   // Seed initial folder state from a matching search-rail digest card.

@@ -69,22 +69,19 @@ async function clickReplyOnFirstBlipJ2cl(page: Page) {
 }
 
 /**
- * Type the given phrase into the composer body using real keystrokes
- * so wavy-composer's input listener tracks the change through its
- * normal mutation path. Setting `textContent` directly desynchronizes
- * the rich-component serializer — observed: composer unmounts on
- * send (so the click registered) but no new blip is created on the
- * server (the controller saw an empty/stale rich-component list).
+ * Insert the given phrase into the composer body via
+ * `execCommand("insertText")` so wavy-composer observes the change
+ * through the browser's normal editing/input pipeline. Setting
+ * `textContent` directly desynchronizes the rich-component serializer
+ * — observed: composer unmounts on send (so the click registered) but
+ * no new blip is created on the server (the controller saw an
+ * empty/stale rich-component list).
  *
- * Compensates for two Playwright/Lit races observed in CI:
- * - the leading keystroke can land before Lit attaches the input
- *   listener (run 25095688687: typed "hello…" → got "ello…");
- * - long phrases under CI load can drop tail characters too.
- *
- * Strategy: type the phrase, then in a small retry loop add the
- * missing prefix or suffix using execCommand("insertText") (which
- * dispatches real input events through the browser's text-editing
- * pipeline, keeping wavy-composer's mutation observer in sync).
+ * Strategy: focus the editable body, insert the full phrase in one
+ * browser editing command, then poll until the composer state/draft
+ * reflects the expected text. This keeps the mutation observer and
+ * serialized draft in sync without relying on per-character
+ * Playwright keystrokes.
  */
 async function typeInComposerJ2cl(
   page: Page,

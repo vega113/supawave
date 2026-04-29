@@ -29,6 +29,12 @@ import { test, expect, Page, Locator } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
+import {
+  dispatchComposerKeyJ2cl,
+  readMentionStateJ2cl,
+  typeAtMentionTriggerJ2cl,
+  waitForParticipantsJ2cl
+} from "./helpers/mention";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
@@ -83,79 +89,6 @@ async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
   return inlineComposer;
 }
 
-/**
- * Synthesize the given text inside the inline composer by appending a
- * text node directly to the shadow-DOM body and dispatching an
- * InputEvent (bypasses page.keyboard — see inline comment). After the
- * call the caller should poll `_mentionOpen` to confirm the popover
- * has opened before sending further key events.
- */
-async function typeAtMentionTriggerJ2cl(
-  page: Page,
-  composer: Locator,
-  literal: string
-): Promise<void> {
-  const body = composer.locator("[data-composer-body]");
-  await body.click();
-  await page.waitForTimeout(400);
-  // Bypass the keyboard route entirely: synthesize the typed text by
-  // appending to the body's text node and dispatching an input event.
-  // The native keyboard path drops characters in this harness because
-  // the popover's `requestUpdate()` after the `@` trigger reorders the
-  // contenteditable in the DOM and the contentEditable caret is lost
-  // between keystrokes (a Lit / Playwright timing artefact, not the
-  // production user flow). The unit-tests in
-  // `j2cl/lit/test/wavy-composer.test.js` already exercise the
-  // keyboard path end-to-end via direct keydown dispatch and pass; the
-  // E2E here covers the higher-level integration: that the composer
-  // is mounted, accepts a typed query, opens the popover, navigates
-  // via ArrowDown / Enter, and round-trips the chip on submit.
-  await composer.evaluate(
-    (host: any, text: string) => {
-      const b = host.shadowRoot.querySelector("[data-composer-body]");
-      b.focus();
-      // Append the typed text into the body and place the caret
-      // INSIDE the trailing text node (not on the body element)
-      // so the composer's `_updateMentionPopoverFromCaret` —
-      // which only fires for selections rooted at a text node —
-      // sees the trigger character.
-      const node = document.createTextNode(text);
-      b.appendChild(node);
-      const end = document.createRange();
-      end.setStart(node, text.length);
-      end.setEnd(node, text.length);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(end);
-      b.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    },
-    literal
-  );
-  await page.waitForTimeout(250);
-}
-
-/**
- * Poll the composer's `participants` property for up to `timeoutMs`,
- * returning the highest length observed. The J2CL test requires the
- * production participants flow to populate this before mention typing.
- */
-async function waitForParticipantsJ2cl(
-  composer: Locator,
-  timeoutMs: number
-): Promise<number> {
-  const deadline = Date.now() + timeoutMs;
-  let best = 0;
-  while (Date.now() < deadline) {
-    const count = await composer.evaluate((host: any) => {
-      return Array.isArray(host.participants) ? host.participants.length : 0;
-    });
-    if (count > best) best = count;
-    if (best >= 1) return best;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return best;
-}
-
 async function sendMentionReplyJ2cl(
   page: Page,
   composer: Locator,
@@ -185,30 +118,6 @@ async function sendMentionReplyJ2cl(
     `the newly sent reply must appear as a wave-blip carrying '${expectedText}'`
   ).toBeVisible({ timeout: 30_000 });
 }
-
-/**
- * Read internal mention state off the composer host. The composer
- * exposes `_mentionOpen`, `_mentionActiveIndex`, and the participants
- * array via property reflection; we read them directly so the test
- * fails fast with a clear diagnostic instead of inferring state from
- * DOM.
- */
-async function readMentionStateJ2cl(
-  composer: Locator
-): Promise<{ open: boolean; activeIndex: number; candidateCount: number }> {
-  return await composer.evaluate((host: any) => {
-    const candidates =
-      typeof host._filteredMentionCandidates === "function"
-        ? host._filteredMentionCandidates()
-        : [];
-    return {
-      open: Boolean(host._mentionOpen),
-      activeIndex: Number(host._mentionActiveIndex || 0),
-      candidateCount: candidates.length
-    };
-  });
-}
-
 
 test.describe("G-PORT-5 mention autocomplete parity", () => {
   test("J2CL: production @mention inserts and submits a mention reply", async ({
@@ -298,16 +207,8 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     // shadow-root boundaries from document.activeElement down to
     // confirm the deepest active element is the [data-composer-body]
     // div inside this composer's shadow tree.
-    const focusInBody = await composer.evaluate((host: any) => {
-      const body = host.shadowRoot.querySelector("[data-composer-body]");
-      let active: any = document.activeElement;
-      while (active && active.shadowRoot && active.shadowRoot.activeElement) {
-        active = active.shadowRoot.activeElement;
-      }
-      return active === body;
-    });
     expect(
-      focusInBody,
+      mention.activeInBody,
       "composer body must retain focus after the popover opens"
     ).toBe(true);
 
@@ -323,16 +224,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     // composer-stack to mount the popover host). Dispatching to the
     // body directly bypasses that race and exercises the same
     // keydown listener that real keystrokes hit in production.
-    await composer.evaluate((host: any) => {
-      const b = host.shadowRoot.querySelector("[data-composer-body]");
-      b.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "ArrowDown",
-          bubbles: true,
-          cancelable: true
-        })
-      );
-    });
+    await dispatchComposerKeyJ2cl(composer, "ArrowDown");
     await page.waitForTimeout(120);
     mention = await readMentionStateJ2cl(composer);
     if (mention.candidateCount > 1) {
@@ -361,16 +253,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
 
     // Enter selects the active candidate and inserts the chip.
     // Same shadow-DOM rationale as the ArrowDown dispatch above.
-    await composer.evaluate((host: any) => {
-      const b = host.shadowRoot.querySelector("[data-composer-body]");
-      b.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "Enter",
-          bubbles: true,
-          cancelable: true
-        })
-      );
-    });
+    await dispatchComposerKeyJ2cl(composer, "Enter");
     await page.waitForTimeout(300);
 
     const chipInfo = await composer.evaluate((host: any) => {

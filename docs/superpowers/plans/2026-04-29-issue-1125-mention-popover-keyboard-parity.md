@@ -14,9 +14,9 @@
 
 - Issue: #1125, "G-PORT-7 follow-up: mention popover arrow-key parity in E2E"
 - Parent tracker: #904
-- Worktree: `/Users/vega/devroot/worktrees/g-port-7-mention-popover-20260429`
+- Worktree: dedicated issue worktree under the repo-standard worktree root
 - Branch: `codex/g-port-7-mention-popover-20260429`
-- Base: `origin/main` at `a25e35e99` after PR #1135 merged
+- Base: `origin/main` after PR #1135 merged
 
 ## Current Evidence
 
@@ -62,7 +62,7 @@
 
 - [ ] **Step 3: Implement the GREEN harness path**
 
-  Import `Locator` from `@playwright/test` and add local helpers in `keyboard-shortcuts-parity.spec.ts`, adapted from `mention-autocomplete-parity.spec.ts`.
+  Create or reuse shared mention-composer helpers under `wave/src/e2e/j2cl-gwt-parity/tests/helpers/mention.ts`, then import them from both `keyboard-shortcuts-parity.spec.ts` and `mention-autocomplete-parity.spec.ts` so the shadow-DOM keyboard contract does not diverge between parity slices.
 
   The first helper waits until production selected-wave participants have reached the inline composer:
 

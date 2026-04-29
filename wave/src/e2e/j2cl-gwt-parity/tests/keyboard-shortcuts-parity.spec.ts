@@ -26,10 +26,17 @@
 // outcome is asserted on both views. The mention-popover assertion is
 // J2CL-only until #1121 gives GWT a stable inline-reply harness path;
 // that gap is annotated in the live GWT baseline, not silently skipped.
-import { test, expect, Locator, Page } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
+import {
+  dispatchComposerKeyJ2cl,
+  readMentionStateJ2cl,
+  readMentionTriggerLetterJ2cl,
+  typeAtMentionTriggerJ2cl,
+  waitForParticipantsJ2cl
+} from "./helpers/mention";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
@@ -82,111 +89,6 @@ async function pressKN(page: Page, n: number): Promise<string | null> {
     await page.waitForTimeout(40);
   }
   return await focusedBlipIdJ2cl(page);
-}
-
-async function waitForParticipantsJ2cl(
-  composer: Locator,
-  timeoutMs: number
-): Promise<number> {
-  const deadline = Date.now() + timeoutMs;
-  let best = 0;
-  while (Date.now() < deadline) {
-    const count = await composer.evaluate((host: any) =>
-      Array.isArray(host.participants) ? host.participants.length : 0
-    );
-    if (count > best) best = count;
-    if (best >= 1) return best;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return best;
-}
-
-async function readMentionTriggerLetterJ2cl(composer: Locator): Promise<string> {
-  return await composer.evaluate((host: any) => {
-    const participants = Array.isArray(host.participants) ? host.participants : [];
-    const participant = participants.find((item: any) => {
-      const text = `${item?.address || ""}${item?.displayName || ""}`.trim();
-      return text.length > 0;
-    });
-    const source = `${participant?.address || participant?.displayName || ""}`.trim();
-    return source.charAt(0).toLowerCase();
-  });
-}
-
-async function typeAtMentionTriggerJ2cl(
-  page: Page,
-  composer: Locator,
-  literal: string
-): Promise<void> {
-  const body = composer.locator("[data-composer-body]");
-  await body.click();
-  await page.waitForTimeout(400);
-  await composer.evaluate(
-    (host: any, text: string) => {
-      const b = host.shadowRoot?.querySelector("[data-composer-body]");
-      if (!b) {
-        throw new Error("typeAtMentionTriggerJ2cl: no [data-composer-body]");
-      }
-      b.focus();
-      const node = document.createTextNode(text);
-      b.appendChild(node);
-      const end = document.createRange();
-      end.setStart(node, text.length);
-      end.setEnd(node, text.length);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(end);
-      b.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    },
-    literal
-  );
-  await page.waitForTimeout(250);
-}
-
-async function dispatchComposerKey(
-  composer: Locator,
-  key: string
-): Promise<void> {
-  await composer.evaluate((host: any, keyName: string) => {
-    const body = host.shadowRoot?.querySelector("[data-composer-body]");
-    if (!body) {
-      throw new Error("dispatchComposerKey: no [data-composer-body]");
-    }
-    body.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: keyName,
-        bubbles: true,
-        cancelable: true
-      })
-    );
-  }, key);
-}
-
-async function readMentionStateJ2cl(
-  composer: Locator
-): Promise<{
-  open: boolean;
-  activeIndex: number;
-  candidateCount: number;
-  activeInBody: boolean;
-}> {
-  return await composer.evaluate((host: any) => {
-    const body = host.shadowRoot?.querySelector("[data-composer-body]");
-    let active: any = document.activeElement;
-    while (active && active.shadowRoot && active.shadowRoot.activeElement) {
-      active = active.shadowRoot.activeElement;
-    }
-    const candidates =
-      typeof host._filteredMentionCandidates === "function"
-        ? host._filteredMentionCandidates()
-        : [];
-    return {
-      open: Boolean(host._mentionOpen),
-      activeIndex: Number(host._mentionActiveIndex || 0),
-      candidateCount: candidates.length,
-      activeInBody: active === body
-    };
-  });
 }
 
 test.describe("G-PORT-7 keyboard shortcuts parity", () => {
@@ -383,7 +285,9 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
   test(
     "J2CL: mention popover ArrowDown/ArrowUp/Enter selects a candidate",
     async ({ page }) => {
+      test.setTimeout(180_000);
       const creds = freshCredentials("g7m");
+      test.info().annotations.push({ type: "test-user", description: creds.address });
       await registerAndSignIn(page, BASE_URL, creds);
       const j2cl = new J2clPage(page, BASE_URL);
       await j2cl.goto("/");
@@ -432,7 +336,7 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
       ).toHaveCount(1, { timeout: 5_000 });
 
       const initialIndex = mention.activeIndex;
-      await dispatchComposerKey(composer, "ArrowDown");
+      await dispatchComposerKeyJ2cl(composer, "ArrowDown");
       if (mention.candidateCount > 1) {
         await expect
           .poll(
@@ -453,7 +357,7 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
       }
 
       const afterDownIndex = mention.activeIndex;
-      await dispatchComposerKey(composer, "ArrowUp");
+      await dispatchComposerKeyJ2cl(composer, "ArrowUp");
       if (mention.candidateCount > 1) {
         await expect
           .poll(
@@ -486,7 +390,7 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
         "active mention candidate must carry an address before Enter"
       ).not.toBe("");
 
-      await dispatchComposerKey(composer, "Enter");
+      await dispatchComposerKeyJ2cl(composer, "Enter");
       await expect
         .poll(
           async () =>

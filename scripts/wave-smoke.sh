@@ -191,30 +191,37 @@ status() {
 }
 
 check() {
-  local root_body_file root_body j2cl_root_body_file j2cl_root_body legacy_status
+  local j2cl_root_body_file j2cl_root_body legacy_status
   local root_gwt_presence j2cl_root_shell_presence
+  local gwt_view_body_file gwt_view_body gwt_view_status
 
-  root_body_file=$(mktemp)
-  root_status=$(curl -sS --max-time 10 -o "$root_body_file" -w "%{http_code}" "http://localhost:$PORT/" || true)
-  root_body=$(cat "$root_body_file" 2>/dev/null || true)
-  rm -f "$root_body_file"
-  root_gwt_presence=$([[ "$root_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)
+  # G-PORT-2 (#1111): bare "/" no longer renders the GWT bootstrap by
+  # default (V-1/V-5 swapped the unauthenticated root to the J2CL
+  # signed-out shell). Fetch the explicit GWT view to assert the
+  # legacy bootstrap is still reachable.
+  gwt_view_body_file=$(mktemp)
+  gwt_view_status=$(curl -sS --max-time 10 -o "$gwt_view_body_file" -w "%{http_code}" "http://localhost:$PORT/?view=gwt" || true)
+  gwt_view_body=$(cat "$gwt_view_body_file" 2>/dev/null || true)
+  rm -f "$gwt_view_body_file"
+  root_gwt_presence=$([[ "$gwt_view_body" == *'webclient/webclient.nocache.js'* ]] && echo present || echo missing)
+
+  root_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" || true)
   echo "ROOT_STATUS=${root_status:-000}"
+  echo "GWT_VIEW_STATUS=${gwt_view_status:-000}"
   echo "ROOT_GWT=${root_gwt_presence}"
-  echo "ROOT_SHELL=${root_gwt_presence}"
 
   if [[ "${root_status}" -ne 200 ]]; then
     echo "Unexpected root status: ${root_status}" >&2
     return 1
   fi
 
-  if ! grep -Fq 'webclient/webclient.nocache.js' <<<"$root_body"; then
-    echo "Root page did not render the legacy GWT bootstrap asset" >&2
+  if [[ "${gwt_view_status}" -ne 200 ]]; then
+    echo "Unexpected /?view=gwt status: ${gwt_view_status}" >&2
     return 1
   fi
 
-  if grep -Fq 'data-j2cl-root-shell' <<<"$root_body"; then
-    echo "Root page unexpectedly rendered the J2CL shell in default GWT mode" >&2
+  if ! grep -Fq 'webclient/webclient.nocache.js' <<<"$gwt_view_body"; then
+    echo "/?view=gwt did not render the legacy GWT bootstrap asset" >&2
     return 1
   fi
 
@@ -247,6 +254,11 @@ check() {
 
   if ! grep -Fq 'data-j2cl-root-shell' <<<"$j2cl_root_body"; then
     echo "Diagnostic J2CL root route did not render the shell marker" >&2
+    return 1
+  fi
+
+  if grep -Fq 'webclient/webclient.nocache.js' <<<"$j2cl_root_body"; then
+    echo "J2CL root should not include the legacy GWT bootstrap asset" >&2
     return 1
   fi
 

@@ -185,10 +185,16 @@ public final class J2clSearchRailParityTest {
   @Test
   public void j2clRootShellEmitsWavySearchRailHostWithDefaultQuery() throws Exception {
     String html = renderJ2clRootShell();
+    // The rail's opening tag always carries attributes (query=...,
+    // data-active-folder=..., result-count=..., optionally
+    // data-rail-cards-enabled=...), so we match on `<wavy-search-rail `
+    // with a trailing space — that distinguishes the rail host from
+    // any nested <wavy-search-rail-card> (which always has at least one
+    // character after the dash before `>`).
     assertEquals(
         "Exactly one <wavy-search-rail> host is mounted in the J2CL root shell",
         1,
-        countOccurrences(html, "<wavy-search-rail"));
+        countOccurrences(html, "<wavy-search-rail "));
     assertTrue(
         "Rail defaults to query=in:inbox", html.contains("query=\"in:inbox\""));
     assertTrue(
@@ -328,10 +334,24 @@ public final class J2clSearchRailParityTest {
             + "(global listener intentionally deferred to S6)",
         html.contains("aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\""));
     assertTrue("B.4 Manage saved searches class", html.contains("class=\"manage-saved\""));
-    assertTrue("B.11 Refresh button class", html.contains("class=\"refresh\""));
+    // G-PORT-2 (#1111): Refresh moved into the panel-level action row
+    // alongside Sort and Filter — tagged with `data-digest-action`
+    // for the cross-view parity selector.
+    assertTrue(
+        "B.11 Refresh button is tagged data-digest-action=\"refresh\"",
+        html.contains("data-digest-action=\"refresh\""));
     assertTrue(
         "B.11 Refresh button has descriptive aria-label",
         html.contains("aria-label=\"Refresh search results\""));
+    assertTrue(
+        "G-PORT-2 (#1111) Sort button is tagged data-digest-action=\"sort\"",
+        html.contains("data-digest-action=\"sort\""));
+    assertTrue(
+        "G-PORT-2 (#1111) Filter button is tagged data-digest-action=\"filter\"",
+        html.contains("data-digest-action=\"filter\""));
+    assertTrue(
+        "G-PORT-2 (#1111) action row mounts with data-digest-action-row",
+        html.contains("data-digest-action-row"));
     assertTrue(
         "B.12 result-count <p> with aria-live=\"polite\"",
         html.contains("class=\"result-count\" aria-live=\"polite\""));
@@ -356,8 +376,17 @@ public final class J2clSearchRailParityTest {
   public void wavySearchRailInnerLightDomEmitsFilterChipStrip() throws Exception {
     String html = renderJ2clRootShell();
     assertTrue(
-        "Filter strip mounts as a <details data-j2cl-filter-strip> block",
-        html.contains("<details class=\"filters\" data-j2cl-filter-strip>"));
+        "Filter strip mounts as a <details> element",
+        html.contains("<details"));
+    assertTrue(
+        "Filter strip carries class=\"filters\"",
+        html.contains("class=\"filters\""));
+    assertTrue(
+        "Filter strip carries id=\"wavy-search-filter-strip\"",
+        html.contains("id=\"wavy-search-filter-strip\""));
+    assertTrue(
+        "Filter strip carries data-j2cl-filter-strip attribute",
+        html.contains("data-j2cl-filter-strip"));
     assertTrue(
         "Filter strip carries a 'Filters' summary",
         html.contains("<summary>Filters</summary>"));

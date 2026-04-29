@@ -27,19 +27,26 @@
 <!DOCTYPE ui:UiBinder SYSTEM "http://dl.google.com/gwt/DTD/xhtml.ent">
 <ui:UiBinder xmlns:ui="urn:ui:com.google.gwt.uibinder">
   <ui:with field="css" type="org.waveprotocol.box.webclient.search.DigestDomImpl.Css"/>
-  <div class='{css.digest}'>
+  <!--
+    G-PORT-2 (#1111): the digest container and its sub-elements carry
+    `data-digest-*` parity hooks so a single Playwright selector resolves
+    the same card shape on `?view=gwt` and `?view=j2cl-root`. The
+    attribute set is mirrored verbatim by the J2CL <wavy-search-rail-card>
+    custom element under j2cl/lit/src/elements/.
+  -->
+  <div class='{css.digest}' data-digest-card=''>
     <div class='{css.inner}'>
-      <div ui:field='avatars' class='{css.avatars}'>
+      <div ui:field='avatars' class='{css.avatars}' data-digest-avatars=''>
       <!--  In here go elements like:
         <img class='{css.avatar}' src='unknown.jpg' alt=''>
       -->
       </div>
       <div class='{css.info}'>
-        <span ui:field='pinIcon' class='{css.pinIcon}'>&#x1F4CC;</span><span ui:field='time'/>
-        <div ui:field='msgs'/>
+        <span ui:field='pinIcon' class='{css.pinIcon}'>&#x1F4CC;</span><span ui:field='time' data-digest-time=''/>
+        <div ui:field='msgs' data-digest-msg-count=''/>
       </div>
-      <div ui:field='title' class='{css.title}'/>
-      <div ui:field='snippet' class='{css.snippet}'/>
+      <div ui:field='title' class='{css.title}' data-digest-title=''/>
+      <div ui:field='snippet' class='{css.snippet}' data-digest-snippet=''/>
     </div>
   </div>
 </ui:UiBinder>

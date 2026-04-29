@@ -38,6 +38,6 @@ test.describe("G-PORT-1 parity harness smoke", () => {
 
     // Sanity: the auth cookie persists across both view switches, i.e.
     // we are still signed in after toggling views (no auth bounce).
-    expect(page.url()).not.toMatch(/\/auth\/signin/);
+    await expect(page).not.toHaveURL(/\/auth\/signin/);
   });
 });

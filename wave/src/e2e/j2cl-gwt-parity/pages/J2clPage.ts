@@ -15,8 +15,8 @@ export class J2clPage extends WavePage {
 
   async assertInboxLoaded(): Promise<void> {
     await expect(
-      this.page.locator("shell-root"),
-      "J2CL view should render <shell-root>"
+      this.page.locator('shell-root[data-j2cl-root-shell="true"]'),
+      "J2CL view should render the signed-in J2CL shell"
     ).toHaveCount(1, { timeout: 15_000 });
 
     await expect(

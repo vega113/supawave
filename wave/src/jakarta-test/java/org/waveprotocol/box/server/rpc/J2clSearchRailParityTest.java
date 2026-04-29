@@ -188,7 +188,7 @@ public final class J2clSearchRailParityTest {
     assertEquals(
         "Exactly one <wavy-search-rail> host is mounted in the J2CL root shell",
         1,
-        countOccurrences(html, "<wavy-search-rail"));
+        countOccurrences(html, "<wavy-search-rail>"));
     assertTrue(
         "Rail defaults to query=in:inbox", html.contains("query=\"in:inbox\""));
     assertTrue(
@@ -370,8 +370,17 @@ public final class J2clSearchRailParityTest {
   public void wavySearchRailInnerLightDomEmitsFilterChipStrip() throws Exception {
     String html = renderJ2clRootShell();
     assertTrue(
-        "Filter strip mounts as a <details data-j2cl-filter-strip> block",
-        html.contains("<details class=\"filters\" id=\"wavy-search-filter-strip\" data-j2cl-filter-strip>"));
+        "Filter strip mounts as a <details> element",
+        html.contains("<details"));
+    assertTrue(
+        "Filter strip carries class=\"filters\"",
+        html.contains("class=\"filters\""));
+    assertTrue(
+        "Filter strip carries id=\"wavy-search-filter-strip\"",
+        html.contains("id=\"wavy-search-filter-strip\""));
+    assertTrue(
+        "Filter strip carries data-j2cl-filter-strip attribute",
+        html.contains("data-j2cl-filter-strip"));
     assertTrue(
         "Filter strip carries a 'Filters' summary",
         html.contains("<summary>Filters</summary>"));

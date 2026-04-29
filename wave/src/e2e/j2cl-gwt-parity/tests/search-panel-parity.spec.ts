@@ -304,9 +304,10 @@ test.describe("G-PORT-2 search panel parity", () => {
     if ((await gwtRail.count()) > 0) {
       gwtShot = await gwtRail.first().screenshot();
     } else {
-      // Fallback: screenshot the whole top-left quadrant where the rail lives.
+      // Fallback: clip to the viewport-relative left rail area.
+      const vp = page.viewportSize();
       gwtShot = await page.screenshot({
-        clip: { x: 0, y: 0, width: 360, height: 800 }
+        clip: { x: 0, y: 0, width: Math.min(360, vp?.width ?? 360), height: vp?.height ?? 800 }
       });
     }
     await test.info().attach("rail-gwt.png", {

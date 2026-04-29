@@ -257,6 +257,11 @@ check() {
     return 1
   fi
 
+  if grep -Fq 'webclient/webclient.nocache.js' <<<"$j2cl_root_body"; then
+    echo "J2CL root should not include the legacy GWT bootstrap asset" >&2
+    return 1
+  fi
+
   j2cl_index_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/j2cl/index.html" || true)
   echo "J2CL_INDEX_STATUS=${j2cl_index_status:-000}"
   if [[ "${j2cl_index_status}" -ne 200 ]]; then

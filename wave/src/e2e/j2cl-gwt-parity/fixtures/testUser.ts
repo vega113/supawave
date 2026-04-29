@@ -11,6 +11,8 @@
 //   POST /auth/register with email confirmation enabled ⇒ 302 to
 //     /auth/register?check-email=1   (test bails — needs out-of-band
 //                                     email verification)
+//   POST /auth/register with registration disabled / validation failure
+//     ⇒ 403 + re-renders /auth/register in-place (no redirect, same URL)
 //   POST /auth/signin on success ⇒ 302 to / (or the saved entry URL)
 //
 // We therefore drive register and sign-in as two explicit steps.
@@ -53,8 +55,10 @@ export async function registerAndSignIn(
   await fillById(page, "email", creds.email);
   await fillById(page, "password", creds.password);
   await fillById(page, "verifypass", creds.password);
+  // waitForNavigation fires on any frame navigation (redirect or in-place
+  // 403 re-render), unlike waitForURL which only resolves on a URL change.
   await Promise.all([
-    page.waitForURL(/\/auth\/(signin|register\?check-email)/, { waitUntil: "domcontentloaded" }),
+    page.waitForNavigation({ waitUntil: "domcontentloaded" }),
     page.locator("input.btn-primary").click()
   ]);
 

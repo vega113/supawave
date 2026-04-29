@@ -140,7 +140,7 @@ user's flow as described. "Test passes" is necessary but not sufficient.
 
 ## 5. Sequencing
 
-```
+```text
 G-PORT-1 (E2E foundation) →
   G-PORT-2 (search) ┐
   G-PORT-3 (wave+read) ┐

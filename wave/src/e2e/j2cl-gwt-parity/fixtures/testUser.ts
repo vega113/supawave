@@ -64,7 +64,7 @@ export async function registerAndSignIn(
     throw new Error(
       "registerAndSignIn: server returned /auth/register?check-email=1 — " +
         "the local server has email confirmation enabled. Disable " +
-        "`email_confirmation_required` in application.conf or seed a " +
+        "`core.email_confirmation_enabled` in application.conf or seed a " +
         "verified user before running this test."
     );
   }

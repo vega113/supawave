@@ -13,7 +13,7 @@ proves both views bootstrap.
 
 ## Layout
 
-```
+```text
 wave/src/e2e/j2cl-gwt-parity/
 ├── package.json              # @playwright/test + typescript
 ├── playwright.config.ts      # baseURL from $WAVE_E2E_BASE_URL

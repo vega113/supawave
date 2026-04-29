@@ -328,10 +328,24 @@ public final class J2clSearchRailParityTest {
             + "(global listener intentionally deferred to S6)",
         html.contains("aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\""));
     assertTrue("B.4 Manage saved searches class", html.contains("class=\"manage-saved\""));
-    assertTrue("B.11 Refresh button class", html.contains("class=\"refresh\""));
+    // G-PORT-2 (#1111): Refresh moved into the panel-level action row
+    // alongside Sort and Filter — tagged with `data-digest-action`
+    // for the cross-view parity selector.
+    assertTrue(
+        "B.11 Refresh button is tagged data-digest-action=\"refresh\"",
+        html.contains("data-digest-action=\"refresh\""));
     assertTrue(
         "B.11 Refresh button has descriptive aria-label",
         html.contains("aria-label=\"Refresh search results\""));
+    assertTrue(
+        "G-PORT-2 (#1111) Sort button is tagged data-digest-action=\"sort\"",
+        html.contains("data-digest-action=\"sort\""));
+    assertTrue(
+        "G-PORT-2 (#1111) Filter button is tagged data-digest-action=\"filter\"",
+        html.contains("data-digest-action=\"filter\""));
+    assertTrue(
+        "G-PORT-2 (#1111) action row mounts with data-digest-action-row",
+        html.contains("data-digest-action-row"));
     assertTrue(
         "B.12 result-count <p> with aria-live=\"polite\"",
         html.contains("class=\"result-count\" aria-live=\"polite\""));
@@ -357,7 +371,7 @@ public final class J2clSearchRailParityTest {
     String html = renderJ2clRootShell();
     assertTrue(
         "Filter strip mounts as a <details data-j2cl-filter-strip> block",
-        html.contains("<details class=\"filters\" data-j2cl-filter-strip>"));
+        html.contains("<details class=\"filters\" id=\"wavy-search-filter-strip\" data-j2cl-filter-strip>"));
     assertTrue(
         "Filter strip carries a 'Filters' summary",
         html.contains("<summary>Filters</summary>"));

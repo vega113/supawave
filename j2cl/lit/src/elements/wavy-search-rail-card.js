@@ -1,42 +1,43 @@
 import { LitElement, css, html, nothing } from "lit";
 
 /**
- * <wavy-search-rail-card> — F-2 (#1037, #1047 slice 3) per-digest card
- * inside the saved-search rail. One card per wave in the active
- * folder's search results.
+ * <wavy-search-rail-card> — G-PORT-2 (#1111) per-digest card. Cloned
+ * from the GWT digest layout (`DigestDomImpl.ui.xml` + `digest.css`) so
+ * a freshly registered user sees the same shape on `?view=j2cl-root`
+ * as on `?view=gwt`.
  *
- * Inventory affordances covered (B.13–B.18 from the 2026-04-26 GWT
- * functional inventory):
+ * GWT shape:
+ *   .digest > .inner > .avatars(.avatar*) + .info(.pinIcon + .time + .msgs)
+ *                    + .title + .snippet
  *
- * - B.13 multi-author avatar stack (overlapping, max 3 visible + +N)
- * - B.14 pinned indicator (cyan pin glyph when pinned attribute set)
- * - B.15 title
- * - B.16 snippet (multi-line truncated at 3 lines)
- * - B.17 msg count + unread badge with cyan signal-pulse on change
- *        (the pulse uses --wavy-pulse-ring composed by F-0)
- * - B.18 relative timestamp with full ISO datetime tooltip
+ * J2CL shape (this file):
+ *   <article> > .inner > .avatars(.avatar*) + .info(.pin + time.ts + .msgs)
+ *                      + h3.title + p.snippet
  *
- * The card emits `wavy-search-rail-card-selected` on click (bubbles +
- * composed) so the rail / surrounding shell can route to the wave.
+ * The host carries `data-digest-card` so the G-PORT-2 Playwright
+ * parity test can resolve cards on both views with one selector. The
+ * sub-elements carry stable `data-digest-*` attributes (avatars,
+ * title, snippet, msg-count, time) so the test reads the same six
+ * children on each view without scraping shadow DOM.
  *
- * Public API:
+ * Public API (UNCHANGED from F-2.S3 / J-UI-1 / J-UI-7):
  * - waveId        — string, reflected to data-wave-id
  * - title         — string (defaults to "(no title)")
  * - snippet       — string
  * - postedAt      — string, e.g. "2m ago"
  * - postedAtIso   — string, ISO-8601 timestamp for tooltip
  * - msgCount      — number (defaults to 0)
- * - unreadCount   — number (defaults to 0); when > 0 the unread badge
- *                   shows and firePulse() restarts the cyan signal-ring
+ * - unreadCount   — number (defaults to 0); reflected to attribute
  * - pinned        — boolean
- * - authors       — string (comma-separated display names; the card
- *                   parses into avatar chips with initials)
+ * - authors       — string (comma-separated display names)
+ * - selected      — boolean (reflects aria-current on inner article)
  *
- * Methods:
- * - firePulse() — sets data-pulse="ring" for --wavy-motion-pulse-duration
- *                 then clears it. The CSS uses --wavy-pulse-ring as the
- *                 box-shadow during the pulse so the badge matches the
- *                 F-0 wavy-blip-card live-pulse contract.
+ * Methods preserved: firePulse(). Events preserved:
+ * wavy-search-rail-card-selected.
+ *
+ * The class names `.avatar`, `.avatar.more`, `.badge.unread`, `.pin`,
+ * `h3.title`, `p.snippet`, `time.ts`, and `<article>` are all preserved
+ * verbatim because the existing j2cl/lit unit suite asserts against them.
  */
 export class WavySearchRailCard extends LitElement {
   static properties = {
@@ -46,21 +47,9 @@ export class WavySearchRailCard extends LitElement {
     postedAt: { type: String, attribute: "posted-at" },
     postedAtIso: { type: String, attribute: "posted-at-iso" },
     msgCount: { type: Number, attribute: "msg-count" },
-    /**
-     * J-UI-7 (#1085, R-4.4): reflect to the `unread-count` attribute so
-     * the attribute is the single source of truth and CSS can style the
-     * read state via `:host([unread-count="0"])`. The J2CL Java view
-     * mutates the attribute live; reflection keeps the property and the
-     * attribute in sync without a second `data-read` flag.
-     */
     unreadCount: { type: Number, attribute: "unread-count", reflect: true },
     pinned: { type: Boolean, reflect: true },
     authors: { type: String },
-    /**
-     * J-UI-1 (#1079, R-4.5): selected card reflects aria-current="true" on
-     * its inner <article>; the host also reflects `selected` so callers
-     * can target `wavy-search-rail-card[selected]` from CSS or queries.
-     */
     selected: { type: Boolean, reflect: true }
   };
 
@@ -68,122 +57,164 @@ export class WavySearchRailCard extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      /* V-5 (#1103): density-tunable padding + stack gap so digest cards
-       * land in the 92-120 px range from 01-shell-inbox-with-waves.svg.
-       * Falls back to the prior --wavy-spacing-3 / --wavy-spacing-2
-       * values when the V-5 tokens are absent so older callers keep
-       * their padding. */
-      padding: var(--wavy-rail-card-padding-y, var(--wavy-spacing-3, 12px))
-        var(--wavy-rail-card-padding-x, var(--wavy-spacing-3, 12px));
-      margin-bottom: var(--wavy-rail-card-gap, var(--wavy-spacing-2, 8px));
-      background: var(--wavy-bg-surface, #11192a);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      border-radius: var(--wavy-radius-card, 12px);
+      /* G-PORT-2: clone GWT digest.css padding (10px 12px 10px 8px),
+       * white background, hairline bottom border, pointer cursor. The
+       * existing V-5 token plumbing still wins when callers set them. */
+      padding: var(--wavy-rail-card-padding-y, 10px)
+        var(--wavy-rail-card-padding-x, 12px) var(--wavy-rail-card-padding-y, 10px)
+        8px;
+      margin-bottom: var(--wavy-rail-card-gap, 0);
+      background: var(--wavy-rail-card-bg, #fff);
+      color: var(--wavy-rail-card-color, #718096);
+      border-bottom: 1px solid var(--wavy-rail-card-divider, #e2e8f0);
       cursor: pointer;
-      transition:
-        border-color var(--wavy-motion-focus-duration, 180ms)
-          var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
-        box-shadow var(--wavy-motion-pulse-duration, 600ms)
-          var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+      transition: background 0.15s ease;
     }
-    :host(:hover),
-    :host(:focus-within) {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
+    :host(:hover) {
+      background-color: var(--wavy-rail-card-hover-bg, rgba(144, 224, 239, 0.12));
     }
     :host([selected]) {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      background: rgba(34, 211, 238, 0.08);
+      background-color: var(--wavy-rail-card-selected-bg, #0077b6);
+      color: var(--wavy-rail-card-selected-color, #fff);
     }
-    .top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--wavy-spacing-2, 8px);
-      margin-bottom: var(--wavy-spacing-1, 4px);
+    :host([data-pulse="ring"]) {
+      box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(34, 211, 238, 0.22));
     }
-    .avatar-stack {
+    /* J-UI-7 read-state hook (preserved). */
+    :host([unread-count="0"]) {
+      --wavy-rail-card-read: 1;
+    }
+
+    article {
+      display: block;
+      outline: none;
+    }
+
+    /* GWT: .inner — line-height 16px, exactly two text lines (32px tall),
+     * but we let it grow to fit the title + snippet rows. The original
+     * GWT card limits to 32px because it floats avatars left and the
+     * info right; we keep the float layout for parity but allow wrap. */
+    .inner {
+      line-height: 16px;
+      min-height: 32px;
+      overflow: hidden;
+    }
+
+    /* GWT: .avatars — float left, width 108px (3 * (32+4)). */
+    .avatars {
+      float: left;
+      margin-right: 1em;
       display: inline-flex;
     }
+
+    /* GWT: .avatar — 30px round, hairline border. We render initials
+     * inside since profile image URLs require a back-end fetch the
+     * SSR'd path doesn't carry. */
     .avatar {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 22px;
+      height: 30px;
+      width: 30px;
+      margin-right: 4px;
+      border: 1.5px solid var(--wavy-rail-avatar-border, #e2e8f0);
       border-radius: 50%;
-      background: var(--wavy-bg-base, #0b1120);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      background: var(--wavy-rail-avatar-bg, #f8fafc);
+      color: var(--wavy-rail-avatar-color, #1a202c);
+      font-size: 11px;
       font-weight: 600;
+      line-height: 1;
     }
     .avatar + .avatar {
       margin-left: -6px;
     }
     .avatar.more {
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      color: var(--wavy-text-muted, #718096);
+    }
+
+    /* GWT: .info — float right with timestamp, msg counts, optional pin. */
+    .info {
+      float: right;
+      margin-left: 1em;
+      text-align: right;
+      font-size: 11px;
+      color: inherit;
+    }
+    :host([selected]) .info {
+      color: rgba(255, 255, 255, 0.8);
     }
     .pin {
-      color: var(--wavy-signal-cyan, #22d3ee);
-      font-size: 14px;
-      line-height: 1;
+      display: inline;
+      font-size: 11px;
+      color: var(--wavy-rail-pin-color, #888);
+      margin-right: 4px;
+      vertical-align: middle;
     }
-    h3.title {
-      margin: 0 0 var(--wavy-spacing-1, 4px);
-      font: var(--wavy-type-h3, 1.0625rem / 1.35 sans-serif);
+    time.ts {
+      font-size: 11px;
+      color: inherit;
+    }
+    .msgs {
+      font-size: 11px;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* GWT: .unreadCount — teal pill (#00b4d8) with bold count. We keep
+     * the .badge.unread selector for the existing tests, but the
+     * styling matches GWT digest.css. */
+    .badge.unread {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 16px;
+      padding: 1px 8px;
+      border-radius: 10px;
+      background-color: var(--wavy-rail-unread-bg, #00b4d8);
+      color: var(--wavy-rail-unread-color, #1a202c);
+      font-size: 11px;
       font-weight: 600;
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
     }
+
+    /* GWT: .title — bold, ellipsised. */
+    h3.title {
+      margin: 0;
+      font: inherit;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--wavy-rail-title-color, #1a202c);
+      font-size: 13px;
+    }
+    /* J-UI-7: title bolds when unread (mirroring GWT's .unread class). */
+    :host(:not([unread-count="0"])) h3.title {
+      font-weight: 600;
+      color: var(--wavy-rail-title-unread-color, #1a202c);
+    }
+    :host([selected]) h3.title {
+      color: #fff;
+    }
+
+    /* GWT: .snippet — small, ellipsised. We keep the 3-line clamp
+     * the existing test asserts. */
     p.snippet {
-      margin: 0 0 var(--wavy-rail-card-snippet-mb, var(--wavy-spacing-2, 8px));
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      margin: 0;
+      color: var(--wavy-rail-snippet-color, #718096);
+      font-size: 12px;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--wavy-spacing-2, 8px);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
-    }
-    .msg-count {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--wavy-spacing-1, 4px);
-    }
-    .badge.unread {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 18px;
-      padding: 0 6px;
-      height: 16px;
-      border-radius: 9999px;
-      background: var(--wavy-signal-cyan, #22d3ee);
-      color: var(--wavy-bg-base, #0b1120);
-      font-weight: 600;
-    }
-    :host([data-pulse="ring"]) {
-      box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(34, 211, 238, 0.22));
-    }
-    /*
-     * J-UI-7 (#1085, R-4.4): expose a CSS hook for the read state so
-     * downstream styling (and parity tests) can detect a fully-read
-     * card without scraping the badge DOM.
-     */
-    :host([unread-count="0"]) {
-      --wavy-rail-card-read: 1;
-    }
-    time.ts {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+    :host([selected]) p.snippet {
+      color: rgba(255, 255, 255, 0.7);
     }
   `;
 
@@ -201,18 +232,23 @@ export class WavySearchRailCard extends LitElement {
     this.selected = false;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    // G-PORT-2: tag the host with the parity selector. Reflective
+    // properties cannot be used because the attribute is constant — we
+    // set it once on connection.
+    if (!this.hasAttribute("data-digest-card")) {
+      this.setAttribute("data-digest-card", "");
+    }
+  }
+
   firePulse() {
     this.dataset.pulse = "ring";
-    // Clear the pulse marker after the configured duration (matches the
-    // wavy-blip-card pattern from F-0). Using setTimeout instead of
-    // animationend so we don't depend on a CSS animation declaration.
     const dur =
       parseInt(
         getComputedStyle(this).getPropertyValue("--wavy-motion-pulse-duration") || "600",
         10
       ) || 600;
-    // Cancel any in-flight clear-timer so a rapid second pulse does not
-    // get truncated by the first pulse's timer firing mid-second-pulse.
     if (this._pulseClearHandle) {
       clearTimeout(this._pulseClearHandle);
     }
@@ -222,21 +258,6 @@ export class WavySearchRailCard extends LitElement {
     }, dur);
   }
 
-  /**
-   * J-UI-7 (#1085, R-4.4): auto-pulse on every unreadCount transition
-   * after the initial render. The first render does not pulse — that
-   * would noisily flash every card on the search list whenever the
-   * page loads. Subsequent transitions (decrement on open, increment
-   * from a peer's reply) all fire the host-level pulse so the live
-   * decrement is visible regardless of whether the badge ends up
-   * visible afterwards.
-   *
-   * <p>The initialized flag flips on the first {@code updated()} call
-   * regardless of which properties changed. This way a card whose
-   * upgrade does not touch unreadCount (e.g. attribute and default
-   * both 0) still classifies its first user-driven mutation as a
-   * post-initial change and pulses accordingly.
-   */
   updated(changed) {
     const wasInitialized = this._initialUpdateComplete;
     this._initialUpdateComplete = true;
@@ -258,14 +279,6 @@ export class WavySearchRailCard extends LitElement {
     );
   }
 
-  /**
-   * J-UI-7 (#1085, R-4.4): the focusable `<article>` exposes both the
-   * title and the live unread state to assistive technology, so users
-   * hear the count change when they navigate back to a card whose
-   * unread count just decremented (or incremented). When unreadCount
-   * is 0 the announcement collapses to "<title>. Read." rather than
-   * shouting "0 unread.".
-   */
   _composeAriaLabel() {
     const title = this.title || "(no title)";
     const count = Math.max(0, this.unreadCount || 0);
@@ -293,6 +306,7 @@ export class WavySearchRailCard extends LitElement {
     const authors = this._authorList();
     const visible = authors.slice(0, 3);
     const overflow = Math.max(0, authors.length - 3);
+    const unread = Math.max(0, this.unreadCount || 0);
     return html`
       <article
         @click=${this._emitSelected}
@@ -307,8 +321,8 @@ export class WavySearchRailCard extends LitElement {
         aria-label=${this._composeAriaLabel()}
         aria-current=${this.selected ? "true" : nothing}
       >
-        <div class="top">
-          <div class="avatar-stack" aria-label="Authors">
+        <div class="inner">
+          <div class="avatars" data-digest-avatars aria-label="Authors">
             ${visible.map(
               (name) =>
                 html`<span class="avatar" data-initials=${this._initials(name)} title=${name}
@@ -319,29 +333,28 @@ export class WavySearchRailCard extends LitElement {
               ? html`<span class="avatar more" title="and ${overflow} more">+${overflow}</span>`
               : null}
           </div>
-          ${this.pinned
-            ? html`<span class="pin" aria-label="Pinned" title="Pinned">📌</span>`
-            : null}
-        </div>
-        <h3 class="title">${this.title || "(no title)"}</h3>
-        <p class="snippet">${this.snippet || ""}</p>
-        <div class="footer">
-          <span class="msg-count" aria-label="Message count">
-            <span>${this.msgCount}</span>
-            ${this.unreadCount > 0
-              ? html`<span class="badge unread" aria-label="${this.unreadCount} unread"
-                  >${this.unreadCount}</span
-                >`
+          <div class="info">
+            ${this.pinned
+              ? html`<span class="pin" aria-label="Pinned" title="Pinned">📌</span>`
               : null}
-          </span>
-          ${this.postedAtIso
-            ? html`<time
-                class="ts"
-                datetime=${this.postedAtIso}
-                title=${this.postedAtIso}
-                >${this.postedAt || ""}</time
-              >`
-            : html`<time class="ts">${this.postedAt || ""}</time>`}
+            ${this.postedAtIso
+              ? html`<time
+                  class="ts"
+                  data-digest-time
+                  datetime=${this.postedAtIso}
+                  title=${this.postedAtIso}
+                  >${this.postedAt || ""}</time
+                >`
+              : html`<time class="ts" data-digest-time>${this.postedAt || ""}</time>`}
+            <span class="msgs" data-digest-msg-count aria-label="Message count">
+              <span class="msg-total">${this.msgCount}</span>
+              ${unread > 0
+                ? html`<span class="badge unread" aria-label="${unread} unread">${unread}</span>`
+                : null}
+            </span>
+          </div>
+          <h3 class="title" data-digest-title>${this.title || "(no title)"}</h3>
+          <p class="snippet" data-digest-snippet>${this.snippet || ""}</p>
         </div>
       </article>
     `;

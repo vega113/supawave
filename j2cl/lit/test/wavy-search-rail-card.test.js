@@ -170,6 +170,62 @@ describe("<wavy-search-rail-card>", () => {
     expect(title.textContent.trim()).to.equal("(no title)");
   });
 
+  // G-PORT-2 (#1111): the card host carries `data-digest-card` and the
+  // sub-elements carry stable `data-digest-*` attributes (avatars,
+  // title, snippet, msg-count, time) so a single Playwright selector
+  // resolves the same DOM shape on `?view=j2cl-root` and `?view=gwt`.
+  describe("G-PORT-2 parity selectors (#1111)", () => {
+    it("host carries data-digest-card", async () => {
+      const el = await fixture(html`<wavy-search-rail-card></wavy-search-rail-card>`);
+      await el.updateComplete;
+      expect(el.hasAttribute("data-digest-card")).to.equal(true);
+    });
+
+    it("inner sub-elements expose the six required data-digest-* hooks", async () => {
+      const el = await fixture(html`
+        <wavy-search-rail-card
+          title="Sprint review"
+          snippet="Agenda"
+          msg-count="3"
+          posted-at="2m ago"
+          posted-at-iso="2026-04-26T12:00:00Z"
+          authors="Alice, Bob"
+        ></wavy-search-rail-card>
+      `);
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector("[data-digest-avatars]")).to.exist;
+      expect(el.renderRoot.querySelector("[data-digest-title]")).to.exist;
+      expect(el.renderRoot.querySelector("[data-digest-snippet]")).to.exist;
+      expect(el.renderRoot.querySelector("[data-digest-msg-count]")).to.exist;
+      expect(el.renderRoot.querySelector("[data-digest-time]")).to.exist;
+    });
+
+    it("DOM order mirrors the GWT digest layout: avatars + info + title + snippet", async () => {
+      // GWT DigestDomImpl.ui.xml: .inner > .avatars + .info + .title + .snippet.
+      // The J2CL clone preserves the same order so a side-by-side diff
+      // shows the same shape.
+      const el = await fixture(html`
+        <wavy-search-rail-card
+          title="X"
+          snippet="Y"
+          msg-count="1"
+          posted-at="now"
+          authors="Alice"
+        ></wavy-search-rail-card>
+      `);
+      await el.updateComplete;
+      const inner = el.renderRoot.querySelector(".inner");
+      expect(inner, "inner wrapper must mount").to.exist;
+      const kids = Array.from(inner.children);
+      expect(kids.map((k) => k.className.split(" ")[0]).slice(0, 4)).to.deep.equal([
+        "avatars",
+        "info",
+        "title",
+        "snippet"
+      ]);
+    });
+  });
+
   // J-UI-1 (#1079): selected reflective property toggles aria-current
   // on the inner <article> so the route controller can drive selection
   // from the URL state.

@@ -87,9 +87,12 @@ describe("<wavy-search-rail>", () => {
   });
 
   it("Refresh click emits wavy-search-refresh-requested (B.11)", async () => {
+    // G-PORT-2 (#1111): Refresh moved into the panel-level action row
+    // alongside Sort and Filter, accessed via `[data-digest-action]`.
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const refresh = el.renderRoot.querySelector(".refresh");
+    const refresh = el.renderRoot.querySelector('[data-digest-action="refresh"]');
+    expect(refresh, "refresh button must mount in the action row").to.exist;
     setTimeout(() => refresh.click(), 0);
     const evt = await oneEvent(el, "wavy-search-refresh-requested");
     expect(evt).to.exist;
@@ -420,6 +423,82 @@ describe("<wavy-search-rail>", () => {
       // _toggleFilter must dispatch toggled first so the J2CL flag can
       // pre-arm before submit checks it.
       expect(order).to.deep.equal(["toggled", "submit"]);
+    });
+  });
+
+  // G-PORT-2 (#1111): panel-level action row clones the GWT
+  // SearchPresenter toolbar — refresh + sort + filter buttons in a
+  // single visible row, each tagged with `data-digest-action="..."`
+  // so the parity test resolves them on both views via one selector.
+  describe("G-PORT-2 panel-level action row (#1111)", () => {
+    it("renders an action row with refresh + sort + filter buttons", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const row = el.renderRoot.querySelector("[data-digest-action-row]");
+      expect(row, "action row must mount").to.exist;
+      const buttons = Array.from(row.querySelectorAll("button[data-digest-action]"));
+      expect(buttons.map((b) => b.dataset.digestAction)).to.deep.equal([
+        "refresh",
+        "sort",
+        "filter"
+      ]);
+    });
+
+    it("each action button carries an aria-label for screen readers", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const refresh = el.renderRoot.querySelector('[data-digest-action="refresh"]');
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      const filter = el.renderRoot.querySelector('[data-digest-action="filter"]');
+      expect(refresh.getAttribute("aria-label")).to.equal("Refresh search results");
+      expect(sort.getAttribute("aria-label")).to.equal("Sort waves");
+      expect(filter.getAttribute("aria-label")).to.equal("Filter waves");
+    });
+
+    it("Sort button click emits wavy-search-sort-requested", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      setTimeout(() => sort.click(), 0);
+      const evt = await oneEvent(el, "wavy-search-sort-requested");
+      expect(evt).to.exist;
+    });
+
+    it("Filter button click toggles the chip strip open and emits an event", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const filterBtn = el.renderRoot.querySelector('[data-digest-action="filter"]');
+      const details = el.renderRoot.querySelector("details[data-j2cl-filter-strip]");
+      expect(details.hasAttribute("open"), "starts collapsed").to.equal(false);
+
+      // Use a click and capture the synchronous event without race risk:
+      // wavy-search-filter-toggle-requested is fired synchronously inside
+      // the handler, so attach the listener first and then click.
+      let toggleEvt = null;
+      el.addEventListener("wavy-search-filter-toggle-requested", (e) => {
+        toggleEvt = e;
+      });
+      filterBtn.click();
+      await el.updateComplete;
+      expect(toggleEvt, "filter-toggle-requested fires").to.exist;
+      expect(toggleEvt.detail.open).to.equal(true);
+      expect(details.hasAttribute("open"), "details opens").to.equal(true);
+      expect(filterBtn.getAttribute("aria-pressed")).to.equal("true");
+      expect(filterBtn.getAttribute("aria-expanded")).to.equal("true");
+
+      // Second click closes.
+      filterBtn.click();
+      await el.updateComplete;
+      expect(details.hasAttribute("open")).to.equal(false);
+      expect(filterBtn.getAttribute("aria-pressed")).to.equal("false");
+    });
+
+    it("filter button aria-controls points at the filter strip id", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const filterBtn = el.renderRoot.querySelector('[data-digest-action="filter"]');
+      const details = el.renderRoot.querySelector("details[data-j2cl-filter-strip]");
+      expect(filterBtn.getAttribute("aria-controls")).to.equal(details.id);
     });
   });
 

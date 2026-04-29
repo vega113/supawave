@@ -4347,13 +4347,21 @@ public final class HtmlRenderer {
     sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"").append(safeInitialQuery).append("\">\n");
     sb.append("        <button type=\"button\" class=\"help-trigger\" aria-label=\"Search help\" aria-haspopup=\"dialog\" aria-controls=\"wavy-search-help\">?</button>\n");
     sb.append("      </div>\n");
+    // G-PORT-2 (#1111): pre-upgrade light-DOM action row mirroring the
+    // shadow-DOM render so the buttons exist before the J2CL bundle
+    // upgrades the rail. Each button carries `data-digest-action="..."`
+    // so the parity test resolves it on both views with one selector.
+    sb.append("      <div class=\"action-row\" role=\"group\" aria-label=\"Search actions\" data-digest-action-row>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"refresh\" aria-label=\"Refresh search results\" title=\"Refresh search results\">↻</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"sort\" aria-label=\"Sort waves\" title=\"Sort waves\">⇅</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"filter\" aria-label=\"Filter waves\" title=\"Filter waves\" aria-pressed=\"false\" aria-expanded=\"false\" aria-controls=\"wavy-search-filter-strip\">▽</button>\n");
+    sb.append("      </div>\n");
     sb.append("      <div class=\"actions\">\n");
     sb.append("        <button type=\"button\" class=\"new-wave\" data-shortcut=\"Shift+Cmd+O\" aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\">New Wave</button>\n");
     sb.append("        <button type=\"button\" class=\"manage-saved\">Manage saved searches</button>\n");
     sb.append("      </div>\n");
     sb.append("      <div class=\"folders-header\">\n");
     sb.append("        <h2 id=\"folders-title\">Saved searches</h2>\n");
-    sb.append("        <button type=\"button\" class=\"refresh\" aria-label=\"Refresh search results\">⟳</button>\n");
     sb.append("      </div>\n");
     sb.append("      <ul class=\"folders\" aria-labelledby=\"folders-title\">\n");
     sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"").append("inbox".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Inbox</span></button></li>\n");
@@ -4372,7 +4380,7 @@ public final class HtmlRenderer {
     boolean unreadActive = isFilterTokenActive(safeInitialQuery, "is:unread");
     boolean attachmentsActive = isFilterTokenActive(safeInitialQuery, "has:attachment");
     boolean fromMeActive = isFilterTokenActive(safeInitialQuery, "from:me");
-    sb.append("      <details class=\"filters\" data-j2cl-filter-strip>\n");
+    sb.append("      <details class=\"filters\" id=\"wavy-search-filter-strip\" data-j2cl-filter-strip>\n");
     sb.append("        <summary>Filters</summary>\n");
     sb.append("        <div class=\"filter-chips\" role=\"group\" aria-label=\"Search filters\">\n");
     sb.append("          <button type=\"button\" class=\"filter-chip\" data-filter-id=\"unread\" data-filter-token=\"is:unread\" aria-pressed=\"")

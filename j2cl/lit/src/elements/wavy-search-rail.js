@@ -1,40 +1,42 @@
 import { LitElement, css, html } from "lit";
+import {
+  SEARCH_RAIL_ICON_REFRESH,
+  SEARCH_RAIL_ICON_SORT,
+  SEARCH_RAIL_ICON_FILTER
+} from "../icons/search-rail-icons.js";
 
 /**
- * <wavy-search-rail> — F-2 (#1037, #1047 slice 3) left-rail search
- * surface that hosts the query textbox, the saved-search folder list,
- * and the inline header controls (help trigger, New Wave, Manage
- * saved searches, Refresh, result count).
+ * <wavy-search-rail> — G-PORT-2 (#1111) left-rail search surface.
  *
- * Inventory affordances covered (B.1–B.12 from the 2026-04-26 GWT
- * functional inventory). Per-digest cards (B.13–B.18) are owned by
- * <wavy-search-rail-card> and slotted into this rail's default slot.
+ * Cloned from the GWT search panel chrome (SearchPanelWidget,
+ * SearchPresenter.initToolbarMenu, SearchPanel.css) so a freshly
+ * registered user sees the same set of affordances on
+ * `?view=j2cl-root` as on `?view=gwt`:
  *
- * - B.1  query textbox (default: in:inbox; waveform glyph; Enter
- *        emits wavy-search-submit)
- * - B.2  search-help trigger (?)  — emits wavy-search-help-toggle;
- *        does NOT own the modal (single document-level instance lives
- *        under <shell-root> and listens for the toggle event)
- * - B.3  New Wave button — emits wavy-new-wave-requested; carries
- *        aria-keyshortcuts metadata. The global Shift+Cmd+O keyboard
- *        listener is intentionally OUT OF SCOPE for this slice (S6
- *        wires the URL state + global keymap)
- * - B.4  Manage saved searches — emits wavy-manage-saved-searches-requested
- * - B.5–B.10 Six saved-search folders (Inbox/Mentions/Tasks/Public/
- *        Archive/Pinned) with the canonical query strings; Inbox is
- *        the default selection. Mentions has a violet unread dot
- *        (revealed when mentions-unread > 0 via --wavy-signal-violet);
- *        Tasks has an amber pending count chip (revealed when
- *        tasks-pending > 0 via --wavy-signal-amber)
- * - B.11 Refresh search results
- * - B.12 Result count "N waves" (low-emphasis, aria-live=polite)
+ *   - query textbox + waveform glyph + help-trigger ("?")
+ *   - panel-level action row [Refresh] [Sort] [Filter] (G-PORT-2 new)
+ *   - New Wave + Manage saved searches buttons
+ *   - Saved-search folder list (Inbox/Mentions/Tasks/Public/Archive/Pinned)
+ *   - Filter-chip strip (collapsed under the Filter button)
+ *   - Result count
+ *   - Slot for <wavy-search-rail-card> digest cards
  *
- * Active-folder derivation: when the `query` attribute changes, the
- * rail picks the folder whose canonical query string is a prefix of
- * the current query (case-insensitive) and reflects the match through
- * `data-active-folder` and the matched folder's `aria-current="page"`.
- * If nothing matches, no folder gets aria-current=page (the user is
- * running a custom query).
+ * The G-PORT-2 action-row is the headline change: the row carries
+ * `data-digest-action-row` so the parity test resolves it on both
+ * views with one selector, and each button carries
+ * `data-digest-action="refresh|sort|filter"`. The buttons emit:
+ *
+ *   - refresh → wavy-search-refresh-requested (existing event)
+ *   - sort    → wavy-search-sort-requested    (G-PORT-2 new; future
+ *               slice hangs the menu on this)
+ *   - filter  → wavy-search-filter-toggle-requested (G-PORT-2 new;
+ *               toggles the existing <details> filter chip strip
+ *               open / closed)
+ *
+ * All previously-existing events still fire (wavy-search-submit,
+ * wavy-search-help-toggle, wavy-new-wave-requested,
+ * wavy-manage-saved-searches-requested, wavy-saved-search-selected,
+ * wavy-search-filter-toggled).
  */
 export class WavySearchRail extends LitElement {
   static properties = {
@@ -42,7 +44,14 @@ export class WavySearchRail extends LitElement {
     activeFolder: { type: String, attribute: "data-active-folder", reflect: true },
     resultCount: { type: String, attribute: "result-count", reflect: true },
     mentionsUnread: { type: Number, attribute: "mentions-unread" },
-    tasksPending: { type: Number, attribute: "tasks-pending" }
+    tasksPending: { type: Number, attribute: "tasks-pending" },
+    /**
+     * G-PORT-2: track whether the filter chip strip is open. The
+     * panel-level Filter action button toggles this. The user-driven
+     * <details> open state still works because we drive `open` via a
+     * reactive binding, not a one-shot init.
+     */
+    filtersOpen: { type: Boolean, attribute: "filters-open", reflect: true }
   };
 
   static FOLDERS = [
@@ -54,16 +63,6 @@ export class WavySearchRail extends LitElement {
     { id: "pinned", label: "Pinned", query: "in:pinned" }
   ];
 
-  /**
-   * F-4 (#1039 / R-4.7): filter chips that compose with the active query.
-   * Each chip toggles a single search token; the query-composition rule
-   * (see plan S2.1) preserves user-typed tokens and dedupes case-insensitively.
-   *
-   * Tokens MUST be recognised by `QueryHelper.parseQuery` (see
-   * `TokenQueryType` for the canonical prefix set). The `is`, `has`,
-   * and `from` prefixes were added to the parser specifically so these
-   * filter chips do not silently degrade to content searches.
-   */
   static FILTERS = [
     { id: "unread", label: "Unread only", token: "is:unread" },
     { id: "attachments", label: "With attachments", token: "has:attachment" },
@@ -85,7 +84,7 @@ export class WavySearchRail extends LitElement {
       display: flex;
       align-items: center;
       gap: var(--wavy-spacing-2, 8px);
-      margin-bottom: var(--wavy-spacing-3, 12px);
+      margin-bottom: var(--wavy-spacing-2, 8px);
     }
     .query {
       flex: 1 1 auto;
@@ -131,6 +130,47 @@ export class WavySearchRail extends LitElement {
       border-color: var(--wavy-signal-cyan, #22d3ee);
       outline: none;
     }
+
+    /* G-PORT-2: panel-level action row clones GWT SearchPresenter
+     * toolbar. Background gradient mirrors SearchPanel.css .toolbar
+     * (linear-gradient(180deg, #eef7ff 0%, #dcecff 100%)) but adapted
+     * to the dark token palette so it reads against the rail
+     * background. */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: var(--wavy-spacing-1, 4px);
+      padding: var(--wavy-spacing-1, 4px);
+      margin-bottom: var(--wavy-spacing-2, 8px);
+      background: var(--wavy-rail-action-bg, rgba(34, 211, 238, 0.08));
+      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      border-radius: var(--wavy-radius-pill, 9999px);
+    }
+    .action-row button {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      cursor: pointer;
+      padding: 0;
+    }
+    .action-row button:hover,
+    .action-row button:focus-visible {
+      outline: none;
+      background: rgba(34, 211, 238, 0.16);
+      color: var(--wavy-signal-cyan, #22d3ee);
+    }
+    .action-row button[aria-pressed="true"] {
+      background: rgba(34, 211, 238, 0.2);
+      color: var(--wavy-signal-cyan, #22d3ee);
+    }
+
     .actions {
       display: flex;
       gap: var(--wavy-spacing-2, 8px);
@@ -169,18 +209,6 @@ export class WavySearchRail extends LitElement {
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
       text-transform: uppercase;
       letter-spacing: 0.06em;
-    }
-    .refresh {
-      background: transparent;
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
-      border: 0;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .refresh:hover,
-    .refresh:focus-visible {
-      color: var(--wavy-signal-cyan, #22d3ee);
-      outline: none;
     }
     ul.folders {
       list-style: none;
@@ -236,21 +264,12 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
     }
-    /* J-UI-1 (#1079): slotted <wavy-search-rail-card> digest cards.
-       Inter-card spacing is owned by the card's :host style
-       (margin-bottom: var(--wavy-spacing-2)) — we DO NOT add another
-       margin here, otherwise the gap doubles. The last card uses a
-       slightly larger trailing margin to separate the digest list from
-       the filter strip below it. */
     slot[name="cards"]::slotted(wavy-search-rail-card) {
       display: block;
     }
     slot[name="cards"]::slotted(wavy-search-rail-card:last-of-type) {
       margin-bottom: var(--wavy-spacing-3, 12px);
     }
-    /* F-4 (#1039 / R-4.7): filter strip — chips that compose with the
-     * active query. Hidden inside <details> so the rail stays compact
-     * by default; the user opens "Filters" to see them. */
     details.filters {
       margin: 0 0 var(--wavy-spacing-3, 12px);
     }
@@ -301,6 +320,7 @@ export class WavySearchRail extends LitElement {
     this.resultCount = "";
     this.mentionsUnread = 0;
     this.tasksPending = 0;
+    this.filtersOpen = false;
   }
 
   willUpdate(changed) {
@@ -347,10 +367,6 @@ export class WavySearchRail extends LitElement {
   _onFolderClick(folder) {
     this.query = folder.query;
     this.activeFolder = folder.id;
-    // J-UI-2 (#1080 / R-4.5): include the user-visible label in the
-    // event detail so the J2CL controller can announce the navigation
-    // through aria-live without re-deriving the label from the
-    // folderId.
     this._emit("wavy-saved-search-selected", {
       folderId: folder.id,
       label: folder.label,
@@ -358,31 +374,16 @@ export class WavySearchRail extends LitElement {
     });
   }
 
-  /**
-   * J-UI-2 (#1080 / R-4.5): move keyboard focus to the active folder
-   * button so users land predictably after a saved-search click. Public
-   * so the J2CL search panel can call it via a structural cast without
-   * reaching into shadow DOM.
-   */
   focusActiveFolder() {
     if (!this.renderRoot) {
       return;
     }
-    const target = this.renderRoot.querySelector(
-      'button.folder[aria-current="page"]'
-    );
+    const target = this.renderRoot.querySelector('button.folder[aria-current="page"]');
     if (target && typeof target.focus === "function") {
       target.focus();
     }
   }
 
-  /**
-   * F-4 (#1039 / R-4.7): query-composition rule (per plan S2.1).
-   * Toggling a filter chip on appends the token if absent; toggling off
-   * removes EVERY occurrence (case-insensitive token equality, NOT
-   * substring). User-typed tokens are preserved in their original
-   * position. Whitespace is normalised on the result.
-   */
   _isTokenActive(token) {
     return this._tokenize(this.query).some(
       (t) => t.toLowerCase() === token.toLowerCase()
@@ -404,9 +405,6 @@ export class WavySearchRail extends LitElement {
     this.query = composed;
     this._emit("wavy-search-filter-toggled", {
       filterId: filter.id,
-      // J-UI-2 (#1080 / R-4.5): include the user-visible label so the
-      // J2CL controller can announce "<label> filter on/off" via the
-      // rail's aria-live region.
       label: filter.label,
       token: filter.token,
       active: !isActive,
@@ -423,13 +421,23 @@ export class WavySearchRail extends LitElement {
       .filter((t) => t.length > 0);
   }
 
+  /** G-PORT-2: panel-level Filter button toggles the chip-strip details. */
+  _toggleFilterPanel() {
+    this.filtersOpen = !this.filtersOpen;
+    this._emit("wavy-search-filter-toggle-requested", {
+      open: this.filtersOpen
+    });
+  }
+
+  /** G-PORT-2: panel-level Sort button placeholder for the future menu. */
+  _onSortClick() {
+    this._emit("wavy-search-sort-requested");
+  }
+
   render() {
     return html`
       <div class="search">
         <span class="waveform" aria-hidden="true">
-          <!-- F-2 slice 5 (#1055): explicit width/height on the SVG so
-               the glyph never overflows even if shadow DOM has not yet
-               attached (e.g. server-rendered light-DOM fallback). -->
           <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
             <path d="M1 7h2l1-3 1 6 1-4 1 5 1-6 1 4 1-2h2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -455,6 +463,39 @@ export class WavySearchRail extends LitElement {
         </button>
       </div>
 
+      <div class="action-row" role="group" aria-label="Search actions" data-digest-action-row>
+        <button
+          type="button"
+          data-digest-action="refresh"
+          aria-label="Refresh search results"
+          title="Refresh search results"
+          @click=${() => this._emit("wavy-search-refresh-requested")}
+        >
+          ${SEARCH_RAIL_ICON_REFRESH}
+        </button>
+        <button
+          type="button"
+          data-digest-action="sort"
+          aria-label="Sort waves"
+          title="Sort waves"
+          @click=${this._onSortClick}
+        >
+          ${SEARCH_RAIL_ICON_SORT}
+        </button>
+        <button
+          type="button"
+          data-digest-action="filter"
+          aria-label="Filter waves"
+          title="Filter waves"
+          aria-pressed=${this.filtersOpen ? "true" : "false"}
+          aria-expanded=${this.filtersOpen ? "true" : "false"}
+          aria-controls="wavy-search-filter-strip"
+          @click=${this._toggleFilterPanel}
+        >
+          ${SEARCH_RAIL_ICON_FILTER}
+        </button>
+      </div>
+
       <div class="actions">
         <button
           type="button"
@@ -476,14 +517,6 @@ export class WavySearchRail extends LitElement {
 
       <div class="folders-header">
         <h2 id="folders-title">Saved searches</h2>
-        <button
-          type="button"
-          class="refresh"
-          aria-label="Refresh search results"
-          @click=${() => this._emit("wavy-search-refresh-requested")}
-        >
-          ⟳
-        </button>
       </div>
       <ul class="folders" aria-labelledby="folders-title">
         ${WavySearchRail.FOLDERS.map((folder) => {
@@ -520,7 +553,16 @@ export class WavySearchRail extends LitElement {
         })}
       </ul>
       <slot name="cards"></slot>
-      <details class="filters" data-j2cl-filter-strip>
+      <details
+        class="filters"
+        id="wavy-search-filter-strip"
+        data-j2cl-filter-strip
+        ?open=${this.filtersOpen}
+        @toggle=${(e) => {
+          // Keep filtersOpen in sync if the user clicks <summary> directly.
+          this.filtersOpen = e.target.open;
+        }}
+      >
         <summary>Filters</summary>
         <div class="filter-chips" role="group" aria-label="Search filters">
           ${WavySearchRail.FILTERS.map((filter) => {

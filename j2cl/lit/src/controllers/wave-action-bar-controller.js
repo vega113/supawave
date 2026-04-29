@@ -196,6 +196,15 @@ function hydrateFromDigest(host, waveId) {
     }
     return;
   }
+  // No matching digest card: the wave was opened from route state without a
+  // visible card in the current rail view. `pinned` cannot be derived without
+  // a card (deferred to #1055/S5). `archived` can still be inferred from the
+  // rail's active-folder context — if the rail is showing in:archive results,
+  // any wave the user navigates to from that view is archived.
+  const rail = doc.querySelector("wavy-search-rail");
+  if (rail && rail.getAttribute("data-active-folder") === "archive") {
+    host.setAttribute("archived", "");
+  }
 }
 
 function syncFolderStateForWave(host, waveId) {

@@ -628,6 +628,44 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     }
   });
 
+  it("hydrateFromDigest seeds archived via rail active-folder when no digest card is present", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const rail = document.createElement("wavy-search-rail");
+    rail.setAttribute("data-active-folder", "archive");
+    document.body.appendChild(rail);
+    try {
+      const row = await fixture(
+        html`<wavy-wave-nav-row source-wave-id="w+nocard-arc"></wavy-wave-nav-row>`
+      );
+      controllerModule.start();
+      await Promise.resolve();
+      expect(
+        row.hasAttribute("archived"),
+        "archived hydrated from rail active-folder when no card present"
+      ).to.be.true;
+
+      const completed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-folder-action-completed",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-archive-toggle-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "w+nocard-arc" }
+        })
+      );
+      const detail = await completed;
+      expect(detail.folder, "first click must restore to inbox, not re-archive").to.equal("inbox");
+    } finally {
+      rail.remove();
+      stub.restore();
+    }
+  });
+
   it("binding is idempotent — repeated scans do not double-fire", async () => {
     stub = installFetchStub(async () => okResponse());
     const row = await fixture(

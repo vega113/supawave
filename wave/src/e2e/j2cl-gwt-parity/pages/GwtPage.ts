@@ -5,16 +5,13 @@
 //   - id="app" host div present
 //   - <shell-root> absent
 //
-// G-PORT-3 (#1112): adds compose / send selectors so the parity test
-// can author a wave with multiple blips on the GWT view. The J2CL
-// root shell's compose surface is mounted in a hidden
-// .sidecar-search-card legacy wrapper today (see
-// j2cl/lit/src/design/wavy-thread-collapse.css:90 — `display: none
-// !important`), so the GWT view is the only path that can drive a
-// real compose flow from the inbox in a Playwright test until the
-// J2CL composer ships its visible surface (out of scope for G-PORT-3).
+// G-PORT-3 (#1112) / G-PORT-6 (#1115): compose / per-blip helpers
+// the parity tests need. The J2CL inbox compose surface is mounted
+// inside a hidden legacy wrapper today, so the GWT view is the only
+// path that can drive a real authoring flow from the inbox.
 //
-// GWT compose surface (per BlipViewBuilder + BlipMetaViewBuilder):
+// GWT compose surface (per BlipViewBuilder + BlipMetaViewBuilder +
+// EditToolbar):
 //   - "New Wave" button: <div title^="New Wave"> in the inbox toolbar.
 //     Clicking it creates a new wave and opens its first blip in edit
 //     mode, with the URL fragment routed to #domain/<wave-id>.
@@ -24,6 +21,9 @@
 //     "Shift+Enter to finish, Esc to exit").
 //   - Per-blip Reply menu: `[data-option="reply"]` inside the meta.
 //     Clicking it spawns a new inline reply blip in edit mode.
+//   - Format toolbar's "Insert task" button: `[title^="Insert task"]`
+//     (EditToolbar.java:608). Clicking inserts a `<check>` element and
+//     opens TaskMetadataPopup — dismiss it before reaching the checkbox.
 import { expect, Locator, Page } from "@playwright/test";
 import { WavePage } from "./WavePage";
 

@@ -15,6 +15,11 @@
 //   - composer-submit-affordance >> button[aria-label="<label>"] —
 //     <wavy-composer> renders this with label "Create wave" /
 //     "Send reply" / "Save" depending on mode.
+//
+// G-PORT-6 (#1115): adds task-affordance helpers for the tasks parity test.
+//   - blipTaskToggle(blipId)        — locates the per-blip task button
+//   - blipHasTaskCompleted(blipId)  — presence check (Lit reflects
+//     `taskCompleted: true` as the bare attribute, never `="true"`).
 import { expect, Locator } from "@playwright/test";
 import { WavePage } from "./WavePage";
 

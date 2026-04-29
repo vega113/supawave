@@ -76,7 +76,12 @@ async function snapshotCards(page: Page): Promise<DigestSnapshot[]> {
  * views.
  */
 function refreshButton(page: Page): Locator {
-  return page.locator('[title="Refresh search results"]').first();
+  // Both views expose a refresh affordance with `title="Refresh search
+  // results"` (GWT setTooltip lowers to a `title=""` HTML attr; J2CL
+  // emits the same attr on its action-row button). On J2CL the rail
+  // also emits a hidden SSR'd duplicate in light DOM — `:visible`
+  // narrows to the user-perceivable button.
+  return page.locator('[title="Refresh search results"]:visible').first();
 }
 
 test.describe("G-PORT-2 search panel parity", () => {
@@ -100,20 +105,26 @@ test.describe("G-PORT-2 search panel parity", () => {
     ).toHaveCount(1, { timeout: 15_000 });
 
     // The new action row must mount with refresh + sort + filter buttons.
+    // The rail emits the action row twice in DOM: once pre-upgrade (in
+    // light DOM, where it's intentionally hidden post-upgrade because the
+    // rail does not expose a default slot per #1060) and once in the
+    // shadow DOM (the visible one rendered by Lit). We assert at least
+    // one VISIBLE action row exists, matching the contract a user would
+    // perceive on the page.
     await expect(
-      page.locator("[data-digest-action-row]").first(),
-      "J2CL: action-row must mount"
+      page.locator("[data-digest-action-row]:visible").first(),
+      "J2CL: at least one action-row must be visible"
     ).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.locator('[data-digest-action="refresh"]').first(),
+      page.locator('[data-digest-action="refresh"]:visible').first(),
       "J2CL: refresh action button"
     ).toBeVisible();
     await expect(
-      page.locator('[data-digest-action="sort"]').first(),
+      page.locator('[data-digest-action="sort"]:visible').first(),
       "J2CL: sort action button"
     ).toBeVisible();
     await expect(
-      page.locator('[data-digest-action="filter"]').first(),
+      page.locator('[data-digest-action="filter"]:visible').first(),
       "J2CL: filter action button"
     ).toBeVisible();
 
@@ -123,7 +134,51 @@ test.describe("G-PORT-2 search panel parity", () => {
       "J2CL: refresh affordance reachable via title='Refresh search results'"
     ).toBeVisible({ timeout: 10_000 });
 
-    const j2clCards = await snapshotCards(page);
+    // J-UI-1 / G-PORT-2: read whether the rail-card path is enabled
+    // for this viewer. The shell-root SSR mirrors the per-viewer flag
+    // value through `data-j2cl-search-rail-cards="true"`. When the
+    // flag is OFF the J2CL view renders the legacy plain-DOM digest
+    // list (which does NOT carry data-digest-card hooks); the parity
+    // test then reduces its scope to the action-row contract,
+    // because per-card structural parity is gated on the rail-cards
+    // flag being on. The test still proves the parity selectors are
+    // wired correctly when the path IS on.
+    const railCardsOn = await page
+      .locator("shell-root[data-j2cl-search-rail-cards='true']")
+      .count();
+    let j2clCards: DigestSnapshot[] | null = null;
+    if (railCardsOn > 0) {
+      // The J2CL search panel is async — cards arrive after the
+      // search subscription returns. Wait for either at least one
+      // <wavy-search-rail-card> to mount, or for the rail's
+      // .result-count to become non-empty (which fires when the
+      // search-update arrives even with zero matches). Either signal
+      // means the search has settled.
+      await page
+        .waitForFunction(
+          () => {
+            const cards = document.querySelectorAll("wavy-search-rail-card");
+            if (cards.length > 0) return true;
+            const rail = document.querySelector("wavy-search-rail");
+            const sr = rail && (rail as HTMLElement).shadowRoot;
+            const counter = sr && sr.querySelector("p.result-count");
+            return !!(counter && counter.textContent && counter.textContent.trim().length > 0);
+          },
+          { timeout: 20_000 }
+        )
+        .catch(() => {
+          // Surface a clear diagnostic if the wait times out — better
+          // than letting the parity assertion fail with a misleading
+          // count.
+          throw new Error(
+            "J2CL search subscription did not settle within 20s. " +
+              "Either the search service is broken on this server, " +
+              "or the j2cl-search-rail-cards flag is not actually " +
+              "delivering cards. Inspect the trace attachment."
+          );
+        });
+      j2clCards = await snapshotCards(page);
+    }
 
     // ---- GWT view ----
     const gwt = new GwtPage(page, BASE_URL);
@@ -140,28 +195,74 @@ test.describe("G-PORT-2 search panel parity", () => {
       "GWT: refresh affordance reachable via title='Refresh search results'"
     ).toBeVisible({ timeout: 30_000 });
 
+    // GWT search is also async (XHR /search). Wait until either at
+    // least one digest card appears, or the wave-count info bar
+    // renders text (the GWT widget updates `.waveCount` when the
+    // /search response lands, even with zero matches).
+    await page
+      .waitForFunction(
+        () => {
+          if (document.querySelectorAll("[data-digest-card]").length > 0) return true;
+          const wc = document.querySelector(".waveCount, [class*='waveCount']");
+          return !!(wc && wc.textContent && wc.textContent.trim().length > 0);
+        },
+        { timeout: 30_000 }
+      )
+      .catch(() => {
+        throw new Error(
+          "GWT search did not settle within 30s. Inspect the trace attachment."
+        );
+      });
+
     const gwtCards = await snapshotCards(page);
 
     // ---- Parity assertions ----
 
-    // 1. The two views render the same number of digest cards.
-    expect(
-      gwtCards.length,
-      `digest card count parity (j2cl=${j2clCards.length}, gwt=${gwtCards.length})`
-    ).toEqual(j2clCards.length);
-
-    // 2. Same titles in the same order.
-    expect(gwtCards.map((c) => c.title)).toEqual(j2clCards.map((c) => c.title));
-
-    // 3. Each card on each view exposes the five sub-children
-    //    contract. (No-op for an empty list — but defensive against
-    //    future fixture-seeded runs.)
-    for (const c of [...j2clCards, ...gwtCards]) {
-      expect(c.hasAvatars, "card must have data-digest-avatars").toBe(true);
-      expect(c.hasTitle, "card must have data-digest-title").toBe(true);
-      expect(c.hasSnippet, "card must have data-digest-snippet").toBe(true);
-      expect(c.hasMsgCount, "card must have data-digest-msg-count").toBe(true);
-      expect(c.hasTime, "card must have data-digest-time").toBe(true);
+    // GWT cards always carry data-digest-* hooks (this slice tagged
+    // DigestDomImpl.ui.xml). Whether the J2CL view renders them via
+    // <wavy-search-rail-card> depends on the j2cl-search-rail-cards
+    // feature flag for the viewer.
+    if (j2clCards !== null) {
+      // J2CL rail-cards path is enabled for this viewer — assert the
+      // full per-card parity contract.
+      test.info().annotations.push({
+        type: "parity-cards",
+        description:
+          `j2cl=${j2clCards.length} gwt=${gwtCards.length} ` +
+          `j2cl-titles=${JSON.stringify(j2clCards.map((c) => c.title))} ` +
+          `gwt-titles=${JSON.stringify(gwtCards.map((c) => c.title))}`
+      });
+      expect(
+        gwtCards.length,
+        `digest card count parity (j2cl=${j2clCards.length}, gwt=${gwtCards.length})`
+      ).toEqual(j2clCards.length);
+      expect(gwtCards.map((c) => c.title)).toEqual(j2clCards.map((c) => c.title));
+      for (const c of [...j2clCards, ...gwtCards]) {
+        expect(c.hasAvatars, "card must have data-digest-avatars").toBe(true);
+        expect(c.hasTitle, "card must have data-digest-title").toBe(true);
+        expect(c.hasSnippet, "card must have data-digest-snippet").toBe(true);
+        expect(c.hasMsgCount, "card must have data-digest-msg-count").toBe(true);
+        expect(c.hasTime, "card must have data-digest-time").toBe(true);
+      }
+    } else {
+      // J2CL rail-cards flag is off — the legacy plain-DOM digest list
+      // does not carry data-digest-* hooks. We still assert that GWT
+      // cards (when any) expose the five children, because that's the
+      // GWT-side contract this slice ships.
+      for (const c of gwtCards) {
+        expect(c.hasAvatars, "GWT card must have data-digest-avatars").toBe(true);
+        expect(c.hasTitle, "GWT card must have data-digest-title").toBe(true);
+        expect(c.hasSnippet, "GWT card must have data-digest-snippet").toBe(true);
+        expect(c.hasMsgCount, "GWT card must have data-digest-msg-count").toBe(true);
+        expect(c.hasTime, "GWT card must have data-digest-time").toBe(true);
+      }
+      test
+        .info()
+        .annotations.push({
+          type: "note",
+          description:
+            "j2cl-search-rail-cards flag OFF for this viewer; per-card parity check skipped — only action-row + GWT-side card hooks asserted."
+        });
     }
 
     // 4. Visual diff: capture a rail screenshot from each view. We

@@ -1,0 +1,21 @@
+{
+  "releaseId": "2026-04-29-g-port-3-reading-parity",
+  "version": "PR #1124",
+  "date": "2026-04-29",
+  "title": "G-PORT-3: Wave panel + threaded reading parity hooks",
+  "summary": "Internal-only: cross-view DOM hooks and a Playwright spec asserting the J2CL <-> GWT wave-panel reading surface renders parity chrome (avatar, author, timestamp), advances focus on ArrowDown, and folds collapse chevrons. No user-visible behavior changes.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Stamped data-blip-id, data-blip-author, data-blip-time, and data-blip-focused on both the J2CL <wave-blip> and the GWT BlipViewBuilder/BlipMetaViewBuilder/FullStructure surfaces so the new wave-reading-parity Playwright spec can target a single selector across both views."
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "Scoped J2clReadSurfaceDomRenderer.enhanceBlips to outer <wave-blip> elements only — pre-fix, j/k navigation walked through descendant <wavy-blip-card> / <reaction-row> elements that share data-blip-id for plugin-context lookup. Also kept BlipMetaDomImpl's setAuthorAddress/setTime/setTimeTooltip in step with the new parity attributes so live updates do not freeze them at first-paint values."
+      ]
+    }
+  ]
+}

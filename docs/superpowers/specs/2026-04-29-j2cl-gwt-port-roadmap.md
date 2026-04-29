@@ -56,15 +56,14 @@ user's flow as described. "Test passes" is necessary but not sufficient.
 ### G-PORT-1. E2E foundation
 - Playwright harness under `wave/src/e2e/j2cl-gwt-parity/` that runs against
   a local server at both `?view=j2cl-root` and `?view=gwt`.
-- Current implemented scope is bootstrap/smoke coverage: the harness
-  registers or signs in a fresh test user and verifies the app boots in each
-  view; it does **not yet** rely on a shared fixture that opens a pre-seeded
-  existing wave.
-- Rich parity helpers/page objects (`j2cl()` / `gwt()` with methods like
-  `findWave(title)`, `openWave(idx)`, `clickReply(blipIdx)`,
-  `typeAndSend(text)`, etc.) are the intended next step once the harness
-  moves beyond smoke coverage; treat that API as aspirational for follow-up
-  slices, not as something already present in G-PORT-1.
+- Shared test-user fixture is `fixtures/testUser.ts`: each run provisions and
+  signs in a fresh user via `registerAndSignIn`, so tests are hermetic.
+- G-PORT-1 scope is bootstrap/smoke: verifies the app boots in each view.
+  Subsequent slices (G-PORT-2 through G-PORT-7) have expanded `J2clPage` and
+  `GwtPage` with compose, search, and blip affordances, but higher-level
+  helpers (`findWave(title)`, `openWave(idx)`, `clickReply(blipIdx)`,
+  `typeAndSend(text)`) do not yet exist — treat that API as aspirational for
+  a future harness slice.
 - Wires CI: a new check `J2CL ↔ GWT Parity E2E` that runs the suite.
 - No UI changes in this slice — only the test harness.
 

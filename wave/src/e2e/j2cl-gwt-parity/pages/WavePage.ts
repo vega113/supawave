@@ -4,7 +4,7 @@
 // openWave, clickReply, typeAndSend, mentionsList, ...). G-PORT-1 keeps
 // the surface narrow on purpose: only goto() + assertInboxLoaded(),
 // because the smoke test only needs to prove both views bootstrap.
-import { Page, expect } from "@playwright/test";
+import { Page } from "@playwright/test";
 
 export abstract class WavePage {
   constructor(readonly page: Page, readonly baseURL: string) {}
@@ -32,5 +32,3 @@ export abstract class WavePage {
     return await this.page.content();
   }
 }
-
-export { expect };

@@ -9,6 +9,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   parity-e2e:
     # The check name must stay in sync with the umbrella roadmap; later

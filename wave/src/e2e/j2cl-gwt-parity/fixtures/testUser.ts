@@ -54,7 +54,7 @@ export async function registerAndSignIn(
   await fillById(page, "password", creds.password);
   await fillById(page, "verifypass", creds.password);
   await Promise.all([
-    page.waitForLoadState("domcontentloaded"),
+    page.waitForURL(/\/auth\/(signin|register\?check-email)/, { waitUntil: "domcontentloaded" }),
     page.locator("input.btn-primary").click()
   ]);
 
@@ -88,7 +88,7 @@ export async function registerAndSignIn(
   await fillById(page, "address", creds.address);
   await fillById(page, "password", creds.password);
   await Promise.all([
-    page.waitForLoadState("domcontentloaded"),
+    page.waitForURL(url => !/\/auth\/signin/.test(url.toString()), { waitUntil: "domcontentloaded" }),
     page
       .locator('input.btn-primary, button[type="submit"]')
       .first()

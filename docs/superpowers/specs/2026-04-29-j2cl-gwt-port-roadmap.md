@@ -149,8 +149,8 @@ G-PORT-1 (E2E foundation) →
                        → G-PORT-9 (visual polish, last)
 ```
 
-Slice 1 first (every other slice depends on the E2E harness for its
-acceptance gate). Then 2/3/4/7 in parallel. Then 5/6/8. Then 9.
+Slice 1 goes first (every other slice depends on the E2E harness for its
+acceptance gate), followed by 2/3/4/7 in parallel, then 5/6/8, and finally 9.
 
 ## 6. Workflow per slice
 

@@ -118,7 +118,11 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     await completed;
     expect(row.hasAttribute("pinned")).to.be.true;
 
+    // Simulate J2clSelectedWaveController: render() sets source-wave-id, then
+    // publishNavRowFolderState() publishes the new wave's folder state (w+b is
+    // not pinned). Both happen synchronously before the MutationObserver fires.
     row.setAttribute("source-wave-id", "w+b");
+    row.removeAttribute("pinned"); // model clears stale controller state for w+b
     await new Promise((r) => setTimeout(r, 0));
     expect(row.hasAttribute("pinned")).to.be.false;
     completed = new Promise((resolve) =>
@@ -217,7 +221,10 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
         }
       )
     );
+    // Simulate model publish: render() changes source-wave-id and
+    // publishNavRowFolderState() clears pinned for w+fast (not pinned).
     row.setAttribute("source-wave-id", "w+fast");
+    row.removeAttribute("pinned"); // model publishes pinned=false for w+fast
     row.dispatchEvent(
       new CustomEvent("wave-nav-pin-toggle-requested", {
         bubbles: true,
@@ -753,6 +760,65 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
       .false;
     expect(row.hasAttribute("archived"), "no rail active-folder means no archive fallback").to.be
       .false;
+  });
+
+  it("syncFolderStateForWave preserves model-published pinned state when no rail card exists", async () => {
+    // Simulates J2clSelectedWaveController.publishNavRowFolderState() setting
+    // pinned=true synchronously in the same JS task as render() sets source-wave-id.
+    // The MutationObserver fires after both, so syncFolderStateForWave must
+    // restore model-backed state instead of leaving the attribute cleared.
+    stub = installFetchStub(async () => okResponse());
+    const row = await fixture(
+      html`<wavy-wave-nav-row source-wave-id="w+modpin-a"></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    // Simulate the Java model setting source-wave-id AND pinned in one sync task:
+    // the setAttribute calls below both complete before the MutationObserver fires.
+    row.setAttribute("source-wave-id", "w+modpin-b");
+    row.setAttribute("pinned", ""); // model published pinned=true for wave b
+    await new Promise((r) => setTimeout(r, 0)); // let observer fire
+
+    expect(
+      row.hasAttribute("pinned"),
+      "model-published pinned must survive wave-id switch with no rail card"
+    ).to.be.true;
+
+    // First click must send unpin (wave is already pinned per model).
+    const completed = new Promise((resolve) =>
+      document.addEventListener("wavy-folder-action-completed", (e) => resolve(e.detail), {
+        once: true
+      })
+    );
+    row.dispatchEvent(
+      new CustomEvent("wave-nav-pin-toggle-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { sourceWaveId: "w+modpin-b" }
+      })
+    );
+    const detail = await completed;
+    expect(detail.operation, "first click must unpin, not double-pin").to.equal("unpin");
+  });
+
+  it("syncFolderStateForWave does not restore stale pinned when model clears it on wave switch", async () => {
+    stub = installFetchStub(async () => okResponse());
+    const row = await fixture(
+      html`<wavy-wave-nav-row source-wave-id="w+stale-a" pinned></wavy-wave-nav-row>`
+    );
+    controllerModule.start();
+    await Promise.resolve();
+
+    // Model switches wave and clears pinned (wave-b is not pinned).
+    row.setAttribute("source-wave-id", "w+stale-b");
+    row.removeAttribute("pinned"); // model published pinned=false for wave b
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(
+      row.hasAttribute("pinned"),
+      "stale pinned from previous wave must not be restored"
+    ).to.be.false;
   });
 
   it("binding is idempotent — repeated scans do not double-fire", async () => {

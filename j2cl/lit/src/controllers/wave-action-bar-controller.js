@@ -219,11 +219,30 @@ function syncFolderStateForWave(host, waveId) {
   if (current === waveId) return;
   if (current != null) {
     setBusy(host, false, current);
-    // The same nav-row host can be reused while switching waves. Until
-    // server folder state is wired into the model (#1055/S5), optimistic
-    // toggle attributes must not bleed from the previous wave.
+    // Capture any values the Java model may have already published for the
+    // new wave via setNavRowFolderState before the MutationObserver fired.
+    // J2clSelectedWaveController always calls publishNavRowFolderState()
+    // synchronously after render(), so these reflect model-backed state for
+    // the incoming wave — not stale optimistic state from the previous wave.
+    const modelPinned = host.hasAttribute("pinned");
+    const modelArchived = host.hasAttribute("archived");
     host.removeAttribute("pinned");
     host.removeAttribute("archived");
+    if (!waveId) {
+      host.removeAttribute(ATTR_FOLDER_STATE_WAVE_ID);
+      return;
+    }
+    host.setAttribute(ATTR_FOLDER_STATE_WAVE_ID, waveId);
+    hydrateFromDigest(host, waveId);
+    // Restore model-published state when hydrateFromDigest found no
+    // matching rail card or active-folder context to recover it from.
+    if (modelPinned && !host.hasAttribute("pinned")) {
+      host.setAttribute("pinned", "");
+    }
+    if (modelArchived && !host.hasAttribute("archived")) {
+      host.setAttribute("archived", "");
+    }
+    return;
   }
   if (!waveId) {
     host.removeAttribute(ATTR_FOLDER_STATE_WAVE_ID);

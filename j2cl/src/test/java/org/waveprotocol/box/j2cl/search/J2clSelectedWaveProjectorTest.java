@@ -1477,6 +1477,54 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void projectMergesSameWaveLiveBlipFragmentsIntoPreviousViewportWindow() {
+    J2clSelectedWaveModel first =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            rootFragmentUpdate(1, 40L, "HASH", "Root text"),
+            null,
+            0);
+
+    J2clSelectedWaveModel liveReply =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                50L,
+                "HASH2",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    50L,
+                    45L,
+                    50L,
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragmentRange("blip:b+reply", 45L, 50L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment(
+                            "blip:b+reply", "Reply submitted from composer", 0, 0)))),
+            first,
+            0);
+
+    Assert.assertEquals(2, liveReply.getViewportState().getEntries().size());
+    Assert.assertEquals(
+        "Root text",
+        entryBySegment(liveReply.getViewportState(), "blip:b+root").getRawSnapshot());
+    Assert.assertEquals(
+        "Reply submitted from composer",
+        entryBySegment(liveReply.getViewportState(), "blip:b+reply").getRawSnapshot());
+    Assert.assertEquals(2, liveReply.getReadBlips().size());
+    Assert.assertEquals("b+reply", liveReply.getReadBlips().get(1).getBlipId());
+    Assert.assertEquals("Reply submitted from composer", liveReply.getReadBlips().get(1).getText());
+    Assert.assertEquals(50L, liveReply.getWriteSession().getBaseVersion());
+  }
+
+  @Test
   public void projectPreservesDocumentMergedViewportAcrossMetadataOnlyFragments() {
     J2clSelectedWaveModel first =
         J2clSelectedWaveProjector.project(
@@ -2266,6 +2314,36 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals("ZERO", writeSession.getHistoryHash());
     Assert.assertEquals(CHANNEL_ID, writeSession.getChannelId());
     Assert.assertEquals("b+root", writeSession.getReplyTargetBlipId());
+  }
+
+  @Test
+  public void writeSessionCarriesManifestInsertPositionAndItemCount() {
+    SidecarConversationManifest manifest =
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0, 6)),
+            8);
+    SidecarSelectedWaveUpdate update =
+        new SidecarSelectedWaveUpdate(
+            1,
+            WAVELET_NAME,
+            true,
+            CHANNEL_ID,
+            44L,
+            "ABCD",
+            Arrays.asList("user@example.com"),
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 33L, 44L, "content")),
+            null,
+            manifest);
+
+    J2clSidecarWriteSession writeSession =
+        J2clSelectedWaveProjector.project(WAVE_ID, null, update, null, 0).getWriteSession();
+
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(6, writeSession.getReplyManifestInsertPosition());
+    Assert.assertEquals(8, writeSession.getReplyManifestItemCount());
   }
 
   // -- F-2 (#1037) per-blip metadata enrichment --------------------------------

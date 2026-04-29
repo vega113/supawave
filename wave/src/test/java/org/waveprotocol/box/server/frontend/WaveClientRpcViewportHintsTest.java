@@ -218,11 +218,15 @@ public final class WaveClientRpcViewportHintsTest {
   }
 
   @Test
-  public void viewportHintsSuppressWholeSnapshotWhenFragmentsAvailable() {
+  public void viewportHintsSuppressWholeSnapshotDocumentsButCarryParticipants() {
     ProtocolWaveletUpdate update = openWithHints("b+1", "forward", 5);
 
     assertTrue("Expected fragments payload present", update.hasFragments());
-    assertFalse("Viewport-hinted open should not include full snapshot", update.hasSnapshot());
+    assertTrue("Viewport-hinted open should include metadata-only snapshot", update.hasSnapshot());
+    assertEquals("Viewport-hinted open must not include full snapshot documents",
+        0, update.getSnapshot().getDocumentCount());
+    assertEquals(Arrays.asList("user@example.com", "friend@example.com"),
+        update.getSnapshot().getParticipantIdList());
     assertTrue("Expected resulting version for write-session coupling", update.hasResultingVersion());
     assertTrue("Expected commit notice for selected-wave bootstrap", update.hasCommitNotice());
     assertEquals(1L, FragmentsMetrics.j2clViewportInitialWindows.get());
@@ -497,7 +501,7 @@ public final class WaveClientRpcViewportHintsTest {
   }
 
   private static ReadableWaveletData providerDataWithBlips(WaveId waveId, WaveletId wid, int count) {
-    ReadableWaveletDataStub stub = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(1));
+    ReadableWaveletDataStub stub = dataStub(waveId, wid);
     for (int i = 1; i <= count; i++) {
       String id = "b+" + i;
       stub.addDoc(id, new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), i * 100L));
@@ -507,13 +511,19 @@ public final class WaveClientRpcViewportHintsTest {
 
   private static ReadableWaveletData providerDataWithBlipIds(
       WaveId waveId, WaveletId wid, String... blipIds) {
-    ReadableWaveletDataStub stub = new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(1));
+    ReadableWaveletDataStub stub = dataStub(waveId, wid);
     for (int i = 0; i < blipIds.length; i++) {
       stub.addDoc(
           blipIds[i],
           new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), (i + 1) * 100L));
     }
     return stub;
+  }
+
+  private static ReadableWaveletDataStub dataStub(WaveId waveId, WaveletId wid) {
+    return new ReadableWaveletDataStub(waveId, wid, HashedVersion.unsigned(1))
+        .addParticipant(ParticipantId.ofUnsafe("user@example.com"))
+        .addParticipant(ParticipantId.ofUnsafe("friend@example.com"));
   }
 
   private static WaveletProvider providerWithBlips(int count) {

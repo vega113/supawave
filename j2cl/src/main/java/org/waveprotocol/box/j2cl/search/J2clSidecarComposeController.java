@@ -41,6 +41,15 @@ public final class J2clSidecarComposeController {
   @FunctionalInterface
   public interface ReplySuccessHandler {
     void onReplySubmitted(String waveId);
+
+    default void onReplySubmitted(String waveId, long resultingVersion) {
+      onReplySubmitted(waveId);
+    }
+
+    default void onReplySubmitted(
+        String waveId, long resultingVersion, String submittedBlipId) {
+      onReplySubmitted(waveId, resultingVersion);
+    }
   }
 
   private final Gateway gateway;
@@ -294,14 +303,17 @@ public final class J2clSidecarComposeController {
           gateway.submit(
               bootstrap,
               request,
-              response -> handleReplyResponse(generation, submitSession, response),
+              response -> handleReplyResponse(generation, submitSession, request, response),
               error -> handleReplyFailure(generation, error));
         },
         error -> handleReplyFailure(generation, error));
   }
 
   private void handleReplyResponse(
-      int generation, J2clSidecarWriteSession submitSession, SidecarSubmitResponse response) {
+      int generation,
+      J2clSidecarWriteSession submitSession,
+      SidecarSubmitRequest request,
+      SidecarSubmitResponse response) {
     if (generation != replyGeneration) {
       return;
     }
@@ -318,7 +330,10 @@ public final class J2clSidecarComposeController {
         && submitSession != null
         && submitSession.getSelectedWaveId() != null
         && !submitSession.getSelectedWaveId().isEmpty()) {
-      replySuccessHandler.onReplySubmitted(submitSession.getSelectedWaveId());
+      replySuccessHandler.onReplySubmitted(
+          submitSession.getSelectedWaveId(),
+          response.getResultingVersion(),
+          request == null ? "" : request.getClientCreatedBlipId());
     }
   }
 

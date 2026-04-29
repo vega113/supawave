@@ -5,6 +5,7 @@ import elemental2.dom.HTMLElement;
 import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController.CreateSuccessHandler;
+import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController.ReplySuccessHandler;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceView;
 import org.waveprotocol.box.j2cl.search.J2clSearchGateway;
 import org.waveprotocol.box.j2cl.search.J2clSearchPanelController;
@@ -12,6 +13,7 @@ import org.waveprotocol.box.j2cl.search.J2clSearchPanelView;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveController;
 import org.waveprotocol.box.j2cl.search.J2clSelectedWaveView;
+import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
 import org.waveprotocol.box.j2cl.search.J2clSidecarRouteState;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceController;
@@ -91,9 +93,24 @@ public final class J2clRootShellController {
             J2clComposeSurfaceController.richContentDeltaFactory(rootShellSessionSeed),
             J2clComposeSurfaceController.attachmentControllerFactory(rootShellSessionSeed, telemetrySink),
             createSuccessHandler,
-            waveId -> {
-              if (selectedWaveControllerRef[0] != null) {
-                selectedWaveControllerRef[0].refreshSelectedWave();
+            new ReplySuccessHandler() {
+              @Override
+              public void onReplySubmitted(String waveId) {
+                onReplySubmitted(waveId, -1L);
+              }
+
+              @Override
+              public void onReplySubmitted(String waveId, long resultingVersion) {
+                onReplySubmitted(waveId, resultingVersion, "");
+              }
+
+              @Override
+              public void onReplySubmitted(
+                  String waveId, long resultingVersion, String submittedBlipId) {
+                if (selectedWaveControllerRef[0] != null) {
+                  selectedWaveControllerRef[0].onReplySubmitted(
+                      waveId, resultingVersion, submittedBlipId);
+                }
               }
             },
             telemetrySink);
@@ -116,11 +133,11 @@ public final class J2clRootShellController {
         new J2clSelectedWaveController(
             gateway,
             selectedWaveView,
-            writeSession -> {
-              composeController.onWriteSessionChanged(writeSession);
+            (selectedWaveId, writeSession, participantIds) -> {
+              composeController.onSelectedWaveComposeContextChanged(
+                  selectedWaveId, writeSession, participantIds);
               toolbarController.onWriteSessionChanged(writeSession);
-              toolbarController.onEditStateChanged(
-                  new J2clToolbarSurfaceController.EditState(writeSession != null));
+              toolbarController.onEditStateChanged(editStateForWriteSession(writeSession));
             },
             telemetrySink);
     selectedWaveControllerRef[0] = selectedWaveController;
@@ -193,6 +210,11 @@ public final class J2clRootShellController {
     // depth value is applied right after route.start().
     bindDepthEventsToRoute(selectedWaveView, routeController);
     liveSurfaceController.start();
+  }
+
+  static J2clToolbarSurfaceController.EditState editStateForWriteSession(
+      J2clSidecarWriteSession writeSession) {
+    return new J2clToolbarSurfaceController.EditState(writeSession != null);
   }
 
   /**

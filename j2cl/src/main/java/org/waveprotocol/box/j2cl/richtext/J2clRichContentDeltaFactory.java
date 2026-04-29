@@ -56,6 +56,8 @@ public final class J2clRichContentDeltaFactory {
             normalizedAddress,
             buildAddParticipantOperation(normalizedAddress)
                 + ","
+                + buildConversationRootOperation("b+root")
+                + ","
                 + buildDocumentOperation("b+root", document));
     return new CreateWaveRequest(
         createdWaveId,
@@ -469,6 +471,25 @@ public final class J2clRichContentDeltaFactory {
         .append("\"}]}}");
   }
 
+  private static void appendElementStartNoAttrs(StringBuilder builder, String type) {
+    builder
+        .append("{\"3\":{\"1\":\"")
+        .append(escapeJson(type))
+        .append("\",\"2\":[]}}");
+  }
+
+  private static void appendElementStartWithAttr(
+      StringBuilder builder, String type, String attrKey, String attrValue) {
+    builder
+        .append("{\"3\":{\"1\":\"")
+        .append(escapeJson(type))
+        .append("\",\"2\":[{\"1\":\"")
+        .append(escapeJson(attrKey))
+        .append("\",\"2\":\"")
+        .append(escapeJson(attrValue))
+        .append("\"}]}}");
+  }
+
   private static void appendDeleteElementStartNoAttrs(StringBuilder builder, String type) {
     builder
         .append("{\"7\":{\"1\":\"")
@@ -703,14 +724,63 @@ public final class J2clRichContentDeltaFactory {
       throw new IllegalArgumentException("Invalid write-session base version.");
     }
     String replyBlipId = nextToken("b+");
+    String operationsJson = buildDocumentOperation(replyBlipId, document);
+    if (session.getReplyManifestInsertPosition() >= 0) {
+      String replyThreadId = nextToken("t+");
+      operationsJson =
+          buildConversationReplyThreadOperation(
+                  session.getReplyManifestInsertPosition(),
+                  session.getReplyManifestItemCount(),
+                  replyThreadId,
+                  replyBlipId)
+              + ","
+              + operationsJson;
+    }
     String deltaJson =
         buildDeltaJson(
             baseVersion,
             historyHash,
             normalizedAddress,
-            buildDocumentOperation(replyBlipId, document));
+            operationsJson);
     return new SidecarSubmitRequest(
-        buildWaveletName(selectedWaveId), deltaJson, channelId);
+        buildWaveletName(selectedWaveId), deltaJson, channelId, replyBlipId);
+  }
+
+  private String buildConversationRootOperation(String rootBlipId) {
+    StringBuilder components = new StringBuilder();
+    appendElementStartNoAttrs(components, "conversation");
+    appendComponentSeparator(components);
+    appendElementStartWithAttr(components, "blip", "id", rootBlipId);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    return buildRawDocumentOperation("conversation", components.toString());
+  }
+
+  private String buildConversationReplyThreadOperation(
+      int insertPosition, int manifestItemCount, String threadId, String replyBlipId) {
+    if (insertPosition < 0) {
+      throw new IllegalArgumentException("Invalid manifest reply insert position.");
+    }
+    StringBuilder components = new StringBuilder();
+    if (insertPosition > 0) {
+      appendRetain(components, insertPosition);
+      appendComponentSeparator(components);
+    }
+    appendElementStartWithAttr(components, "thread", "id", threadId);
+    appendComponentSeparator(components);
+    appendElementStartWithAttr(components, "blip", "id", replyBlipId);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    int trailingRetain = manifestItemCount < 0 ? 0 : manifestItemCount - insertPosition;
+    if (trailingRetain > 0) {
+      appendComponentSeparator(components);
+      appendRetain(components, trailingRetain);
+    }
+    return buildRawDocumentOperation("conversation", components.toString());
   }
 
   private String buildDocumentOperation(String documentId, J2clComposerDocument document) {
@@ -775,12 +845,17 @@ public final class J2clRichContentDeltaFactory {
           break;
       }
     }
-    StringBuilder operation = new StringBuilder(components.length() + documentId.length() + 32);
+    return buildRawDocumentOperation(documentId, components.toString());
+  }
+
+  private String buildRawDocumentOperation(String documentId, String componentsJson) {
+    StringBuilder operation =
+        new StringBuilder(componentsJson.length() + documentId.length() + 32);
     operation
         .append("{\"3\":{\"1\":\"")
         .append(escapeJson(documentId))
         .append("\",\"2\":{\"1\":[")
-        .append(components)
+        .append(componentsJson)
         .append("]}}}");
     return operation.toString();
   }

@@ -4,8 +4,14 @@ public final class SidecarSubmitRequest {
   private final String waveletName;
   private final String deltaJson;
   private final String channelId;
+  private final String clientCreatedBlipId;
 
   public SidecarSubmitRequest(String waveletName, String deltaJson, String channelId) {
+    this(waveletName, deltaJson, channelId, "");
+  }
+
+  public SidecarSubmitRequest(
+      String waveletName, String deltaJson, String channelId, String clientCreatedBlipId) {
     if (waveletName == null || waveletName.isEmpty()) {
       throw new IllegalArgumentException("waveletName must not be null or empty");
     }
@@ -15,6 +21,7 @@ public final class SidecarSubmitRequest {
     this.waveletName = waveletName;
     this.deltaJson = deltaJson;
     this.channelId = channelId == null || channelId.isEmpty() ? null : channelId;
+    this.clientCreatedBlipId = clientCreatedBlipId == null ? "" : clientCreatedBlipId;
   }
 
   public String getWaveletName() {
@@ -27,5 +34,9 @@ public final class SidecarSubmitRequest {
 
   public String getChannelId() {
     return channelId;
+  }
+
+  public String getClientCreatedBlipId() {
+    return clientCreatedBlipId;
   }
 }

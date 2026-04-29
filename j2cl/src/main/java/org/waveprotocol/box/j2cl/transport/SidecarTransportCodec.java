@@ -214,6 +214,8 @@ public final class SidecarTransportCodec {
     // Stack of element types (lowercase). Used so we know which
     // mirror state to pop on element-end.
     List<String> elementStack = new ArrayList<String>();
+    List<Integer> openBlipEntryIndexStack = new ArrayList<Integer>();
+    int itemPosition = 0;
 
     for (Object rawComponent : asList(rawComponents)) {
       Map<String, Object> component = asObject(rawComponent);
@@ -248,15 +250,19 @@ public final class SidecarTransportCodec {
             siblingCounterStack.set(
                 siblingCounterStack.size() - 1, Integer.valueOf(siblingIndex + 1));
           }
+          int entryIndex = entries.size();
           entries.add(
               new SidecarConversationManifest.Entry(
                   blipId, parentBlipId, threadId, depth, siblingIndex));
+          openBlipEntryIndexStack.add(Integer.valueOf(entryIndex));
           if (!mostRecentBlipPerThread.isEmpty()) {
             mostRecentBlipPerThread.set(mostRecentBlipPerThread.size() - 1, blipId);
           }
         }
+        itemPosition++;
       } else if (component.containsKey("4")) {
         if (elementStack.isEmpty()) {
+          itemPosition++;
           continue;
         }
         String ended = elementStack.remove(elementStack.size() - 1);
@@ -270,10 +276,39 @@ public final class SidecarTransportCodec {
           if (!siblingCounterStack.isEmpty()) {
             siblingCounterStack.remove(siblingCounterStack.size() - 1);
           }
+        } else if ("blip".equals(ended)) {
+          if (!openBlipEntryIndexStack.isEmpty()) {
+            int entryIndex =
+                openBlipEntryIndexStack.remove(openBlipEntryIndexStack.size() - 1).intValue();
+            setReplyInsertPosition(entries, entryIndex, itemPosition);
+          }
         }
+        itemPosition++;
+      } else if (component.containsKey("2")) {
+        String chars = getString(component, "2");
+        itemPosition += chars == null ? 0 : chars.length();
+      } else if (component.containsKey("5")) {
+        itemPosition += Math.max(0, getInt(component, "5"));
       }
     }
-    return SidecarConversationManifest.of(entries);
+    return SidecarConversationManifest.of(entries, itemPosition);
+  }
+
+  private static void setReplyInsertPosition(
+      List<SidecarConversationManifest.Entry> entries, int index, int position) {
+    if (entries == null || index < 0 || index >= entries.size()) {
+      return;
+    }
+    SidecarConversationManifest.Entry entry = entries.get(index);
+    entries.set(
+        index,
+        new SidecarConversationManifest.Entry(
+            entry.getBlipId(),
+            entry.getParentBlipId(),
+            entry.getThreadId(),
+            entry.getDepth(),
+            entry.getSiblingIndex(),
+            position));
   }
 
   public static SidecarSelectedWaveReadState decodeSelectedWaveReadState(String json) {

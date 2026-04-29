@@ -20,6 +20,7 @@ import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
+import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveProjector {
   private J2clSelectedWaveProjector() {
@@ -115,7 +116,8 @@ public final class J2clSelectedWaveProjector {
     if (!hasViewportWindow) {
       readBlips = applyConversationManifest(readBlips, effectiveManifest);
     }
-    J2clSidecarWriteSession writeSession = buildWriteSession(selectedWaveId, update, previous, participantIds);
+    J2clSidecarWriteSession writeSession =
+        buildWriteSession(selectedWaveId, update, previous, participantIds, effectiveManifest);
     boolean interactionEditable = writeSession != null;
     List<J2clInteractionBlipModel> interactionBlips =
         extractInteractionBlips(update.getDocuments(), participantIds, interactionEditable);
@@ -300,7 +302,8 @@ public final class J2clSelectedWaveProjector {
       String selectedWaveId,
       SidecarSelectedWaveUpdate update,
       J2clSelectedWaveModel previous,
-      List<String> participantIds) {
+      List<String> participantIds,
+      SidecarConversationManifest manifest) {
     if (selectedWaveId == null || selectedWaveId.isEmpty()) {
       return null;
     }
@@ -334,8 +337,24 @@ public final class J2clSelectedWaveProjector {
     if (channelId == null || channelId.isEmpty() || replyTargetBlipId == null || replyTargetBlipId.isEmpty()) {
       return null;
     }
+    int replyManifestInsertPosition = -1;
+    int replyManifestItemCount = -1;
+    if (manifest != null && !manifest.isEmpty()) {
+      SidecarConversationManifest.Entry replyTarget = manifest.findByBlipId(replyTargetBlipId);
+      if (replyTarget != null) {
+        replyManifestInsertPosition = replyTarget.getReplyInsertPosition();
+        replyManifestItemCount = manifest.getItemCount();
+      }
+    }
     return new J2clSidecarWriteSession(
-        selectedWaveId, channelId, baseVersion, historyHash, replyTargetBlipId, participantIds);
+        selectedWaveId,
+        channelId,
+        baseVersion,
+        historyHash,
+        replyTargetBlipId,
+        participantIds,
+        replyManifestInsertPosition,
+        replyManifestItemCount);
   }
 
   private static J2clSelectedWaveViewportState projectViewportState(
@@ -345,6 +364,12 @@ public final class J2clSelectedWaveProjector {
     J2clSelectedWaveViewportState fragmentState =
         J2clSelectedWaveViewportState.fromFragments(update.getFragments());
     if (fragmentState.hasBlipEntries()) {
+      if (previousMatchesWave && previous != null && !previous.getViewportState().isEmpty()) {
+        return previous
+            .getViewportState()
+            .mergeFragments(update.getFragments(), J2clViewportGrowthDirection.FORWARD)
+            .appendMissingDocuments(update.getDocuments());
+      }
       return fragmentState.appendMissingDocuments(update.getDocuments());
     }
     if (previousMatchesWave && previous != null && !previous.getViewportState().isEmpty()) {

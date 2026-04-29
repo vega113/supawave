@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-29-g-port-5-write-session-participants",
+  "version": "Unreleased",
+  "date": "2026-04-29",
+  "title": "G-PORT-5 follow-up: J2CL mention reply participant timing",
+  "summary": "The J2CL inline reply composer receives selected-wave participants before the write-session reply target finishes hydrating, allowing mention autocomplete replies to submit without test-only participant seeding.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Project selected-wave participants into the inline reply composer independently of full write-session readiness while keeping reply submit gated on the real server write session."
+      ]
+    }
+  ]
+}

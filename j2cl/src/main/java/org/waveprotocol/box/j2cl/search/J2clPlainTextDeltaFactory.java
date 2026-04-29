@@ -44,7 +44,9 @@ public class J2clPlainTextDeltaFactory {
             normalizedAddress,
             "{\"1\":\""
                 + escapeJson(normalizedAddress)
-                + "\"},{\"3\":{\"1\":\"b+root\",\"2\":{\"1\":[{\"2\":\""
+                + "\"},"
+                + buildConversationRootOperation("b+root")
+                + ",{\"3\":{\"1\":\"b+root\",\"2\":{\"1\":[{\"2\":\""
                 + escapeJson(text)
                 + "\"}]}}}");
     return new CreateWaveRequest(
@@ -56,18 +58,69 @@ public class J2clPlainTextDeltaFactory {
       String address, J2clSidecarWriteSession session, String text) {
     String normalizedAddress = normalizeAddress(address);
     String replyBlipId = nextToken("b+");
+    String operationsJson =
+        "{\"3\":{\"1\":\""
+            + escapeJson(replyBlipId)
+            + "\",\"2\":{\"1\":[{\"2\":\""
+            + escapeJson(text)
+            + "\"}]}}}";
+    if (session.getReplyManifestInsertPosition() >= 0) {
+      String replyThreadId = nextToken("t+");
+      operationsJson =
+          buildConversationReplyThreadOperation(
+                  session.getReplyManifestInsertPosition(),
+                  session.getReplyManifestItemCount(),
+                  replyThreadId,
+                  replyBlipId)
+              + ","
+              + operationsJson;
+    }
     String deltaJson =
         buildDeltaJson(
             session.getBaseVersion(),
             session.getHistoryHash(),
             normalizedAddress,
-            "{\"3\":{\"1\":\""
-                + escapeJson(replyBlipId)
-                + "\",\"2\":{\"1\":[{\"2\":\""
-                + escapeJson(text)
-                + "\"}]}}}");
+            operationsJson);
     return new SidecarSubmitRequest(
-        buildWaveletName(session.getSelectedWaveId()), deltaJson, session.getChannelId());
+        buildWaveletName(session.getSelectedWaveId()),
+        deltaJson,
+        session.getChannelId(),
+        replyBlipId);
+  }
+
+  private static String buildConversationRootOperation(String rootBlipId) {
+    return buildRawDocumentOperation(
+        "conversation",
+        "{\"3\":{\"1\":\"conversation\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\""
+            + escapeJson(rootBlipId)
+            + "\"}]}},{\"4\":true},{\"4\":true}");
+  }
+
+  private static String buildConversationReplyThreadOperation(
+      int insertPosition, int manifestItemCount, String threadId, String replyBlipId) {
+    if (insertPosition < 0) {
+      throw new IllegalArgumentException("Invalid manifest reply insert position.");
+    }
+    int trailingRetain = manifestItemCount < 0 ? 0 : manifestItemCount - insertPosition;
+    String componentsJson =
+        (insertPosition > 0 ? "{\"5\":" + insertPosition + "}," : "")
+            + "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\""
+            + escapeJson(threadId)
+            + "\"}]}},"
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\""
+            + escapeJson(replyBlipId)
+            + "\"}]}},{\"4\":true},{\"4\":true}"
+            + (trailingRetain > 0 ? ",{\"5\":" + trailingRetain + "}" : "");
+    return buildRawDocumentOperation("conversation", componentsJson);
+  }
+
+  private static String buildRawDocumentOperation(String documentId, String componentsJson) {
+    return "{\"3\":{\"1\":\""
+        + escapeJson(documentId)
+        + "\",\"2\":{\"1\":["
+        + componentsJson
+        + "]}}}";
   }
 
   private String buildDeltaJson(

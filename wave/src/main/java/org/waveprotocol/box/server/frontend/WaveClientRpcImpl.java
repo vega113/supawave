@@ -31,6 +31,7 @@ import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolSubmitRequest;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolSubmitResponse;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveClientRpc;
 import org.waveprotocol.box.common.comms.WaveClientRpc.ProtocolWaveletUpdate;
+import org.waveprotocol.box.common.comms.WaveClientRpc.WaveletSnapshot;
 import org.waveprotocol.box.server.common.CoreWaveletOperationSerializer;
 import org.waveprotocol.box.server.common.SnapshotSerializer;
 import org.waveprotocol.box.server.rpc.ServerRpcController;
@@ -337,7 +338,10 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
               // Snapshot-less updates have no full bootstrap payload to report.
               boolean snapshotFallback = false;
               if (suppressSnapshot) {
-                // The viewport window is already present in fragments; keep the wire payload windowed.
+                // The viewport window is already present in fragments; keep document content windowed,
+                // but carry lightweight wavelet metadata so J2CL compose can hydrate participant-based
+                // affordances without requesting the whole wave.
+                builder.setSnapshot(metadataOnlySnapshot(snapshot.snapshot, snapshot.committedVersion));
               } else if (snapshotAvailable) {
                 if (hasViewportHints) {
                   snapshotFallback = true;
@@ -442,6 +446,20 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       v = committedVersion.getVersion();
     }
     return v;
+  }
+
+  private static WaveletSnapshot metadataOnlySnapshot(
+      ReadableWaveletData wavelet, HashedVersion committedVersion) {
+    WaveletSnapshot.Builder builder = WaveletSnapshot.newBuilder();
+    builder.setWaveletId(ModernIdSerialiser.INSTANCE.serialiseWaveletId(wavelet.getWaveletId()));
+    for (ParticipantId participant : wavelet.getParticipants()) {
+      builder.addParticipantId(participant.toString());
+    }
+    builder.setVersion(CoreWaveletOperationSerializer.serialize(committedVersion));
+    builder.setLastModifiedTime(wavelet.getLastModifiedTime());
+    builder.setCreator(wavelet.getCreator().getAddress());
+    builder.setCreationTime(wavelet.getCreationTime());
+    return builder.build();
   }
 
   /** Returns true if any viewport hint is present on the request. */

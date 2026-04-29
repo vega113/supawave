@@ -198,6 +198,30 @@ public final class J2clSelectedWaveViewportState {
     return "";
   }
 
+  String edgePlaceholderBlipId(String direction) {
+    if (J2clViewportGrowthDirection.isBackward(direction)) {
+      for (Entry entry : entries) {
+        if (!entry.isLoaded() && entry.isBlip()) {
+          return entry.getBlipId();
+        }
+        if (entry.isLoaded() && entry.isBlip()) {
+          return "";
+        }
+      }
+      return "";
+    }
+    for (int i = entries.size() - 1; i >= 0; i--) {
+      Entry entry = entries.get(i);
+      if (!entry.isLoaded() && entry.isBlip()) {
+        return entry.getBlipId();
+      }
+      if (entry.isLoaded() && entry.isBlip()) {
+        return "";
+      }
+    }
+    return "";
+  }
+
   private J2clSelectedWaveViewportState mergeDocuments(
       List<SidecarSelectedWaveDocument> documents, boolean replaceExisting) {
     J2clSelectedWaveViewportState documentState = fromDocuments(documents);

@@ -129,6 +129,32 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void replyRequestLinksNewBlipIntoConversationManifestWhenInsertPositionKnown() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply", "chan-7", 44L, "ABCD", "b+root", 6, 8);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Manifest linked reply").build();
+
+    SidecarSubmitRequest request = factory.createReplyRequest("user@example.com", session, document);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    assertContains(
+        deltaJson,
+        "\"1\":\"conversation\"",
+        "{\"5\":6}",
+        "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+seedB\"}]}}",
+        "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+seedA\"}]}}",
+        "{\"5\":2}",
+        "\"2\":\"Manifest linked reply\"");
+    Assert.assertTrue(
+        "reply blip must appear once in manifest and once as the new document",
+        countOccurrences(deltaJson, "b+seedA") >= 2);
+  }
+
+  @Test
   public void replyRequestAllowsVersionZeroWriteSession() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

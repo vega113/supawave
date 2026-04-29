@@ -28,6 +28,7 @@ public final class J2clSelectedWaveController
   // Keep retries bounded, but leave enough budget for a local WIAB restart on the same port.
   private static final int MAX_RECONNECT_DELAY_MS = 2000;
   private static final int MAX_RECONNECT_ATTEMPTS = 8;
+  private static final int POST_SUBMIT_LIVE_UPDATE_GRACE_MS = 250;
   // Matches the current server default viewport window until growth-size config is exposed to J2CL.
   private static final int FRAGMENT_GROWTH_LIMIT = 5;
   private static final String FRAGMENT_GROWTH_FAILURE_STATUS =
@@ -181,7 +182,8 @@ public final class J2clSelectedWaveController
 
   @FunctionalInterface
   public interface WriteSessionListener {
-    void onWriteSessionChanged(J2clSidecarWriteSession writeSession);
+    void onSelectedWaveComposeContextChanged(
+        String selectedWaveId, J2clSidecarWriteSession writeSession, List<String> participantIds);
   }
 
   /**
@@ -372,6 +374,61 @@ public final class J2clSelectedWaveController
     // A refresh happens after the reply already committed on the server, so transient bootstrap or
     // open failures should recover like a reconnect instead of strand the panel on stale content.
     fetchBootstrapAndOpenSelectedWave(generation, 0, true);
+  }
+
+  /**
+   * Called after a reply submit succeeds on the write socket.
+   *
+   * <p>The selected-wave read socket normally receives the committed blip as a live fragment. Do
+   * not close that socket immediately: doing so can drop the just-committed fragment, and a fresh
+   * viewport-limited open may not include the new reply. Instead, give the live stream a short
+   * grace window and only fall back to an explicit refresh if the visible viewport did not advance.
+   * Some server live updates only carry metadata/write-session versions; those must not suppress
+   * the viewport fetch that makes the submitted blip visible.
+   */
+  public void onReplySubmitted(String waveId) {
+    onReplySubmitted(waveId, -1L);
+  }
+
+  public void onReplySubmitted(String waveId, long resultingVersion) {
+    onReplySubmitted(waveId, resultingVersion, "");
+  }
+
+  public void onReplySubmitted(String waveId, long resultingVersion, String submittedBlipId) {
+    String submittedWaveId = waveId == null ? "" : waveId;
+    if (submittedWaveId.isEmpty() || selectedWaveId == null || !submittedWaveId.equals(selectedWaveId)) {
+      return;
+    }
+    final int generation = requestGeneration;
+    final long targetVersion = Math.max(-1L, resultingVersion);
+    final String createdBlipId = submittedBlipId == null ? "" : submittedBlipId;
+    if (targetVersion >= 0 && currentVisibleViewportVersion() >= targetVersion) {
+      return;
+    }
+    final long visibleVersionAtSubmit = currentVisibleViewportVersion();
+    final int loadedBlipsAtSubmit = currentLoadedViewportBlipCount();
+    retryScheduler.scheduleRetry(
+        POST_SUBMIT_LIVE_UPDATE_GRACE_MS,
+        () -> {
+          if (!isCurrentGeneration(generation)
+              || selectedWaveId == null
+              || !submittedWaveId.equals(selectedWaveId)) {
+            return;
+          }
+          long currentVisibleVersion = currentVisibleViewportVersion();
+          int currentLoadedBlips = currentLoadedViewportBlipCount();
+          if ((targetVersion >= 0 && currentVisibleVersion >= targetVersion)
+              || (targetVersion < 0
+                  && visibleVersionAtSubmit >= 0
+                  && currentVisibleVersion > visibleVersionAtSubmit)
+              || currentLoadedBlips > loadedBlipsAtSubmit) {
+            return;
+          }
+          if (requestPostSubmitForwardFetch(generation, submittedWaveId, createdBlipId)) {
+            return;
+          }
+          refreshSelectedWave();
+        });
   }
 
   @Override
@@ -710,6 +767,32 @@ public final class J2clSelectedWaveController
         });
   }
 
+  private boolean requestPostSubmitForwardFetch(
+      int generation, String submittedWaveId, String submittedBlipId) {
+    if (!isCurrentGeneration(generation)
+        || selectedWaveId == null
+        || !submittedWaveId.equals(selectedWaveId)
+        || currentModel == null) {
+      return false;
+    }
+    J2clSelectedWaveViewportState viewportState = currentModel.getViewportState();
+    if (viewportState == null || viewportState.isEmpty()) {
+      return false;
+    }
+    String anchor = submittedBlipId == null ? "" : submittedBlipId;
+    if (anchor.isEmpty()) {
+      anchor = viewportState.edgePlaceholderBlipId(J2clViewportGrowthDirection.FORWARD);
+    }
+    if (anchor.isEmpty()) {
+      anchor = normalizeAnchor("", viewportState, J2clViewportGrowthDirection.FORWARD);
+    }
+    if (anchor.isEmpty()) {
+      return false;
+    }
+    onViewportEdge(anchor, J2clViewportGrowthDirection.FORWARD);
+    return true;
+  }
+
   private boolean isStaleFragmentResponse(
       boolean hadWriteSession, long baseVersion, String historyHash) {
     if (!hadWriteSession) {
@@ -858,6 +941,21 @@ public final class J2clSelectedWaveController
     return generation == requestGeneration;
   }
 
+  private long currentVisibleViewportVersion() {
+    if (currentModel == null || currentModel.getViewportState() == null) {
+      return -1L;
+    }
+    J2clSelectedWaveViewportState viewportState = currentModel.getViewportState();
+    return Math.max(viewportState.getSnapshotVersion(), viewportState.getEndVersion());
+  }
+
+  private int currentLoadedViewportBlipCount() {
+    if (currentModel == null || currentModel.getViewportState() == null) {
+      return 0;
+    }
+    return currentModel.getViewportState().getLoadedReadBlips().size();
+  }
+
   static boolean isChannelEstablishmentUpdate(SidecarSelectedWaveUpdate update) {
     String waveletName = update.getWaveletName();
     // The socket open handshake reuses ProtocolWaveletUpdate to deliver the initial channel id
@@ -917,7 +1015,12 @@ public final class J2clSelectedWaveController
 
   private void publishWriteSession() {
     if (writeSessionListener != null) {
-      writeSessionListener.onWriteSessionChanged(currentModel.getWriteSession());
+      writeSessionListener.onSelectedWaveComposeContextChanged(
+          currentModel == null ? "" : currentModel.getSelectedWaveId(),
+          currentModel == null ? null : currentModel.getWriteSession(),
+          currentModel == null
+              ? Collections.<String>emptyList()
+              : currentModel.getParticipantIds());
     }
   }
 

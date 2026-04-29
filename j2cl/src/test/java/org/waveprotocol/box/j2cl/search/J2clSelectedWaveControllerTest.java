@@ -377,6 +377,128 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void replySubmitHandoffWaitsForLiveUpdateBeforeFallbackRefresh() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertEquals(0, harness.closedCount);
+    Assert.assertEquals(Arrays.asList(Integer.valueOf(250)), harness.scheduledDelays);
+
+    harness.deliverRawUpdate(
+        0, liveReplyFragmentUpdate("Reply now visible from live stream", -1L, null, 45L));
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertEquals(0, harness.closedCount);
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply now visible from live stream"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void replySubmitHandoffFetchesForwardViewportWhenLiveUpdateDoesNotAdvance()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertEquals(0, harness.closedCount);
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+next", harness.fragmentFetchAttempts.get(0).startBlipId);
+
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+reply", "Reply loaded by post-submit fetch", null, null));
+
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply loaded by post-submit fetch"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void replySubmitHandoffFetchesForwardViewportWhenLiveUpdateOnlyAdvancesMetadata()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+    harness.deliverRawUpdate(0, metadataOnlyLiveUpdate(45L, "EFGH"));
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(
+        "metadata-only live updates must not suppress the viewport fetch needed to show the reply",
+        1,
+        harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+next", harness.fragmentFetchAttempts.get(0).startBlipId);
+
+    harness.resolveFragmentFetch(
+        0,
+        fragmentsResponseForBlips(
+            "b+reply", "Reply loaded after metadata-only live update", null, null));
+
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply loaded after metadata-only live update"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
+  public void replySubmitHandoffFetchesSubmittedBlipWhenKnown() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L, "b+created");
+    harness.runScheduledRetry(0);
+
+    Assert.assertEquals(1, harness.fragmentFetchAttempts.size());
+    Assert.assertEquals("b+created", harness.fragmentFetchAttempts.get(0).startBlipId);
+  }
+
+  @Test
+  public void replySubmitHandoffSkipsFallbackWhenLiveUpdateAlreadyReachedSubmitVersion()
+      throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(0, updateWithPlaceholder("Root already loaded", 44L, "ABCD"));
+    harness.deliverRawUpdate(
+        0, liveReplyFragmentUpdate("Reply already visible from live stream", -1L, null, 45L));
+
+    harness.replySubmitted(controller, "example.com/w+1", 45L);
+
+    Assert.assertTrue(harness.scheduledDelays.isEmpty());
+    Assert.assertEquals(1, harness.openCount);
+    Assert.assertEquals(0, harness.closedCount);
+    Assert.assertEquals(
+        Arrays.asList("Root already loaded", "Reply already visible from live stream"),
+        harness.modelValue("getContentEntries"));
+  }
+
+  @Test
   public void channelEstablishmentUpdateIsIgnoredUntilRealWaveletArrives() throws Exception {
     Harness harness = new Harness();
     Object controller = harness.createController(false);
@@ -450,6 +572,35 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals("chan-1", writeSession.getChannelId());
     Assert.assertEquals(44L, writeSession.getBaseVersion());
     Assert.assertEquals("b+root", writeSession.getReplyTargetBlipId());
+  }
+
+  @Test
+  public void selectedWavePublishesParticipantsBeforeWriteSessionReady() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createControllerWithWriteSessionListener(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverRawUpdate(
+        0,
+        new SidecarSelectedWaveUpdate(
+            1,
+            "example.com!w+1/example.com!conv+root",
+            true,
+            "chan-1",
+            -1L,
+            null,
+            Arrays.asList("alice@example.com", "bob@example.com"),
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "alice@example.com", 33L, 44L, "Hello before write session")),
+            null));
+
+    Assert.assertEquals("example.com/w+1", harness.lastPublishedSelectedWaveId);
+    Assert.assertNull(harness.lastPublishedWriteSession);
+    Assert.assertEquals(
+        Arrays.asList("alice@example.com", "bob@example.com"),
+        harness.lastPublishedParticipantIds);
   }
 
   @Test
@@ -1875,6 +2026,10 @@ public class J2clSelectedWaveControllerTest {
     private Method onWaveSelectedWithDigestMethod;
     private String attachmentMetadataDispatchError;
     private final List<String> viewEvents = new ArrayList<String>();
+    private boolean captureWriteSessionListener;
+    private String lastPublishedSelectedWaveId;
+    private J2clSidecarWriteSession lastPublishedWriteSession;
+    private List<String> lastPublishedParticipantIds = Collections.emptyList();
     private boolean lastNavRowPinned;
     private boolean lastNavRowArchived;
     private final J2clClientTelemetry.Sink telemetrySink;
@@ -1893,6 +2048,11 @@ public class J2clSelectedWaveControllerTest {
 
     private Object createController(boolean withScheduler) throws Exception {
       return createControllerInternal(withScheduler, /* injectVisibility= */ false);
+    }
+
+    private Object createControllerWithWriteSessionListener(boolean withScheduler) throws Exception {
+      captureWriteSessionListener = true;
+      return createControllerInternal(withScheduler, /* injectVisibility= */ true);
     }
 
     private void fireVisibilityVisible() {
@@ -2062,6 +2222,25 @@ public class J2clSelectedWaveControllerTest {
         Class<?> writeSessionListenerClass =
             Class.forName(
                 "org.waveprotocol.box.j2cl.search.J2clSelectedWaveController$WriteSessionListener");
+        Object writeSessionListener =
+            captureWriteSessionListener
+                ? Proxy.newProxyInstance(
+                    writeSessionListenerClass.getClassLoader(),
+                    new Class<?>[] {writeSessionListenerClass},
+                    (proxy, method, args) -> {
+                      if ("onSelectedWaveComposeContextChanged".equals(method.getName())) {
+                        lastPublishedSelectedWaveId = (String) args[0];
+                        lastPublishedWriteSession = (J2clSidecarWriteSession) args[1];
+                        @SuppressWarnings("unchecked")
+                        List<String> participantIds = (List<String>) args[2];
+                        lastPublishedParticipantIds =
+                            participantIds == null
+                                ? Collections.<String>emptyList()
+                                : new ArrayList<String>(participantIds);
+                      }
+                      return null;
+                    })
+                : null;
         Object visibility =
             Proxy.newProxyInstance(
                 visibilityClass.getClassLoader(),
@@ -2092,9 +2271,15 @@ public class J2clSelectedWaveControllerTest {
         controller =
             telemetrySink == null
                 ? constructor.newInstance(
-                    gateway, view, scheduler, readStateScheduler, null, visibility)
+                    gateway, view, scheduler, readStateScheduler, writeSessionListener, visibility)
                 : constructor.newInstance(
-                    gateway, view, scheduler, readStateScheduler, null, visibility, telemetrySink);
+                    gateway,
+                    view,
+                    scheduler,
+                    readStateScheduler,
+                    writeSessionListener,
+                    visibility,
+                    telemetrySink);
       } else {
         Constructor<?> constructor =
             telemetrySink == null
@@ -2135,6 +2320,29 @@ public class J2clSelectedWaveControllerTest {
       Method refreshSelectedWaveMethod =
           controller.getClass().getMethod("refreshSelectedWave");
       refreshSelectedWaveMethod.invoke(controller);
+    }
+
+    private void replySubmitted(Object controller, String waveId) throws Exception {
+      Method onReplySubmittedMethod =
+          controller.getClass().getMethod("onReplySubmitted", String.class);
+      onReplySubmittedMethod.invoke(controller, waveId);
+    }
+
+    private void replySubmitted(Object controller, String waveId, long resultingVersion)
+        throws Exception {
+      Method onReplySubmittedMethod =
+          controller.getClass().getMethod("onReplySubmitted", String.class, Long.TYPE);
+      onReplySubmittedMethod.invoke(controller, waveId, resultingVersion);
+    }
+
+    private void replySubmitted(
+        Object controller, String waveId, long resultingVersion, String submittedBlipId)
+        throws Exception {
+      Method onReplySubmittedMethod =
+          controller
+              .getClass()
+              .getMethod("onReplySubmitted", String.class, Long.TYPE, String.class);
+      onReplySubmittedMethod.invoke(controller, waveId, resultingVersion, submittedBlipId);
     }
 
     private void requestViewportEdge(Object controller, String anchorBlipId, String direction)
@@ -2328,6 +2536,58 @@ public class J2clSelectedWaveControllerTest {
             Arrays.asList(
                 new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
                 new SidecarSelectedWaveFragment("blip:b+root", rootSnapshot, 0, 0))));
+  }
+
+  private static SidecarSelectedWaveUpdate liveReplyFragmentUpdate(
+      String replySnapshot, long resultingVersion, String historyHash) {
+    return liveReplyFragmentUpdate(replySnapshot, resultingVersion, historyHash, resultingVersion);
+  }
+
+  private static SidecarSelectedWaveUpdate liveReplyFragmentUpdate(
+      String replySnapshot, long resultingVersion, String historyHash, long fragmentVersion) {
+    return new SidecarSelectedWaveUpdate(
+        2,
+        "example.com!w+1/example.com!conv+root",
+        true,
+        "chan-1",
+        resultingVersion,
+        historyHash,
+        Arrays.asList("user@example.com", "teammate@example.com"),
+        Collections.<SidecarSelectedWaveDocument>emptyList(),
+        new SidecarSelectedWaveFragments(
+            fragmentVersion,
+            Math.max(0L, fragmentVersion - 1L),
+            fragmentVersion,
+            Arrays.asList(
+                new SidecarSelectedWaveFragmentRange(
+                    "blip:b+reply", Math.max(0L, fragmentVersion - 1L), fragmentVersion)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment("blip:b+reply", replySnapshot, 0, 0))));
+  }
+
+  private static SidecarSelectedWaveUpdate metadataOnlyLiveUpdate(
+      long resultingVersion, String historyHash) {
+    return new SidecarSelectedWaveUpdate(
+        2,
+        "example.com!w+1/example.com!conv+root",
+        true,
+        "chan-1",
+        resultingVersion,
+        historyHash,
+        Arrays.asList("user@example.com", "teammate@example.com"),
+        Collections.<SidecarSelectedWaveDocument>emptyList(),
+        new SidecarSelectedWaveFragments(
+            resultingVersion,
+            Math.max(0L, resultingVersion - 1L),
+            resultingVersion,
+            Arrays.asList(
+                new SidecarSelectedWaveFragmentRange(
+                    "manifest", Math.max(0L, resultingVersion - 1L), resultingVersion),
+                new SidecarSelectedWaveFragmentRange(
+                    "index", Math.max(0L, resultingVersion - 1L), resultingVersion)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment("manifest", "conversation: Inbox wave", 0, 0),
+                new SidecarSelectedWaveFragment("index", "metadata", 0, 0))));
   }
 
   private static SidecarSelectedWaveUpdate updateWithOnlyPlaceholder() {

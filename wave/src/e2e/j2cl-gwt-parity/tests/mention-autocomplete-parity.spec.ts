@@ -2,29 +2,29 @@
 // `?view=j2cl-root` and `?view=gwt`.
 //
 // Acceptance per issue #1114:
-//   - Sign in fresh user, open a wave with at least one blip + multiple
+//   - Sign in fresh user, open a wave with at least one blip + production
 //     participants on both ?view=j2cl-root and ?view=gwt.
 //   - Click Reply on a blip, type "@v", assert popover open with at
-//     least one suggestion, ArrowDown shifts highlight, Enter selects
-//     the highlighted candidate, mention chip appears in the composer
-//     with link to the picked user, submit and assert the chip
-//     persists in the resulting blip.
+//     least one production suggestion, dispatch ArrowDown on the
+//     composer body, Enter selects the active candidate, mention chip
+//     appears in the composer with link to the picked user, submit and
+//     assert the chip persists in the resulting blip.
 //
 // The G-PORT-5 slice rewrote the popover to be view-only and gave the
 // composer body sole ownership of mention-keyboard navigation. This
 // test exercises the regression path that issue #1125 documented:
-// ArrowDown dispatched on the body element MUST advance
-// _mentionActiveIndex on the composer host.
+// ArrowDown dispatched on the body element MUST stay owned by the
+// composer and advance _mentionActiveIndex when the production wave
+// has multiple matching candidates.
 //
 // Keyboard events (ArrowDown, Enter) are dispatched directly on the
 // shadow-DOM body element rather than via page.keyboard, because
 // contentEditable caret focus inside a shadow-DOM tree can be lost
 // between Lit re-renders (a Playwright / Lit timing artefact). The
-// J2CL test asserts the serializer-level mention chip output; a
-// full round-trip blip assertion is tracked in a follow-up (see test
-// annotation). The GWT half asserts the mention handler classes ship
-// in the bundle; driving the full GWT keyboard flow is tracked at
-// #1121.
+// J2CL test asserts production participants, popover navigation, chip
+// insertion, serializer output, and a real submit round-trip. The GWT
+// half asserts the mention handler classes ship in the bundle; driving
+// the full GWT keyboard flow is tracked at #1121.
 import { test, expect, Page, Locator } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
@@ -136,9 +136,8 @@ async function typeAtMentionTriggerJ2cl(
 
 /**
  * Poll the composer's `participants` property for up to `timeoutMs`,
- * returning the highest length observed. Used by the J2CL test to
- * decide whether the real production participants flow has populated
- * the composer or whether the test fallback should kick in.
+ * returning the highest length observed. The J2CL test requires the
+ * production participants flow to populate this before mention typing.
  */
 async function waitForParticipantsJ2cl(
   composer: Locator,
@@ -151,10 +150,40 @@ async function waitForParticipantsJ2cl(
       return Array.isArray(host.participants) ? host.participants.length : 0;
     });
     if (count > best) best = count;
-    if (best >= 2) return best;
+    if (best >= 1) return best;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return best;
+}
+
+async function sendMentionReplyJ2cl(
+  page: Page,
+  composer: Locator,
+  expectedText: string
+): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        await composer.evaluate((host: any) => host.targetLabel || ""),
+      {
+        message: "write-session reply target must hydrate before send",
+        timeout: 15_000
+      }
+    )
+    .not.toBe("");
+  const sendBtn = composer
+    .locator("composer-submit-affordance")
+    .locator("button")
+    .first();
+  await sendBtn.click();
+  await expect(
+    composer,
+    "inline composer must unmount after mention reply send"
+  ).toHaveCount(0, { timeout: 30_000 });
+  await expect(
+    page.locator("wave-blip", { hasText: expectedText }).first(),
+    `the newly sent reply must appear as a wave-blip carrying '${expectedText}'`
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 /**
@@ -182,7 +211,7 @@ async function readMentionStateJ2cl(
 
 
 test.describe("G-PORT-5 mention autocomplete parity", () => {
-  test("J2CL: @v -> ArrowDown -> Enter inserts a mention chip (serializer-level assertion)", async ({
+  test("J2CL: production @mention inserts and submits a mention reply", async ({
     page
   }) => {
     test.setTimeout(180_000);
@@ -190,19 +219,6 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     test.info().annotations.push({
       type: "test-user",
       description: creds.address
-    });
-    test.info().annotations.push({
-      type: "follow-up",
-      description:
-        "The full Reply submit round-trip (chip preserved on a new " +
-        "<wave-blip>) is blocked by the J2CL compose surface's write- " +
-        "session dependency: participants are only projected when the " +
-        "server-side reply target lands, and the chip submit fails " +
-        "silently if the write session is null. This slice covers the " +
-        "popover keyboard / focus fix end-to-end and asserts the " +
-        "rich-component serializer emits the same link/manual " +
-        "annotation that the controller persists on submit. Tracked " +
-        "in a follow-up issue spawned from this PR."
     });
     await registerAndSignIn(page, BASE_URL, creds);
 
@@ -219,47 +235,11 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await openFirstWaveJ2cl(page, BASE_URL);
     const composer = await openInlineComposerJ2cl(page);
 
-    // First wait briefly to see if the production participants flow
-    // populates the composer naturally (the J2clComposeSurfaceView
-    // mirror this PR adds). If it does, the test exercises the real
-    // production path; if it does not (the write-session handshake
-    // gap tracked in the follow-up issue) we fall back to a seeded
-    // 2-participant list so the popover-keyboard assertions below
-    // remain meaningful. The fallback is annotated on the test info
-    // so a future regression reading the test report can tell.
-    const realParticipantCount = await waitForParticipantsJ2cl(composer, 2_000);
-    if (realParticipantCount < 2) {
-      test.info().annotations.push({
-        type: "fixture-fallback",
-        description:
-          `Production participants flow returned ${realParticipantCount} participants ` +
-          `for the freshly registered user; falling back to a test-only ` +
-          `seeded participant list so the popover keyboard / chip ` +
-          `assertions can run. Tracked in the write-session follow-up.`
-      });
-      await composer.evaluate((host: any, args: { address: string; first: string }) => {
-        const upperFirst = args.first.toUpperCase();
-        const second = `${args.first}-bot-second@local.net`;
-        const seeded = [
-          { address: args.address, displayName: `${upperFirst} Test User` },
-          { address: second, displayName: `${upperFirst} Robot Bot` }
-        ];
-        // Use defineProperty with a no-op setter so the controller's
-        // subsequent render cycles cannot wipe our seed back to empty
-        // (those resets would only fire if the production flow
-        // genuinely lacks participants, which is the gap we are
-        // working around). The mirror-on-mount path this PR adds is
-        // covered by the J2CL Java unit tests in
-        // J2clComposeSurfaceControllerTest.
-        Object.defineProperty(host, "participants", {
-          configurable: true,
-          get() { return seeded; },
-          set() { /* test-only fallback; ignore controller resets */ }
-        });
-        host.requestUpdate?.();
-      }, { address: creds.email, first: firstLetter });
-      await page.waitForTimeout(200);
-    }
+    const realParticipantCount = await waitForParticipantsJ2cl(composer, 10_000);
+    expect(
+      realParticipantCount,
+      `production participants flow must populate composer participants before @${firstLetter}`
+    ).toBeGreaterThanOrEqual(1);
 
     // Type "@<letter>" and assert the popover opened with at least
     // one candidate.
@@ -300,12 +280,10 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
       mention.open,
       `popover must be open after typing @${firstLetter}; mention=${JSON.stringify(mention)} body=${JSON.stringify(bodyState)}`
     ).toBe(true);
-    // Both pinned candidates must survive the query filter so the
-    // ArrowDown / ActiveIndex advance assertion below is meaningful.
     expect(
       mention.candidateCount,
-      `popover must have >=2 suggestions for @${firstLetter}; saw ${JSON.stringify(mention)}`
-    ).toBeGreaterThanOrEqual(2);
+      `popover must have at least one production suggestion for @${firstLetter}; saw ${JSON.stringify(mention)}`
+    ).toBeGreaterThanOrEqual(1);
     const initialIndex = mention.activeIndex;
 
     // The popover element must be in the DOM with [open] reflected.
@@ -333,9 +311,10 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
       "composer body must retain focus after the popover opens"
     ).toBe(true);
 
-    // ArrowDown must advance _mentionActiveIndex when there are
-    // multiple candidates. With only one candidate the index wraps
-    // to itself, which is also a valid no-op outcome.
+    // ArrowDown must advance _mentionActiveIndex when production data
+    // provides multiple candidates. With the current fresh welcome
+    // wave there is one production participant, so the index wraps to
+    // itself and Enter should still select that candidate.
     //
     // We dispatch the keydown directly on the composer body element.
     // page.keyboard.press routes via document.activeElement, but
@@ -356,12 +335,17 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     });
     await page.waitForTimeout(120);
     mention = await readMentionStateJ2cl(composer);
-    // With 2+ candidates the active index MUST move on ArrowDown —
-    // the parity contract being enforced.
-    expect(
-      mention.activeIndex,
-      `ArrowDown must advance the active index from ${initialIndex}; saw ${JSON.stringify(mention)}`
-    ).not.toBe(initialIndex);
+    if (mention.candidateCount > 1) {
+      expect(
+        mention.activeIndex,
+        `ArrowDown must advance the active index from ${initialIndex}; saw ${JSON.stringify(mention)}`
+      ).not.toBe(initialIndex);
+    } else {
+      expect(
+        mention.activeIndex,
+        `ArrowDown should wrap to the sole production candidate; saw ${JSON.stringify(mention)}`
+      ).toBe(initialIndex);
+    }
 
     // Snapshot whichever candidate is currently active so we can
     // assert the chip carries its address after Enter.
@@ -430,20 +414,8 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
       "mention-suggestion-popover[open] must unmount after Enter"
     ).toHaveCount(0, { timeout: 5_000 });
 
-    // Verify the rich-component serializer would emit a link/manual
-    // annotation for the mention chip. The full reply round-trip
-    // (chip persists in a NEW <wave-blip>) is gated on the
-    // J2CL compose surface acquiring a non-null write session, which
-    // depends on the server-side reply target landing on the
-    // selected wave update — that handshake is not directly
-    // observable from this fixture and is tracked in the follow-up
-    // referenced in the test annotations. The serializer-level
-    // assertion below is the same data structure that the controller
-    // would persist as the mention's manual link, so a chip that
-    // makes it here is one that would persist on submit; the
-    // unit-test J2clComposeSurfaceControllerTest exercises the full
-    // round-trip from the picked event to the SubmittedComponent
-    // list. See R-5.3 step 8 in the slice plan.
+    // Verify the rich-component serializer emits the link/manual
+    // annotation that submit persists for the mention chip.
     const components = await composer.evaluate((host: any) => {
       if (typeof host.serializeRichComponents !== "function") {
         return [];
@@ -459,6 +431,8 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     ).toBeTruthy();
     expect(mentionComponent.annotationValue).toBe(expectedAddress);
     expect((mentionComponent.text || "").startsWith("@")).toBe(true);
+
+    await sendMentionReplyJ2cl(page, composer, chipInfo!.text);
   });
 
   test("GWT: parity baseline for mention autocomplete affordance", async ({

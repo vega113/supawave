@@ -81,10 +81,11 @@ export class GwtPage extends WavePage {
    * model id (data-blip-id). Spawns an inline reply blip in edit mode.
    */
   async clickReplyOnBlip(blipId: string): Promise<void> {
-    const reply = this.page
-      .locator(`[data-blip-id="${blipId}"] [data-option="reply"]`)
-      .first();
-    await reply.click({ force: true });
+    const blip = this.page.locator(`[data-blip-id="${blipId}"]`).first();
+    await blip.hover();
+    const reply = blip.locator('[data-option="reply"]').first();
+    await expect(reply).toBeVisible({ timeout: 5_000 });
+    await reply.click();
   }
 
   /**

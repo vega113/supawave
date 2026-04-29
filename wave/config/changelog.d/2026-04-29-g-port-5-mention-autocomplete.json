@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-29-g-port-5-mention-autocomplete",
+  "version": "PR #1114",
+  "date": "2026-04-29",
+  "title": "G-PORT-5: Mention autocomplete parity",
+  "summary": "Typing `@<query>` in the J2CL inline composer now opens a mention suggestion popover anchored at the caret. Arrow keys navigate the candidate list, Enter or Tab inserts a mention chip carrying the picked participant's address, and the chip round-trips through the doc model as a `link/manual` annotation. The popover keyboard / focus contract was rewritten so the composer body retains focus while the popover is open — fixing the regression that prevented arrow-key navigation from advancing the popover's highlight (follow-up #1125).",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Mention popover is view-only: the composer body owns ArrowUp/Down/Enter/Tab/Escape end-to-end. The popover no longer steals focus from the contenteditable, so the caret stays in place for natural typing while the suggestion list is visible.",
+        "Mention options are non-focusable role=option divs that preventDefault on mousedown — clicking a candidate cannot transfer document.activeElement away from the composer body and trip the blur-dismiss path.",
+        "Inline composer now mirrors the active wave's participants on mount, not only on the next full controller render — the popover is mention-ready from its first paint when the user clicks Reply."
+      ]
+    }
+  ]
+}

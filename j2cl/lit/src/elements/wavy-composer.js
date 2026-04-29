@@ -1912,20 +1912,36 @@ export class WavyComposer extends LitElement {
   }
 
   _onBodyKeydown(event) {
-    // F-3.S2 (#1038, R-5.3): when the mention popover is open it owns
-    // ArrowUp/ArrowDown/Enter/Escape/Tab. Forward these to the popover
-    // before the composer's submit/cancel handlers fire so the popover
-    // can navigate without the composer eating the keystrokes.
-    if (this._mentionOpen) {
+    // F-3.S2 (#1038, R-5.3) / G-PORT-5 (#1114): when the mention
+    // popover is open the composer body is the SOLE keyboard owner.
+    // The popover element itself has no keydown listener and never
+    // takes focus, so every ArrowUp/Down/Enter/Tab/Escape lands here.
+    //
+    // G-PORT-5 refinements (Copilot review on the slice plan):
+    //   - bail out on IME composition keystrokes so candidate
+    //     navigation / commit (key 229 / event.isComposing) is never
+    //     hijacked while the popover is technically `_mentionOpen`;
+    //   - empty candidate list lets Tab / Enter fall through so the
+    //     focus order is not trapped while the popover is showing
+    //     a "no matches" placeholder.
+    if (this._mentionOpen && !(event.isComposing || event.keyCode === 229)) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
         const candidates = this._filteredMentionCandidates();
-        if (candidates.length === 0) return;
-        const offset = event.key === "ArrowDown" ? 1 : -1;
-        this._mentionActiveIndex =
-          ((this._mentionActiveIndex + offset) % candidates.length + candidates.length) %
-          candidates.length;
-        return;
+        // Empty candidate list lets arrows fall through so the
+        // browser's own caret navigation keeps working — the
+        // popover is showing a "no matches" placeholder, not a
+        // selectable list, so swallowing the event would trap
+        // the user's caret.
+        if (candidates.length === 0) {
+          // fall through to default keydown handling below
+        } else {
+          event.preventDefault();
+          const offset = event.key === "ArrowDown" ? 1 : -1;
+          this._mentionActiveIndex =
+            ((this._mentionActiveIndex + offset) % candidates.length + candidates.length) %
+            candidates.length;
+          return;
+        }
       }
       if (event.key === "Enter" || event.key === "Tab") {
         const candidates = this._filteredMentionCandidates();
@@ -1934,6 +1950,9 @@ export class WavyComposer extends LitElement {
           this._selectMentionCandidate(candidates[this._mentionActiveIndex] || candidates[0]);
           return;
         }
+        // Empty candidate list: do NOT swallow Tab/Enter — let the
+        // browser's normal focus-traversal / line-break behaviour run
+        // so the user is never trapped in an empty-popover state.
       }
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1942,15 +1961,23 @@ export class WavyComposer extends LitElement {
       }
     }
     // Shift+Enter submits per H.22 hint and the issue body's
-    // Reply-composer contract.
-    if (event.key === "Enter" && event.shiftKey) {
+    // Reply-composer contract. Bail out on IME composition so an
+    // IME commit Enter does not also submit the blip.
+    if (
+      event.key === "Enter"
+      && event.shiftKey
+      && !(event.isComposing || event.keyCode === 229)
+    ) {
       event.preventDefault();
       this._submit();
       return;
     }
     // Esc discards (with confirm if non-empty) per the issue body's
-    // Reply-composer contract.
-    if (event.key === "Escape") {
+    // Reply-composer contract. Guard with the same IME check used
+    // above: on JP/KR/CN IMEs, Escape dismisses the candidate window
+    // rather than cancelling the composer, so we must not swallow it
+    // during composition (G-PORT-5 CodeRabbit review).
+    if (event.key === "Escape" && !(event.isComposing || event.keyCode === 229)) {
       event.preventDefault();
       this._cancel();
       return;
@@ -2162,8 +2189,13 @@ export class WavyComposer extends LitElement {
       this.activeSelection = {};
       this._lastSelectionRange = null;
       this._dispatchSelectionEvent({});
-      // F-3.S2: caret left the document; collapse the popover.
-      if (this._mentionOpen) this._dismissMentionPopover("blur");
+      // F-3.S2: caret left the document; collapse the popover —
+      // unless the user is still focused on the composer or the
+      // popover host (G-PORT-5: a transient empty-selection during
+      // the popover's first paint must not dismiss it).
+      if (this._mentionOpen && !this._isFocusInsideComposerOrPopover()) {
+        this._dismissMentionPopover("blur");
+      }
       return;
     }
     const range = selection.getRangeAt(0);
@@ -2174,7 +2206,9 @@ export class WavyComposer extends LitElement {
       this.activeSelection = {};
       this._lastSelectionRange = null;
       this._dispatchSelectionEvent({});
-      if (this._mentionOpen) this._dismissMentionPopover("blur");
+      if (this._mentionOpen && !this._isFocusInsideComposerOrPopover()) {
+        this._dismissMentionPopover("blur");
+      }
       return;
     }
     const rect = range.getBoundingClientRect();
@@ -2325,6 +2359,45 @@ export class WavyComposer extends LitElement {
 
   _renderHintStrip() {
     return html`<small class="hint-strip" data-hint-strip>${this.keymapHint}</small>`;
+  }
+
+  /**
+   * G-PORT-5 (#1114): true when the deepest focused element (across
+   * shadow-root boundaries) is the composer host itself, the
+   * contenteditable body, or anywhere inside the mention popover host
+   * div. Only these three targets are considered "inside" — toolbar
+   * buttons and other shadow-DOM descendants intentionally do NOT
+   * satisfy this predicate, so focus moving to a toolbar control
+   * correctly dismisses the popover.
+   * Used to gate the blur-dismiss path in `_onSelectionChange` so a
+   * transient selection drop during the popover's first render does
+   * not collapse the popover.
+   */
+  _isFocusInsideComposerOrPopover() {
+    if (typeof document === "undefined") return false;
+    // Walk through shadow-root boundaries: when focus is inside a
+    // nested shadow tree, document.activeElement returns the
+    // outermost host. Keep descending via `shadowRoot.activeElement`
+    // so we see the deepest currently-focused element. The check is
+    // satisfied iff that deepest element is the contenteditable body
+    // or anywhere inside the popover host. We deliberately do NOT
+    // count the composer host itself nor its toolbar / send-button
+    // descendants — focus on those is a real "selection left the
+    // body" event, and the blur-dismiss path should fire so the
+    // popover does not linger while the user clicks Bold / Send.
+    let active = document.activeElement;
+    while (active && active.shadowRoot && active.shadowRoot.activeElement) {
+      active = active.shadowRoot.activeElement;
+    }
+    if (!active) return false;
+    if (this._bodyElement && this._bodyElement.contains(active)) return true;
+    if (this.renderRoot) {
+      const host = this.renderRoot.querySelector(
+        "[data-mention-popover-host]"
+      );
+      if (host && host.contains(active)) return true;
+    }
+    return false;
   }
 
   _renderMentionPopover() {

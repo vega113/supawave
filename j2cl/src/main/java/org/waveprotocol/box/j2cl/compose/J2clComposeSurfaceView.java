@@ -570,6 +570,18 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(composer, "activeCommand", propertyString(replyElement, "activeCommand"));
     setProperty(composer, "commandStatus", propertyString(replyElement, "commandStatus"));
     setProperty(composer, "commandError", propertyString(replyElement, "commandError"));
+    // G-PORT-5 (#1114): participants must mirror onto a freshly mounted
+    // inline composer at construction time, otherwise the user sees an
+    // empty popover when typing `@` in the gap between mount and the
+    // controller's next full render() — the gap most users notice
+    // because the inline composer is opened mid-render. The reply
+    // element carries the canonical participants list (set in render()
+    // above); forwarding it here makes the inline composer mention-
+    // ready from its first paint.
+    Object participants = property(replyElement, "participants");
+    if (participants != null) {
+      setProperty(composer, "participants", participants);
+    }
   }
 
   /**
@@ -686,6 +698,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private static String propertyString(HTMLElement element, String name) {
     Object value = Js.asPropertyMap(element).get(name);
     return value == null ? "" : String.valueOf(value);
+  }
+
+  /** G-PORT-5 (#1114): raw property accessor for non-string values such
+   * as the participants array carried on the reply element. */
+  private static Object property(HTMLElement element, String name) {
+    return Js.asPropertyMap(element).get(name);
   }
 
   private static boolean propertyBoolean(HTMLElement element, String name) {

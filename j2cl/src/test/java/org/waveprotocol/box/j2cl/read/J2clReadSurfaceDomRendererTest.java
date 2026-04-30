@@ -232,7 +232,8 @@ public class J2clReadSurfaceDomRendererTest {
             /* deleted= */ false,
             /* taskDone= */ true,
             /* taskAssignee= */ "bob@example.com",
-            /* taskDueTimestamp= */ 1714560000000L);
+            /* taskDueTimestamp= */ 1714560000000L,
+            /* bodyItemCount= */ 17);
 
     Assert.assertTrue(
         renderer.render(Arrays.asList(done), Collections.<String>emptyList()));
@@ -248,6 +249,7 @@ public class J2clReadSurfaceDomRendererTest {
         "1970-01-01 lookup is wrong; renderer must format from epoch ms",
         "2024-05-01",
         element.getAttribute("data-task-due-date"));
+    Assert.assertEquals("17", element.getAttribute("data-blip-doc-size"));
   }
 
   @Test
@@ -270,6 +272,7 @@ public class J2clReadSurfaceDomRendererTest {
         element.hasAttribute("data-task-completed"));
     Assert.assertFalse(element.hasAttribute("data-task-assignee"));
     Assert.assertFalse(element.hasAttribute("data-task-due-date"));
+    Assert.assertFalse(element.hasAttribute("data-blip-doc-size"));
   }
 
   @Test

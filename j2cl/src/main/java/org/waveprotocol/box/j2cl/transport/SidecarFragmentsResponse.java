@@ -83,10 +83,16 @@ public final class SidecarFragmentsResponse {
     if (rawFragments != null) {
       for (Object rawFragment : asList(rawFragments)) {
         Map<String, Object> fragment = getObject(rawFragment);
+        String rawSnapshot = getNullableString(fragment, "rawSnapshot");
+        int bodyItemCount =
+            fragment.containsKey("bodyItemCount")
+                ? (int) getOptionalLong(fragment, "bodyItemCount")
+                : SidecarSelectedWaveFragment.estimateBodyItemCount(rawSnapshot);
         entries.add(
             new SidecarSelectedWaveFragment(
                 getRequiredString(fragment, "segment"),
-                getNullableString(fragment, "rawSnapshot"),
+                rawSnapshot,
+                bodyItemCount,
                 // TODO(#967 Task 5): decode operation bodies when growth windows apply deltas.
                 getArrayLength(fragment.get("adjust")),
                 getArrayLength(fragment.get("diff"))));

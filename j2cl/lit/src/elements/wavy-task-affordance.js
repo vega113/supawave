@@ -15,15 +15,17 @@ import "./task-metadata-popover.js";
  * - assigneeAddress (String, attribute "data-task-assignee") —
  *   currently-assigned owner's address.
  * - dueDate (String, attribute "data-task-due-date") — YYYY-MM-DD.
+ * - bodySize (Number, attribute "data-blip-doc-size") — wavelet item
+ *   count for the backing blip body.
  * - participants (Array of {address, displayName}) — passed to the
  *   inner <task-metadata-popover>.
  *
  * Events emitted (CustomEvent, bubbles + composed):
- * - `wave-blip-task-toggled` — `{detail: {blipId, waveId, completed}}`
+ * - `wave-blip-task-toggled` — `{detail: {blipId, waveId, completed, bodySize}}`
  *   when the toggle button is clicked. The compose-surface view
- *   listener routes this to `Listener.onTaskToggled(blipId, completed)`.
+ *   listener routes this to `Listener.onTaskToggled(blipId, completed, bodySize)`.
  * - `wave-blip-task-metadata-changed` —
- *   `{detail: {blipId, waveId, assigneeAddress, dueDate}}` when the
+ *   `{detail: {blipId, waveId, assigneeAddress, dueDate, bodySize}}` when the
  *   inner <task-metadata-popover> emits its `task-metadata-submit`.
  *
  * UX rationale (per the slice plan):
@@ -46,6 +48,7 @@ export class WavyTaskAffordance extends LitElement {
     completed: { type: Boolean, attribute: "data-task-completed", reflect: true },
     assigneeAddress: { type: String, attribute: "data-task-assignee", reflect: true },
     dueDate: { type: String, attribute: "data-task-due-date", reflect: true },
+    bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true },
     participants: { type: Array },
     // J-UI-6 (#1084, R-5.4 — "Labels translate"): every visible / aria / live
     // string is exposed as a property so the Java view (or a future lit-i18n
@@ -125,6 +128,7 @@ export class WavyTaskAffordance extends LitElement {
     this.completed = false;
     this.assigneeAddress = "";
     this.dueDate = "";
+    this.bodySize = 0;
     this.participants = [];
     this._announceText = "";
     this._popoverOpen = false;
@@ -150,7 +154,12 @@ export class WavyTaskAffordance extends LitElement {
       new CustomEvent("wave-blip-task-toggled", {
         bubbles: true,
         composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId, completed: next }
+        detail: {
+          blipId: this.blipId,
+          waveId: this.waveId,
+          completed: next,
+          bodySize: this.bodySize || 0
+        }
       })
     );
   }
@@ -200,7 +209,8 @@ export class WavyTaskAffordance extends LitElement {
           blipId: this.blipId,
           waveId: this.waveId,
           assigneeAddress: assignee,
-          dueDate: due
+          dueDate: due,
+          bodySize: this.bodySize || 0
         }
       })
     );

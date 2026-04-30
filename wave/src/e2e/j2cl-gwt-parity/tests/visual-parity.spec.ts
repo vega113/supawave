@@ -893,7 +893,7 @@ test.describe("G-PORT-9 visual parity gates", () => {
       type: "scope",
       description:
         "Task overlay gate compares the J2CL/GWT dialog visuals only. " +
-        "J2CL task persistence remains out of scope until issue #1129 closes."
+        "Task persistence is covered by tasks-parity.spec.ts."
     });
     await registerAndSignIn(page, BASE_URL, creds);
 

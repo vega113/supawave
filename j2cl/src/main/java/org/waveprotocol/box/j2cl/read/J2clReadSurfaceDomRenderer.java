@@ -665,7 +665,8 @@ public final class J2clReadSurfaceDomRenderer {
               /* deleted= */ false,
               /* taskDone= */ entry.isTaskDone(),
               /* taskAssignee= */ entry.getTaskAssignee(),
-              /* taskDueTimestamp= */ entry.getTaskDueTimestamp());
+              /* taskDueTimestamp= */ entry.getTaskDueTimestamp(),
+              /* bodyItemCount= */ entry.getBodyItemCount());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
       // V-4 (#1102): mark blip depth so the larger root avatar paints
       // and the timestamp picks up the ` · root` suffix. Check parent
@@ -1082,7 +1083,8 @@ public final class J2clReadSurfaceDomRenderer {
         blip.getBlipId(),
         blip.isTaskDone(),
         blip.getTaskAssignee(),
-        blip.getTaskDueTimestamp());
+        blip.getTaskDueTimestamp(),
+        blip.getBodyItemCount());
 
     // The renderer doesn't know the parent wave id (it lives one layer up
     // in J2clSelectedWaveView). The view sets `data-wave-id` on the host
@@ -1238,7 +1240,8 @@ public final class J2clReadSurfaceDomRenderer {
       String blipId,
       boolean modelTaskDone,
       String taskAssignee,
-      long taskDueTimestamp) {
+      long taskDueTimestamp,
+      int bodyItemCount) {
     if (element == null) {
       return;
     }
@@ -1278,6 +1281,11 @@ public final class J2clReadSurfaceDomRenderer {
       element.removeAttribute("data-task-due-date");
     } else {
       element.setAttribute("data-task-due-date", dueDate);
+    }
+    if (bodyItemCount > 0) {
+      element.setAttribute("data-blip-doc-size", String.valueOf(bodyItemCount));
+    } else {
+      element.removeAttribute("data-blip-doc-size");
     }
   }
 
@@ -2502,7 +2510,8 @@ public final class J2clReadSurfaceDomRenderer {
         // and the strikethrough actually repaints.
         && left.isTaskDone() == right.isTaskDone()
         && left.getTaskAssignee().equals(right.getTaskAssignee())
-        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp();
+        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
+        && left.getBodyItemCount() == right.getBodyItemCount();
   }
 
   private boolean matchesRenderedWindowEntries(List<J2clReadWindowEntry> entries) {
@@ -2579,7 +2588,8 @@ public final class J2clReadSurfaceDomRenderer {
         // check on this code path too.
         && left.isTaskDone() == right.isTaskDone()
         && left.getTaskAssignee().equals(right.getTaskAssignee())
-        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp();
+        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
+        && left.getBodyItemCount() == right.getBodyItemCount();
   }
 
   private HTMLElement renderedBlipById(String blipId) {

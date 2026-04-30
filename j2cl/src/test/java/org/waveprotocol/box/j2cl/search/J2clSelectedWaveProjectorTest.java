@@ -185,6 +185,46 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void viewportFragmentsProjectBodyItemCountToReadModelsAndWindowEntries() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    9L,
+                    0L,
+                    9L,
+                    Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+task", 0L, 9L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment(
+                            "blip:b+task",
+                            "<body><line/>Review launch<?a \"task/done\"=\"true\"?></body>",
+                            0,
+                            0)))),
+            null,
+            0);
+
+    Assert.assertEquals(1, projected.getReadBlips().size());
+    Assert.assertEquals("Review launch", projected.getReadBlips().get(0).getText());
+    Assert.assertTrue(projected.getReadBlips().get(0).isTaskDone());
+    Assert.assertEquals(17, projected.getReadBlips().get(0).getBodyItemCount());
+    Assert.assertTrue(
+        projected.getViewportState().getReadWindowEntries().get(0).isTaskDone());
+    Assert.assertEquals(
+        17,
+        projected.getViewportState().getReadWindowEntries().get(0).getBodyItemCount());
+  }
+
+  @Test
   public void projectExtractsAttachmentModelsFromImageElementsInFragments() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(
@@ -3244,6 +3284,7 @@ public class J2clSelectedWaveProjectorTest {
             7L,
             1714240000000L,
             "Pin the retry",
+            18,
             Arrays.asList(
                 new SidecarAnnotationRange("task/done", "true", 0, 14),
                 new SidecarAnnotationRange("task/assignee", "bob@example.com", 0, 14),
@@ -3259,6 +3300,7 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertTrue(out.isTaskDone());
     Assert.assertEquals("bob@example.com", out.getTaskAssignee());
     Assert.assertEquals(1714560000000L, out.getTaskDueTimestamp());
+    Assert.assertEquals(18, out.getBodyItemCount());
   }
 
   @Test
@@ -3282,7 +3324,8 @@ public class J2clSelectedWaveProjectorTest {
             /* deleted= */ false,
             /* taskDone= */ true,
             /* taskAssignee= */ "bob@example.com",
-            /* taskDueTimestamp= */ 1714560000000L);
+            /* taskDueTimestamp= */ 1714560000000L,
+            /* bodyItemCount= */ 18);
 
     org.waveprotocol.box.j2cl.read.J2clReadWindowEntry plain =
         org.waveprotocol.box.j2cl.read.J2clReadWindowEntry.loaded(
@@ -3297,6 +3340,7 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertTrue(out.isTaskDone());
     Assert.assertEquals("bob@example.com", out.getTaskAssignee());
     Assert.assertEquals(1714560000000L, out.getTaskDueTimestamp());
+    Assert.assertEquals(18, out.getBodyItemCount());
     // Author + timestamp metadata also propagates so the existing F-2 flat
     // render path metadata works through the window path.
     Assert.assertEquals("alice@example.com", out.getAuthorId());

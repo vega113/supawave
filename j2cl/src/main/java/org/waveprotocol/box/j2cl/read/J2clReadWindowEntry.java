@@ -36,6 +36,8 @@ public final class J2clReadWindowEntry {
   private final String taskAssignee;
   /** J-UI-6 (#1084, R-5.4): see {@link J2clReadBlip#getTaskDueTimestamp()}. */
   private final long taskDueTimestamp;
+  /** Issue #1129: see {@link J2clReadBlip#getBodyItemCount()}. */
+  private final int bodyItemCount;
 
   private J2clReadWindowEntry(
       String segment,
@@ -54,7 +56,8 @@ public final class J2clReadWindowEntry {
       boolean hasMention,
       boolean taskDone,
       String taskAssignee,
-      long taskDueTimestamp) {
+      long taskDueTimestamp,
+      int bodyItemCount) {
     this.segment = segment == null ? "" : segment;
     this.fromVersion = fromVersion;
     this.toVersion = toVersion;
@@ -75,6 +78,7 @@ public final class J2clReadWindowEntry {
     this.taskDone = taskDone;
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
+    this.bodyItemCount = Math.max(0, bodyItemCount);
   }
 
   public static J2clReadWindowEntry loaded(
@@ -112,7 +116,8 @@ public final class J2clReadWindowEntry {
         /* hasMention= */ false,
         /* taskDone= */ false,
         /* taskAssignee= */ "",
-        /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+        /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+        /* bodyItemCount= */ 0);
   }
 
   /**
@@ -177,6 +182,44 @@ public final class J2clReadWindowEntry {
       boolean taskDone,
       String taskAssignee,
       long taskDueTimestamp) {
+    return loadedWithTaskMetadata(
+        segment,
+        fromVersion,
+        toVersion,
+        blipId,
+        text,
+        attachments,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp,
+        /* bodyItemCount= */ 0);
+  }
+
+  public static J2clReadWindowEntry loadedWithTaskMetadata(
+      String segment,
+      long fromVersion,
+      long toVersion,
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount) {
     return new J2clReadWindowEntry(
         segment,
         fromVersion,
@@ -194,7 +237,8 @@ public final class J2clReadWindowEntry {
         hasMention,
         taskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        bodyItemCount);
   }
 
   public static J2clReadWindowEntry placeholder(
@@ -216,7 +260,8 @@ public final class J2clReadWindowEntry {
         /* hasMention= */ false,
         /* taskDone= */ false,
         /* taskAssignee= */ "",
-        /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP);
+        /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+        /* bodyItemCount= */ 0);
   }
 
   /** Returns a copy of this entry with the unread flag toggled. */
@@ -241,7 +286,8 @@ public final class J2clReadWindowEntry {
         hasMention,
         taskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        bodyItemCount);
   }
 
   /**
@@ -269,7 +315,8 @@ public final class J2clReadWindowEntry {
         hasMention,
         nextTaskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        bodyItemCount);
   }
 
   public String getSegment() {
@@ -342,5 +389,9 @@ public final class J2clReadWindowEntry {
   /** J-UI-6 (#1084, R-5.4): see {@link J2clReadBlip#getTaskDueTimestamp()}. */
   public long getTaskDueTimestamp() {
     return taskDueTimestamp;
+  }
+
+  public int getBodyItemCount() {
+    return bodyItemCount;
   }
 }

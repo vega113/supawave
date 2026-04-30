@@ -165,6 +165,40 @@ public class J2clReadBlipContentTest {
   }
 
   @Test
+  public void parsesTaskAnnotationsFromRawFragmentSnapshot() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><?a \"task/done\"=\"true\" \"task/assignee\"=\"alice@local.net\" "
+                + "\"task/dueTs\"=\"1777593600000\"?>Review launch"
+                + "<?a \"task/done\" \"task/assignee\" \"task/dueTs\"?></body>");
+
+    Assert.assertEquals("Review launch", parsed.getText());
+    Assert.assertTrue(parsed.isTaskDone());
+    Assert.assertEquals("alice@local.net", parsed.getTaskAssignee());
+    Assert.assertEquals(1777593600000L, parsed.getTaskDueTimestamp());
+  }
+
+  @Test
+  public void parsesFalseTaskDoneAsOpenFromRawFragmentSnapshot() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><?a \"task/done\"=\"false\"?>Review launch"
+                + "<?a \"task/done\"?></body>");
+
+    Assert.assertFalse(parsed.isTaskDone());
+  }
+
+  @Test
+  public void parsesTombstoneAnnotationFromRawFragmentSnapshot() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><?a \"tombstone/deleted\"=\"true\"?>Deleted"
+                + "<?a \"tombstone/deleted\"?></body>");
+
+    Assert.assertTrue(parsed.isDeleted());
+  }
+
+  @Test
   public void leadingLineBeforeImageDoesNotAddSeparator() {
     J2clReadBlipContent parsed =
         J2clReadBlipContent.parseRawSnapshot(

@@ -158,6 +158,7 @@ public class SidecarTransportCodecTest {
     SidecarSelectedWaveFragment fragment = fragments.getEntries().get(1);
     Assert.assertEquals("blip:b+root", fragment.getSegment());
     Assert.assertEquals("Hello from the sidecar", fragment.getRawSnapshot());
+    Assert.assertEquals(22, fragment.getBodyItemCount());
   }
 
   @Test
@@ -202,6 +203,7 @@ public class SidecarTransportCodecTest {
     Assert.assertEquals(1, update.getDocuments().size());
     Assert.assertEquals("b+abc123", update.getDocuments().get(0).getDocumentId());
     Assert.assertEquals("  Welcome to SupaWave  ", update.getDocuments().get(0).getTextContent());
+    Assert.assertEquals(27, update.getDocuments().get(0).getBodyItemCount());
     Assert.assertEquals(0, update.getFragments().getEntries().size());
   }
 
@@ -257,6 +259,7 @@ public class SidecarTransportCodecTest {
 
     SidecarSelectedWaveDocument document = update.getDocuments().get(0);
     Assert.assertEquals("Review launch", document.getTextContent());
+    Assert.assertEquals(17, document.getBodyItemCount());
     Assert.assertEquals(3, document.getAnnotationRanges().size());
     Assert.assertEquals("task/id", document.getAnnotationRanges().get(0).getKey());
     Assert.assertEquals("task-123", document.getAnnotationRanges().get(0).getValue());

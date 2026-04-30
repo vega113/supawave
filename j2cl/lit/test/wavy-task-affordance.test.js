@@ -51,7 +51,11 @@ describe("<wavy-task-affordance>", () => {
 
   it("emits wave-blip-task-toggled when the toggle button is clicked", async () => {
     const el = await fixture(html`
-      <wavy-task-affordance data-blip-id="b42" data-wave-id="w7"></wavy-task-affordance>
+      <wavy-task-affordance
+        data-blip-id="b42"
+        data-wave-id="w7"
+        data-blip-doc-size="17"
+      ></wavy-task-affordance>
     `);
     const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
     const eventPromise = oneEvent(el, "wave-blip-task-toggled");
@@ -60,6 +64,7 @@ describe("<wavy-task-affordance>", () => {
     expect(event.detail.blipId).to.equal("b42");
     expect(event.detail.waveId).to.equal("w7");
     expect(event.detail.completed).to.equal(true);
+    expect(event.detail.bodySize).to.equal(17);
   });
 
   it("flips aria-checked and the data-task-completed attribute on toggle", async () => {
@@ -134,6 +139,7 @@ describe("<wavy-task-affordance>", () => {
       <wavy-task-affordance
         data-blip-id="b1"
         data-wave-id="w1"
+        data-blip-doc-size="17"
         .participants=${[{ address: "alice@example.com", displayName: "Alice" }]}
       ></wavy-task-affordance>
     `);
@@ -155,6 +161,7 @@ describe("<wavy-task-affordance>", () => {
     expect(event.detail.blipId).to.equal("b1");
     expect(event.detail.assigneeAddress).to.equal("alice@example.com");
     expect(event.detail.dueDate).to.equal("2026-05-01");
+    expect(event.detail.bodySize).to.equal(17);
   });
 
   it("closes the popover and restores focus to the trigger on overlay-close", async () => {

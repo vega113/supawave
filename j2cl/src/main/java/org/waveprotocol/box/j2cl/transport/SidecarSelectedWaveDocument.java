@@ -12,6 +12,7 @@ public final class SidecarSelectedWaveDocument {
   private final long lastModifiedVersion;
   private final long lastModifiedTime;
   private final String textContent;
+  private final int bodyItemCount;
   private final List<SidecarAnnotationRange> annotationRanges;
   private final List<SidecarReactionEntry> reactionEntries;
 
@@ -27,6 +28,7 @@ public final class SidecarSelectedWaveDocument {
         lastModifiedVersion,
         lastModifiedTime,
         textContent,
+        /* bodyItemCount= */ 0,
         Collections.<SidecarAnnotationRange>emptyList(),
         Collections.<SidecarReactionEntry>emptyList());
   }
@@ -39,11 +41,32 @@ public final class SidecarSelectedWaveDocument {
       String textContent,
       List<SidecarAnnotationRange> annotationRanges,
       List<SidecarReactionEntry> reactionEntries) {
+    this(
+        documentId,
+        author,
+        lastModifiedVersion,
+        lastModifiedTime,
+        textContent,
+        /* bodyItemCount= */ 0,
+        annotationRanges,
+        reactionEntries);
+  }
+
+  public SidecarSelectedWaveDocument(
+      String documentId,
+      String author,
+      long lastModifiedVersion,
+      long lastModifiedTime,
+      String textContent,
+      int bodyItemCount,
+      List<SidecarAnnotationRange> annotationRanges,
+      List<SidecarReactionEntry> reactionEntries) {
     this.documentId = documentId;
     this.author = author;
     this.lastModifiedVersion = lastModifiedVersion;
     this.lastModifiedTime = lastModifiedTime;
     this.textContent = textContent;
+    this.bodyItemCount = Math.max(0, bodyItemCount);
     this.annotationRanges =
         annotationRanges == null
             ? Collections.<SidecarAnnotationRange>emptyList()
@@ -72,6 +95,10 @@ public final class SidecarSelectedWaveDocument {
 
   public String getTextContent() {
     return textContent;
+  }
+
+  public int getBodyItemCount() {
+    return bodyItemCount;
   }
 
   public List<SidecarAnnotationRange> getAnnotationRanges() {

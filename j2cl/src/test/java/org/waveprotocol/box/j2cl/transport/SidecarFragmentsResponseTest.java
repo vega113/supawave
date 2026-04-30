@@ -30,8 +30,38 @@ public class SidecarFragmentsResponseTest {
     Assert.assertEquals(
         "blip:b+root", response.getFragments().getEntries().get(1).getSegment());
     Assert.assertEquals("Root text", response.getFragments().getEntries().get(1).getRawSnapshot());
+    Assert.assertEquals(9, response.getFragments().getEntries().get(1).getBodyItemCount());
     Assert.assertEquals(1, response.getFragments().getEntries().get(1).getAdjustOperationCount());
     Assert.assertEquals(2, response.getFragments().getEntries().get(1).getDiffOperationCount());
+  }
+
+  @Test
+  public void rawBlipFragmentEstimatesDocOpItemCountFromDebugXml() {
+    SidecarFragmentsResponse response =
+        SidecarFragmentsResponse.fromJson(
+            "{\"status\":\"ok\",\"waveRef\":\"example.com/w+abc/~/conv+root\","
+                + "\"version\":{\"snapshot\":44,\"start\":40,\"end\":44},"
+                + "\"ranges\":[{\"segment\":\"blip:b+task\",\"from\":41,\"to\":44}],"
+                + "\"fragments\":[{\"segment\":\"blip:b+task\","
+                + "\"rawSnapshot\":\"<body><line/>Review launch"
+                + "<?a \\\"task/done\\\"=\\\"true\\\"?></body>\","
+                + "\"adjust\":[],\"diff\":[]}]}");
+
+    Assert.assertEquals(17, response.getFragments().getEntries().get(0).getBodyItemCount());
+  }
+
+  @Test
+  public void explicitBodyItemCountOverridesRawSnapshotEstimate() {
+    SidecarFragmentsResponse response =
+        SidecarFragmentsResponse.fromJson(
+            "{\"status\":\"ok\",\"waveRef\":\"example.com/w+abc/~/conv+root\","
+                + "\"version\":{\"snapshot\":44,\"start\":40,\"end\":44},"
+                + "\"ranges\":[{\"segment\":\"blip:b+task\",\"from\":41,\"to\":44}],"
+                + "\"fragments\":[{\"segment\":\"blip:b+task\","
+                + "\"rawSnapshot\":\"short\",\"bodyItemCount\":27,"
+                + "\"adjust\":[],\"diff\":[]}]}");
+
+    Assert.assertEquals(27, response.getFragments().getEntries().get(0).getBodyItemCount());
   }
 
   @Test

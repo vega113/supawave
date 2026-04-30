@@ -5,25 +5,48 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 
 /** Parsed text and attachment placeholders extracted from a selected-wave blip snapshot. */
 public final class J2clReadBlipContent {
   private static final String IMAGE_CLOSE_TAG = "</image>";
+  private static final String ANNOTATION_PI_PREFIX = "<?a";
+  private static final String ANNOTATION_PI_SUFFIX = "?>";
+  private static final String TASK_DONE_ANNOTATION = "task/done";
+  private static final String TASK_ASSIGNEE_ANNOTATION = "task/assignee";
+  private static final String TASK_DUE_ANNOTATION = "task/dueTs";
+  private static final String TOMBSTONE_DELETED_ANNOTATION = "tombstone/deleted";
+
   private final String text;
   private final List<J2clAttachmentRenderModel> attachments;
+  private final boolean taskDone;
+  private final String taskAssignee;
+  private final long taskDueTimestamp;
+  private final boolean deleted;
 
-  private J2clReadBlipContent(String text, List<J2clAttachmentRenderModel> attachments) {
+  private J2clReadBlipContent(
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      boolean deleted) {
     this.text = text == null ? "" : text;
     this.attachments =
         attachments == null
             ? Collections.<J2clAttachmentRenderModel>emptyList()
             : Collections.unmodifiableList(new ArrayList<J2clAttachmentRenderModel>(attachments));
+    this.taskDone = taskDone;
+    this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
+    this.taskDueTimestamp = taskDueTimestamp;
+    this.deleted = deleted;
   }
 
   public static J2clReadBlipContent parseRawSnapshot(String rawSnapshot) {
     // Sidecar fragments currently provide DocOp debug XML, not a browser XML document. Keep this
     // parser narrow to the Wave image doodad shape and treat malformed input as visible text.
     String raw = rawSnapshot == null ? "" : rawSnapshot;
+    AnnotationSnapshot annotations = parseAnnotationSnapshot(raw);
     List<J2clAttachmentRenderModel> attachments =
         new ArrayList<J2clAttachmentRenderModel>();
     StringBuilder visibleText = new StringBuilder(raw.length());
@@ -64,7 +87,12 @@ public final class J2clReadBlipContent {
       }
     }
     return new J2clReadBlipContent(
-        decodeEntities(stripTags(visibleText.toString())), attachments);
+        decodeEntities(stripTags(visibleText.toString())),
+        attachments,
+        annotations.taskDone,
+        annotations.taskAssignee,
+        annotations.taskDueTimestamp,
+        annotations.deleted);
   }
 
   public String getText() {
@@ -73,6 +101,22 @@ public final class J2clReadBlipContent {
 
   public List<J2clAttachmentRenderModel> getAttachments() {
     return attachments;
+  }
+
+  public boolean isTaskDone() {
+    return taskDone;
+  }
+
+  public String getTaskAssignee() {
+    return taskAssignee;
+  }
+
+  public long getTaskDueTimestamp() {
+    return taskDueTimestamp;
+  }
+
+  public boolean isDeleted() {
+    return deleted;
   }
 
   private static String attributeValue(String tag, String name) {
@@ -200,6 +244,105 @@ public final class J2clReadBlipContent {
     }
   }
 
+  private static AnnotationSnapshot parseAnnotationSnapshot(String raw) {
+    AnnotationSnapshot snapshot = new AnnotationSnapshot();
+    int cursor = 0;
+    while (cursor < raw.length()) {
+      int start = raw.indexOf(ANNOTATION_PI_PREFIX, cursor);
+      if (start < 0) {
+        break;
+      }
+      int end = raw.indexOf(ANNOTATION_PI_SUFFIX, start + ANNOTATION_PI_PREFIX.length());
+      if (end < 0) {
+        break;
+      }
+      applyAnnotationInstruction(
+          raw.substring(start + ANNOTATION_PI_PREFIX.length(), end), snapshot);
+      cursor = end + ANNOTATION_PI_SUFFIX.length();
+    }
+    return snapshot;
+  }
+
+  private static void applyAnnotationInstruction(String instruction, AnnotationSnapshot snapshot) {
+    int cursor = 0;
+    while (cursor < instruction.length()) {
+      int keyStart = instruction.indexOf('"', cursor);
+      if (keyStart < 0) {
+        return;
+      }
+      QuotedToken key = readQuotedToken(instruction, keyStart);
+      if (key == null) {
+        return;
+      }
+      cursor = skipWhitespace(instruction, key.end + 1);
+      if (cursor >= instruction.length() || instruction.charAt(cursor) != '=') {
+        // DocOpUtil renders annotation ends as <?a "key"?>. Ends do not change
+        // the persisted task/metadata value we need for a fragment snapshot.
+        continue;
+      }
+      cursor = skipWhitespace(instruction, cursor + 1);
+      QuotedToken value = readQuotedToken(instruction, cursor);
+      if (value == null) {
+        return;
+      }
+      applyAnnotationValue(key.value, value.value, snapshot);
+      cursor = value.end + 1;
+    }
+  }
+
+  private static void applyAnnotationValue(
+      String key, String value, AnnotationSnapshot snapshot) {
+    if (TASK_DONE_ANNOTATION.equals(key)) {
+      snapshot.taskDone = "true".equals(value);
+    } else if (TASK_ASSIGNEE_ANNOTATION.equals(key)) {
+      snapshot.taskAssignee = value == null ? "" : value.trim();
+    } else if (TASK_DUE_ANNOTATION.equals(key)) {
+      snapshot.taskDueTimestamp = parseTimestamp(value);
+    } else if (TOMBSTONE_DELETED_ANNOTATION.equals(key)) {
+      snapshot.deleted = "true".equals(value);
+    }
+  }
+
+  private static QuotedToken readQuotedToken(String value, int quoteStart) {
+    if (quoteStart < 0 || quoteStart >= value.length() || value.charAt(quoteStart) != '"') {
+      return null;
+    }
+    StringBuilder token = new StringBuilder();
+    boolean escaping = false;
+    for (int i = quoteStart + 1; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (escaping) {
+        token.append('\\').append(c);
+        escaping = false;
+      } else if (c == '\\') {
+        escaping = true;
+      } else if (c == '"') {
+        return new QuotedToken(decodeAnnotationToken(token.toString()), i);
+      } else {
+        token.append(c);
+      }
+    }
+    return null;
+  }
+
+  private static String decodeAnnotationToken(String value) {
+    return decodeEntities(value)
+        .replace("\\q", "?")
+        .replace("\\\"", "\"")
+        .replace("\\\\", "\\");
+  }
+
+  private static long parseTimestamp(String value) {
+    if (value == null || value.isEmpty()) {
+      return J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch (NumberFormatException ex) {
+      return J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;
+    }
+  }
+
   private static String decodeEntities(String value) {
     return value.replace("&quot;", "\"")
         .replace("&apos;", "'")
@@ -211,5 +354,22 @@ public final class J2clReadBlipContent {
   private static String firstNonEmpty(String first, String fallback) {
     String normalized = first == null ? "" : first.trim();
     return normalized.isEmpty() ? fallback : normalized;
+  }
+
+  private static final class AnnotationSnapshot {
+    private boolean taskDone;
+    private String taskAssignee = "";
+    private long taskDueTimestamp = J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;
+    private boolean deleted;
+  }
+
+  private static final class QuotedToken {
+    private final String value;
+    private final int end;
+
+    private QuotedToken(String value, int end) {
+      this.value = value == null ? "" : value;
+      this.end = end;
+    }
   }
 }

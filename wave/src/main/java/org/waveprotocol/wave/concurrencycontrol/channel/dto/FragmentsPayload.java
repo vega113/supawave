@@ -55,13 +55,21 @@ public final class FragmentsPayload {
   public static final class Fragment {
     public final SegmentId segment;
     public final String rawSnapshot;
+    public final int bodyItemCount;
     public final List<Operation> adjustOperations;
     public final List<Operation> diffOperations;
 
     public Fragment(SegmentId segment, String rawSnapshot,
         List<Operation> adjustOperations, List<Operation> diffOperations) {
+      this(segment, rawSnapshot, rawSnapshot == null ? 0 : rawSnapshot.length(),
+          adjustOperations, diffOperations);
+    }
+
+    public Fragment(SegmentId segment, String rawSnapshot, int bodyItemCount,
+        List<Operation> adjustOperations, List<Operation> diffOperations) {
       this.segment = Objects.requireNonNull(segment, "segment");
       this.rawSnapshot = rawSnapshot;
+      this.bodyItemCount = Math.max(0, bodyItemCount);
       this.adjustOperations = Collections.unmodifiableList(new ArrayList<>(adjustOperations));
       this.diffOperations = Collections.unmodifiableList(new ArrayList<>(diffOperations));
     }

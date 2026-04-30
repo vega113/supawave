@@ -1090,7 +1090,8 @@ public final class J2clSelectedWaveController
         existing.isDeleted(),
         existing.isTaskDone(),
         existing.getTaskAssignee(),
-        existing.getTaskDueTimestamp());
+        existing.getTaskDueTimestamp(),
+        existing.getBodyItemCount());
   }
 
   private static String nullToEmpty(String value) {

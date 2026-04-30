@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-30-j2cl-task-toggle-persistence",
+  "version": "PR #1129",
+  "date": "2026-04-30",
+  "title": "J2CL task toggle persistence",
+  "summary": "J2CL task toggles, task metadata updates, and blip deletion now build valid blip-body annotation deltas by retaining the target blip body between annotation boundaries.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Propagates selected-wave blip document body item counts through the J2CL read model, rendered wave-blip host, Lit task events, compose controller, and rich-content delta writer.",
+        "Prevents J2CL from submitting task or delete mutations when the body size is unavailable, avoiding server-rejected adjacent annotation boundaries.",
+        "Re-enables the J2CL reload and cross-context task persistence parity gate."
+      ]
+    }
+  ]
+}

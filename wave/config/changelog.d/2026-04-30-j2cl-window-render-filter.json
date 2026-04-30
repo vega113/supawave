@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-j2cl-window-render-filter",
+  "version": "Issue #1041",
+  "date": "2026-04-30",
+  "title": "J2CL windowed wave rendering skips off-screen blips",
+  "summary": "Large J2CL selected-wave first paints now avoid rendering root-thread blips outside the requested initial viewport window.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Skips server document rendering for root-thread blips outside the initial J2CL window while preserving inline replies under visible blips and the legacy whole-wave render path."
+      ]
+    }
+  ]
+}

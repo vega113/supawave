@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-legacy-gwt-cache-headers",
+  "version": "PR #1062",
+  "date": "2026-04-30",
+  "title": "Legacy GWT cache headers",
+  "summary": "The explicit legacy GWT route now opts out of shared caching with the same private no-store policy used by the J2CL root response.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Adds Cache-Control: private, no-store and Vary: Cookie to the legacy GWT fall-through response while preserving the existing GWT skeleton route.",
+        "Adds servlet coverage proving the header assertion exercises the legacy GWT path rather than the J2CL root shell."
+      ]
+    }
+  ]
+}

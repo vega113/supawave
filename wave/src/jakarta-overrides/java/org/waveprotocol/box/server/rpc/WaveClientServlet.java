@@ -327,6 +327,8 @@ public class WaveClientServlet extends HttpServlet {
 
     response.setContentType("text/html");
     response.setCharacterEncoding("UTF-8");
+    response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("Vary", "Cookie");
     response.setStatus(HttpServletResponse.SC_OK);
     try (var w = response.getWriter()) {
       String username = null;

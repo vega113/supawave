@@ -1145,6 +1145,8 @@ export class WavyComposer extends LitElement {
       "s",
       "strike",
       "del",
+      "sup",
+      "sub",
       "a",
       "h1",
       "h2",

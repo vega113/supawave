@@ -278,7 +278,7 @@ describe("wavy-composer toolbar action handlers", () => {
   it("Clear formatting strips inline format wraps from the selection", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);
-    body.innerHTML = "<strong><em>boldy</em></strong>";
+    body.innerHTML = "<strong><em>boldy</em></strong><sup>2</sup><sub>3</sub>";
     body.focus();
     const range = document.createRange();
     range.selectNodeContents(body);
@@ -291,7 +291,9 @@ describe("wavy-composer toolbar action handlers", () => {
 
     expect(body.querySelector("strong")).to.not.exist;
     expect(body.querySelector("em")).to.not.exist;
-    expect(body.textContent).to.equal("boldy");
+    expect(body.querySelector("sup")).to.not.exist;
+    expect(body.querySelector("sub")).to.not.exist;
+    expect(body.textContent).to.equal("boldy23");
   });
 
   it("Clear formatting only strips wraps that intersect the selection", async () => {

@@ -54,6 +54,26 @@ describe("<wavy-confirm-dialog>", () => {
     el.remove();
   });
 
+  it("makes the backdrop visible while open", async () => {
+    const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
+    document.body.appendChild(el);
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-requested", {
+        detail: { requestId: "q-visible", message: "Proceed?" }
+      })
+    );
+    await el.updateComplete;
+
+    expect(getComputedStyle(el).position).to.equal("fixed");
+    const backdrop = el.renderRoot.querySelector(".backdrop");
+    expect(getComputedStyle(backdrop).display).to.not.equal("none");
+    const dialog = el.renderRoot.querySelector(".dialog");
+    expect(getComputedStyle(dialog).position).to.equal("absolute");
+    expect(getComputedStyle(dialog).transform).to.not.equal("none");
+    expect(backdrop.getAttribute("data-confirm-open")).to.equal("true");
+    el.remove();
+  });
+
   it("emits wavy-confirm-resolved with confirmed=true on confirm click", async () => {
     const el = await fixture(html`<wavy-confirm-dialog></wavy-confirm-dialog>`);
     document.body.appendChild(el);

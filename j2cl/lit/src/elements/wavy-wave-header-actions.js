@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { ensureWavyConfirmDialogMounted } from "./wavy-confirm-dialog.js";
 
 const LOCK_CYCLE = {
   unlocked: "root",
@@ -325,6 +326,7 @@ export class WavyWaveHeaderActions extends LitElement {
   }
 
   _requestConfirmation(kind, message, confirmLabel, eventName, detail) {
+    ensureWavyConfirmDialogMounted();
     const requestId = [
       "wavy-wave-header-actions",
       kind,

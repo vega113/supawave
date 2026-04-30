@@ -27,6 +27,10 @@ async function createActions(properties = {}) {
 }
 
 describe("<wavy-wave-header-actions>", () => {
+  afterEach(() => {
+    document.body.querySelectorAll("wavy-confirm-dialog").forEach((dialog) => dialog.remove());
+  });
+
   it("renders Add participant, New wave, Public/private, and Lock buttons", async () => {
     const el = await createActions();
 
@@ -130,6 +134,20 @@ describe("<wavy-wave-header-actions>", () => {
       currentlyPublic: true,
       nextPublic: false
     });
+  });
+
+  it("mounts the shared confirm dialog before requesting public/private confirmation", async () => {
+    const el = await createActions();
+    expect(document.body.querySelector("wavy-confirm-dialog")).to.not.exist;
+
+    const confirmPromise = oneEvent(document.body, "wavy-confirm-requested");
+    actionButton(el, "publicity-toggle").click();
+    await confirmPromise;
+
+    const dialog = document.body.querySelector("wavy-confirm-dialog");
+    expect(dialog).to.exist;
+    await dialog.updateComplete;
+    expect(dialog.open).to.be.true;
   });
 
   it("confirms lock-state changes before emitting the lock toggle event", async () => {

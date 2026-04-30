@@ -44,7 +44,7 @@ import "./wavy-task-affordance.js";
  *   (compose) listens.
  * - `wave-blip-edit-requested` — `{detail: {blipId, waveId}}`. F-3 owns
  *   the edit surface; F-2 only emits the request.
- * - `wave-blip-delete-requested` — `{detail: {blipId, waveId}}`. F-3.S4
+ * - `wave-blip-delete-requested` — `{detail: {blipId, waveId, bodySize}}`. F-3.S4
  *   (#1038, R-5.6) listens; the compose view shows a styled wavy
  *   confirm dialog and on confirm calls the controller's
  *   onDeleteBlipRequested listener which builds the deletion delta
@@ -109,7 +109,8 @@ export class WaveBlip extends LitElement {
     // live-update path (task/done annotation on the blip body).
     taskCompleted: { type: Boolean, attribute: "data-task-completed", reflect: true },
     taskAssignee: { type: String, attribute: "data-task-assignee", reflect: true },
-    taskDueDate: { type: String, attribute: "data-task-due-date", reflect: true }
+    taskDueDate: { type: String, attribute: "data-task-due-date", reflect: true },
+    bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true }
   };
 
   static styles = css`
@@ -326,6 +327,7 @@ export class WaveBlip extends LitElement {
     this.taskCompleted = false;
     this.taskAssignee = "";
     this.taskDueDate = "";
+    this.bodySize = 0;
     this.blipDepth = "";
     this.threadCollapsed = false;
     this.dataBlipAuthor = "";
@@ -506,7 +508,11 @@ export class WaveBlip extends LitElement {
       new CustomEvent("wave-blip-delete-requested", {
         bubbles: true,
         composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId }
+        detail: {
+          blipId: this.blipId,
+          waveId: this.waveId,
+          bodySize: this.bodySize || 0
+        }
       })
     );
   }
@@ -645,6 +651,8 @@ export class WaveBlip extends LitElement {
               ?data-task-completed=${this.taskCompleted}
               data-task-assignee=${this.taskAssignee || ""}
               data-task-due-date=${this.taskDueDate || ""}
+              data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
+              .bodySize=${this.bodySize || 0}
               .participants=${this._participants}
               @wave-blip-task-toggled=${this._onTaskToggled}
             ></wavy-task-affordance>

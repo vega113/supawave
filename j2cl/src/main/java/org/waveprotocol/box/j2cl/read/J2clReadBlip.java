@@ -72,6 +72,12 @@ public final class J2clReadBlip {
    * when the annotation is absent or unparseable.
    */
   private final long taskDueTimestamp;
+  /**
+   * Issue #1129: authoritative wavelet document item count for this blip
+   * body, including characters and element starts/ends. Annotation writers
+   * need this to retain across the body before closing the annotation.
+   */
+  private final int bodyItemCount;
 
   public J2clReadBlip(String blipId, String text) {
     this(blipId, text, Collections.<J2clAttachmentRenderModel>emptyList());
@@ -166,6 +172,40 @@ public final class J2clReadBlip {
       boolean taskDone,
       String taskAssignee,
       long taskDueTimestamp) {
+    this(
+        blipId,
+        text,
+        attachments,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        deleted,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp,
+        /* bodyItemCount= */ 0);
+  }
+
+  public J2clReadBlip(
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean deleted,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount) {
     this.blipId = blipId == null ? "" : blipId;
     this.text = text == null ? "" : text;
     this.attachments =
@@ -183,6 +223,7 @@ public final class J2clReadBlip {
     this.taskDone = taskDone;
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
+    this.bodyItemCount = Math.max(0, bodyItemCount);
   }
 
   /** Builder-style copy that flips the unread flag without re-typing the rest. */
@@ -204,7 +245,8 @@ public final class J2clReadBlip {
         deleted,
         taskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        bodyItemCount);
   }
 
   /**
@@ -231,7 +273,8 @@ public final class J2clReadBlip {
         deleted,
         nextTaskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        bodyItemCount);
   }
 
   public String getBlipId() {
@@ -310,5 +353,9 @@ public final class J2clReadBlip {
    */
   public long getTaskDueTimestamp() {
     return taskDueTimestamp;
+  }
+
+  public int getBodyItemCount() {
+    return bodyItemCount;
   }
 }

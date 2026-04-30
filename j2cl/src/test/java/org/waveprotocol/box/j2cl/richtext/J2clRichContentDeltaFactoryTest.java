@@ -13,6 +13,8 @@ import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 
 @J2clTestInput(J2clRichContentDeltaFactoryTest.class)
 public class J2clRichContentDeltaFactoryTest {
+  private static final int TEST_BODY_ITEM_COUNT = 17;
+
   @Test
   public void createWaveRequestEmitsTextAnnotationsAndAttachmentElements() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
@@ -480,7 +482,8 @@ public class J2clRichContentDeltaFactoryTest {
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+reply", "chan-9", 12L, "HIST", "b+root");
     SidecarSubmitRequest request =
-        factory.taskToggleRequest("User@Example.COM", session, "b+root", true);
+        factory.taskToggleRequest(
+            "User@Example.COM", session, "b+root", true, TEST_BODY_ITEM_COUNT);
     Assert.assertEquals("example.com/w+reply/~/conv+root", request.getWaveletName());
     Assert.assertEquals("chan-9", request.getChannelId());
     String deltaJson = request.getDeltaJson();
@@ -490,7 +493,9 @@ public class J2clRichContentDeltaFactoryTest {
         "\"2\":\"user@example.com\"",
         "\"1\":\"b+root\"",
         "{\"1\":{\"3\":[{\"1\":\"task/done\",\"3\":\"true\"}]}}",
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
         "{\"1\":{\"2\":[\"task/done\"]}}");
+    assertAnnotationBoundaryRetainShape(deltaJson, TEST_BODY_ITEM_COUNT);
   }
 
   @Test
@@ -499,9 +504,15 @@ public class J2clRichContentDeltaFactoryTest {
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
     String openJson =
-        factory.taskToggleRequest("user@example.com", session, "b+root", false).getDeltaJson();
+        factory
+            .taskToggleRequest(
+                "user@example.com", session, "b+root", false, TEST_BODY_ITEM_COUNT)
+            .getDeltaJson();
     String closedJson =
-        factory.taskToggleRequest("user@example.com", session, "b+root", true).getDeltaJson();
+        factory
+            .taskToggleRequest(
+                "user@example.com", session, "b+root", true, TEST_BODY_ITEM_COUNT)
+            .getDeltaJson();
     assertContains(openJson, "{\"1\":\"task/done\",\"3\":\"false\"}");
     assertContains(closedJson, "{\"1\":\"task/done\",\"3\":\"true\"}");
   }
@@ -511,8 +522,24 @@ public class J2clRichContentDeltaFactoryTest {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
-    assertThrows(() -> factory.taskToggleRequest("user@example.com", session, "", true));
-    assertThrows(() -> factory.taskToggleRequest("user@example.com", session, "   ", true));
+    assertThrows(
+        () ->
+            factory.taskToggleRequest(
+                "user@example.com", session, "", true, TEST_BODY_ITEM_COUNT));
+    assertThrows(
+        () ->
+            factory.taskToggleRequest(
+                "user@example.com", session, "   ", true, TEST_BODY_ITEM_COUNT));
+  }
+
+  @Test
+  public void taskToggleRequestRejectsMissingBodyItemCount() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+    assertThrows(() -> factory.taskToggleRequest("user@example.com", session, "b+root", true));
+    assertThrows(
+        () -> factory.taskToggleRequest("user@example.com", session, "b+root", true, 0));
   }
 
   // F-3.S2 (#1038, R-5.4 step 5): metadata request emits both
@@ -527,14 +554,21 @@ public class J2clRichContentDeltaFactoryTest {
         new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
     SidecarSubmitRequest request =
         factory.taskMetadataRequest(
-            "user@example.com", session, "b+root", "alice@example.com", "2026-05-15");
+            "user@example.com",
+            session,
+            "b+root",
+            "alice@example.com",
+            "2026-05-15",
+            TEST_BODY_ITEM_COUNT);
     String deltaJson = request.getDeltaJson();
     assertContains(
         deltaJson,
         "\"1\":\"b+root\"",
         "{\"1\":\"task/assignee\",\"3\":\"alice@example.com\"}",
         "{\"1\":\"task/dueTs\",\"3\":\"1778803200000\"}",
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
         "{\"1\":{\"2\":[\"task/assignee\",\"task/dueTs\"]}}");
+    assertAnnotationBoundaryRetainShape(deltaJson, TEST_BODY_ITEM_COUNT);
   }
 
   // PR #1066 review thread PRRT_kwDOBwxLXs593gTP — explicit
@@ -548,7 +582,12 @@ public class J2clRichContentDeltaFactoryTest {
         new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
     SidecarSubmitRequest request =
         factory.taskMetadataRequest(
-            "user@example.com", session, "b+root", "alice@example.com", "2026-05-15");
+            "user@example.com",
+            session,
+            "b+root",
+            "alice@example.com",
+            "2026-05-15",
+            TEST_BODY_ITEM_COUNT);
     String deltaJson = request.getDeltaJson();
     String marker = "\"1\":\"task/dueTs\",\"3\":\"";
     int start = deltaJson.indexOf(marker) + marker.length();
@@ -568,7 +607,12 @@ public class J2clRichContentDeltaFactoryTest {
         new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
     SidecarSubmitRequest request =
         factory.taskMetadataRequest(
-            "user@example.com", session, "b+root", "alice@example.com", "1714000000000");
+            "user@example.com",
+            session,
+            "b+root",
+            "alice@example.com",
+            "1714000000000",
+            TEST_BODY_ITEM_COUNT);
     String deltaJson = request.getDeltaJson();
     assertContains(
         deltaJson,
@@ -585,7 +629,12 @@ public class J2clRichContentDeltaFactoryTest {
         new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
     SidecarSubmitRequest request =
         factory.taskMetadataRequest(
-            "user@example.com", session, "b+root", "alice@example.com", "tomorrow");
+            "user@example.com",
+            session,
+            "b+root",
+            "alice@example.com",
+            "tomorrow",
+            TEST_BODY_ITEM_COUNT);
     String deltaJson = request.getDeltaJson();
     assertContains(deltaJson, "{\"1\":\"task/dueTs\",\"3\":\"\"}");
   }
@@ -596,7 +645,8 @@ public class J2clRichContentDeltaFactoryTest {
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
     SidecarSubmitRequest request =
-        factory.taskMetadataRequest("user@example.com", session, "b+root", "", "");
+        factory.taskMetadataRequest(
+            "user@example.com", session, "b+root", "", "", TEST_BODY_ITEM_COUNT);
     String deltaJson = request.getDeltaJson();
     assertContains(
         deltaJson,
@@ -860,6 +910,21 @@ public class J2clRichContentDeltaFactoryTest {
     }
   }
 
+  private static void assertAnnotationBoundaryRetainShape(String deltaJson, int bodyItemCount) {
+    int annotationOpen = deltaJson.indexOf("{\"1\":{\"3\":[");
+    int retain = deltaJson.indexOf("{\"5\":" + bodyItemCount + "}", annotationOpen);
+    int annotationClose = deltaJson.indexOf("{\"1\":{\"2\":[", retain);
+    Assert.assertTrue("Missing annotation open in JSON: " + deltaJson, annotationOpen >= 0);
+    Assert.assertTrue("Missing body retain in JSON: " + deltaJson, retain > annotationOpen);
+    Assert.assertTrue(
+        "Missing annotation close after retain in JSON: " + deltaJson,
+        annotationClose > retain);
+    String betweenOpenAndClose = deltaJson.substring(annotationOpen, annotationClose);
+    Assert.assertFalse(
+        "Annotation boundaries must not remain adjacent: " + deltaJson,
+        betweenOpenAndClose.endsWith("]}}},"));
+  }
+
   private static void assertInvalidSessionDoesNotAdvanceReplyBlipCounter(
       J2clSidecarWriteSession invalidSession) {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
@@ -991,7 +1056,8 @@ public class J2clRichContentDeltaFactoryTest {
         new J2clSidecarWriteSession(
             "example.com/w+abc", "chan-9", 13L, "HIST", "b+root");
     SidecarSubmitRequest request =
-        factory.blipDeleteRequest("User@Example.COM", session, "b+target");
+        factory.blipDeleteRequest(
+            "User@Example.COM", session, "b+target", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals("example.com/w+abc/~/conv+root", request.getWaveletName());
     Assert.assertEquals("chan-9", request.getChannelId());
     String deltaJson = request.getDeltaJson();
@@ -1001,7 +1067,9 @@ public class J2clRichContentDeltaFactoryTest {
         "\"2\":\"user@example.com\"",
         "\"1\":\"b+target\"",
         "{\"1\":{\"3\":[{\"1\":\"tombstone/deleted\",\"3\":\"true\"}]}}",
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
         "{\"1\":{\"2\":[\"tombstone/deleted\"]}}");
+    assertAnnotationBoundaryRetainShape(deltaJson, TEST_BODY_ITEM_COUNT);
   }
 
   @Test
@@ -1009,8 +1077,14 @@ public class J2clRichContentDeltaFactoryTest {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
-    assertThrows(() -> factory.blipDeleteRequest("user@example.com", session, ""));
-    assertThrows(() -> factory.blipDeleteRequest("user@example.com", session, "   "));
+    assertThrows(
+        () ->
+            factory.blipDeleteRequest(
+                "user@example.com", session, "", TEST_BODY_ITEM_COUNT));
+    assertThrows(
+        () ->
+            factory.blipDeleteRequest(
+                "user@example.com", session, "   ", TEST_BODY_ITEM_COUNT));
   }
 
   private static void assertThrows(ThrowingRunnable runnable) {

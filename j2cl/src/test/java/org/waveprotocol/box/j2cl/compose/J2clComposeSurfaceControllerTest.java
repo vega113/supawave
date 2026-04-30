@@ -24,6 +24,8 @@ import org.waveprotocol.box.j2cl.transport.SidecarSubmitResponse;
 
 @J2clTestInput(J2clComposeSurfaceControllerTest.class)
 public class J2clComposeSurfaceControllerTest {
+  private static final int TEST_BODY_ITEM_COUNT = 17;
+
   @Test
   public void initialModelEnablesCreateAndKeepsReplyUnavailableUntilWriteSession() {
     FakeGateway gateway = new FakeGateway();
@@ -3291,8 +3293,13 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onTaskToggled("b+root", true);
+    controller.onTaskToggled("b+root", true, TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "{\"1\":{\"3\":[{\"1\":\"task/done\",\"3\":\"true\"}]}}",
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
+        "{\"1\":{\"2\":[\"task/done\"]}}");
     Assert.assertTrue(
         "compose.task_toggled (completed) event should be recorded",
         telemetry.events().stream()
@@ -3317,7 +3324,7 @@ public class J2clComposeSurfaceControllerTest {
             telemetry);
     controller.start();
     openWaveForReply(controller);
-    controller.onTaskToggled("b+root", false);
+    controller.onTaskToggled("b+root", false, TEST_BODY_ITEM_COUNT);
     Assert.assertTrue(
         "compose.task_toggled (open) event should be recorded",
         telemetry.events().stream()
@@ -3336,8 +3343,8 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onTaskToggled("", true);
-    controller.onTaskToggled(null, true);
+    controller.onTaskToggled("", true, TEST_BODY_ITEM_COUNT);
+    controller.onTaskToggled(null, true, TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
   }
 
@@ -3354,7 +3361,7 @@ public class J2clComposeSurfaceControllerTest {
             waveId -> { });
     controller.start();
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onTaskToggled("b+root", true);
+    controller.onTaskToggled("b+root", true, TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
   }
 
@@ -3504,8 +3511,14 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onTaskMetadataChanged("b+root", "alice@example.com", "2026-05-15");
+    controller.onTaskMetadataChanged(
+        "b+root", "alice@example.com", "2026-05-15", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "{\"1\":\"task/assignee\",\"3\":\"alice@example.com\"}",
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
+        "{\"1\":{\"2\":[\"task/assignee\",\"task/dueTs\"]}}");
   }
 
   // F-3.S2 (#1068): regression — a no-op session refresh (same wave id,
@@ -3528,7 +3541,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onTaskToggled("b+root", true);
+    controller.onTaskToggled("b+root", true, TEST_BODY_ITEM_COUNT);
     // Bootstrap is still pending — simulate a no-op session refresh on
     // the same wave between the click and the bootstrap response.
     controller.onWriteSessionChanged(
@@ -3557,7 +3570,8 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onTaskMetadataChanged("b+root", "alice@example.com", "2026-05-15");
+    controller.onTaskMetadataChanged(
+        "b+root", "alice@example.com", "2026-05-15", TEST_BODY_ITEM_COUNT);
     controller.onWriteSessionChanged(
         new J2clSidecarWriteSession("example.com/w+1", "chan-1", 45L, "EFGH", "b+root"));
     gateway.resolveBootstrap();
@@ -3584,7 +3598,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onTaskToggled("b+root", true);
+    controller.onTaskToggled("b+root", true, TEST_BODY_ITEM_COUNT);
     // Genuine wave switch — the captured session no longer matches the
     // current selected wave; the write must be dropped.
     controller.onWriteSessionChanged(
@@ -3742,7 +3756,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeSubmits = gateway.submitCalls;
-    controller.onDeleteBlipRequested("b+target", "example.com/w+1");
+    controller.onDeleteBlipRequested("b+target", "example.com/w+1", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeSubmits + 1, gateway.submitCalls);
     String deltaJson = gateway.lastSubmitRequest.getDeltaJson();
     Assert.assertTrue(
@@ -3752,6 +3766,10 @@ public class J2clComposeSurfaceControllerTest {
         "delta must carry tombstone/deleted=true annotation",
         deltaJson.contains("tombstone/deleted")
             && deltaJson.contains("\"3\":\"true\""));
+    assertContains(
+        deltaJson,
+        "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
+        "{\"1\":{\"2\":[\"tombstone/deleted\"]}}");
     Assert.assertTrue(
         "success telemetry recorded",
         telemetry.events().stream()
@@ -3778,7 +3796,7 @@ public class J2clComposeSurfaceControllerTest {
     openWaveForReply(controller);
     controller.onSignedOut();
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("b+target", "example.com/w+1");
+    controller.onDeleteBlipRequested("b+target", "example.com/w+1", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "signed-out telemetry recorded",
@@ -3805,9 +3823,9 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller);
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("", "example.com/w+1");
-    controller.onDeleteBlipRequested("   ", "example.com/w+1");
-    controller.onDeleteBlipRequested(null, "example.com/w+1");
+    controller.onDeleteBlipRequested("", "example.com/w+1", TEST_BODY_ITEM_COUNT);
+    controller.onDeleteBlipRequested("   ", "example.com/w+1", TEST_BODY_ITEM_COUNT);
+    controller.onDeleteBlipRequested(null, "example.com/w+1", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "missing-blip telemetry recorded for empty inputs",
@@ -3833,7 +3851,7 @@ public class J2clComposeSurfaceControllerTest {
             telemetry);
     controller.start();
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("b+target", "");
+    controller.onDeleteBlipRequested("b+target", "", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "no-selected-wave telemetry recorded",
@@ -3863,7 +3881,8 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     openWaveForReply(controller); // selected wave = example.com/w+1
     int beforeFetches = gateway.fetchBootstrapCalls;
-    controller.onDeleteBlipRequested("b+target", "example.com/w+other");
+    controller.onDeleteBlipRequested(
+        "b+target", "example.com/w+other", TEST_BODY_ITEM_COUNT);
     Assert.assertEquals(beforeFetches, gateway.fetchBootstrapCalls);
     Assert.assertTrue(
         "wave-changed telemetry recorded",

@@ -534,7 +534,8 @@ public final class J2clSelectedWaveProjector {
               /* deleted= */ documentIsDeleted(document),
               /* taskDone= */ documentTaskDone(document),
               /* taskAssignee= */ documentTaskAssignee(document),
-              /* taskDueTimestamp= */ documentTaskDueTimestamp(document)));
+              /* taskDueTimestamp= */ documentTaskDueTimestamp(document),
+              /* bodyItemCount= */ document.getBodyItemCount()));
     }
     return blips;
   }
@@ -591,7 +592,8 @@ public final class J2clSelectedWaveProjector {
               /* deleted= */ documentIsDeleted(doc) || blip.isDeleted(),
               /* taskDone= */ documentTaskDone(doc),
               /* taskAssignee= */ documentTaskAssignee(doc),
-              /* taskDueTimestamp= */ documentTaskDueTimestamp(doc)));
+              /* taskDueTimestamp= */ documentTaskDueTimestamp(doc),
+              /* bodyItemCount= */ doc.getBodyItemCount()));
     }
     return enriched;
   }
@@ -644,7 +646,8 @@ public final class J2clSelectedWaveProjector {
                 blip.isDeleted(),
                 blip.isTaskDone(),
                 blip.getTaskAssignee(),
-                blip.getTaskDueTimestamp()));
+                blip.getTaskDueTimestamp(),
+                blip.getBodyItemCount()));
       } else {
         patched.add(blip);
       }
@@ -779,7 +782,8 @@ public final class J2clSelectedWaveProjector {
         deleted,
         taskDone,
         taskAssignee,
-        taskDueTimestamp);
+        taskDueTimestamp,
+        blip.getBodyItemCount());
   }
 
   /**
@@ -864,7 +868,11 @@ public final class J2clSelectedWaveProjector {
               entry.getThreadId(),
               existing.isUnread(),
               existing.hasMention(),
-              existing.isDeleted()));
+              existing.isDeleted(),
+              existing.isTaskDone(),
+              existing.getTaskAssignee(),
+              existing.getTaskDueTimestamp(),
+              existing.getBodyItemCount()));
     }
     // Append any blip that the manifest didn't reference so we don't
     // silently drop content from non-conversational data documents.
@@ -943,7 +951,8 @@ public final class J2clSelectedWaveProjector {
               blip.hasMention(),
               blip.isTaskDone(),
               blip.getTaskAssignee(),
-              blip.getTaskDueTimestamp());
+              blip.getTaskDueTimestamp(),
+              blip.getBodyItemCount());
       enriched.add(next);
       changed = true;
     }

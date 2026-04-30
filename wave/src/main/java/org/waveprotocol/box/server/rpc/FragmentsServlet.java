@@ -392,6 +392,7 @@ public final class FragmentsServlet extends HttpServlet {
                 ? Collections.<Map<String, Object>>emptyList()
                 : diff);
         fragmentMap.put("rawSnapshot", fragment.rawSnapshot == null ? "" : fragment.rawSnapshot);
+        fragmentMap.put("bodyItemCount", fragment.bodyItemCount);
         fragments.add(fragmentMap);
       }
       out.put("fragments", fragments);

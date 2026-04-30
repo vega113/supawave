@@ -24,7 +24,10 @@ import java.util.List;
 import java.util.Map;
 import org.waveprotocol.box.server.persistence.blocks.VersionRange;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.document.operation.impl.DocOpUtil;
 import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.SegmentId;
@@ -59,7 +62,7 @@ public final class RawFragmentsBuilder {
         DocInitialization init = document.getContent().asOperation();
         String raw = DocOpUtil.debugToXmlString(init);
         fragments.add(new FragmentsPayload.Fragment(segment, raw,
-            Collections.emptyList(), Collections.emptyList()));
+            documentItemCount(init), Collections.emptyList(), Collections.emptyList()));
       } catch (Exception ex) {
         LOG.fine("Failed to build raw fragment for segment " + segment + ": " + ex.getMessage());
       }
@@ -85,5 +88,36 @@ public final class RawFragmentsBuilder {
       return (value.length() > 5) ? value.substring("blip:".length()) : null;
     }
     return null;
+  }
+
+  private static int documentItemCount(DocInitialization init) {
+    if (init == null) {
+      return 0;
+    }
+    final int[] count = {0};
+    init.apply(new DocInitializationCursor() {
+      @Override
+      public void annotationBoundary(AnnotationBoundaryMap map) {
+        // Annotation boundaries do not advance document position.
+      }
+
+      @Override
+      public void characters(String chars) {
+        if (chars != null) {
+          count[0] += chars.length();
+        }
+      }
+
+      @Override
+      public void elementStart(String type, Attributes attrs) {
+        count[0]++;
+      }
+
+      @Override
+      public void elementEnd() {
+        count[0]++;
+      }
+    });
+    return count[0];
   }
 }

@@ -33,25 +33,12 @@
 // (B-J for J2CL's per-blip annotation, B-G for GWT's inline check)
 // so the two task models don't co-exist on a single document.
 //
-// J2CL persistence blocker (issue #1129):
-//   The J2CL toggle delta (`J2clRichContentDeltaFactory.taskToggleRequest`)
-//   emits two adjacent annotation boundaries with no operation
-//   between them. The wavelet validator
-//   (`DocOpAutomaton.checkAnnotationBoundary`) rejects this with
-//   "ill-formed: adjacent annotation boundaries at original document
-//   position 0 / resulting document position 0", so the toggle never
-//   persists. The optimistic UI flips immediately on click, but
-//   reload returns the un-toggled state and a second context never
-//   sees the change. The fix needs to plumb the projected blip
-//   body's wavelet item count from the read renderer through to the
-//   delta factory so it can emit `retain(N)` between the boundaries.
-//   That work is tracked at issue #1129.
-//
-//   Until #1129 lands, the J2CL half of this spec asserts:
-//   - Optimistic UI: the host's `data-task-completed` flips on click.
-//   The reload + cross-context J2CL assertions are wrapped in
-//   `test.fixme` referencing #1129 so the gate flips back to live
-//   the moment that issue is fixed (no test rewrite required).
+// Issue #1129 regression coverage:
+//   J2CL task toggles are annotation writes. The delta must retain the
+//   backing blip body's wavelet item count between annotation open and
+//   close boundaries so the server accepts the mutation. This file now
+//   keeps both the immediate optimistic UI assertion and the authoritative
+//   reload + cross-context persistence contract live.
 import { test, expect, Browser, BrowserContext, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
@@ -341,12 +328,10 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
       description: creds.address
     });
     test.info().annotations.push({
-      type: "blocker",
+      type: "scope",
       description:
-        "J2CL persistence + cross-context propagation gated on issue #1129 " +
-        "(taskToggleRequest emits adjacent annotation boundaries that the " +
-        "wavelet validator rejects). This test asserts only the optimistic " +
-        "UI flip — reload + cross-context assertions are gated below."
+        "Immediate J2CL optimistic UI assertion; reload + cross-context " +
+        "persistence is covered by the following live regression test."
     });
     await registerAndSignIn(page, BASE_URL, creds);
 
@@ -391,7 +376,6 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
     await toggle.click({ force: true });
 
     // Optimistic UI: the host's `data-task-completed` flips on click.
-    // (Persistence + cross-context propagation are blocked by #1129.)
     await expect
       .poll(async () => await j2cl.blipHasTaskCompleted(blipJ), {
         timeout: 10_000,
@@ -400,13 +384,8 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
       .toBe(true);
   });
 
-  // BLOCKED on #1129: the J2CL toggle delta is rejected by the
-  // wavelet validator (adjacent annotation boundaries) so the toggle
-  // never persists. Once that issue ships, flip `test.fixme` to
-  // `test` and the J2CL reload + cross-context contract goes live
-  // with no other rewrites needed.
-  test.fixme(
-    "J2CL: task toggle persists across reload + cross-context (BLOCKED on #1129)",
+  test(
+    "J2CL: task toggle persists across reload + cross-context",
     async ({ page, browser }) => {
       const creds = freshCredentials("g6jp");
       test.info().annotations.push({
@@ -433,6 +412,8 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
         .toBeGreaterThanOrEqual(1);
       await page.waitForTimeout(2_000);
 
+      const host = page.locator(`wave-blip[data-blip-id="${blipJ}"]`).first();
+      await expect(host).toHaveAttribute("data-blip-doc-size", /^[1-9]\d*$/);
       const toggle = j2cl.blipTaskToggle(blipJ);
       await toggle.scrollIntoViewIfNeeded();
       await toggle.click({ force: true });

@@ -231,7 +231,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           if (listener == null) return;
           String blipId = eventDetailString(event, "blipId");
           boolean completed = eventDetailBoolean(event, "completed");
-          listener.onTaskToggled(blipId, completed);
+          int bodyItemCount = eventDetailInt(event, "bodySize", 0);
+          listener.onTaskToggled(blipId, completed, bodyItemCount);
         });
     DomGlobal.document.body.addEventListener(
         "wave-blip-task-metadata-changed",
@@ -240,7 +241,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String blipId = eventDetailString(event, "blipId");
           String assignee = eventDetailString(event, "assigneeAddress");
           String due = dueDateToEpochMs(eventDetailString(event, "dueDate"));
-          listener.onTaskMetadataChanged(blipId, assignee, due);
+          int bodyItemCount = eventDetailInt(event, "bodySize", 0);
+          listener.onTaskMetadataChanged(blipId, assignee, due, bodyItemCount);
         });
     DomGlobal.document.body.addEventListener(
         "wavy-composer-mention-picked",
@@ -333,7 +335,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String blipId = eventDetailString(event, "blipId");
           if (blipId == null || blipId.trim().isEmpty()) return;
           String waveId = eventDetailString(event, "waveId");
-          requestBlipDeleteConfirmation(blipId, waveId);
+          int bodyItemCount = eventDetailInt(event, "bodySize", 0);
+          requestBlipDeleteConfirmation(blipId, waveId, bodyItemCount);
         });
     DomGlobal.document.body.addEventListener(
         "wavy-confirm-resolved",
@@ -344,9 +347,13 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String suffix = requestId.substring(BLIP_DELETE_REQUEST_PREFIX.length());
           int sep = suffix.indexOf('|');
           String blipId = sep >= 0 ? suffix.substring(0, sep) : suffix;
-          String expectedWaveId = sep >= 0 ? suffix.substring(sep + 1) : "";
+          String rest = sep >= 0 ? suffix.substring(sep + 1) : "";
+          int secondSep = rest.indexOf('|');
+          String expectedWaveId = secondSep >= 0 ? rest.substring(0, secondSep) : rest;
+          int bodyItemCount =
+              secondSep >= 0 ? parseInt(rest.substring(secondSep + 1), 0) : 0;
           if (confirmed && listener != null && !blipId.isEmpty()) {
-            listener.onDeleteBlipRequested(blipId, expectedWaveId);
+            listener.onDeleteBlipRequested(blipId, expectedWaveId, bodyItemCount);
           }
         });
   }
@@ -748,6 +755,17 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     }
   }
 
+  private static int parseInt(String value, int fallback) {
+    if (value == null || value.isEmpty()) {
+      return fallback;
+    }
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException ignored) {
+      return fallback;
+    }
+  }
+
   private static boolean eventDetailBoolean(Event event, String key) {
     Object detail = Js.asPropertyMap(event).get("detail");
     if (detail == null) {
@@ -941,8 +959,14 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
    * requestId. The view caches no per-request state — the requestId
    * encodes the blip id so the resolved-listener can route directly.
    */
-  private void requestBlipDeleteConfirmation(String blipId, String waveId) {
-    String requestId = BLIP_DELETE_REQUEST_PREFIX + blipId + "|" + (waveId != null ? waveId : "");
+  private void requestBlipDeleteConfirmation(String blipId, String waveId, int bodyItemCount) {
+    String requestId =
+        BLIP_DELETE_REQUEST_PREFIX
+            + blipId
+            + "|"
+            + (waveId != null ? waveId : "")
+            + "|"
+            + Math.max(0, bodyItemCount);
     JsPropertyMap<Object> detail = Js.uncheckedCast(JsPropertyMap.of());
     detail.set("requestId", requestId);
     detail.set("message", "Delete this blip?");

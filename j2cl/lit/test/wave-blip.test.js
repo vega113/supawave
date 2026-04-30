@@ -123,12 +123,17 @@ describe("<wave-blip>", () => {
 
   // F-3.S4 (#1038, R-5.6 F.6): the Delete button on the per-blip
   // toolbar bubbles wave-blip-toolbar-delete; wave-blip re-emits
-  // wave-blip-delete-requested with {blipId, waveId} so the J2CL
+  // wave-blip-delete-requested with {blipId, waveId, bodySize} so the J2CL
   // compose view can route through the wavy confirm dialog and the
   // controller's onDeleteBlipRequested listener.
   it("re-emits wave-blip-delete-requested when toolbar Delete fires", async () => {
     const el = await fixture(html`
-      <wave-blip data-blip-id="b9" data-wave-id="w9" author-name="A"></wave-blip>
+      <wave-blip
+        data-blip-id="b9"
+        data-wave-id="w9"
+        data-blip-doc-size="17"
+        author-name="A"
+      ></wave-blip>
     `);
     await el.updateComplete;
     const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
@@ -139,6 +144,7 @@ describe("<wave-blip>", () => {
     const ev = await oneEvent(el, "wave-blip-delete-requested");
     expect(ev.detail.blipId).to.equal("b9");
     expect(ev.detail.waveId).to.equal("w9");
+    expect(ev.detail.bodySize).to.equal(17);
     expect(ev.bubbles).to.be.true;
     expect(ev.composed).to.be.true;
   });
@@ -384,7 +390,7 @@ describe("<wave-blip>", () => {
 
   it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
     const el = await fixture(html`
-      <wave-blip data-blip-id="b22" data-wave-id="w22"></wave-blip>
+      <wave-blip data-blip-id="b22" data-wave-id="w22" data-blip-doc-size="17"></wave-blip>
     `);
     await el.updateComplete;
     const affordance = el.renderRoot.querySelector("wavy-task-affordance");
@@ -395,7 +401,12 @@ describe("<wave-blip>", () => {
     });
     toggle.click();
     await el.updateComplete;
-    expect(captured).to.deep.equal({ blipId: "b22", waveId: "w22", completed: true });
+    expect(captured).to.deep.equal({
+      blipId: "b22",
+      waveId: "w22",
+      completed: true,
+      bodySize: 17
+    });
   });
 
   // J-UI-6 (#1084, R-5.4): when the read renderer writes

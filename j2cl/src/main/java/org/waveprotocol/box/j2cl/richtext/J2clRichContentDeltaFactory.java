@@ -108,12 +108,22 @@ public final class J2clRichContentDeltaFactory {
    */
   public SidecarSubmitRequest taskToggleRequest(
       String address, J2clSidecarWriteSession session, String blipId, boolean completed) {
+    return taskToggleRequest(address, session, blipId, completed, 0);
+  }
+
+  public SidecarSubmitRequest taskToggleRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      boolean completed,
+      int bodyItemCount) {
     return buildBlipAnnotationRequest(
         address,
         session,
         blipId,
         new String[] {"task/done"},
-        new String[] {completed ? "true" : "false"});
+        new String[] {completed ? "true" : "false"},
+        bodyItemCount);
   }
 
   /**
@@ -142,6 +152,16 @@ public final class J2clRichContentDeltaFactory {
       String blipId,
       String assigneeAddress,
       String dueDate) {
+    return taskMetadataRequest(address, session, blipId, assigneeAddress, dueDate, 0);
+  }
+
+  public SidecarSubmitRequest taskMetadataRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String assigneeAddress,
+      String dueDate,
+      int bodyItemCount) {
     String assignee = assigneeAddress == null ? "" : assigneeAddress.trim();
     String due = normalizeDueTimestamp(dueDate);
     return buildBlipAnnotationRequest(
@@ -149,7 +169,8 @@ public final class J2clRichContentDeltaFactory {
         session,
         blipId,
         new String[] {"task/assignee", "task/dueTs"},
-        new String[] {assignee, due});
+        new String[] {assignee, due},
+        bodyItemCount);
   }
 
   /**
@@ -178,12 +199,18 @@ public final class J2clRichContentDeltaFactory {
    */
   public SidecarSubmitRequest blipDeleteRequest(
       String address, J2clSidecarWriteSession session, String blipId) {
+    return blipDeleteRequest(address, session, blipId, 0);
+  }
+
+  public SidecarSubmitRequest blipDeleteRequest(
+      String address, J2clSidecarWriteSession session, String blipId, int bodyItemCount) {
     return buildBlipAnnotationRequest(
         address,
         session,
         blipId,
         new String[] {"tombstone/deleted"},
-        new String[] {"true"});
+        new String[] {"true"},
+        bodyItemCount);
   }
 
   /**
@@ -656,7 +683,8 @@ public final class J2clRichContentDeltaFactory {
       J2clSidecarWriteSession session,
       String blipId,
       String[] keys,
-      String[] values) {
+      String[] values,
+      int bodyItemCount) {
     requirePresent(session, "Missing write session.");
     if (keys == null || values == null || keys.length != values.length || keys.length == 0) {
       throw new IllegalArgumentException("Mismatched annotation keys/values.");
@@ -673,6 +701,7 @@ public final class J2clRichContentDeltaFactory {
     if (baseVersion < 0) {
       throw new IllegalArgumentException("Invalid write-session base version.");
     }
+    int retainedBodyItemCount = requirePositiveBodyItemCount(bodyItemCount);
     StringBuilder components = new StringBuilder();
     components.append("{\"1\":{\"3\":[");
     for (int i = 0; i < keys.length; i++) {
@@ -686,11 +715,8 @@ public final class J2clRichContentDeltaFactory {
     }
     components.append("]}}");
     appendComponentSeparator(components);
-    // No characters in between — the annotation brackets the empty
-    // body span. The supplement live-update interprets a no-text
-    // boundary as "apply this annotation to the whole body". Mirror
-    // the GWT supplement-writer shape here so the read-side parity
-    // assertion holds.
+    appendRetain(components, retainedBodyItemCount);
+    appendComponentSeparator(components);
     components.append("{\"1\":{\"2\":[");
     for (int i = 0; i < keys.length; i++) {
       if (i > 0) components.append(",");
@@ -707,6 +733,13 @@ public final class J2clRichContentDeltaFactory {
     String deltaJson =
         buildDeltaJson(baseVersion, historyHash, normalizedAddress, operation.toString());
     return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
+  }
+
+  private static int requirePositiveBodyItemCount(int bodyItemCount) {
+    if (bodyItemCount <= 0) {
+      throw new IllegalArgumentException("Missing blip body item count.");
+    }
+    return bodyItemCount;
   }
 
   public SidecarSubmitRequest createReplyRequest(

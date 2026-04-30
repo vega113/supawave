@@ -537,9 +537,28 @@ public class J2clRichContentDeltaFactoryTest {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =
         new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
-    assertThrows(() -> factory.taskToggleRequest("user@example.com", session, "b+root", true));
-    assertThrows(
+    assertThrowsWithMessage(
+        "taskToggleRequest requires the overload with bodyItemCount.",
+        () -> factory.taskToggleRequest("user@example.com", session, "b+root", true));
+    assertThrowsWithMessage(
+        "Missing blip body item count.",
         () -> factory.taskToggleRequest("user@example.com", session, "b+root", true, 0));
+  }
+
+  @Test
+  public void bodyWideAnnotationWritersRejectLegacyNoSizeOverloads() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+
+    assertThrowsWithMessage(
+        "taskMetadataRequest requires the overload with bodyItemCount.",
+        () ->
+            factory.taskMetadataRequest(
+                "user@example.com", session, "b+root", "alice@example.com", "2026-05-15"));
+    assertThrowsWithMessage(
+        "blipDeleteRequest requires the overload with bodyItemCount.",
+        () -> factory.blipDeleteRequest("user@example.com", session, "b+root"));
   }
 
   // F-3.S2 (#1038, R-5.4 step 5): metadata request emits both
@@ -1093,6 +1112,15 @@ public class J2clRichContentDeltaFactoryTest {
       Assert.fail("Expected IllegalArgumentException.");
     } catch (IllegalArgumentException expected) {
       // Expected.
+    }
+  }
+
+  private static void assertThrowsWithMessage(String message, ThrowingRunnable runnable) {
+    try {
+      runnable.run();
+      Assert.fail("Expected IllegalArgumentException.");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertEquals(message, expected.getMessage());
     }
   }
 

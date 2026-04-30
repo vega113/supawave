@@ -548,12 +548,21 @@ public class J2clSelectedWaveProjectorTest {
         state.mergeDocuments(
             Arrays.asList(
                 new SidecarSelectedWaveDocument(
-                    "b+root", "user@example.com", 7L, 10L, literalText)));
+                    "b+root",
+                    "user@example.com",
+                    7L,
+                    10L,
+                    literalText,
+                    /* bodyItemCount= */ 31,
+                    Collections.<SidecarAnnotationRange>emptyList(),
+                    Collections.<SidecarReactionEntry>emptyList())));
 
     Assert.assertEquals(literalText, state.getLoadedReadBlips().get(0).getText());
     Assert.assertTrue(state.getLoadedReadBlips().get(0).getAttachments().isEmpty());
+    Assert.assertEquals(31, state.getLoadedReadBlips().get(0).getBodyItemCount());
     Assert.assertEquals(literalText, state.getReadWindowEntries().get(0).getText());
     Assert.assertTrue(state.getReadWindowEntries().get(0).getAttachments().isEmpty());
+    Assert.assertEquals(31, state.getReadWindowEntries().get(0).getBodyItemCount());
   }
 
   @Test
@@ -599,6 +608,7 @@ public class J2clSelectedWaveProjectorTest {
                         "blip:b+root",
                         "Intro <image attachment=\"example.com/att+hero\">"
                             + "<caption>Hero</caption></image> outro",
+                        /* bodyItemCount= */ 42,
                         0,
                         0))));
 
@@ -614,7 +624,23 @@ public class J2clSelectedWaveProjectorTest {
 
     Assert.assertEquals("Intro  outro", state.getLoadedReadBlips().get(0).getText());
     Assert.assertEquals(1, state.getLoadedReadBlips().get(0).getAttachments().size());
+    Assert.assertEquals(42, state.getLoadedReadBlips().get(0).getBodyItemCount());
     Assert.assertEquals(1, state.getReadWindowEntries().get(0).getAttachments().size());
+    Assert.assertEquals(42, state.getReadWindowEntries().get(0).getBodyItemCount());
+  }
+
+  @Test
+  public void loadedEntryWithoutExplicitBodyItemCountTreatsSizeUnknown() {
+    J2clSelectedWaveViewportState.Entry entry =
+        J2clSelectedWaveViewportState.Entry.loaded(
+            "blip:b+root",
+            0L,
+            9L,
+            "<body><line/>Raw debug XML should not imply a body count</body>",
+            0,
+            0);
+
+    Assert.assertEquals(0, entry.getBodyItemCount());
   }
 
   @Test

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-j2cl-task-toggle-review-followup",
+  "version": "PR #1129 follow-up",
+  "date": "2026-04-30",
+  "title": "J2CL task toggle body-size follow-up",
+  "summary": "J2CL task and delete annotation writes now preserve authoritative blip body sizes during viewport refreshes and reject legacy no-size write calls with explicit errors.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Preserves server-computed blip body item counts when document refreshes replace viewport fragment entries.",
+        "Keeps unknown body sizes as unavailable instead of deriving unsafe counts from raw text or debug XML lengths."
+      ]
+    }
+  ]
+}

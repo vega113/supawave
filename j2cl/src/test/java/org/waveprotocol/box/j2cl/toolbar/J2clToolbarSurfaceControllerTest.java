@@ -91,6 +91,8 @@ public class J2clToolbarSurfaceControllerTest {
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.ITALIC));
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.UNDERLINE));
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.STRIKETHROUGH));
+    Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.FONT_FAMILY));
+    Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.FONT_SIZE));
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.HEADING));
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.UNORDERED_LIST));
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.ORDERED_LIST));
@@ -124,6 +126,16 @@ public class J2clToolbarSurfaceControllerTest {
     Assert.assertFalse(view.model.hasActionId("task-overlay"));
     Assert.assertFalse(view.model.hasActionId("reaction-picker"));
     Assert.assertFalse(view.model.hasActionId("mention-autocomplete"));
+  }
+
+  @Test
+  public void fontActionsResolveByStableId() {
+    Assert.assertEquals(
+        J2clDailyToolbarAction.FONT_FAMILY,
+        J2clDailyToolbarAction.fromId("font-family"));
+    Assert.assertEquals(
+        J2clDailyToolbarAction.FONT_SIZE,
+        J2clDailyToolbarAction.fromId("font-size"));
   }
 
   @Test

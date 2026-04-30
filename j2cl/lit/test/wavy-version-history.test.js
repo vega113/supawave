@@ -120,6 +120,8 @@ describe("<wavy-version-history>", () => {
     const dlg = el.renderRoot.querySelector("dialog.confirm");
     expect(dlg).to.exist;
     expect(dlg.hasAttribute("open")).to.equal(true);
+    expect(el.renderRoot.querySelectorAll("button.restore").length).to.equal(1);
+    expect(dlg.querySelector("button.confirm-restore")).to.exist;
   });
 
   it("Confirm dialog Restore button → emits wavy-version-restore-confirmed and closes dialog", async () => {
@@ -131,8 +133,7 @@ describe("<wavy-version-history>", () => {
     el.renderRoot.querySelector("button.restore").click();
     await el.updateComplete;
     const dlg = el.renderRoot.querySelector("dialog.confirm");
-    const inner = dlg.querySelectorAll("button");
-    const innerRestore = inner[1];
+    const innerRestore = dlg.querySelector("button.confirm-restore");
     setTimeout(() => innerRestore.click());
     const ev = await oneEvent(el, "wavy-version-restore-confirmed");
     expect(ev.detail.index).to.equal(2);

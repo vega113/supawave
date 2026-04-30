@@ -226,6 +226,8 @@ public final class J2clToolbarSurfaceController {
     addEdit(actions, J2clDailyToolbarAction.ITALIC);
     addEdit(actions, J2clDailyToolbarAction.UNDERLINE);
     addEdit(actions, J2clDailyToolbarAction.STRIKETHROUGH);
+    addEdit(actions, J2clDailyToolbarAction.FONT_FAMILY);
+    addEdit(actions, J2clDailyToolbarAction.FONT_SIZE);
     addEdit(actions, J2clDailyToolbarAction.HEADING);
     addEdit(actions, J2clDailyToolbarAction.UNORDERED_LIST);
     addEdit(actions, J2clDailyToolbarAction.ORDERED_LIST);

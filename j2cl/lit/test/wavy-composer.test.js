@@ -687,6 +687,36 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     el.remove();
   });
 
+  it("preserves font wrappers during external draft sync", async () => {
+    const family = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
+    document.body.appendChild(family);
+    try {
+      const body = getBody(family);
+      body.innerHTML = '<font face="Georgia">Hello</font>';
+      document.getSelection().removeAllRanges();
+      family.draft = "Hello external";
+      await family.updateComplete;
+      expect(body.querySelector("font").getAttribute("face")).to.equal("Georgia");
+      expect(body.textContent).to.equal("Hello");
+    } finally {
+      family.remove();
+    }
+
+    const size = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
+    document.body.appendChild(size);
+    try {
+      const body = getBody(size);
+      body.innerHTML = '<span style="font-size: 18px">Hello</span>';
+      document.getSelection().removeAllRanges();
+      size.draft = "Hello external";
+      await size.updateComplete;
+      expect(body.querySelector("span").style.fontSize).to.equal("18px");
+      expect(body.textContent).to.equal("Hello");
+    } finally {
+      size.remove();
+    }
+  });
+
   it("Insert-task toolbar action inserts a wavy-task-list at the caret", async () => {
     const el = await fixture(html`<wavy-composer available draft=""></wavy-composer>`);
     document.body.appendChild(el);
@@ -919,6 +949,44 @@ describe("<wavy-composer> R-5.3 mentions", () => {
         );
         expect(subRun).to.exist;
         expect(subRun.text).to.equal("2");
+      } finally {
+        el.remove();
+      }
+    });
+
+    it("emits style/fontFamily for <font face>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      try {
+        const body = getBody(el);
+        body.innerHTML = '<font face="Georgia">Hello</font>';
+        const components = el.serializeRichComponents();
+        const fontRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/fontFamily"
+            && c.annotationValue === "Georgia"
+        );
+        expect(fontRun).to.exist;
+        expect(fontRun.text).to.equal("Hello");
+      } finally {
+        el.remove();
+      }
+    });
+
+    it("emits style/fontSize for font-size spans", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      try {
+        const body = getBody(el);
+        body.innerHTML = '<span style="font-size: 18px">Hello</span>';
+        const components = el.serializeRichComponents();
+        const sizeRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/fontSize"
+            && c.annotationValue === "18px"
+        );
+        expect(sizeRun).to.exist;
+        expect(sizeRun.text).to.equal("Hello");
       } finally {
         el.remove();
       }

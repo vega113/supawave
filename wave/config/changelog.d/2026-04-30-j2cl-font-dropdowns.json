@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-j2cl-font-dropdowns",
+  "version": "Issue #1072",
+  "date": "2026-04-30",
+  "title": "J2CL composer font dropdowns",
+  "summary": "Adds Font and Size dropdown actions to the J2CL rich-text toolbar so selected text can carry GWT-parity font family and font-size annotations.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds Font and Size dropdowns to the J2CL rich-edit toolbar.",
+        "Serializes selected font family and font size spans as style/fontFamily and style/fontSize annotations for rich-content DocOp round trips."
+      ]
+    }
+  ]
+}

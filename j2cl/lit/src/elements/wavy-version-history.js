@@ -568,7 +568,7 @@ export class WavyVersionHistory extends LitElement {
           <p>${restoreLabel}? This rewrites the wave to this point.</p>
           <div class="confirm-actions">
             <button type="button" @click=${this._onCancelRestore}>Cancel</button>
-            <button class="restore" type="button" @click=${this._onConfirmRestore}>Restore</button>
+            <button class="confirm-restore" type="button" @click=${this._onConfirmRestore}>Restore</button>
           </div>
         </dialog>
       </div>

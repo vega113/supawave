@@ -4,6 +4,20 @@ import "../design/wavy-compose-card.js";
 import "./composer-submit-affordance.js";
 import "./mention-suggestion-popover.js";
 import "./wavy-link-modal.js";
+import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.js";
+
+function normalizeFontFamilyValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const firstFamily = raw.split(",")[0].trim().replace(/^["']|["']$/g, "");
+  const lowered = firstFamily.toLowerCase();
+  return FONT_FAMILY_OPTIONS.find((option) => option.toLowerCase() === lowered) || "";
+}
+
+function normalizeFontSizeValue(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  return FONT_SIZE_OPTIONS.includes(normalized) ? normalized : "";
+}
 
 /**
  * J-UI-5 (#1083, R-5.7): map inline-format wrap tags to the
@@ -202,6 +216,20 @@ function inlineFormatAnnotation(tag) {
     default:
       return null;
   }
+}
+
+function inlineFormatAnnotationForNode(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return null;
+  const tag = node.tagName.toLowerCase();
+  if (tag === "font") {
+    const family = normalizeFontFamilyValue(node.getAttribute("face"));
+    return family ? { key: "style/fontFamily", value: family } : null;
+  }
+  if (tag === "span") {
+    const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+    return size ? { key: "style/fontSize", value: size } : null;
+  }
+  return inlineFormatAnnotation(tag);
 }
 
 /**
@@ -601,6 +629,16 @@ export class WavyComposer extends LitElement {
       event.stopPropagation();
       return;
     }
+    if (actionId === "font-family") {
+      this._applyFontSelection("family", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
+    if (actionId === "font-size") {
+      this._applyFontSelection("size", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
     if (actionId === "unordered-list" || actionId === "ordered-list") {
       this._toggleListAtSelection(actionId === "ordered-list" ? "ol" : "ul");
       event.stopPropagation();
@@ -781,10 +819,140 @@ export class WavyComposer extends LitElement {
     return true;
   }
 
+  _applyFontSelection(kind, rawValue) {
+    if (!this._bodyElement) return;
+    const value =
+      kind === "family"
+        ? normalizeFontFamilyValue(rawValue)
+        : normalizeFontSizeValue(rawValue);
+    if (!value) return;
+    const range = this._activeRange();
+    if (!range || range.collapsed) return;
+    if (!this._bodyElement.contains(range.startContainer)) return;
+    const sameKindAncestor = this._findFontWrapperAncestor(range.startContainer, kind);
+    if (
+      sameKindAncestor
+      && (sameKindAncestor === range.endContainer || sameKindAncestor.contains(range.endContainer))
+      && this._replaceFontWrapperAtSelection(range, kind, value, sameKindAncestor)
+    ) {
+      this._afterBodyMutation();
+      return;
+    }
+    const wrapper = this._createFontWrapper(kind, value);
+    try {
+      const contents = range.extractContents();
+      if (kind === "family") {
+        this._unwrapTagsInFragment(contents, ["font"]);
+      } else {
+        this._unwrapFontSizeSpansInFragment(contents);
+      }
+      wrapper.appendChild(contents);
+      range.insertNode(wrapper);
+      const restored = document.createRange();
+      restored.selectNodeContents(wrapper);
+      this._restoreSelectionRange(restored);
+    } catch (_e) {
+      return;
+    }
+    this._afterBodyMutation();
+  }
+
+  _createFontWrapper(kind, value) {
+    const wrapper = kind === "family" ? document.createElement("font") : document.createElement("span");
+    if (kind === "family") {
+      wrapper.setAttribute("face", value);
+    } else {
+      wrapper.style.fontSize = value;
+    }
+    return wrapper;
+  }
+
+  _findFontWrapperAncestor(container, kind) {
+    let node = container && container.nodeType === Node.ELEMENT_NODE ? container : container && container.parentNode;
+    while (node && node !== this._bodyElement) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (kind === "family" && tag === "font") return node;
+        if (
+          kind === "size"
+          && tag === "span"
+          && normalizeFontSizeValue(node.style && node.style.fontSize)
+        ) {
+          return node;
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  _replaceFontWrapperAtSelection(range, kind, value, ancestor) {
+    const parent = ancestor && ancestor.parentNode;
+    if (!parent) return false;
+    let prefixFragment;
+    let middleFragment;
+    let suffixFragment;
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.selectNodeContents(ancestor);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      const middleRange = document.createRange();
+      middleRange.selectNodeContents(ancestor);
+      middleRange.setStart(range.startContainer, range.startOffset);
+      middleRange.setEnd(range.endContainer, range.endOffset);
+      const suffixRange = document.createRange();
+      suffixRange.selectNodeContents(ancestor);
+      suffixRange.setStart(range.endContainer, range.endOffset);
+      prefixFragment = prefixRange.cloneContents();
+      middleFragment = middleRange.cloneContents();
+      suffixFragment = suffixRange.cloneContents();
+    } catch (_e) {
+      return false;
+    }
+    if (!fragmentHasContent(middleFragment)) return false;
+    if (kind === "family") {
+      this._unwrapTagsInFragment(middleFragment, ["font"]);
+    } else {
+      this._unwrapFontSizeSpansInFragment(middleFragment);
+    }
+
+    const insertExistingWrapper = (target, frag) => {
+      if (!fragmentHasContent(frag)) return;
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(frag);
+      parent.insertBefore(wrapper, target);
+    };
+
+    insertExistingWrapper(ancestor, prefixFragment);
+    const replacement = this._createFontWrapper(kind, value);
+    replacement.appendChild(middleFragment);
+    parent.insertBefore(replacement, ancestor);
+    insertExistingWrapper(ancestor, suffixFragment);
+    parent.removeChild(ancestor);
+
+    const restored = document.createRange();
+    restored.selectNodeContents(replacement);
+    this._restoreSelectionRange(restored);
+    return true;
+  }
+
   _unwrapTagsInFragment(fragment, tagNames) {
     if (!fragment || !tagNames || tagNames.length === 0 || !fragment.querySelectorAll) return;
     const selector = tagNames.join(",");
     for (const node of Array.from(fragment.querySelectorAll(selector))) {
+      const parent = node.parentNode;
+      if (!parent) continue;
+      while (node.firstChild) parent.insertBefore(node.firstChild, node);
+      parent.removeChild(node);
+    }
+  }
+
+  _unwrapFontSizeSpansInFragment(fragment) {
+    if (!fragment || !fragment.querySelectorAll) return;
+    for (const node of Array.from(fragment.querySelectorAll("span"))) {
+      if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
+      const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+      if (!size) continue;
       const parent = node.parentNode;
       if (!parent) continue;
       while (node.firstChild) parent.insertBefore(node.firstChild, node);
@@ -1147,6 +1315,8 @@ export class WavyComposer extends LitElement {
       "del",
       "sup",
       "sub",
+      "font",
+      "span",
       "a",
       "h1",
       "h2",
@@ -1398,7 +1568,7 @@ export class WavyComposer extends LitElement {
     // a textContent overwrite.
     return Boolean(
       this._bodyElement.querySelector(
-        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, ul, ol, blockquote, h1, h2, h3, h4"
+        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, font, span[style*='font-size'], ul, ol, blockquote, h1, h2, h3, h4"
       )
     );
   }
@@ -1722,7 +1892,7 @@ export class WavyComposer extends LitElement {
         // annotation in their `annotations` list and we *append* the
         // outer annotation to that list so the combined run round-trips
         // (codex review #1095 thread PRRT_kwDOBwxLXs5-C84a).
-        const inlineAnnotation = inlineFormatAnnotation(tag);
+        const inlineAnnotation = inlineFormatAnnotationForNode(node);
         if (inlineAnnotation) {
           flushText();
           const snapLen = components.length;

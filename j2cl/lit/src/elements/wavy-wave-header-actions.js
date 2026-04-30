@@ -343,7 +343,7 @@ export class WavyWaveHeaderActions extends LitElement {
           message,
           confirmLabel,
           cancelLabel: "Cancel",
-          tone: kind === "lock" || detail.nextPublic === false ? "warning" : "info"
+          tone: kind === "lock" || detail.nextPublic === false ? "destructive" : "default"
         }
       })
     );

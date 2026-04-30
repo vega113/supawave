@@ -118,6 +118,7 @@ describe("<wavy-wave-header-actions>", () => {
     expect(emitted).to.be.false;
     expect(confirmEvent.detail.requestId).to.match(/^wavy-wave-header-actions:publicity:/);
     expect(confirmEvent.detail.message).to.contain("Make this wave private");
+    expect(confirmEvent.detail.tone).to.equal("destructive");
 
     const eventPromise = oneEvent(el, "wave-publicity-toggle-requested");
     document.body.dispatchEvent(
@@ -142,12 +143,13 @@ describe("<wavy-wave-header-actions>", () => {
 
     const confirmPromise = oneEvent(document.body, "wavy-confirm-requested");
     actionButton(el, "publicity-toggle").click();
-    await confirmPromise;
+    const confirmEvent = await confirmPromise;
 
     const dialog = document.body.querySelector("wavy-confirm-dialog");
     expect(dialog).to.exist;
     await dialog.updateComplete;
     expect(dialog.open).to.be.true;
+    expect(confirmEvent.detail.tone).to.equal("default");
   });
 
   it("confirms lock-state changes before emitting the lock toggle event", async () => {
@@ -159,6 +161,7 @@ describe("<wavy-wave-header-actions>", () => {
 
     expect(confirmEvent.detail.requestId).to.match(/^wavy-wave-header-actions:lock:/);
     expect(confirmEvent.detail.message).to.contain("Lock the full wave");
+    expect(confirmEvent.detail.tone).to.equal("destructive");
 
     const eventPromise = oneEvent(el, "wave-root-lock-toggle-requested");
     document.body.dispatchEvent(

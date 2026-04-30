@@ -22,6 +22,12 @@ package org.waveprotocol.box.server.rpc.render;
 import junit.framework.TestCase;
 
 import org.waveprotocol.box.server.robots.operations.TestingWaveletData;
+import org.waveprotocol.wave.client.render.ReductionBasedRenderer;
+import org.waveprotocol.wave.model.conversation.Conversation;
+import org.waveprotocol.wave.model.conversation.ConversationBlip;
+import org.waveprotocol.wave.model.conversation.ConversationThread;
+import org.waveprotocol.wave.model.conversation.ConversationView;
+import org.waveprotocol.wave.model.conversation.testing.FakeConversationView;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.wave.ParticipantId;
@@ -76,6 +82,45 @@ public class WaveContentRendererWindowTest extends TestCase {
     assertTrue(
         "Expected the server-first surface marker on the wave-content wrapper",
         html.contains("data-j2cl-server-first-surface=\"true\""));
+  }
+
+  public void testWindowedTraversalKeepsOnlyAllowedRootBlipsAndInlineReplies() {
+    WaveViewData wave = buildWave(9);
+
+    String html = WaveContentRenderer.renderWaveContent(wave, VIEWER, 5);
+
+    assertEquals("Windowed HTML still emits five root blips", 5,
+        countOccurrences(html, "data-blip-id="));
+    assertTrue("Terminal placeholder still emitted",
+        html.contains("data-j2cl-server-placeholder=\"true\""));
+    assertTrue("First in-window body is present", html.contains("Body 0"));
+    assertTrue("Last in-window body is present", html.contains("Body 4"));
+    assertFalse("First skipped body is not rendered", html.contains("Body 5"));
+  }
+
+  public void testWindowFilterOnlySkipsDisallowedTargetRootBlips() {
+    ConversationView view = FakeConversationView.builder().build();
+    Conversation conversation = view.createRoot();
+    ConversationThread root = conversation.getRootThread();
+    ConversationBlip first = root.appendBlip();
+    ConversationBlip second = root.appendBlip();
+    ConversationBlip third = root.appendBlip();
+    ConversationThread replyThread = first.addReplyThread();
+    ConversationBlip reply = replyThread.appendBlip();
+
+    ServerHtmlRenderer.WindowOptions windowOptions =
+        WaveContentRenderer.buildWindowOptions(conversation, 2, () -> false);
+    ReductionBasedRenderer.BlipRenderFilter filter =
+        WaveContentRenderer.buildBlipRenderFilter(windowOptions);
+
+    assertTrue("First target root blip is inside the window",
+        filter.shouldRender(root, first));
+    assertTrue("Second target root blip is inside the window",
+        filter.shouldRender(root, second));
+    assertFalse("Third target root blip is outside the window",
+        filter.shouldRender(root, third));
+    assertTrue("Reply threads under included blips still render",
+        filter.shouldRender(replyThread, reply));
   }
 
   /**

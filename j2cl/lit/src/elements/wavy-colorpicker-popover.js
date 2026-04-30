@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { WAVY_COLOR_PALETTE } from "../format/color-options.js";
 
 const COLS = 10;
+const VIEWPORT_MARGIN_PX = 8;
 
 export class WavyColorpickerPopover extends LitElement {
   static properties = {
@@ -57,15 +58,74 @@ export class WavyColorpickerPopover extends LitElement {
     this.open = false;
     this.mode = "text";
     this.activeIndex = 0;
+    this._positionFrame = 0;
+    this._handleViewportChange = () => this._schedulePanelPosition();
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener("scroll", this._handleViewportChange, true);
+    window.addEventListener("resize", this._handleViewportChange);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("scroll", this._handleViewportChange, true);
+    window.removeEventListener("resize", this._handleViewportChange);
+    if (this._positionFrame) {
+      cancelAnimationFrame(this._positionFrame);
+      this._positionFrame = 0;
+    }
+    super.disconnectedCallback();
   }
 
   updated(changed) {
     if (changed.has("open") && this.open) {
       this.activeIndex = this._clampIndex(this.activeIndex);
       this.updateComplete.then(() => {
+        this._positionPanel();
         this.renderRoot.querySelector("[role='grid']")?.focus();
       });
+    } else if (changed.has("open") && !this.open) {
+      this.style.transform = "";
+      this.style.width = "";
+      this.style.height = "";
+    } else if (this.open && changed.has("mode")) {
+      this._schedulePanelPosition();
     }
+  }
+
+  _schedulePanelPosition() {
+    if (!this.open || this._positionFrame) return;
+    this._positionFrame = requestAnimationFrame(() => {
+      this._positionFrame = 0;
+      this._positionPanel();
+    });
+  }
+
+  _positionPanel() {
+    if (!this.open) return;
+    const panel = this.renderRoot.querySelector(".panel");
+    if (!panel) return;
+
+    this.style.transform = "";
+    this.style.width = "";
+    this.style.height = "";
+
+    const panelRect = panel.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const maxLeft = Math.max(VIEWPORT_MARGIN_PX, viewportWidth - panelRect.width - VIEWPORT_MARGIN_PX);
+    const left = Math.min(Math.max(VIEWPORT_MARGIN_PX, panelRect.left), maxLeft);
+
+    let top = panelRect.top;
+    if (viewportHeight > 0 && top + panelRect.height > viewportHeight - VIEWPORT_MARGIN_PX) {
+      top = Math.max(VIEWPORT_MARGIN_PX, panelRect.top - panelRect.height - VIEWPORT_MARGIN_PX);
+    }
+
+    this.style.width = `${Math.ceil(panelRect.width)}px`;
+    this.style.height = `${Math.ceil(panel.offsetTop + panelRect.height)}px`;
+    this.style.transform =
+      `translate(${Math.round(left - panelRect.left)}px, ${Math.round(top - panelRect.top)}px)`;
   }
 
   render() {

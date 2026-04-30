@@ -49,6 +49,26 @@ describe("<wavy-colorpicker-popover>", () => {
     expect(el.renderRoot.activeElement).to.equal(el.renderRoot.querySelector("[role='grid']"));
   });
 
+  it("keeps the palette grid inside the viewport when the toolbar slot is offscreen", async () => {
+    const host = await fixture(html`<div
+      style="position: fixed; top: 48px; left: calc(100vw + 96px);"
+    ><wavy-colorpicker-popover open></wavy-colorpicker-popover></div>`);
+    const el = host.querySelector("wavy-colorpicker-popover");
+    await el.updateComplete;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const rect = el.renderRoot.querySelector("[role='grid']").getBoundingClientRect();
+    expect(rect.left).to.be.at.least(8);
+    expect(rect.right).to.be.at.most(window.innerWidth - 7);
+    expect(document.elementFromPoint(rect.left + 4, rect.top + 4)).to.equal(el);
+
+    el.open = false;
+    await el.updateComplete;
+    expect(el.style.transform).to.equal("");
+    expect(el.style.width).to.equal("");
+    expect(el.style.height).to.equal("");
+  });
+
   it("uses highlight labeling when mode is highlight", async () => {
     const el = await fixture(
       html`<wavy-colorpicker-popover open mode="highlight"></wavy-colorpicker-popover>`

@@ -235,8 +235,14 @@ function inlineFormatAnnotationsForNode(node) {
     return annotations;
   }
   if (tag === "mark") {
+    const annotations = [];
     const background = normalizePaletteColor(node.style && node.style.backgroundColor);
-    return background ? [{ key: "style/backgroundColor", value: background }] : [];
+    if (background) annotations.push({ key: "style/backgroundColor", value: background });
+    const color = normalizePaletteColor(node.style && node.style.color);
+    if (color) annotations.push({ key: "style/color", value: color });
+    const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+    if (size) annotations.push({ key: "style/fontSize", value: size });
+    return annotations;
   }
   const annotation = inlineFormatAnnotation(tag);
   return annotation ? [annotation] : [];
@@ -1011,16 +1017,58 @@ export class WavyComposer extends LitElement {
     this._afterBodyMutation();
   }
 
-  _createColorWrapper(kind, value) {
+  _createColorWrapper(kind, value, sourceNode = null) {
     const wrapper = kind === "highlight"
       ? document.createElement("mark")
       : document.createElement("span");
+    this._copyNonTargetColorStyles(wrapper, sourceNode, kind);
     if (kind === "highlight") {
       wrapper.style.backgroundColor = value;
     } else {
       wrapper.style.color = value;
     }
     return wrapper;
+  }
+
+  _copyNonTargetColorStyles(target, sourceNode, kind) {
+    if (
+      !target
+      || !sourceNode
+      || sourceNode.nodeType !== Node.ELEMENT_NODE
+      || !sourceNode.style
+    ) {
+      return;
+    }
+    const styleText = sourceNode.getAttribute("style") || "";
+    if (!styleText.trim()) return;
+    target.style.cssText = styleText;
+    this._removeTargetColorStyle(target, kind);
+  }
+
+  _removeTargetColorStyle(node, kind) {
+    if (!node || !node.style) return;
+    if (kind === "highlight") {
+      node.style.removeProperty("background-color");
+    } else {
+      node.style.removeProperty("color");
+    }
+    if (node.hasAttribute("style") && !(node.getAttribute("style") || "").trim()) {
+      node.removeAttribute("style");
+    }
+  }
+
+  _replaceStyledMarkWithSpan(node) {
+    const parent = node && node.parentNode;
+    if (!parent || node.tagName.toLowerCase() !== "mark") return;
+    const styleText = node.getAttribute("style") || "";
+    const span = document.createElement("span");
+    if (styleText.trim()) {
+      span.setAttribute("style", styleText);
+    }
+    while (node.firstChild) {
+      span.appendChild(node.firstChild);
+    }
+    parent.replaceChild(span, node);
   }
 
   _findColorWrapperAncestor(container, kind) {
@@ -1084,7 +1132,7 @@ export class WavyComposer extends LitElement {
     };
 
     insertExistingWrapper(ancestor, prefixFragment);
-    const replacement = this._createColorWrapper(kind, value);
+    const replacement = this._createColorWrapper(kind, value, ancestor);
     replacement.appendChild(middleFragment);
     parent.insertBefore(replacement, ancestor);
     insertExistingWrapper(ancestor, suffixFragment);
@@ -1105,6 +1153,13 @@ export class WavyComposer extends LitElement {
         ? normalizePaletteColor(node.style && node.style.backgroundColor)
         : normalizePaletteColor(node.style && node.style.color);
       if (!value) continue;
+      this._removeTargetColorStyle(node, kind);
+      if (node.hasAttribute("style") && (node.getAttribute("style") || "").trim()) {
+        if (kind === "highlight") {
+          this._replaceStyledMarkWithSpan(node);
+        }
+        continue;
+      }
       const parent = node.parentNode;
       if (!parent) continue;
       while (node.firstChild) parent.insertBefore(node.firstChild, node);

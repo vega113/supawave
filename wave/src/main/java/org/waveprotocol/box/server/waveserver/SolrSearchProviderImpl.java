@@ -37,6 +37,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpStatus;
 import org.waveprotocol.box.stat.Timed;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -141,6 +142,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     final boolean isUnreadOnlyQuery =
         queryParams.containsKey(TokenQueryType.UNREAD)
             || QueryHelper.hasIsValue(queryParams, "unread");
+    final boolean hasAttachmentQuery = AttachmentSearchFilter.isHasAttachmentQuery(queryParams);
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);
@@ -150,7 +152,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     if (numResults > 0) {
 
-      int start = isUnreadOnlyQuery ? 0 : startAt;
+      int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery);
       int rows = Math.max(numResults, ROWS);
 
       /*-
@@ -185,6 +187,11 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
+    if (hasAttachmentQuery) {
+      expandConversationalWavelets(resultsList, user, isAllQuery);
+      AttachmentSearchFilter.filterByHasAttachment(resultsList);
+    }
+
     // Solr does not index tags, so perform post-filtering for tag: queries.
     Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
         ? queryParams.get(TokenQueryType.TAG)
@@ -200,7 +207,11 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     }
 
     Collection<WaveViewData> searchResult =
-        computeSearchResult(user, startAt, numResults, resultsList);
+        computeSearchResult(
+            user,
+            computeInMemoryStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery),
+            numResults,
+            resultsList);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
         + user);
 
@@ -235,6 +246,68 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     }
     return results;
+  }
+
+  private void expandConversationalWavelets(List<WaveViewData> results,
+      final ParticipantId user, final boolean isAllQuery) {
+    Function<ReadableWaveletData, Boolean> matchesFunction =
+        new Function<ReadableWaveletData, Boolean>() {
+
+      @Override
+      public Boolean apply(ReadableWaveletData wavelet) {
+        try {
+          return isWaveletMatchesCriteria(wavelet, user, sharedDomainParticipantId, isAllQuery);
+        } catch (WaveletStateException e) {
+          LOG.warning(
+              "Failed to access wavelet "
+                  + WaveletName.of(wavelet.getWaveId(), wavelet.getWaveletId()), e);
+          return false;
+        }
+      }
+    };
+
+    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
+    for (WaveViewData wave : results) {
+      Set<WaveletId> visibleWaveletIds = new HashSet<WaveletId>();
+      for (ObservableWaveletData waveletData : wave.getWavelets()) {
+        visibleWaveletIds.add(waveletData.getWaveletId());
+      }
+
+      Set<WaveletId> conversationalWaveletIds = new HashSet<WaveletId>();
+      try {
+        Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(wave.getWaveId());
+        if (storedWaveletIds != null) {
+          conversationalWaveletIds.addAll(storedWaveletIds);
+        }
+      } catch (WaveletStateException e) {
+        LOG.warning("Failed to look up stored wavelets for " + wave.getWaveId(), e);
+      }
+
+      Wave loadedWave = loadedWaves.get(wave.getWaveId());
+      if (loadedWave != null) {
+        for (WaveletContainer container : loadedWave) {
+          conversationalWaveletIds.add(container.getWaveletName().waveletId);
+        }
+      }
+
+      for (WaveletId waveletId : conversationalWaveletIds) {
+        if (visibleWaveletIds.contains(waveletId) || !IdUtil.isConversationalId(waveletId)) {
+          continue;
+        }
+
+        WaveletName waveletName = WaveletName.of(wave.getWaveId(), waveletId);
+        try {
+          WaveletContainer container = waveMap.getWavelet(waveletName);
+          if (container == null || !container.applyFunction(matchesFunction)) {
+            continue;
+          }
+          wave.addWavelet(container.copyWaveletData());
+          visibleWaveletIds.add(waveletId);
+        } catch (WaveletStateException e) {
+          LOG.warning("Failed to expand wavelet " + waveletName, e);
+        }
+      }
+    }
   }
 
   private void addSearchResultsToCurrentWaveView(
@@ -283,8 +356,9 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   /**
    * J-UI-2 (#1080): the rail's filter chips emit {@code is:unread},
    * {@code has:attachment}, and {@code from:me}. {@code is:unread} is
-   * handled equivalently to {@code unread:true} via post-filtering; the
-   * other chip tokens are URL-only this slice (deferred follow-ups).
+   * handled equivalently to {@code unread:true} via post-filtering, and
+   * {@code has:attachment} is post-filtered by attachment metadata docs.
+   * {@code from:me} is URL-only this slice (deferred follow-up).
    * In all three cases the token must be stripped before the query is
    * forwarded to Solr — Solr's schema does not know these prefixes and
    * a literal {@code is:unread} term in the user-query clause fails the
@@ -305,6 +379,15 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // The query is an "all" query if there is no 'in:' filter, or if
     // the explicit 'in:all' filter is used.
     return !IN_PATTERN.matcher(query).find() || IN_ALL_PATTERN.matcher(query).find();
+  }
+
+  static int computeSolrStart(int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery ? 0 : startAt;
+  }
+
+  static int computeInMemoryStart(
+      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery ? startAt : 0;
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

@@ -376,7 +376,16 @@ public class QueryHelper {
    * dependency on each other.
    */
   public static boolean hasIsValue(Map<TokenQueryType, Set<String>> queryParams, String value) {
-    Set<String> values = queryParams.get(TokenQueryType.IS);
+    return hasTokenValue(queryParams, TokenQueryType.IS, value);
+  }
+
+  /**
+   * Case-insensitive check for a parsed token value. The parser preserves value
+   * casing, while chip filters are canonicalized semantically.
+   */
+  public static boolean hasTokenValue(
+      Map<TokenQueryType, Set<String>> queryParams, TokenQueryType type, String value) {
+    Set<String> values = queryParams.get(type);
     if (values == null || values.isEmpty()) {
       return false;
     }

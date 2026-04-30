@@ -424,7 +424,9 @@ export class WavyProfileOverlay extends LitElement {
       cancelable: true,
       detail: { url, participant }
     });
-    if (this.dispatchEvent(event)) {
+    const shouldNavigate = this.dispatchEvent(event);
+    this.close_();
+    if (shouldNavigate) {
       const loc = globalThis && globalThis.location;
       if (loc && typeof loc.assign === "function") {
         loc.assign(url);

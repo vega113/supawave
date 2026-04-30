@@ -2893,6 +2893,8 @@ public class J2clComposeSurfaceControllerTest {
             created::add,
             waveId -> {});
     controller.start();
+    controller.onCreateTitleChanged("Draft title");
+    controller.onCreateDraftChanged("Draft body");
 
     controller.onCreateRequestedWithParticipants(
         Arrays.asList(" Friend@Example.COM ", "", null, "friend@example.com"));
@@ -2901,6 +2903,9 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals(Arrays.asList("example.com/w+direct"), created);
     Assert.assertEquals(Arrays.asList("friend@example.com"), factory.lastAdditionalParticipants);
     Assert.assertEquals("", factory.lastDraftText);
+    Assert.assertEquals(0, factory.lastDocumentComponentCount);
+    Assert.assertEquals("Draft title", view.model.getCreateTitleDraft());
+    Assert.assertEquals("Draft body", view.model.getCreateDraft());
     Assert.assertEquals("Wave created.", view.model.getCreateStatusText());
   }
 
@@ -4389,6 +4394,7 @@ public class J2clComposeSurfaceControllerTest {
   private static final class CapturingDeltaFactory implements J2clComposeSurfaceController.DeltaFactory {
     private List<String> lastAdditionalParticipants = Collections.emptyList();
     private String lastDraftText = null;
+    private int lastDocumentComponentCount = -1;
 
     @Override
     public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
@@ -4404,6 +4410,7 @@ public class J2clComposeSurfaceControllerTest {
         List<String> additionalParticipants) {
       lastDraftText = draftText;
       lastAdditionalParticipants = new ArrayList<String>(additionalParticipants);
+      lastDocumentComponentCount = componentCount(document);
       return new J2clComposeSurfaceController.CreateWaveRequest(
           "example.com/w+direct",
           new SidecarSubmitRequest(
@@ -4417,6 +4424,16 @@ public class J2clComposeSurfaceControllerTest {
         String draftText,
         org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
       throw new UnsupportedOperationException("Not needed by this test.");
+    }
+
+    private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
+      try {
+        Field field = document.getClass().getDeclaredField("components");
+        field.setAccessible(true);
+        return ((List<?>) field.get(document)).size();
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
   }
 

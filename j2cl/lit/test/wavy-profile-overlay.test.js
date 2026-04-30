@@ -241,6 +241,7 @@ describe("<wavy-profile-overlay>", () => {
     expect(observed.cancelable).to.equal(true);
     expect(observed.detail.url).to.equal("/userprofile/edit");
     expect(observed.detail.participant).to.deep.equal(PARTICIPANTS[0]);
+    expect(el.open).to.equal(false);
   });
 
   it("participant isSelf gates Edit Profile without currentUserId", async () => {

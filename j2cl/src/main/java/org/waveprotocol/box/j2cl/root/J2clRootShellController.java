@@ -254,7 +254,10 @@ public final class J2clRootShellController {
       if (participant == null) {
         continue;
       }
-      String address = String.valueOf(participant).trim();
+      if (!(participant instanceof String)) {
+        continue;
+      }
+      String address = ((String) participant).trim();
       if (!address.isEmpty()) {
         result.add(address);
       }

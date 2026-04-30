@@ -35,7 +35,7 @@ public class J2clRootShellControllerTest {
     Assert.assertEquals(
         Arrays.asList("Friend@Example.COM", "team@example.com"),
         J2clRootShellController.normalizeParticipantValues(
-            Arrays.asList(" Friend@Example.COM ", "", null, "team@example.com")));
+            Arrays.asList(" Friend@Example.COM ", "", null, 123, "team@example.com")));
   }
 
   private static final class FakeToolbarView implements J2clToolbarSurfaceController.View {

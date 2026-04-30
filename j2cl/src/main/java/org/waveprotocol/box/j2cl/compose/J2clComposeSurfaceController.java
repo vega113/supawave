@@ -914,8 +914,7 @@ public final class J2clComposeSurfaceController {
       focusCreateSurface();
       return;
     }
-    pendingCreateParticipantAddresses = normalized;
-    submitCreate();
+    submitCreate("", "", normalized, false);
   }
 
   /**
@@ -1729,20 +1728,28 @@ public final class J2clComposeSurfaceController {
   }
 
   private void submitCreate() {
+    submitCreate(createTitleDraft, createDraft, pendingCreateParticipantAddresses, true);
+  }
+
+  private void submitCreate(
+      String submittedTitle,
+      String submittedDraft,
+      List<String> participantAddresses,
+      boolean clearCreateDraftOnSuccess) {
     if (signedOut || createSubmitting) {
       render();
       return;
     }
     final List<String> submittedParticipantAddresses =
-        pendingCreateParticipantAddresses.isEmpty()
+        participantAddresses == null || participantAddresses.isEmpty()
             ? Collections.emptyList()
-            : new ArrayList<String>(pendingCreateParticipantAddresses);
+            : new ArrayList<String>(participantAddresses);
     pendingCreateParticipantAddresses = Collections.emptyList();
     // J-UI-3 (#1081, R-5.1): allow submit when EITHER title or body has text.
     // The user story is "type a title and a message" so a body-only or
     // title-only submission is still a valid create.
-    if (createDraft.trim().isEmpty()
-        && createTitleDraft.trim().isEmpty()
+    if (submittedDraft.trim().isEmpty()
+        && submittedTitle.trim().isEmpty()
         && submittedParticipantAddresses.isEmpty()) {
       createStatusText = "";
       createErrorText = "Enter some text before creating a wave.";
@@ -1752,8 +1759,6 @@ public final class J2clComposeSurfaceController {
     createSubmitting = true;
     createStatusText = "Bootstrapping the root-shell submit session.";
     createErrorText = "";
-    final String submittedDraft = createDraft;
-    final String submittedTitle = createTitleDraft;
     final int generation = ++createGeneration;
     // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-CyWx: stamp the
     // pre-submit search query (via the root shell's hook) BEFORE the
@@ -1798,7 +1803,14 @@ public final class J2clComposeSurfaceController {
           gateway.submit(
               bootstrap,
               request.getSubmitRequest(),
-              response -> handleCreateResponse(generation, request, submittedTitle, submittedDraft, response),
+              response ->
+                  handleCreateResponse(
+                      generation,
+                      request,
+                      submittedTitle,
+                      submittedDraft,
+                      clearCreateDraftOnSuccess,
+                      response),
               error -> handleCreateFailure(generation, error));
         },
         error -> handleCreateFailure(generation, error));
@@ -1809,6 +1821,7 @@ public final class J2clComposeSurfaceController {
       CreateWaveRequest request,
       String submittedTitle,
       String submittedDraft,
+      boolean clearCreateDraftOnSuccess,
       SidecarSubmitResponse response) {
     if (generation != createGeneration) {
       // J-UI-3 codex P2 PRRT_kwDOBwxLXs5-DZqM: superseded; retire this
@@ -1826,8 +1839,10 @@ public final class J2clComposeSurfaceController {
     // stub title passed to the optimistic-digest handler.
     String createdTitle = submittedTitle;
     String createdBodyForStub = submittedDraft;
-    createDraft = "";
-    createTitleDraft = "";
+    if (clearCreateDraftOnSuccess) {
+      createDraft = "";
+      createTitleDraft = "";
+    }
     activeCommandId = "";
     annotationCommandId = "";
     commandStatusText = "";

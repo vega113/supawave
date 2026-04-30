@@ -664,10 +664,11 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals(12, mention.getEndOffset());
     Assert.assertEquals("teammate@example.com", mention.getUserAddress());
     Assert.assertEquals("@Teammate", mention.getDisplayText());
+    Assert.assertTrue(projected.getReadBlips().get(0).hasMention());
   }
 
   @Test
-  public void projectTreatsManualLinkAtTextAsMentionMetadata() {
+  public void projectRejectsManualLinkAddressAsMentionMetadata() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(
             WAVE_ID,
@@ -696,12 +697,12 @@ public class J2clSelectedWaveProjectorTest {
             0);
 
     J2clInteractionBlipModel interactionBlip = projected.getInteractionBlips().get(0);
-    Assert.assertEquals(1, interactionBlip.getMentionRanges().size());
-    Assert.assertTrue(projected.getReadBlips().get(0).hasMention());
+    Assert.assertTrue(interactionBlip.getMentionRanges().isEmpty());
+    Assert.assertFalse(projected.getReadBlips().get(0).hasMention());
   }
 
   @Test
-  public void projectTreatsManualLinkValueStartingWithAtAsMentionMetadata() {
+  public void projectRejectsManualLinkValueStartingWithAtAsMentionMetadata() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(
             WAVE_ID,
@@ -730,8 +731,8 @@ public class J2clSelectedWaveProjectorTest {
             0);
 
     J2clInteractionBlipModel interactionBlip = projected.getInteractionBlips().get(0);
-    Assert.assertEquals(1, interactionBlip.getMentionRanges().size());
-    Assert.assertTrue(projected.getReadBlips().get(0).hasMention());
+    Assert.assertTrue(interactionBlip.getMentionRanges().isEmpty());
+    Assert.assertFalse(projected.getReadBlips().get(0).hasMention());
   }
 
   @Test

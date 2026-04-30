@@ -355,7 +355,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
       "mention-suggestion-popover[open] must unmount after Enter"
     ).toHaveCount(0, { timeout: 5_000 });
 
-    // Verify the rich-component serializer emits the link/manual
+    // Verify the rich-component serializer emits the mention/user
     // annotation that submit persists for the mention chip.
     const components = await composer.evaluate((host: any) => {
       if (typeof host.serializeRichComponents !== "function") {
@@ -364,11 +364,11 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
       return host.serializeRichComponents();
     });
     const mentionComponent = components.find(
-      (c: any) => c && c.type === "annotated" && c.annotationKey === "link/manual"
+      (c: any) => c && c.type === "annotated" && c.annotationKey === "mention/user"
     );
     expect(
       mentionComponent,
-      `rich-component serializer must emit a link/manual mention; saw ${JSON.stringify(components).slice(0, 400)}`
+      `rich-component serializer must emit a mention/user mention; saw ${JSON.stringify(components).slice(0, 400)}`
     ).toBeTruthy();
     expect(mentionComponent.annotationValue).toBe(expectedAddress);
     expect((mentionComponent.text || "").startsWith("@")).toBe(true);

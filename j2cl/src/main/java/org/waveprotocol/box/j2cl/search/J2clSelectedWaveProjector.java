@@ -952,52 +952,21 @@ public final class J2clSelectedWaveProjector {
 
   /**
    * F-2 (#1037, R-3.4 E.6 / E.7) plus G-PORT-5 (#1114): a blip "has a mention"
-   * when any annotation carries the {@code mention/} key prefix, or when the
-   * J2CL composer round-tripped a picked mention as {@code link/manual} over
-   * visible {@code @...} text. Reading the same ranges here keeps mention
-   * navigation in lockstep with the interaction surface.
+   * only when an annotation carries the {@code mention/} key prefix. Keeping this
+   * predicate aligned with GWT's {@code mention/user} annotation avoids false
+   * positives from ordinary {@code link/manual} hyperlinks whose visible text
+   * happens to start with {@code @}.
    */
   static boolean documentHasMention(SidecarSelectedWaveDocument document) {
     if (document == null || document.getAnnotationRanges() == null) {
       return false;
     }
     for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
-      if (range != null && isMentionRange(document.getTextContent(), range)) {
+      if (range != null && range.isMention()) {
         return true;
       }
     }
     return false;
-  }
-
-  private static boolean isMentionRange(String text, SidecarAnnotationRange range) {
-    if (range.isMention()) {
-      return true;
-    }
-    if (!"link/manual".equals(range.getKey())) {
-      return false;
-    }
-    if (!isMentionAddressValue(range.getValue())) {
-      return false;
-    }
-    return sliceText(text, range.getStartOffset(), range.getEndOffset()).startsWith("@");
-  }
-
-  private static boolean isMentionAddressValue(String value) {
-    String address = value == null ? "" : value.trim();
-    if (address.startsWith("@")) {
-      address = address.substring(1);
-    }
-    return address.indexOf('@') > 0
-        && address.indexOf(':') < 0
-        && address.indexOf('/') < 0
-        && address.indexOf(' ') < 0;
-  }
-
-  private static String sliceText(String text, int startOffset, int endOffset) {
-    String value = text == null ? "" : text;
-    int start = Math.max(0, Math.min(startOffset, value.length()));
-    int end = Math.max(start, Math.min(endOffset, value.length()));
-    return value.substring(start, end);
   }
 
   /**

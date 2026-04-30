@@ -153,7 +153,7 @@ public final class J2clInteractionBlipModel {
     }
     List<J2clMentionRange> mentions = new ArrayList<J2clMentionRange>();
     for (SidecarAnnotationRange range : annotationRanges) {
-      if (range == null || !isMentionAnnotation(text, range)) {
+      if (range == null || !isMentionAnnotation(range)) {
         continue;
       }
       mentions.add(
@@ -166,29 +166,8 @@ public final class J2clInteractionBlipModel {
     return Collections.unmodifiableList(mentions);
   }
 
-  private static boolean isMentionAnnotation(String text, SidecarAnnotationRange range) {
-    if (range.isMention()) {
-      return true;
-    }
-    if (!"link/manual".equals(range.getKey())) {
-      return false;
-    }
-    if (!isMentionAddressValue(range.getValue())) {
-      return false;
-    }
-    String displayText = sliceText(text, range.getStartOffset(), range.getEndOffset());
-    return displayText.startsWith("@");
-  }
-
-  private static boolean isMentionAddressValue(String value) {
-    String address = safe(value).trim();
-    if (address.startsWith("@")) {
-      address = address.substring(1);
-    }
-    return address.indexOf('@') > 0
-        && address.indexOf(':') < 0
-        && address.indexOf('/') < 0
-        && address.indexOf(' ') < 0;
+  private static boolean isMentionAnnotation(SidecarAnnotationRange range) {
+    return range.isMention();
   }
 
   private static List<J2clTaskItemModel> refineTaskItems(

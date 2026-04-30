@@ -142,7 +142,7 @@ public class J2clOverlayModelTest {
   }
 
   @Test
-  public void interactionBlipTreatsManualLinkAtTextAsMentionRange() {
+  public void interactionBlipRejectsManualLinkAddressAsMentionRange() {
     J2clInteractionBlipModel blip =
         new J2clInteractionBlipModel(
             "b+root",
@@ -154,13 +154,11 @@ public class J2clOverlayModelTest {
             Arrays.asList(new SidecarAnnotationRange("link/manual", "alice@example.com", 3, 6)),
             Collections.<SidecarReactionEntry>emptyList());
 
-    Assert.assertEquals(1, blip.getMentionRanges().size());
-    Assert.assertEquals("alice@example.com", blip.getMentionRanges().get(0).getUserAddress());
-    Assert.assertEquals("@Al", blip.getMentionRanges().get(0).getDisplayText());
+    Assert.assertTrue(blip.getMentionRanges().isEmpty());
   }
 
   @Test
-  public void interactionBlipAcceptsManualLinkValueStartingWithAt() {
+  public void interactionBlipRejectsManualLinkValueStartingWithAt() {
     J2clInteractionBlipModel blip =
         new J2clInteractionBlipModel(
             "b+root",
@@ -172,9 +170,7 @@ public class J2clOverlayModelTest {
             Arrays.asList(new SidecarAnnotationRange("link/manual", "@alice@example.com", 3, 6)),
             Collections.<SidecarReactionEntry>emptyList());
 
-    Assert.assertEquals(1, blip.getMentionRanges().size());
-    Assert.assertEquals("@alice@example.com", blip.getMentionRanges().get(0).getUserAddress());
-    Assert.assertEquals("@Al", blip.getMentionRanges().get(0).getDisplayText());
+    Assert.assertTrue(blip.getMentionRanges().isEmpty());
   }
 
   @Test

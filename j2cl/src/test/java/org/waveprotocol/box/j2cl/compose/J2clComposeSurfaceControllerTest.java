@@ -3056,11 +3056,11 @@ public class J2clComposeSurfaceControllerTest {
 
   // F-3.S2 (#1038, R-5.3, PR #1066 review thread PRRT_kwDOBwxLXs592RVM)
   // — picking a mention then submitting a reply must serialise a
-  // link/manual annotation referencing the participant address
+  // mention/user annotation referencing the participant address
   // alongside the surrounding text. Without this the outgoing delta
   // is just the literal `@DisplayName` substring with no annotation.
   @Test
-  public void mentionPickIsSerialisedAsLinkManualAnnotationOnReplySubmit() {
+  public void mentionPickIsSerialisedAsMentionUserAnnotationOnReplySubmit() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
@@ -3079,9 +3079,9 @@ public class J2clComposeSurfaceControllerTest {
     assertContains(
         delta,
         "\"2\":\"Hi \"",
-        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"mention/user\",\"3\":\"alice@example.com\"}]}}",
         "\"2\":\"@Alice Adams\"",
-        "{\"1\":{\"2\":[\"link/manual\"]}}",
+        "{\"1\":{\"2\":[\"mention/user\"]}}",
         "\"2\":\" welcome\"");
   }
 
@@ -3128,15 +3128,15 @@ public class J2clComposeSurfaceControllerTest {
     controller.onMentionPicked("alice@example.com", "Alice Adams");
     controller.onReplySubmitted("Hi @Alice Adams");
     Assert.assertTrue(
-        "first submit must include the link/manual annotation",
+        "first submit must include the mention/user annotation",
         gateway.lastSubmitRequest.getDeltaJson().contains("alice@example.com"));
     // Second submit without picking again should NOT carry the
     // annotation: pendingMentions is cleared on success.
     controller.onReplySubmitted("Plain followup");
     String secondDelta = gateway.lastSubmitRequest.getDeltaJson();
     Assert.assertFalse(
-        "follow-up reply must not carry a stale link/manual annotation",
-        secondDelta.contains("link/manual"));
+        "follow-up reply must not carry a stale mention/user annotation",
+        secondDelta.contains("mention/user"));
     assertContains(secondDelta, "\"2\":\"Plain followup\"");
   }
 
@@ -3163,7 +3163,7 @@ public class J2clComposeSurfaceControllerTest {
     String delta = gateway.lastSubmitRequest.getDeltaJson();
     Assert.assertFalse(
         "no chip text in draft means no annotation should be emitted",
-        delta.contains("link/manual"));
+        delta.contains("mention/user"));
     assertContains(delta, "\"2\":\"plain text only\"");
   }
 
@@ -3197,12 +3197,12 @@ public class J2clComposeSurfaceControllerTest {
     controller.onReplySubmitted("@Alice and @Alice");
 
     String delta = gateway.lastSubmitRequest.getDeltaJson();
-    // Both addresses must round-trip as link/manual annotations; the
+    // Both addresses must round-trip as mention/user annotations; the
     // surrounding plain-text " and " run remains plain text.
     assertContains(
         delta,
-        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@a.example.com\"}]}}",
-        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@b.example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"mention/user\",\"3\":\"alice@a.example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"mention/user\",\"3\":\"alice@b.example.com\"}]}}",
         "\"2\":\" and \"");
   }
 
@@ -3239,15 +3239,15 @@ public class J2clComposeSurfaceControllerTest {
     assertContains(
         delta,
         "\"2\":\"@Alice and \"",
-        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"mention/user\",\"3\":\"alice@example.com\"}]}}",
         "\"2\":\"@Alice\"",
-        "{\"1\":{\"2\":[\"link/manual\"]}}");
-    // Only ONE link/manual annotation start in the delta — the plain
+        "{\"1\":{\"2\":[\"mention/user\"]}}");
+    // Only ONE mention/user annotation start in the delta — the plain
     // literal must NOT have been bound.
     Assert.assertEquals(
-        "exactly one link/manual annotation must be emitted",
+        "exactly one mention/user annotation must be emitted",
         1,
-        countOccurrences(delta, "\"1\":\"link/manual\""));
+        countOccurrences(delta, "\"1\":\"mention/user\""));
   }
 
   private static int countOccurrences(String haystack, String needle) {

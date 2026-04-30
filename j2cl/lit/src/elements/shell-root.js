@@ -84,7 +84,13 @@ export class ShellRoot extends LitElement {
     const match = matchShortcut(evt);
     if (!match) return;
     if (!match.global && isEditableTarget(evt)) {
-      // j/k and New Wave shortcuts inside inputs must reach the input.
+      // j/k inside inputs must reach the input. New Wave uses a
+      // browser-level Ctrl/Meta shortcut, so suppress the browser
+      // default while leaving the editable content untouched.
+      if (match.action === KEY_ACTION.OPEN_NEW_WAVE) {
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
       // Esc remains global per the matcher and bypasses this guard.
       return;
     }

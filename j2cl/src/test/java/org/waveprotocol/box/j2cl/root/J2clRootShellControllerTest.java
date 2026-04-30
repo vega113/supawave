@@ -50,6 +50,16 @@ public class J2clRootShellControllerTest {
     Assert.assertEquals("button", J2clRootShellController.newWaveTriggerFromSource(null));
   }
 
+  @Test
+  public void normalizeWaveHeaderEventValuesTrimsSourceWaveAndLockState() {
+    Assert.assertEquals(
+        "example.com/w+1", J2clRootShellController.normalizeSourceWaveId(" example.com/w+1 "));
+    Assert.assertEquals("", J2clRootShellController.normalizeSourceWaveId(null));
+    Assert.assertEquals("root", J2clRootShellController.normalizeLockStateValue(" root "));
+    Assert.assertEquals("all", J2clRootShellController.normalizeLockStateValue("all"));
+    Assert.assertEquals("unlocked", J2clRootShellController.normalizeLockStateValue("bogus"));
+  }
+
   private static final class FakeToolbarView implements J2clToolbarSurfaceController.View {
     private J2clToolbarSurfaceModel model;
 

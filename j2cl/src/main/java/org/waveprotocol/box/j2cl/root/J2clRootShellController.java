@@ -23,6 +23,7 @@ import org.waveprotocol.box.j2cl.search.J2clSidecarRouteState;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceController;
 import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceView;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 
 public final class J2clRootShellController {
   private final HTMLElement host;
@@ -174,6 +175,23 @@ public final class J2clRootShellController {
     elemental2.dom.DomGlobal.document.body.addEventListener(
         "wave-new-with-participants-requested",
         evt -> composeController.onCreateRequestedWithParticipants(participantsFromEvent(evt)));
+    elemental2.dom.DomGlobal.document.body.addEventListener(
+        "wave-add-participant-requested",
+        evt ->
+            composeController.onAddParticipantsRequested(
+                sourceWaveIdFromEvent(evt), addParticipantAddressesFromEvent(evt)));
+    elemental2.dom.DomGlobal.document.body.addEventListener(
+        "wave-publicity-toggle-requested",
+        evt ->
+            composeController.onPublicityToggleRequested(
+                sourceWaveIdFromEvent(evt), nextPublicFromEvent(evt)));
+    elemental2.dom.DomGlobal.document.body.addEventListener(
+        "wave-root-lock-toggle-requested",
+        evt ->
+            composeController.onLockStateToggleRequested(
+                sourceWaveIdFromEvent(evt),
+                lockStateFromEvent(evt, "currentLockState"),
+                lockStateFromEvent(evt, "nextLockState")));
     // F-4 (#1039 / R-4.4): bridge the selected-wave controller's live read
     // state into the search panel so the matching digest's unread badge
     // decrements without re-rendering the whole list.
@@ -226,14 +244,42 @@ public final class J2clRootShellController {
   }
 
   static List<String> participantsFromEvent(Event event) {
+    return stringArrayFromEvent(event, "participants");
+  }
+
+  static List<String> addParticipantAddressesFromEvent(Event event) {
+    return stringArrayFromEvent(event, "addresses");
+  }
+
+  static String sourceWaveIdFromEvent(Event event) {
+    return normalizeSourceWaveId(detailValue(event, "sourceWaveId"));
+  }
+
+  static boolean nextPublicFromEvent(Event event) {
+    Object value = detailValue(event, "nextPublic");
+    return value instanceof Boolean
+        ? ((Boolean) value).booleanValue()
+        : Boolean.parseBoolean(String.valueOf(value));
+  }
+
+  static String lockStateFromEvent(Event event, String key) {
+    return normalizeLockStateValue(detailValue(event, key));
+  }
+
+  static String normalizeSourceWaveId(Object sourceWaveId) {
+    return sourceWaveId == null ? "" : String.valueOf(sourceWaveId).trim();
+  }
+
+  static String normalizeLockStateValue(Object value) {
+    return SidecarSelectedWaveDocument.normalizeLockState(
+        value == null ? null : String.valueOf(value).trim());
+  }
+
+  private static List<String> stringArrayFromEvent(Event event, String key) {
     if (event == null) {
       return Collections.emptyList();
     }
-    Object detail = Js.asPropertyMap(event).get("detail");
-    if (detail == null) {
-      return Collections.emptyList();
-    }
-    Object participantsObject = Js.asPropertyMap(detail).get("participants");
+    Object participantsObject = detailValue(event, key);
     if (participantsObject == null || !JsArray.isArray(participantsObject)) {
       return Collections.emptyList();
     }
@@ -244,6 +290,17 @@ public final class J2clRootShellController {
       values.add(participants.getAt(i));
     }
     return normalizeParticipantValues(values);
+  }
+
+  private static Object detailValue(Event event, String key) {
+    if (event == null || key == null || key.isEmpty()) {
+      return null;
+    }
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return null;
+    }
+    return Js.asPropertyMap(detail).get(key);
   }
 
   static List<String> normalizeParticipantValues(List<?> participants) {

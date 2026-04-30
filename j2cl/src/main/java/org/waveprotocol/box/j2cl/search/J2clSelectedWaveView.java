@@ -631,12 +631,13 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     }
     List<String> participants = model.getParticipantIds();
     boolean isPublic = containsSharedDomainParticipant(participants);
+    String lockState = model.getLockState();
     waveHeaderActions.setAttribute("source-wave-id", waveId);
-    waveHeaderActions.setAttribute("lock-state", "unlocked");
+    waveHeaderActions.setAttribute("lock-state", lockState);
     setProperty(waveHeaderActions, "sourceWaveId", waveId);
     setProperty(waveHeaderActions, "participants", buildStringArray(participants));
     setProperty(waveHeaderActions, "public", isPublic);
-    setProperty(waveHeaderActions, "lockState", "unlocked");
+    setProperty(waveHeaderActions, "lockState", lockState);
     if (isPublic) {
       waveHeaderActions.setAttribute("public", "");
     } else {

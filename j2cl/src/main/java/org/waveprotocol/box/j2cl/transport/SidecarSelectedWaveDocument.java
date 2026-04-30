@@ -6,6 +6,9 @@ import java.util.List;
 
 public final class SidecarSelectedWaveDocument {
   private static final String REACTION_DATA_DOCUMENT_PREFIX = "react+";
+  public static final String LOCK_STATE_UNLOCKED = "unlocked";
+  public static final String LOCK_STATE_ROOT = "root";
+  public static final String LOCK_STATE_ALL = "all";
 
   private final String documentId;
   private final String author;
@@ -15,6 +18,7 @@ public final class SidecarSelectedWaveDocument {
   private final int bodyItemCount;
   private final List<SidecarAnnotationRange> annotationRanges;
   private final List<SidecarReactionEntry> reactionEntries;
+  private final String lockState;
 
   public SidecarSelectedWaveDocument(
       String documentId,
@@ -30,7 +34,8 @@ public final class SidecarSelectedWaveDocument {
         textContent,
         /* bodyItemCount= */ 0,
         Collections.<SidecarAnnotationRange>emptyList(),
-        Collections.<SidecarReactionEntry>emptyList());
+        Collections.<SidecarReactionEntry>emptyList(),
+        LOCK_STATE_UNLOCKED);
   }
 
   public SidecarSelectedWaveDocument(
@@ -49,7 +54,8 @@ public final class SidecarSelectedWaveDocument {
         textContent,
         /* bodyItemCount= */ 0,
         annotationRanges,
-        reactionEntries);
+        reactionEntries,
+        LOCK_STATE_UNLOCKED);
   }
 
   public SidecarSelectedWaveDocument(
@@ -61,6 +67,28 @@ public final class SidecarSelectedWaveDocument {
       int bodyItemCount,
       List<SidecarAnnotationRange> annotationRanges,
       List<SidecarReactionEntry> reactionEntries) {
+    this(
+        documentId,
+        author,
+        lastModifiedVersion,
+        lastModifiedTime,
+        textContent,
+        bodyItemCount,
+        annotationRanges,
+        reactionEntries,
+        LOCK_STATE_UNLOCKED);
+  }
+
+  public SidecarSelectedWaveDocument(
+      String documentId,
+      String author,
+      long lastModifiedVersion,
+      long lastModifiedTime,
+      String textContent,
+      int bodyItemCount,
+      List<SidecarAnnotationRange> annotationRanges,
+      List<SidecarReactionEntry> reactionEntries,
+      String lockState) {
     this.documentId = documentId;
     this.author = author;
     this.lastModifiedVersion = lastModifiedVersion;
@@ -75,6 +103,17 @@ public final class SidecarSelectedWaveDocument {
         reactionEntries == null
             ? Collections.<SidecarReactionEntry>emptyList()
             : Collections.unmodifiableList(new ArrayList<SidecarReactionEntry>(reactionEntries));
+    this.lockState = normalizeLockState(lockState);
+  }
+
+  public static String normalizeLockState(String value) {
+    if (LOCK_STATE_ROOT.equals(value)) {
+      return LOCK_STATE_ROOT;
+    }
+    if (LOCK_STATE_ALL.equals(value)) {
+      return LOCK_STATE_ALL;
+    }
+    return LOCK_STATE_UNLOCKED;
   }
 
   public String getDocumentId() {
@@ -107,6 +146,10 @@ public final class SidecarSelectedWaveDocument {
 
   public List<SidecarReactionEntry> getReactionEntries() {
     return reactionEntries;
+  }
+
+  public String getLockState() {
+    return lockState;
   }
 
   public boolean isReactionDataDocument() {

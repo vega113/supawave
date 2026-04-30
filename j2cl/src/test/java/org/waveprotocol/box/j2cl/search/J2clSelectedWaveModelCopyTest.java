@@ -54,6 +54,35 @@ public class J2clSelectedWaveModelCopyTest {
   }
 
   @Test
+  public void loadingSelectionPreservesLockStateForSameWave() {
+    J2clSelectedWaveModel previous =
+        new J2clSelectedWaveModel(
+                true,
+                false,
+                false,
+                "example.com/w+1",
+                "Current",
+                "",
+                "",
+                "",
+                "",
+                0,
+                Collections.<String>emptyList(),
+                Collections.<String>emptyList(),
+                null,
+                J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+                false,
+                false,
+                false)
+            .withLockState("root");
+
+    J2clSelectedWaveModel model =
+        J2clSelectedWaveModel.loading("example.com/w+1", null, 0, previous);
+
+    Assert.assertEquals("root", model.getLockState());
+  }
+
+  @Test
   public void errorSelectionDoesNotCarryReadStateAcrossWaveSwitch() {
     J2clSelectedWaveModel previous =
         new J2clSelectedWaveModel(
@@ -86,6 +115,40 @@ public class J2clSelectedWaveModelCopyTest {
     Assert.assertEquals(J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT, model.getUnreadCount());
     Assert.assertFalse(model.isRead());
     Assert.assertFalse(model.isReadStateKnown());
+  }
+
+  @Test
+  public void errorSelectionPreservesLockStateForSameWave() {
+    J2clSelectedWaveModel previous =
+        new J2clSelectedWaveModel(
+                true,
+                false,
+                false,
+                "example.com/w+1",
+                "Current",
+                "",
+                "",
+                "",
+                "",
+                0,
+                Collections.<String>emptyList(),
+                Collections.<String>emptyList(),
+                null,
+                J2clSelectedWaveModel.UNKNOWN_UNREAD_COUNT,
+                false,
+                false,
+                false)
+            .withLockState("all");
+
+    J2clSelectedWaveModel model =
+        J2clSelectedWaveModel.error(
+            "example.com/w+1",
+            null,
+            "Failed",
+            "detail",
+            previous);
+
+    Assert.assertEquals("all", model.getLockState());
   }
 
   @Test

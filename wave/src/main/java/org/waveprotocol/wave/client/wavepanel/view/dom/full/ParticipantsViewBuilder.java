@@ -488,7 +488,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         + "var l=this.lastChild;" //
         + "p.style.height=x?'':'auto';" //
         + "p.setAttribute('s',x?'':'e');" //
-        + "lastChild.innerHTML=x?'" + messages.more() + "':'" + messages.less() + "';" //
+        + "lastChild.innerText=x?'" + messages.more() + "':'" + messages.less() + "';" //
         + "firstChild.className=x?'" + css.expandButton() + "':'" + css.collapseButton() + "';" //
         + "parentNode.nextSibling.style.display=x?'':'none';" //
     ;

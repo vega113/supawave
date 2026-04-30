@@ -1,11 +1,25 @@
 # J2CL Parity Issue Map
 
-Status: Proposed  
-Updated: 2026-04-22  
+Status: Historical execution map; superseded by final audit
+Updated: 2026-04-30
 Owner: Project Maintainers  
 Review cadence: on-change  
 Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)  
 Task issue: [#960](https://github.com/vega113/supawave/issues/960)
+
+Final acceptance audit:
+[`docs/superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md`](./superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md).
+
+The issue chain in this map has now been executed through the F-slice, J-UI,
+visual-polish, G-PORT, viewport, search-filter, and bootstrap-cleanup follow-up
+lanes. The final audit found no remaining concrete implementation gap in the
+current verified gates and recommends closing the stale implementation
+umbrellas #1078, #1098, and #1109 after the audit PR merges. Keep GWT available
+through `/?view=gwt`; default-root cutover and GWT retirement remain separate
+operator rollout decisions, not automatic consequences of this map.
+
+Sections below are retained as the historical execution map that led to the
+closed issue chain. They should not be read as the current open-issue queue.
 
 ## 1. Goal
 
@@ -27,25 +41,28 @@ The purpose here is narrower:
 
 ## 2. Current Baseline
 
-What is already true on `main`:
+What is already true on `main` after the final acceptance audit:
 
 - the isolated J2CL sidecar exists
 - the search/results slice exists
-- read-only selected-wave opening exists
-- route state exists in the sidecar/root-shell path
-- the first plain-text write pilot exists
-- a J2CL root shell exists
-- the legacy GWT root remains the default `/` experience
+- selected-wave opening and threaded reading parity exist
+- route state and top-of-wave actions exist in the J2CL root-shell path
+- inline rich reply, mention autocomplete, task toggles, and key daily toolbar
+  actions exist in the J2CL root shell
+- visual polish and search-rail parity are covered by the Playwright parity
+  harness
+- a J2CL root shell exists and is verified through `/?view=j2cl-root`
+- the legacy GWT root remains available through `/?view=gwt`
 - the J2CL root remains available via `/?view=j2cl-root`
-- the repo already has a server prerender seam and viewport-scoped fragment seams
+- the repo has server-first selected-wave rendering and viewport-scoped
+  fragment/window seams with focused SBT coverage
 
-What is **not** true yet:
+What remains outside this map:
 
-- practical StageOne parity in the J2CL read surface
-- practical StageTwo parity in the root-shell live surface
-- practical StageThree parity in Lit/J2CL compose/edit surfaces
-- a durable replacement for HTML bootstrap scraping
-- a J2CL root that can replace GWT without losing rollback safety
+- production default-root cutover
+- removing or retiring the explicit GWT route
+- any future operator rollout/soak gates required before changing production
+  defaults
 
 ## 3. Existing Open Issues To Retain
 

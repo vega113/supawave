@@ -98,8 +98,8 @@ async function waitForPopulatedBlipIds(page: Page, n: number): Promise<string[]>
 async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
   await page.goto(`${baseURL}/?view=j2cl-root`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("shell-root", { timeout: 15_000 });
-  const card = page.locator("wavy-search-rail-card").first();
-  await card.waitFor({ state: "attached", timeout: 30_000 });
+  const card = searchRailRegionJ2cl(page);
+  await expect(card).toBeVisible({ timeout: 30_000 });
   await card.click({ timeout: 15_000 });
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
 }

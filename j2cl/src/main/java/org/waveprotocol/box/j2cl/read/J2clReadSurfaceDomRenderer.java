@@ -371,35 +371,39 @@ public final class J2clReadSurfaceDomRenderer {
    * blip OR (for blips taller than the viewport) ≥ 50 % of the viewport height.
    */
   private static boolean isBlipInViewport(HTMLElement blip, DOMRect hostRect) {
-    DOMRect blipRect = blip.getBoundingClientRect();
-    double blipHeight = blipRect.height;
-    double blipWidth = blipRect.width;
-    if (blipHeight <= 0 || blipWidth <= 0) {
+    return isElementInViewport(blip, hostRect);
+  }
+
+  private static boolean isElementInViewport(HTMLElement element, DOMRect hostRect) {
+    DOMRect elementRect = element.getBoundingClientRect();
+    double elementHeight = elementRect.height;
+    double elementWidth = elementRect.width;
+    if (elementHeight <= 0 || elementWidth <= 0) {
       return false;
     }
-    double intersectTop = Math.max(blipRect.top, hostRect.top);
-    double intersectBottom = Math.min(blipRect.bottom, hostRect.bottom);
+    double intersectTop = Math.max(elementRect.top, hostRect.top);
+    double intersectBottom = Math.min(elementRect.bottom, hostRect.bottom);
     double intersectHeight = intersectBottom - intersectTop;
     if (intersectHeight <= 0) {
       return false;
     }
-    double intersectLeft = Math.max(blipRect.left, hostRect.left);
-    double intersectRight = Math.min(blipRect.right, hostRect.right);
+    double intersectLeft = Math.max(elementRect.left, hostRect.left);
+    double intersectRight = Math.min(elementRect.right, hostRect.right);
     double intersectWidth = intersectRight - intersectLeft;
     if (intersectWidth <= 0) {
       return false;
     }
     double intersectArea = intersectHeight * intersectWidth;
-    double blipArea = blipHeight * blipWidth;
+    double elementArea = elementHeight * elementWidth;
     double hostHeight = hostRect.height;
-    if (intersectArea / blipArea >= VIEWPORT_INTERSECTION_THRESHOLD) {
+    if (intersectArea / elementArea >= VIEWPORT_INTERSECTION_THRESHOLD) {
       return true;
     }
     // Tall-blip exception: a blip taller than the viewport can never reach
     // the area-ratio threshold. Use vertical coverage so narrow blips (e.g.
     // deeply indented threads) can still qualify when the visible slice fills
     // ≥ 50% of the viewport height.
-    if (blipHeight > hostHeight
+    if (elementHeight > hostHeight
         && hostHeight > 0
         && intersectHeight / hostHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
       return true;
@@ -2056,16 +2060,19 @@ public final class J2clReadSurfaceDomRenderer {
     }
     if (host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX) {
       lastScrollDirection = J2clViewportGrowthDirection.BACKWARD;
-      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD);
-      return;
+      if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
+        return;
+      }
     }
     double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
     if (distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX) {
       lastScrollDirection = J2clViewportGrowthDirection.FORWARD;
-      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD);
-      return;
+      if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
+        return;
+      }
     }
     lastScrollDirection = null;
+    requestVisiblePlaceholderIfAny();
   }
 
   private boolean isNearEdge(String direction) {
@@ -2083,28 +2090,81 @@ public final class J2clReadSurfaceDomRenderer {
     if (lastScrollDirection != null && isNearEdge(lastScrollDirection)) {
       String pendingDirection = lastScrollDirection;
       lastScrollDirection = null;
-      requestEdgeIfPlaceholder(pendingDirection);
-      return;
+      if (requestEdgeIfPlaceholder(pendingDirection)) {
+        return;
+      }
     }
     if (edgePlaceholder(J2clViewportGrowthDirection.FORWARD) != null
         && isNearEdge(J2clViewportGrowthDirection.FORWARD)) {
-      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD);
-      return;
+      if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
+        return;
+      }
     }
     if (edgePlaceholder(J2clViewportGrowthDirection.BACKWARD) != null
-        && isNearEdge(J2clViewportGrowthDirection.BACKWARD)) {
-      requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD);
+        && isNearEdge(J2clViewportGrowthDirection.BACKWARD)
+        && requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
+      return;
+    }
+    requestVisiblePlaceholderIfAny();
+  }
+
+  private void requestVisiblePlaceholderIfAny() {
+    if (viewportEdgeListener == null) {
+      return;
+    }
+    J2clReadWindowEntry placeholder = visiblePlaceholder();
+    if (placeholder != null) {
+      viewportEdgeListener.onViewportEdge(
+          placeholder.getBlipId(), J2clViewportGrowthDirection.FORWARD);
     }
   }
 
-  private void requestEdgeIfPlaceholder(String direction) {
+  private J2clReadWindowEntry visiblePlaceholder() {
+    DOMRect hostRect = host.getBoundingClientRect();
+    if (hostRect.height <= 0 || hostRect.width <= 0) {
+      return null;
+    }
+    NodeList<Element> placeholders =
+        host.querySelectorAll("[data-j2cl-viewport-placeholder='true']");
+    for (int i = 0; i < placeholders.length; i++) {
+      HTMLElement placeholderEl = (HTMLElement) placeholders.item(i);
+      if (placeholderEl == null || !isElementInViewport(placeholderEl, hostRect)) {
+        continue;
+      }
+      String blipId = placeholderEl.getAttribute("data-placeholder-blip-id");
+      if (blipId == null || blipId.isEmpty()) {
+        continue;
+      }
+      J2clReadWindowEntry entry = placeholderEntryByBlipId(blipId);
+      if (entry != null) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  private J2clReadWindowEntry placeholderEntryByBlipId(String blipId) {
+    for (J2clReadWindowEntry entry : renderedWindowEntries) {
+      if (entry == null || entry.isLoaded()) {
+        continue;
+      }
+      if (blipId.equals(entry.getBlipId())) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  private boolean requestEdgeIfPlaceholder(String direction) {
     if (viewportEdgeListener == null) {
-      return;
+      return false;
     }
     J2clReadWindowEntry placeholder = edgePlaceholder(direction);
     if (placeholder != null) {
       viewportEdgeListener.onViewportEdge(placeholder.getBlipId(), direction);
+      return true;
     }
+    return false;
   }
 
   private J2clReadWindowEntry edgePlaceholder(String direction) {

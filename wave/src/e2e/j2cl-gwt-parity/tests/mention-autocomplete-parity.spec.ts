@@ -52,8 +52,8 @@ const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
   await page.goto(`${baseURL}/?view=j2cl-root`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("shell-root", { timeout: 15_000 });
-  const card = page.locator("wavy-search-rail-card").first();
-  await card.waitFor({ state: "attached", timeout: 30_000 });
+  const card = page.locator("wavy-search-rail-card[data-digest-card]:visible").first();
+  await expect(card).toBeVisible({ timeout: 30_000 });
   await card.click({ timeout: 15_000 });
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
 }
@@ -159,10 +159,17 @@ async function findPersistedBlipAfterViewportGrowthJ2cl(
     "J2CL selected-wave viewport host must render before reload persistence check"
   ).toBeVisible({ timeout: 30_000 });
 
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 45; attempt++) {
     if ((await matchingBlips.count()) > 0) {
-      await persistedBlip.scrollIntoViewIfNeeded({ timeout: 5_000 });
-      return persistedBlip;
+      try {
+        await persistedBlip.scrollIntoViewIfNeeded({ timeout: 2_000 });
+      } catch (e) {
+        // Hidden thread placeholders can race the reload path in CI; keep
+        // driving viewport growth until the matching blip becomes visible.
+      }
+      if (await persistedBlip.isVisible()) {
+        return persistedBlip;
+      }
     }
     // The J2CL read surface intentionally loads a viewport window, not
     // the whole wave. After reload the newly submitted reply can be
@@ -172,7 +179,7 @@ async function findPersistedBlipAfterViewportGrowthJ2cl(
       host.scrollTop = host.scrollHeight;
       host.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
-    await page.waitForTimeout(750);
+    await page.waitForTimeout(1_000);
   }
   return persistedBlip;
 }

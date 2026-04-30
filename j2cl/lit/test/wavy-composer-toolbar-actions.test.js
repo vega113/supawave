@@ -140,6 +140,41 @@ describe("wavy-composer toolbar action handlers", () => {
     expect(run.text).to.equal("hello");
   });
 
+  it("replaces an existing font family wrapper without nesting stale family values", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<font face="Arial">hello</font>';
+    selectContents(el, body.querySelector("font"));
+
+    dispatchToolbarAction(el, "font-family", "Georgia");
+
+    const fonts = Array.from(body.querySelectorAll("font"));
+    expect(fonts.length).to.equal(1);
+    expect(fonts[0].getAttribute("face")).to.equal("Georgia");
+    expect(fonts[0].textContent).to.equal("hello");
+    const familyRuns = el.serializeRichComponents().filter(
+      c => c.type === "annotated" && c.annotationKey === "style/fontFamily"
+    );
+    expect(familyRuns.map(c => c.annotationValue)).to.deep.equal(["Georgia"]);
+  });
+
+  it("replaces a partial range inside an existing font family wrapper", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<font face="Arial">hello</font>';
+    selectTextRange(el, body.querySelector("font").firstChild, 1, 4);
+
+    dispatchToolbarAction(el, "font-family", "Georgia");
+
+    const fonts = Array.from(body.querySelectorAll("font"));
+    expect(fonts.map(font => font.getAttribute("face"))).to.deep.equal([
+      "Arial",
+      "Georgia",
+      "Arial"
+    ]);
+    expect(fonts.map(font => font.textContent)).to.deep.equal(["h", "ell", "o"]);
+  });
+
   it("applies font size and serializes style/fontSize", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);
@@ -159,6 +194,37 @@ describe("wavy-composer toolbar action handlers", () => {
     );
     expect(run).to.exist;
     expect(run.text).to.equal("hello");
+  });
+
+  it("replaces an existing font-size wrapper without nesting stale size values", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<span style="font-size: 18px">hello</span>';
+    selectContents(el, body.querySelector("span"));
+
+    dispatchToolbarAction(el, "font-size", "24px");
+
+    const spans = Array.from(body.querySelectorAll("span"));
+    expect(spans.length).to.equal(1);
+    expect(spans[0].style.fontSize).to.equal("24px");
+    expect(spans[0].textContent).to.equal("hello");
+    const sizeRuns = el.serializeRichComponents().filter(
+      c => c.type === "annotated" && c.annotationKey === "style/fontSize"
+    );
+    expect(sizeRuns.map(c => c.annotationValue)).to.deep.equal(["24px"]);
+  });
+
+  it("replaces a partial range inside an existing font-size wrapper", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<span style="font-size: 18px">hello</span>';
+    selectTextRange(el, body.querySelector("span").firstChild, 1, 4);
+
+    dispatchToolbarAction(el, "font-size", "24px");
+
+    const spans = Array.from(body.querySelectorAll("span"));
+    expect(spans.map(span => span.style.fontSize)).to.deep.equal(["18px", "24px", "18px"]);
+    expect(spans.map(span => span.textContent)).to.deep.equal(["h", "ell", "o"]);
   });
 
   it("ignores invalid font action values", async () => {

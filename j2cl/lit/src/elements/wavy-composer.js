@@ -4,9 +4,7 @@ import "../design/wavy-compose-card.js";
 import "./composer-submit-affordance.js";
 import "./mention-suggestion-popover.js";
 import "./wavy-link-modal.js";
-
-const FONT_FAMILY_OPTIONS = ["Arial", "Georgia", "Courier New", "Times New Roman", "Verdana"];
-const FONT_SIZE_OPTIONS = ["10px", "12px", "14px", "18px", "24px"];
+import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.js";
 
 function normalizeFontFamilyValue(value) {
   const raw = String(value || "").trim();
@@ -831,16 +829,22 @@ export class WavyComposer extends LitElement {
     const range = this._activeRange();
     if (!range || range.collapsed) return;
     if (!this._bodyElement.contains(range.startContainer)) return;
-    const wrapper = kind === "family" ? document.createElement("font") : document.createElement("span");
-    if (kind === "family") {
-      wrapper.setAttribute("face", value);
-    } else {
-      wrapper.style.fontSize = value;
+    const sameKindAncestor = this._findFontWrapperAncestor(range.startContainer, kind);
+    if (
+      sameKindAncestor
+      && (sameKindAncestor === range.endContainer || sameKindAncestor.contains(range.endContainer))
+      && this._replaceFontWrapperAtSelection(range, kind, value, sameKindAncestor)
+    ) {
+      this._afterBodyMutation();
+      return;
     }
+    const wrapper = this._createFontWrapper(kind, value);
     try {
       const contents = range.extractContents();
       if (kind === "family") {
         this._unwrapTagsInFragment(contents, ["font"]);
+      } else {
+        this._unwrapFontSizeSpansInFragment(contents);
       }
       wrapper.appendChild(contents);
       range.insertNode(wrapper);
@@ -853,10 +857,102 @@ export class WavyComposer extends LitElement {
     this._afterBodyMutation();
   }
 
+  _createFontWrapper(kind, value) {
+    const wrapper = kind === "family" ? document.createElement("font") : document.createElement("span");
+    if (kind === "family") {
+      wrapper.setAttribute("face", value);
+    } else {
+      wrapper.style.fontSize = value;
+    }
+    return wrapper;
+  }
+
+  _findFontWrapperAncestor(container, kind) {
+    let node = container && container.nodeType === Node.ELEMENT_NODE ? container : container && container.parentNode;
+    while (node && node !== this._bodyElement) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (kind === "family" && tag === "font") return node;
+        if (
+          kind === "size"
+          && tag === "span"
+          && normalizeFontSizeValue(node.style && node.style.fontSize)
+        ) {
+          return node;
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  _replaceFontWrapperAtSelection(range, kind, value, ancestor) {
+    const parent = ancestor && ancestor.parentNode;
+    if (!parent) return false;
+    let prefixFragment;
+    let middleFragment;
+    let suffixFragment;
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.selectNodeContents(ancestor);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      const middleRange = document.createRange();
+      middleRange.selectNodeContents(ancestor);
+      middleRange.setStart(range.startContainer, range.startOffset);
+      middleRange.setEnd(range.endContainer, range.endOffset);
+      const suffixRange = document.createRange();
+      suffixRange.selectNodeContents(ancestor);
+      suffixRange.setStart(range.endContainer, range.endOffset);
+      prefixFragment = prefixRange.cloneContents();
+      middleFragment = middleRange.cloneContents();
+      suffixFragment = suffixRange.cloneContents();
+    } catch (_e) {
+      return false;
+    }
+    if (!fragmentHasContent(middleFragment)) return false;
+    if (kind === "family") {
+      this._unwrapTagsInFragment(middleFragment, ["font"]);
+    } else {
+      this._unwrapFontSizeSpansInFragment(middleFragment);
+    }
+
+    const insertExistingWrapper = (target, frag) => {
+      if (!fragmentHasContent(frag)) return;
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(frag);
+      parent.insertBefore(wrapper, target);
+    };
+
+    insertExistingWrapper(ancestor, prefixFragment);
+    const replacement = this._createFontWrapper(kind, value);
+    replacement.appendChild(middleFragment);
+    parent.insertBefore(replacement, ancestor);
+    insertExistingWrapper(ancestor, suffixFragment);
+    parent.removeChild(ancestor);
+
+    const restored = document.createRange();
+    restored.selectNodeContents(replacement);
+    this._restoreSelectionRange(restored);
+    return true;
+  }
+
   _unwrapTagsInFragment(fragment, tagNames) {
     if (!fragment || !tagNames || tagNames.length === 0 || !fragment.querySelectorAll) return;
     const selector = tagNames.join(",");
     for (const node of Array.from(fragment.querySelectorAll(selector))) {
+      const parent = node.parentNode;
+      if (!parent) continue;
+      while (node.firstChild) parent.insertBefore(node.firstChild, node);
+      parent.removeChild(node);
+    }
+  }
+
+  _unwrapFontSizeSpansInFragment(fragment) {
+    if (!fragment || !fragment.querySelectorAll) return;
+    for (const node of Array.from(fragment.querySelectorAll("span"))) {
+      if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
+      const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+      if (!size) continue;
       const parent = node.parentNode;
       if (!parent) continue;
       while (node.firstChild) parent.insertBefore(node.firstChild, node);
@@ -1472,7 +1568,7 @@ export class WavyComposer extends LitElement {
     // a textContent overwrite.
     return Boolean(
       this._bodyElement.querySelector(
-        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, ul, ol, blockquote, h1, h2, h3, h4"
+        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, font, span[style*='font-size'], ul, ol, blockquote, h1, h2, h3, h4"
       )
     );
   }

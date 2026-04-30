@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import "../design/wavy-edit-toolbar.js";
+import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.js";
 import "./toolbar-button.js";
 import "./toolbar-group.js";
 
@@ -85,7 +86,7 @@ const DAILY_RICH_EDIT_ACTIONS = [
     group: "text",
     toggle: false,
     kind: "select",
-    options: ["Arial", "Georgia", "Courier New", "Times New Roman", "Verdana"]
+    options: FONT_FAMILY_OPTIONS
   },
   {
     id: "font-size",
@@ -93,7 +94,7 @@ const DAILY_RICH_EDIT_ACTIONS = [
     group: "text",
     toggle: false,
     kind: "select",
-    options: ["10px", "12px", "14px", "18px", "24px"]
+    options: FONT_SIZE_OPTIONS
   },
   { id: "heading", label: "Heading", group: "block", toggle: false },
   { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },

@@ -32,13 +32,15 @@ describe("<wavy-format-toolbar>", () => {
     const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
     const buttons = el.renderRoot.querySelectorAll("[data-toolbar-action]");
     const actionIds = Array.from(buttons).map((b) => b.getAttribute("data-toolbar-action"));
-    expect(actionIds.slice(0, 7)).to.deep.equal([
+    expect(actionIds.slice(0, 9)).to.deep.equal([
       "bold",
       "italic",
       "underline",
       "strikethrough",
       "superscript",
       "subscript",
+      "font-family",
+      "font-size",
       "heading"
     ]);
     expect(actionIds).to.include.members([
@@ -48,6 +50,8 @@ describe("<wavy-format-toolbar>", () => {
       "strikethrough",
       "superscript",
       "subscript",
+      "font-family",
+      "font-size",
       "heading",
       "unordered-list",
       "ordered-list",
@@ -66,6 +70,38 @@ describe("<wavy-format-toolbar>", () => {
       "attachment-insert"
     ]);
     expect(actionIds.length).to.equal(DAILY_RICH_EDIT_ACTION_IDS.length);
+  });
+
+  it("renders Font and Size dropdowns and emits action value", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+
+    const font = el.renderRoot.querySelector('select[data-toolbar-action="font-family"]');
+    const size = el.renderRoot.querySelector('select[data-toolbar-action="font-size"]');
+    expect(font, "font dropdown must render").to.exist;
+    expect(size, "size dropdown must render").to.exist;
+    expect(font.getAttribute("aria-label")).to.equal("Font");
+    expect(size.getAttribute("aria-label")).to.equal("Size");
+
+    const fontEvent = oneEvent(el, "wavy-format-toolbar-action");
+    font.value = "Georgia";
+    font.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    const fontAction = await fontEvent;
+    expect(fontAction.detail.actionId).to.equal("font-family");
+    expect(fontAction.detail.value).to.equal("Georgia");
+    expect(fontAction.detail.selectionDescriptor).to.equal(el.selectionDescriptor);
+
+    const sizeEvent = oneEvent(el, "wavy-format-toolbar-action");
+    size.value = "18px";
+    size.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    const sizeAction = await sizeEvent;
+    expect(sizeAction.detail.actionId).to.equal("font-size");
+    expect(sizeAction.detail.value).to.equal("18px");
   });
 
   // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is

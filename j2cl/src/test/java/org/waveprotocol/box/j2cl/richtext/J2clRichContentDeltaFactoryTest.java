@@ -1065,6 +1065,33 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void createReplyRequestRoundTripsFontFamilyAndSizeAnnotations() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-4", 3L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("style/fontFamily", "Georgia", "Family")
+            .text(" and ")
+            .annotatedText("style/fontSize", "18px", "Size")
+            .build();
+
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"style/fontFamily\",\"3\":\"Georgia\"}]}}",
+        "\"2\":\"Family\"",
+        "{\"1\":{\"2\":[\"style/fontFamily\"]}}",
+        "{\"1\":{\"3\":[{\"1\":\"style/fontSize\",\"3\":\"18px\"}]}}",
+        "\"2\":\"Size\"",
+        "{\"1\":{\"2\":[\"style/fontSize\"]}}");
+    Assert.assertTrue(deltaJson.indexOf("Family") < deltaJson.indexOf("Size"));
+  }
+
+  @Test
   public void createReplyRequestRoundTripsSuperscriptAnnotation() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

@@ -924,6 +924,44 @@ describe("<wavy-composer> R-5.3 mentions", () => {
       }
     });
 
+    it("emits style/fontFamily for <font face>", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      try {
+        const body = getBody(el);
+        body.innerHTML = '<font face="Georgia">Hello</font>';
+        const components = el.serializeRichComponents();
+        const fontRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/fontFamily"
+            && c.annotationValue === "Georgia"
+        );
+        expect(fontRun).to.exist;
+        expect(fontRun.text).to.equal("Hello");
+      } finally {
+        el.remove();
+      }
+    });
+
+    it("emits style/fontSize for font-size spans", async () => {
+      const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+      document.body.appendChild(el);
+      try {
+        const body = getBody(el);
+        body.innerHTML = '<span style="font-size: 18px">Hello</span>';
+        const components = el.serializeRichComponents();
+        const sizeRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/fontSize"
+            && c.annotationValue === "18px"
+        );
+        expect(sizeRun).to.exist;
+        expect(sizeRun.text).to.equal("Hello");
+      } finally {
+        el.remove();
+      }
+    });
+
     // review-1077 Bug 3: mention chips nested inside an <a> must not
     // be swallowed into the link's textContent.  Walking children
     // recursively keeps the chip as its own annotated component while

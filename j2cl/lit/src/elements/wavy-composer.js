@@ -5,6 +5,22 @@ import "./composer-submit-affordance.js";
 import "./mention-suggestion-popover.js";
 import "./wavy-link-modal.js";
 
+const FONT_FAMILY_OPTIONS = ["Arial", "Georgia", "Courier New", "Times New Roman", "Verdana"];
+const FONT_SIZE_OPTIONS = ["10px", "12px", "14px", "18px", "24px"];
+
+function normalizeFontFamilyValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const firstFamily = raw.split(",")[0].trim().replace(/^["']|["']$/g, "");
+  const lowered = firstFamily.toLowerCase();
+  return FONT_FAMILY_OPTIONS.find((option) => option.toLowerCase() === lowered) || "";
+}
+
+function normalizeFontSizeValue(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  return FONT_SIZE_OPTIONS.includes(normalized) ? normalized : "";
+}
+
 /**
  * J-UI-5 (#1083, R-5.7): map inline-format wrap tags to the
  * `J2clComposeSurfaceController.annotationKey/annotationValue` pairs
@@ -202,6 +218,20 @@ function inlineFormatAnnotation(tag) {
     default:
       return null;
   }
+}
+
+function inlineFormatAnnotationForNode(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return null;
+  const tag = node.tagName.toLowerCase();
+  if (tag === "font") {
+    const family = normalizeFontFamilyValue(node.getAttribute("face"));
+    return family ? { key: "style/fontFamily", value: family } : null;
+  }
+  if (tag === "span") {
+    const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+    return size ? { key: "style/fontSize", value: size } : null;
+  }
+  return inlineFormatAnnotation(tag);
 }
 
 /**
@@ -601,6 +631,16 @@ export class WavyComposer extends LitElement {
       event.stopPropagation();
       return;
     }
+    if (actionId === "font-family") {
+      this._applyFontSelection("family", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
+    if (actionId === "font-size") {
+      this._applyFontSelection("size", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
     if (actionId === "unordered-list" || actionId === "ordered-list") {
       this._toggleListAtSelection(actionId === "ordered-list" ? "ol" : "ul");
       event.stopPropagation();
@@ -779,6 +819,38 @@ export class WavyComposer extends LitElement {
     restored.selectNodeContents(replacement);
     this._restoreSelectionRange(restored);
     return true;
+  }
+
+  _applyFontSelection(kind, rawValue) {
+    if (!this._bodyElement) return;
+    const value =
+      kind === "family"
+        ? normalizeFontFamilyValue(rawValue)
+        : normalizeFontSizeValue(rawValue);
+    if (!value) return;
+    const range = this._activeRange();
+    if (!range || range.collapsed) return;
+    if (!this._bodyElement.contains(range.startContainer)) return;
+    const wrapper = kind === "family" ? document.createElement("font") : document.createElement("span");
+    if (kind === "family") {
+      wrapper.setAttribute("face", value);
+    } else {
+      wrapper.style.fontSize = value;
+    }
+    try {
+      const contents = range.extractContents();
+      if (kind === "family") {
+        this._unwrapTagsInFragment(contents, ["font"]);
+      }
+      wrapper.appendChild(contents);
+      range.insertNode(wrapper);
+      const restored = document.createRange();
+      restored.selectNodeContents(wrapper);
+      this._restoreSelectionRange(restored);
+    } catch (_e) {
+      return;
+    }
+    this._afterBodyMutation();
   }
 
   _unwrapTagsInFragment(fragment, tagNames) {
@@ -1147,6 +1219,8 @@ export class WavyComposer extends LitElement {
       "del",
       "sup",
       "sub",
+      "font",
+      "span",
       "a",
       "h1",
       "h2",
@@ -1722,7 +1796,7 @@ export class WavyComposer extends LitElement {
         // annotation in their `annotations` list and we *append* the
         // outer annotation to that list so the combined run round-trips
         // (codex review #1095 thread PRRT_kwDOBwxLXs5-C84a).
-        const inlineAnnotation = inlineFormatAnnotation(tag);
+        const inlineAnnotation = inlineFormatAnnotationForNode(node);
         if (inlineAnnotation) {
           flushText();
           const snapLen = components.length;

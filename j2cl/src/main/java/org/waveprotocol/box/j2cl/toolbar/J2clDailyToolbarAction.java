@@ -17,6 +17,8 @@ public enum J2clDailyToolbarAction {
   ITALIC("italic", "Italic", "Edit", true, true),
   UNDERLINE("underline", "Underline", "Edit", true, true),
   STRIKETHROUGH("strikethrough", "Strikethrough", "Edit", true, true),
+  FONT_FAMILY("font-family", "Font", "Edit", false, true),
+  FONT_SIZE("font-size", "Size", "Edit", false, true),
   HEADING("heading", "Heading", "Edit", false, true),
   // Stable IDs reserved for follow-up rich block controls; Task 5 does not surface them.
   HEADING_DEFAULT("heading-default", "Default heading", "Edit", false, true),

@@ -61,10 +61,10 @@ function selectTextRange(el, textNode, startOffset, endOffset) {
   el._onSelectionChange();
 }
 
-function dispatchToolbarAction(el, actionId) {
+function dispatchToolbarAction(el, actionId, value) {
   el.dispatchEvent(
     new CustomEvent("wavy-format-toolbar-action", {
-      detail: { actionId, selectionDescriptor: {} },
+      detail: { actionId, value, selectionDescriptor: {} },
       bubbles: true,
       composed: true
     })
@@ -117,6 +117,59 @@ describe("wavy-composer toolbar action handlers", () => {
 
     expect(bodyOf(subscript).querySelector("sub")).to.exist;
     expect(bodyOf(subscript).querySelector("sub").textContent).to.equal("2");
+  });
+
+  it("applies font family and serializes style/fontFamily", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "font-family", "Georgia");
+
+    const font = body.querySelector("font");
+    expect(font).to.exist;
+    expect(font.getAttribute("face")).to.equal("Georgia");
+    const components = el.serializeRichComponents();
+    const run = components.find(
+      c => c.type === "annotated"
+        && c.annotationKey === "style/fontFamily"
+        && c.annotationValue === "Georgia"
+    );
+    expect(run).to.exist;
+    expect(run.text).to.equal("hello");
+  });
+
+  it("applies font size and serializes style/fontSize", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "font-size", "18px");
+
+    const span = body.querySelector("span");
+    expect(span).to.exist;
+    expect(span.style.fontSize).to.equal("18px");
+    const components = el.serializeRichComponents();
+    const run = components.find(
+      c => c.type === "annotated"
+        && c.annotationKey === "style/fontSize"
+        && c.annotationValue === "18px"
+    );
+    expect(run).to.exist;
+    expect(run.text).to.equal("hello");
+  });
+
+  it("ignores invalid font action values", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "font-size", "expression(alert(1))");
+
+    expect(body.innerHTML).to.equal("hello");
   });
 
   it("replaces superscript and subscript instead of nesting them", async () => {

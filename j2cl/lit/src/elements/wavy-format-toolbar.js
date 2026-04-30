@@ -79,6 +79,22 @@ const DAILY_RICH_EDIT_ACTIONS = [
   { id: "strikethrough", label: "Strikethrough", group: "text", toggle: true },
   { id: "superscript", label: "Superscript", group: "text", toggle: true },
   { id: "subscript", label: "Subscript", group: "text", toggle: true },
+  {
+    id: "font-family",
+    label: "Font",
+    group: "text",
+    toggle: false,
+    kind: "select",
+    options: ["Arial", "Georgia", "Courier New", "Times New Roman", "Verdana"]
+  },
+  {
+    id: "font-size",
+    label: "Size",
+    group: "text",
+    toggle: false,
+    kind: "select",
+    options: ["10px", "12px", "14px", "18px", "24px"]
+  },
   { id: "heading", label: "Heading", group: "block", toggle: false },
   { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },
   { id: "ordered-list", label: "Numbered list", group: "block", toggle: true },
@@ -134,6 +150,20 @@ export class WavyFormatToolbar extends LitElement {
       opacity: 0;
       pointer-events: none;
       display: none;
+    }
+    .toolbar-select {
+      min-height: 28px;
+      max-width: 8.75rem;
+      border: 1px solid var(--wavy-border-hairline, rgba(11, 19, 32, 0.16));
+      border-radius: var(--wavy-radius-pill, 9999px);
+      background: var(--wavy-bg-card, #ffffff);
+      color: var(--wavy-text-body, #172033);
+      font: var(--wavy-type-label, 0.75rem / 1.35 Arial, sans-serif);
+      padding: 0 var(--wavy-spacing-3, 12px);
+    }
+    .toolbar-select:focus-visible {
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      outline: none;
     }
   `;
 
@@ -251,20 +281,51 @@ export class WavyFormatToolbar extends LitElement {
     );
   }
 
+  _onSelectAction(action, event) {
+    const target = event.target;
+    const value = target && target.value ? target.value : "";
+    if (!value) return;
+    this.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: {
+          actionId: action.id,
+          value,
+          selectionDescriptor: this.selectionDescriptor
+        },
+        bubbles: true,
+        composed: true
+      })
+    );
+    target.value = "";
+  }
+
+  _renderAction(action) {
+    if (action.kind === "select") {
+      return html`<select
+        class="toolbar-select"
+        data-toolbar-action=${action.id}
+        aria-label=${action.label}
+        @change=${(event) => this._onSelectAction(action, event)}
+      >
+        <option value="">${action.label}</option>
+        ${action.options.map((option) => html`<option value=${option}>${option}</option>`)}
+      </select>`;
+    }
+    return html`<toolbar-button
+      data-toolbar-action=${action.id}
+      action=${action.id}
+      icon=${action.id}
+      label=${action.label}
+      ?toggle=${action.toggle}
+      ?pressed=${this._isActionActive(action)}
+    ></toolbar-button>`;
+  }
+
   _renderGroup(groupId) {
     const actions = DAILY_RICH_EDIT_ACTIONS.filter((a) => a.group === groupId);
     if (actions.length === 0) return null;
     return html`<toolbar-group label=${GROUP_LABELS[groupId] || groupId}>
-      ${actions.map(
-        (action) => html`<toolbar-button
-          data-toolbar-action=${action.id}
-          action=${action.id}
-          icon=${action.id}
-          label=${action.label}
-          ?toggle=${action.toggle}
-          ?pressed=${this._isActionActive(action)}
-        ></toolbar-button>`
-      )}
+      ${actions.map((action) => this._renderAction(action))}
     </toolbar-group>`;
   }
 

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-j2cl-superscript-subscript",
+  "version": "PR #1071",
+  "date": "2026-04-30",
+  "title": "J2CL superscript and subscript toolbar buttons",
+  "summary": "The J2CL rich-edit toolbar now exposes superscript and subscript controls and preserves their vertical-align annotations through rich reply submission.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds Superscript and Subscript buttons to the J2CL rich-edit toolbar between Strikethrough and Heading.",
+        "Serializes <sup> and <sub> rich-composer content as style/verticalAlign annotations for DocOp round trips."
+      ]
+    }
+  ]
+}

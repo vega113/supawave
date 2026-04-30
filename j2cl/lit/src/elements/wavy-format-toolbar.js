@@ -6,8 +6,7 @@ import "./toolbar-group.js";
 /**
  * <wavy-format-toolbar> — F-3.S1 (#1038, R-5.2) selection-driven floating
  * toolbar for the rich-text composer. Wraps the F-0 `<wavy-edit-toolbar>`
- * recipe; mounts the H.* daily-rich-edit subset (H.1-H.4, H.9, H.12-H.18)
- * called out by the issue body.
+ * recipe; mounts the H.* daily-rich-edit subset called out by the issue body.
  *
  * Anchoring (R-5.2 step 1):
  * - position: fixed + transform: translate(<x>px, <y>px) keyed off
@@ -40,6 +39,8 @@ const ACTIVE_ANNOTATION_MAP = {
   italic: ["em", "i"],
   underline: ["u"],
   strikethrough: ["s", "strike", "del"],
+  superscript: ["sup"],
+  subscript: ["sub"],
   "unordered-list": ["ul"],
   "ordered-list": ["ol"],
   "align-left": [],
@@ -76,6 +77,8 @@ const DAILY_RICH_EDIT_ACTIONS = [
   { id: "italic", label: "Italic", group: "text", toggle: true },
   { id: "underline", label: "Underline", group: "text", toggle: true },
   { id: "strikethrough", label: "Strikethrough", group: "text", toggle: true },
+  { id: "superscript", label: "Superscript", group: "text", toggle: true },
+  { id: "subscript", label: "Subscript", group: "text", toggle: true },
   { id: "heading", label: "Heading", group: "block", toggle: false },
   { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },
   { id: "ordered-list", label: "Numbered list", group: "block", toggle: true },

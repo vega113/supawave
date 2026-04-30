@@ -26,6 +26,16 @@ const ICON_TEMPLATES = {
     <path d="M5 11a3 3 0 0 0 3 2.5h.5a2.75 2.75 0 0 0 2.5-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
   </svg>`,
+  superscript: svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
+    <path d="M3 11.5l5-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M3 4.5l5 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M10.5 3.25h2.75l-2.75 3.5h2.9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  subscript: svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
+    <path d="M3 8.5l5-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M3 1.5l5 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M10.5 10.25h2.75l-2.75 3.5h2.9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
   heading: svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
     <line x1="3.5" y1="2.5" x2="3.5" y2="13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     <line x1="12.5" y1="2.5" x2="12.5" y2="13.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>

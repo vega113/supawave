@@ -32,11 +32,22 @@ describe("<wavy-format-toolbar>", () => {
     const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
     const buttons = el.renderRoot.querySelectorAll("[data-toolbar-action]");
     const actionIds = Array.from(buttons).map((b) => b.getAttribute("data-toolbar-action"));
+    expect(actionIds.slice(0, 7)).to.deep.equal([
+      "bold",
+      "italic",
+      "underline",
+      "strikethrough",
+      "superscript",
+      "subscript",
+      "heading"
+    ]);
     expect(actionIds).to.include.members([
       "bold",
       "italic",
       "underline",
       "strikethrough",
+      "superscript",
+      "subscript",
       "heading",
       "unordered-list",
       "ordered-list",
@@ -109,6 +120,31 @@ describe("<wavy-format-toolbar>", () => {
     );
     const evt = await trigger;
     expect(evt.detail.actionId).to.equal("insert-task");
+  });
+
+  it("re-dispatches H.5/H.6 superscript and subscript actions", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+
+    for (const actionId of ["superscript", "subscript"]) {
+      const button = el.renderRoot.querySelector(`[data-toolbar-action="${actionId}"]`);
+      expect(button, `${actionId} button must render`).to.exist;
+      const trigger = oneEvent(el, "wavy-format-toolbar-action");
+      button.dispatchEvent(
+        new CustomEvent("toolbar-action", {
+          detail: { action: actionId },
+          bubbles: true,
+          composed: true
+        })
+      );
+      const evt = await trigger;
+      expect(evt.detail.actionId).to.equal(actionId);
+    }
   });
 
   it("hides itself when selection descriptor is collapsed", async () => {

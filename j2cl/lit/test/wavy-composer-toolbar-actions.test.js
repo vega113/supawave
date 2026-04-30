@@ -5,10 +5,10 @@ import "../src/elements/wavy-link-modal.js";
 // J-UI-5 (#1083) — selection-driven toolbar action handlers.
 //
 // These tests cover the wavy-composer's `_handleToolbarAction` branch
-// added by J-UI-5: bold / italic / underline / strikethrough / list /
-// link / unlink / clear-formatting are applied to the active range,
-// and reply-submit carries a `components` array reflecting the
-// per-fragment formatting.
+// added by J-UI-5: bold / italic / underline / strikethrough /
+// superscript / subscript / list / link / unlink / clear-formatting are
+// applied to the active range, and reply-submit carries a `components`
+// array reflecting the per-fragment formatting.
 
 function ensureWavyTokensLoaded() {
   if (document.querySelector('link[data-wavy-tokens-test]')) return;
@@ -37,6 +37,27 @@ function selectAllInBody(el) {
   sel.addRange(range);
   // Force the composer to capture the live range as it would on user
   // input.
+  el._onSelectionChange();
+}
+
+function selectContents(el, node) {
+  bodyOf(el).focus();
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  el._onSelectionChange();
+}
+
+function selectTextRange(el, textNode, startOffset, endOffset) {
+  bodyOf(el).focus();
+  const range = document.createRange();
+  range.setStart(textNode, startOffset);
+  range.setEnd(textNode, endOffset);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
   el._onSelectionChange();
 }
 
@@ -76,6 +97,59 @@ describe("wavy-composer toolbar action handlers", () => {
     dispatchToolbarAction(el, "italic");
 
     expect(bodyOf(el).querySelector("em")).to.exist;
+  });
+
+  it("wraps the active selection in <sup> and <sub>", async () => {
+    const superscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(superscript).textContent = "2";
+    selectAllInBody(superscript);
+
+    dispatchToolbarAction(superscript, "superscript");
+
+    expect(bodyOf(superscript).querySelector("sup")).to.exist;
+    expect(bodyOf(superscript).querySelector("sup").textContent).to.equal("2");
+
+    const subscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(subscript).textContent = "2";
+    selectAllInBody(subscript);
+
+    dispatchToolbarAction(subscript, "subscript");
+
+    expect(bodyOf(subscript).querySelector("sub")).to.exist;
+    expect(bodyOf(subscript).querySelector("sub").textContent).to.equal("2");
+  });
+
+  it("replaces superscript and subscript instead of nesting them", async () => {
+    const superscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const supBody = bodyOf(superscript);
+    supBody.innerHTML = "<sup>2</sup>";
+    selectContents(superscript, supBody.querySelector("sup"));
+
+    dispatchToolbarAction(superscript, "subscript");
+
+    expect(supBody.querySelector("sup")).to.not.exist;
+    expect(supBody.querySelector("sub")).to.exist;
+    expect(supBody.querySelector("sub").textContent).to.equal("2");
+
+    const subscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const subBody = bodyOf(subscript);
+    subBody.innerHTML = "<sub>2</sub>";
+    selectContents(subscript, subBody.querySelector("sub"));
+
+    dispatchToolbarAction(subscript, "superscript");
+
+    expect(subBody.querySelector("sub")).to.not.exist;
+    expect(subBody.querySelector("sup")).to.exist;
+    expect(subBody.querySelector("sup").textContent).to.equal("2");
+
+    const partial = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const partialBody = bodyOf(partial);
+    partialBody.innerHTML = "<sup>123</sup>";
+    selectTextRange(partial, partialBody.querySelector("sup").firstChild, 1, 2);
+
+    dispatchToolbarAction(partial, "subscript");
+
+    expect(partialBody.innerHTML).to.equal("<sup>1</sup><sub>2</sub><sup>3</sup>");
   });
 
   it("wraps in <u> and a follow-up click with caret inside <u> unwraps", async () => {
@@ -204,7 +278,7 @@ describe("wavy-composer toolbar action handlers", () => {
   it("Clear formatting strips inline format wraps from the selection", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);
-    body.innerHTML = "<strong><em>boldy</em></strong>";
+    body.innerHTML = "<strong><em>boldy</em></strong><sup>2</sup><sub>3</sub>";
     body.focus();
     const range = document.createRange();
     range.selectNodeContents(body);
@@ -217,7 +291,9 @@ describe("wavy-composer toolbar action handlers", () => {
 
     expect(body.querySelector("strong")).to.not.exist;
     expect(body.querySelector("em")).to.not.exist;
-    expect(body.textContent).to.equal("boldy");
+    expect(body.querySelector("sup")).to.not.exist;
+    expect(body.querySelector("sub")).to.not.exist;
+    expect(body.textContent).to.equal("boldy23");
   });
 
   it("Clear formatting only strips wraps that intersect the selection", async () => {

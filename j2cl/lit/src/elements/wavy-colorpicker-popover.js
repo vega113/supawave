@@ -62,6 +62,9 @@ export class WavyColorpickerPopover extends LitElement {
   updated(changed) {
     if (changed.has("open") && this.open) {
       this.activeIndex = this._clampIndex(this.activeIndex);
+      this.updateComplete.then(() => {
+        this.renderRoot.querySelector("[role='grid']")?.focus();
+      });
     }
   }
 

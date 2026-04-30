@@ -40,6 +40,15 @@ describe("<wavy-colorpicker-popover>", () => {
     expect(event.detail.color).to.equal("rgb(67, 67, 67)");
   });
 
+  it("focuses the palette grid when opened for keyboard users", async () => {
+    const el = await fixture(html`<wavy-colorpicker-popover></wavy-colorpicker-popover>`);
+    el.open = true;
+    await el.updateComplete;
+    await el.updateComplete;
+
+    expect(el.renderRoot.activeElement).to.equal(el.renderRoot.querySelector("[role='grid']"));
+  });
+
   it("uses highlight labeling when mode is highlight", async () => {
     const el = await fixture(
       html`<wavy-colorpicker-popover open mode="highlight"></wavy-colorpicker-popover>`

@@ -828,6 +828,76 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(2, results.getNumResults());
   }
 
+  public void testSearchHasAttachmentCombinesWithInbox() throws Exception {
+    WaveletName withAttachment = WaveletName.of(WaveId.of(DOMAIN, "with-attachment"), WAVELET_ID);
+    WaveletName withoutAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "without-attachment"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
+    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "modern");
+    submitDeltaToNewWavelet(
+        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox has:attachment", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("with-attachment",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchHasAttachmentWorksWithoutFolder() throws Exception {
+    WaveletName withAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "attachment-no-folder"), WAVELET_ID);
+    WaveletName withoutAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "plain-no-folder"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
+    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "bare");
+    submitDeltaToNewWavelet(
+        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
+
+    SearchResult results = searchProvider.search(USER1, "has:attachment", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("attachment-no-folder",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchHasAttachmentMatchesLegacyAttachmentDocument() throws Exception {
+    WaveletName legacyAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "legacy-attachment"), WAVELET_ID);
+    WaveletName withoutAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "legacy-plain"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(
+        legacyAttachment, USER1, addParticipantToWavelet(USER1, legacyAttachment));
+    addLegacyAttachmentDataDocumentToWavelet(legacyAttachment, USER1, "legacy-file");
+    submitDeltaToNewWavelet(
+        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox has:attachment", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("legacy-attachment",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchUnknownHasTokenIsNoOp() throws Exception {
+    WaveletName withAttachment = WaveletName.of(WaveId.of(DOMAIN, "has-unknown-attach"), WAVELET_ID);
+    WaveletName withoutAttachment =
+        WaveletName.of(WaveId.of(DOMAIN, "has-unknown-plain"), WAVELET_ID);
+
+    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
+    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "unknown-no-op");
+    submitDeltaToNewWavelet(
+        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox has:unknown", 0, 10);
+
+    // Unknown has:<value> tokens are parsed but intentionally inert.
+    assertEquals(2, results.getNumResults());
+  }
+
   public void testSearchFilterByUnreadAppliesBeforePagination() throws Exception {
     WaveletName readFirst = WaveletName.of(WaveId.of(DOMAIN, "read-first"), WAVELET_ID);
     WaveletName unreadLater = WaveletName.of(WaveId.of(DOMAIN, "unread-later"), WAVELET_ID);
@@ -1309,6 +1379,26 @@ public class SimpleSearchProviderImplTest extends TestCase {
                 .elementEnd()
                 .build()));
     submitDeltaToExistingWavelet(name, user, addTagOp);
+  }
+
+  private void addAttachmentDataDocumentToWavelet(
+      WaveletName name, ParticipantId user, String attachmentId) throws Exception {
+    addDocumentToWavelet(name, user,
+        IdUtil.join(IdConstants.ATTACHMENT_METADATA_PREFIX, attachmentId));
+  }
+
+  private void addLegacyAttachmentDataDocumentToWavelet(
+      WaveletName name, ParticipantId user, String attachmentId) throws Exception {
+    addDocumentToWavelet(name, user, "m/attachment/" + attachmentId);
+  }
+
+  private void addDocumentToWavelet(WaveletName name, ParticipantId user, String documentId)
+      throws Exception {
+    WaveletOperationContext context = new WaveletOperationContext(user, 0, 1);
+    WaveletOperation op =
+        new WaveletBlipOperation(documentId, new BlipContentOperation(context,
+            new DocOpBuilder().characters("attachment metadata").build()));
+    submitDeltaToExistingWavelet(name, user, op);
   }
 
   private int documentLength(DocInitialization docOp) {

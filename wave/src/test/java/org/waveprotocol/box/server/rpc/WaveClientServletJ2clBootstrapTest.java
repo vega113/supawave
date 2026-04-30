@@ -163,10 +163,10 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
-  public void bootstrapedPlainRootUsesPresentedHostForWebsocketAddress()
+  public void bootstrapedPlainRootDoesNotExposePresentedHostInline()
       throws Exception {
-    // Signed-in callers retain the j2cl shell render, so this still exercises
-    // the websocket-address fallback in the bootstrap branch.
+    // #978 removes the J2CL root HTML socket bootstrap. The matching trusted
+    // Host/X-Forwarded-Host contract now lives in /bootstrap.json.
     WaveClientServlet servlet =
         createServlet(ParticipantId.ofUnsafe("alice@example.com"), true);
     HttpServletRequest request = mock(HttpServletRequest.class);
@@ -180,7 +180,9 @@ public final class WaveClientServletJ2clBootstrapTest {
     servlet.doGet(request, response);
 
     String html = body.toString();
-    assertTrue(html.contains("example.com:7777"));
+    assertTrue(html.contains("data-j2cl-root-shell"));
+    assertFalse(html.contains("var __websocket_address = "));
+    assertFalse(html.contains("example.com:7777"));
     assertFalse(html.contains("127.0.0.1:9898"));
   }
 

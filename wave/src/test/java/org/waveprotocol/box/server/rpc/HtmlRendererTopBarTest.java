@@ -152,7 +152,7 @@ public final class HtmlRendererTopBarTest extends TestCase {
     assertFalse(html.contains("alice@example.com</script><script>alert(1)</script>"));
   }
 
-  public void testJ2clRootShellEscapesInlineSessionJsonPayloads() {
+  public void testJ2clRootShellEscapesSessionAddressWithoutInlineBootstrapPayloads() {
     JSONObject sessionJson = new JSONObject();
     sessionJson.put("address", "alice@example.com</script><script>alert(1)</script>");
 
@@ -165,9 +165,11 @@ public final class HtmlRendererTopBarTest extends TestCase {
         "/?view=j2cl-root",
         "localhost:9898");
 
+    assertFalse(html.contains("var __session = "));
+    assertFalse(html.contains("var __websocket_address = "));
     assertTrue(html.contains("alice@example.com"));
     assertTrue(html.contains("alert(1)"));
-    assertTrue(html.contains("\\u003c"));
+    assertTrue(html.contains("&lt;/script&gt;"));
     assertFalse(html.contains("alice@example.com</script><script>alert(1)</script>"));
   }
 

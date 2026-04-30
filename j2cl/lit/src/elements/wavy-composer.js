@@ -2384,6 +2384,19 @@ export class WavyComposer extends LitElement {
     this._submit();
   }
 
+  _renderSubmitAffordance(sendLabel, sendDisabled, compact, location) {
+    return html`
+      <composer-submit-affordance
+        label=${sendLabel}
+        data-submit-location=${ifDefined(location || undefined)}
+        ?compact=${compact}
+        ?busy=${this.submitting}
+        ?disabled=${sendDisabled}
+        @submit-affordance=${this._onSendClick}
+      ></composer-submit-affordance>
+    `;
+  }
+
   _renderReplyChip(sendLabel, sendDisabled) {
     if (!this.replyTargetBlipId) return null;
     const verb = this.mode === "edit" ? "Editing" : "Replying to";
@@ -2399,13 +2412,7 @@ export class WavyComposer extends LitElement {
         <span class="reply-actions">
           ${time ? html`<time class="reply-time">${time}</time>` : null}
           ${this._renderSaveIndicator()}
-          <composer-submit-affordance
-            label=${sendLabel}
-            compact
-            ?busy=${this.submitting}
-            ?disabled=${sendDisabled}
-            @submit-affordance=${this._onSendClick}
-          ></composer-submit-affordance>
+          ${this._renderSubmitAffordance(sendLabel, sendDisabled, true, "reply-chip")}
           ${this._renderHintStrip()}
         </span>
         <button
@@ -2566,17 +2573,20 @@ export class WavyComposer extends LitElement {
         <slot name="compose-extension" slot="compose-extension"></slot>
         <div slot="affordance" class="affordance-row">
           ${compactAffordance
-            ? null
+            ? html`
+              ${this._renderHintStrip()}
+              ${this._renderSaveIndicator()}
+              ${this._renderSubmitAffordance(sendLabel, sendDisabled, true, "forward-footer")}
+            `
             : html`
               ${this._renderHintStrip()}
               ${this._renderSaveIndicator()}
-              <composer-submit-affordance
-                label=${sendLabel}
-                ?compact=${this.mode !== "create"}
-                ?busy=${this.submitting}
-                ?disabled=${sendDisabled}
-                @submit-affordance=${this._onSendClick}
-              ></composer-submit-affordance>
+              ${this._renderSubmitAffordance(
+                sendLabel,
+                sendDisabled,
+                this.mode !== "create",
+                "footer"
+              )}
             `}
         </div>
       </wavy-compose-card>

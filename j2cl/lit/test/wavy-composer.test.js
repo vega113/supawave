@@ -110,6 +110,20 @@ describe("<wavy-composer>", () => {
     expect(chip.textContent).to.include("Yuri");
   });
 
+  it("keeps a forward-tab submit affordance after the body in compact reply mode", async () => {
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b42" target-label="Yuri"></wavy-composer>
+    `);
+    const body = getBody(el);
+    const forwardSubmit = el.renderRoot.querySelector(
+      'composer-submit-affordance[data-submit-location="forward-footer"]'
+    );
+
+    expect(forwardSubmit).to.exist;
+    expect(body.compareDocumentPosition(forwardSubmit) & Node.DOCUMENT_POSITION_FOLLOWING).to.not.equal(0);
+    expect(forwardSubmit.getAttribute("label")).to.equal("Send reply");
+  });
+
   it("emits wavy-composer-cancelled when the chip × close is clicked", async () => {
     const el = await fixture(html`
       <wavy-composer available reply-target-blip-id="b42" target-label="Yuri"></wavy-composer>

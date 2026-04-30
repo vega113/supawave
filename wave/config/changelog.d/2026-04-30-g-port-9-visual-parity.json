@@ -11,6 +11,7 @@
         "Retuned the default J2CL visual tokens, sidecar shell, search rail, open-wave blips, composer, edit toolbar, wave navigation strip, task affordance, and task metadata dialog to the GWT light palette, Arial typography, flat hairlines, compact radii, and task/mention color rules.",
         "Added a Playwright visual parity harness that captures comparable J2CL and GWT regions, attaches left/right/diff screenshots, and enforces a 5% maximum mismatch threshold for the five #1118 visual regions.",
         "Hydrates visible interior J2CL viewport placeholders after reload so newly submitted inline replies do not remain stuck on Loading wave content while the leading and trailing entries are already loaded.",
+        "Keeps a forward-tab reachable Send or Save affordance after the compact reply and edit composer body while preserving the reply-chip action.",
         "Preserved issue #1129 as a task-persistence blocker only: the new task overlay gate compares dialog visuals without claiming J2CL task toggle persistence."
       ]
     }

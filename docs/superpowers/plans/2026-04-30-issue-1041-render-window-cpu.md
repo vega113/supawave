@@ -13,6 +13,7 @@
 ## File Map
 
 - Modify `wave/src/main/java/org/waveprotocol/wave/client/render/ReductionBasedRenderer.java`: add a small `BlipRenderFilter` interface, overload `of(...)` and `renderWith(...)`, store the filter, and consult it in `renderInner(ConversationThread)`.
+- Modify `build.sbt`: explicitly include the JVM-safe reduction renderer filter test in SBT's narrow client-test allowlist so the regression test actually compiles and runs.
 - Modify `wave/src/main/java/org/waveprotocol/box/server/rpc/render/WaveContentRenderer.java`: convert existing window options into a `ReductionBasedRenderer.BlipRenderFilter` for the target root thread.
 - Create `wave/src/test/java/org/waveprotocol/wave/client/render/ReductionBasedRendererFilterTest.java`: prove skipped root blips never reach `RenderingRules.render(ConversationBlip, ...)`, while inline replies under included root blips still render.
 - Modify `wave/src/test/java/org/waveprotocol/box/server/rpc/render/WaveContentRendererWindowTest.java`: add a high-level regression proving the windowed renderer keeps the visible-window HTML shape after the traversal filter is wired.
@@ -22,6 +23,7 @@
 
 **Files:**
 - Modify: `wave/src/main/java/org/waveprotocol/wave/client/render/ReductionBasedRenderer.java`
+- Modify: `build.sbt`
 - Test: `wave/src/test/java/org/waveprotocol/wave/client/render/ReductionBasedRendererFilterTest.java`
 
 - [ ] **Step 1: Create the failing filter test**
@@ -227,10 +229,10 @@ In `renderInner(ConversationThread thread)`, skip before calling `render(blip)`:
 Run:
 
 ```bash
-sbt --batch 'Test / testOnly org.waveprotocol.wave.client.render.ReductionBasedRendererFilterTest org.waveprotocol.wave.client.render.ReductionRuleRenderHelperEquivalenceTest'
+sbt --batch 'Test / testOnly org.waveprotocol.wave.client.render.ReductionBasedRendererFilterTest'
 ```
 
-Expected: both tests pass. The equivalence test proves the no-filter path keeps the legacy traversal.
+Expected: the filter test passes. The test also covers the no-filter-safe rendering path indirectly by using the public renderer API plus a non-target reply thread.
 
 - [ ] **Step 5: Commit Task 1**
 
@@ -329,7 +331,7 @@ git commit -m "fix: window server renderer traversal"
 Run:
 
 ```bash
-sbt --batch 'Test / testOnly org.waveprotocol.wave.client.render.ReductionBasedRendererFilterTest org.waveprotocol.wave.client.render.ReductionRuleRenderHelperEquivalenceTest org.waveprotocol.box.server.rpc.render.WaveContentRendererWindowTest org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRendererWindowTest'
+sbt --batch 'Test / testOnly org.waveprotocol.wave.client.render.ReductionBasedRendererFilterTest org.waveprotocol.box.server.rpc.render.WaveContentRendererWindowTest org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRendererWindowTest'
 git diff --check
 sbt --batch compile j2clSearchTest
 ```

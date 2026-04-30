@@ -26,6 +26,29 @@ describe("<task-metadata-popover>", () => {
     expect(assignee).to.equal(el.shadowRoot.activeElement);
   });
 
+  it("G-PORT-9: matches the GWT TaskMetadataPopup visual shell", async () => {
+    const el = await fixture(html`<task-metadata-popover open></task-metadata-popover>`);
+    const dialog = el.renderRoot.querySelector("[role='dialog']");
+    const title = el.renderRoot.querySelector("h2");
+    const label = el.renderRoot.querySelector("label");
+    const input = el.renderRoot.querySelector("input[name='dueDate']");
+    const cancel = el.renderRoot.querySelector("button[type='button']");
+    const save = el.renderRoot.querySelector("button[type='submit']");
+
+    const dialogStyle = getComputedStyle(dialog);
+    expect(dialogStyle.width).to.equal("320px");
+    expect(dialogStyle.padding).to.equal("18px");
+    expect(dialogStyle.backgroundColor).to.equal("rgb(255, 255, 255)");
+    expect(dialogStyle.borderRadius).to.equal("0px");
+    expect(dialogStyle.boxShadow).to.equal("none");
+
+    expect(getComputedStyle(title).fontSize).to.equal("18px");
+    expect(getComputedStyle(label).textTransform).to.equal("uppercase");
+    expect(getComputedStyle(input).borderRadius).to.equal("8px");
+    expect(getComputedStyle(cancel).backgroundColor).to.equal("rgb(255, 255, 255)");
+    expect(getComputedStyle(save).backgroundColor).to.equal("rgb(26, 115, 232)");
+  });
+
   it("generates unique heading ids for multiple task dialogs", async () => {
     const first = await fixture(html`<task-metadata-popover open></task-metadata-popover>`);
     const second = await fixture(html`<task-metadata-popover open></task-metadata-popover>`);

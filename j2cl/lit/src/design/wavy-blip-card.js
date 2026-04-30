@@ -31,27 +31,28 @@ export class WavyBlipCard extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      padding: var(--wavy-spacing-4, 16px);
-      margin-bottom: var(--wavy-spacing-3, 12px);
-      background: var(--wavy-bg-surface, #11192a);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border-radius: var(--wavy-radius-card, 12px);
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      padding: 3px;
+      margin-bottom: 0;
+      background: var(--wavy-bg-base, #ffffff);
+      color: var(--wavy-text-body, #1a202c);
+      border-radius: 0;
+      border: 0;
       transition: box-shadow var(--wavy-motion-focus-duration, 180ms)
         var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
     }
     :host([focused]) {
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
-      border-color: var(--wavy-signal-cyan, #22d3ee);
+      box-shadow: inset 0 0 0 1px var(--wavy-signal-cyan, #0077b6),
+        var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+      border-radius: 8px;
     }
     :host([unread])::before {
       content: "";
       display: inline-block;
       width: 8px;
       height: 8px;
-      border-radius: var(--wavy-radius-pill, 9999px);
-      background: var(--wavy-signal-cyan, #22d3ee);
+      border-radius: var(--wavy-radius-pill, 999px);
+      background: var(--wavy-signal-cyan, #0077b6);
       margin-right: var(--wavy-spacing-2, 8px);
       vertical-align: middle;
     }
@@ -61,26 +62,26 @@ export class WavyBlipCard extends LitElement {
     }
     @keyframes wavy-pulse {
       0% {
-        box-shadow: 0 0 0 0 var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
+        box-shadow: 0 0 0 0 var(--wavy-signal-cyan-soft, rgba(0, 180, 216, 0.12));
       }
       70% {
-        box-shadow: var(--wavy-pulse-ring, 0 0 0 4px rgba(34, 211, 238, 0.22));
+        box-shadow: var(--wavy-pulse-ring, 0 0 0 3px rgba(0, 119, 182, 0.10));
       }
       100% {
         box-shadow: 0 0 0 0 transparent;
       }
     }
     .author {
-      font: var(--wavy-type-h3, 1.0625rem / 1.35 sans-serif);
+      font: var(--wavy-type-h3, 13px / 1.3 Arial, sans-serif);
       font-weight: 600;
       margin-right: var(--wavy-spacing-2, 8px);
     }
     .timestamp {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      color: var(--wavy-text-quiet, #64748b);
     }
     .body {
-      margin-top: var(--wavy-spacing-2, 8px);
+      margin-top: 0;
     }
     /* The blip-extension slot wrapper — empty in production, dashed
      * outline with label when the document is in design preview. */

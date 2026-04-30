@@ -2,9 +2,9 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  background: linear-gradient(180deg, #f4f7fb 0%, #ffffff 100%);
-  color: #10233b;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #1a202c;
 }
 
 /* V-2 (#1100): hide developer-facing strings on the J2CL root shell unless
@@ -27,9 +27,9 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-card {
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #d8e2f0;
-  border-radius: 20px;
-  box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: none;
   padding: 32px;
 }
 
@@ -146,10 +146,10 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-search-card {
   background: rgba(255, 255, 255, 0.97);
-  border: 1px solid #d8e2f0;
-  border-radius: 24px;
-  box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
-  padding: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 12px;
 }
 
 .sidecar-selected-host {
@@ -158,10 +158,10 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-selected-card {
   background: rgba(255, 255, 255, 0.97);
-  border: 1px solid #d8e2f0;
-  border-radius: 24px;
-  box-shadow: 0 22px 50px rgba(16, 35, 59, 0.08);
-  padding: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 12px;
 }
 
 /* V-1 (#1099): on the server-first workflow the wave panel sits inside
@@ -222,12 +222,12 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-selected-content {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  max-height: min(68vh, 720px);
+  gap: 0;
+  margin-top: 0;
+  max-height: calc(100vh - 110px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 4px;
+  padding-right: 0;
 }
 
 .sidecar-selected-content:focus-visible {
@@ -236,10 +236,10 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .sidecar-selected-entry {
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  border: 1px solid #d8e2f0;
-  border-radius: 18px;
-  color: #173355;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #1a202c;
   font: inherit;
   margin: 0;
   overflow-x: auto;
@@ -253,15 +253,15 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .j2cl-read-thread {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .j2cl-read-thread-toggle {
   align-self: start;
-  background: #eef5ff;
-  border: 1px solid #bfcef5;
-  border-radius: 999px;
-  color: #173355;
+  background: #f0f4f8;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  color: #718096;
   cursor: pointer;
   font: inherit;
   font-size: 0.86rem;
@@ -272,8 +272,8 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .j2cl-read-thread-toggle:hover,
 .j2cl-read-thread-toggle:focus-visible {
-  background: #dce9ff;
-  outline: 2px solid rgba(53, 103, 200, 0.24);
+  background: rgba(0, 180, 216, 0.04);
+  outline: 2px solid rgba(0, 119, 182, 0.16);
   outline-offset: 2px;
 }
 
@@ -282,18 +282,18 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .j2cl-read-blip {
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  border: 1px solid #d8e2f0;
-  border-radius: 18px;
-  color: #173355;
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  color: #1a202c;
   margin: 0;
   outline: none;
-  padding: 16px;
+  padding: 3px;
 }
 
 .j2cl-read-blip-focused {
-  border-color: #3567c8;
-  box-shadow: 0 0 0 3px rgba(53, 103, 200, 0.16);
+  border-color: #0077b6;
+  box-shadow: 0 0 0 1px rgba(0, 119, 182, 0.10);
 }
 
 .j2cl-read-blip:focus-visible {
@@ -302,41 +302,35 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .j2cl-read-blip-meta {
-  color: #4f6480;
-  font-size: 0.82rem;
+  color: #718096;
+  font-size: 13px;
   font-weight: 700;
   margin-bottom: 8px;
 }
 
 .j2cl-read-blip-content {
-  line-height: 1.65;
+  line-height: 1.35;
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: normal;
 }
 
 .j2cl-read-mention-chip {
-  background: #d1e8ff;
-  border-radius: 0.45em;
-  color: #173355;
+  background: #e8f0fe;
+  border-radius: 3px;
+  color: #174ea6;
   font-weight: 600;
   padding: 0.05em 0.28em;
 }
 
 .j2cl-read-viewport-placeholder,
 .visible-region-placeholder {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(220, 233, 255, 0.65),
-      rgba(248, 251, 255, 0.35),
-      rgba(220, 233, 255, 0.65)
-    );
-  border: 1px dashed #bfcef5;
-  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
   background-size: 220% 100%;
-  color: #4f6480;
-  font-size: 0.9rem;
+  color: #718096;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
   animation: j2cl-viewport-placeholder-shimmer 1.8s ease-in-out 6;
@@ -377,10 +371,10 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .sidecar-compose-block {
-  border: 1px solid #d8e2f0;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #f8fafc;
+  padding: 8px;
 }
 
 .sidecar-compose-title {
@@ -407,10 +401,10 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 .sidecar-compose-textarea {
   width: 100%;
   min-height: 112px;
-  border: 1px solid #c8d5e6;
-  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
   background: #ffffff;
-  color: #10233b;
+  color: #1a202c;
   font: inherit;
   line-height: 1.5;
   padding: 14px 16px;
@@ -420,15 +414,15 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-compose-textarea:focus {
   outline: none;
-  border-color: #3567c8;
-  box-shadow: 0 0 0 3px rgba(53, 103, 200, 0.14);
+  border-color: #0077b6;
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.10);
 }
 
 .sidecar-compose-submit {
   justify-self: start;
   border: 0;
   border-radius: 999px;
-  background: #10233b;
+  background: #0077b6;
   color: #ffffff;
   cursor: pointer;
   font: inherit;

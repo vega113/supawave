@@ -311,22 +311,66 @@ export class WavyComposer extends LitElement {
 
     .composer-stack {
       display: grid;
-      gap: var(--wavy-spacing-2, 8px);
+      gap: 4px;
     }
 
     .reply-chip {
       display: inline-flex;
       align-items: center;
-      gap: var(--wavy-spacing-1, 4px);
-      padding: 2px var(--wavy-spacing-2, 8px);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.18));
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
-      width: max-content;
+      gap: 6px;
+      min-height: 34px;
+      padding: 2px 8px;
+      border-radius: var(--wavy-radius-card, 4px);
+      background: #f0f4f8;
+      color: #718096;
+      font: 13px / 1.3 Arial, sans-serif;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .reply-verb {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .reply-avatar {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #ffffff;
+      background: #edf2f7;
+      color: #1a202c;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: 700 11px / 1 Arial, sans-serif;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .reply-author {
+      color: #718096;
+      font-weight: 600;
+    }
+
+    .reply-time {
+      color: #718096;
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+    }
+
+    .reply-actions {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
     }
 
     .reply-chip-close {
+      flex: 0 0 auto;
       border: 0;
       background: transparent;
       color: inherit;
@@ -336,23 +380,24 @@ export class WavyComposer extends LitElement {
     }
     .reply-chip-close:focus-visible {
       outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
-      border-radius: var(--wavy-radius-pill, 9999px);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+      border-radius: var(--wavy-radius-pill, 999px);
     }
 
     [data-composer-body] {
-      min-height: var(--wavy-spacing-7, 32px);
-      padding: var(--wavy-spacing-2, 8px) var(--wavy-spacing-3, 12px);
-      border-radius: var(--wavy-radius-card, 12px);
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      background: var(--wavy-bg-base, #0a1322);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      min-height: 32px;
+      padding: 6px 8px;
+      border-radius: var(--wavy-radius-card, 4px);
+      border: 1px solid var(--wavy-border-hairline, #e2e8f0);
+      background: #f8fafc;
+      color: var(--wavy-text-body, #1a202c);
       outline: none;
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
     }
     [data-composer-body]:focus-visible {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      border-color: #90cdf4;
+      box-shadow: none;
+      background: #ffffff;
     }
     /* F-3.S4 (#1038, R-5.6 step 1): drop-target hint while a file is
      * being dragged over the composer body. The CSS uses /* ... *\/
@@ -360,8 +405,8 @@ export class WavyComposer extends LitElement {
      * css\` ... \` template literal (the F-3.S3 footgun called out in
      * the slice plan risk list). */
     [data-composer-body][data-droptarget="true"] {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.12));
+      border-color: var(--wavy-signal-cyan, #0077b6);
+      background: rgba(0, 180, 216, 0.04);
     }
     :host([submitting]) [data-composer-body] {
       opacity: 0.6;
@@ -369,42 +414,48 @@ export class WavyComposer extends LitElement {
     }
 
     .save-indicator {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      color: var(--wavy-text-quiet, #64748b);
     }
 
     .hint-strip {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      color: var(--wavy-text-quiet, #64748b);
+      font-style: italic;
+      margin-right: auto;
+    }
+
+    .affordance-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
     }
 
     .target {
       margin: 0;
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      color: var(--wavy-text-quiet, #64748b);
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
     }
 
     [role="status"],
     [role="alert"] {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
     }
     [role="alert"] {
-      color: var(--wavy-signal-amber, #f59e0b);
+      color: #b42318;
     }
 
-    /* F-3.S2 (#1038, R-5.3 step 8): mention chip styling. The chip is
-     * rendered inside the contenteditable body as a contenteditable=
-     * false span carrying data-mention-id. Token contract: violet
-     * border + soft fill (signal violet = mentions/reactions). The
-     * computed color uses the violet token directly so the parity
-     * fixture's RGB assertion (124, 58, 237) holds. */
+    /* Mention chip styling mirrors GWT: blue text on #e8f0fe with a
+     * compact 3px radius. It stays contenteditable=false and carries
+     * data-mention-id for the existing compose event contract. */
     [data-composer-body] .wavy-mention-chip {
       display: inline-block;
       padding: 0 var(--wavy-spacing-1, 4px);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      background: var(--wavy-signal-violet-soft, rgba(124, 58, 237, 0.18));
-      border: 1px solid var(--wavy-signal-violet, #7c3aed);
-      color: var(--wavy-signal-violet, #7c3aed);
+      border-radius: 3px;
+      background: #e8f0fe;
+      border: 1px solid #174ea6;
+      color: #174ea6;
       font-weight: 600;
       cursor: default;
       user-select: none;
@@ -433,7 +484,7 @@ export class WavyComposer extends LitElement {
     this.activeCommand = "";
     this.commandStatus = "";
     this.commandError = "";
-    this.keymapHint = "Shift+Enter to send, Esc to discard";
+    this.keymapHint = "Shift+Enter to submit, Esc to cancel";
     this.saveIndicator = "";
     this.debugOverlay = false;
     this.participants = [];
@@ -2333,13 +2384,37 @@ export class WavyComposer extends LitElement {
     this._submit();
   }
 
-  _renderReplyChip() {
+  _renderSubmitAffordance(sendLabel, sendDisabled, compact, location) {
+    return html`
+      <composer-submit-affordance
+        label=${sendLabel}
+        data-submit-location=${ifDefined(location || undefined)}
+        ?compact=${compact}
+        ?busy=${this.submitting}
+        ?disabled=${sendDisabled}
+        @submit-affordance=${this._onSendClick}
+      ></composer-submit-affordance>
+    `;
+  }
+
+  _renderReplyChip(sendLabel, sendDisabled) {
     if (!this.replyTargetBlipId) return null;
     const verb = this.mode === "edit" ? "Editing" : "Replying to";
-    const label = this.targetLabel || "blip";
+    const label = this._replyHeaderLabel();
+    const time = this._replyHeaderTime();
     return html`
       <span class="reply-chip" data-reply-chip="true">
-        <span>${verb} <strong>${label}</strong></span>
+        <span class="reply-avatar" aria-hidden="true">${this._initials(label)}</span>
+        <span class="reply-author">
+          <span class="reply-verb">${verb}</span>
+          <strong>${label}</strong>
+        </span>
+        <span class="reply-actions">
+          ${time ? html`<time class="reply-time">${time}</time>` : null}
+          ${this._renderSaveIndicator()}
+          ${this._renderSubmitAffordance(sendLabel, sendDisabled, true, "reply-chip")}
+          ${this._renderHintStrip()}
+        </span>
         <button
           type="button"
           class="reply-chip-close"
@@ -2349,6 +2424,30 @@ export class WavyComposer extends LitElement {
         >×</button>
       </span>
     `;
+  }
+
+  _replyHeaderLabel() {
+    const parent = this.closest("wave-blip");
+    const parentAuthor = parent && parent.getAttribute("author-name");
+    const label = (parentAuthor || this.targetLabel || "blip").trim();
+    const at = label.indexOf("@");
+    return at > 0 ? label.slice(0, at) : label;
+  }
+
+  _replyHeaderTime() {
+    const parent = this.closest("wave-blip");
+    const posted = parent && parent.getAttribute("posted-at");
+    return (posted || "").replace(/\s*·\s*root\s*$/, "");
+  }
+
+  _initials(label) {
+    const text = (label || "?").trim();
+    if (!text) return "?";
+    const parts = text.split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return text.substring(0, 2).toUpperCase();
   }
 
   _renderSaveIndicator() {
@@ -2430,6 +2529,7 @@ export class WavyComposer extends LitElement {
         : this.mode === "create"
         ? "Create wave"
         : "Send reply";
+    const compactAffordance = this.mode !== "create" && !!this.replyTargetBlipId;
 
     return html`
       <wavy-compose-card
@@ -2438,10 +2538,9 @@ export class WavyComposer extends LitElement {
         data-reply-target-blip-id=${ifDefined(this.replyTargetBlipId || undefined)}
       >
         <div class="composer-stack">
-          ${this._renderReplyChip()}
+          ${this._renderReplyChip(sendLabel, sendDisabled)}
           ${body}
           ${this._renderMentionPopover()}
-          ${this._renderHintStrip()}
           ${this.debugOverlay && this.targetLabel
             ? html`<p class="target">Reply target: ${this.targetLabel}</p>`
             : ""}
@@ -2473,13 +2572,22 @@ export class WavyComposer extends LitElement {
         <slot name="toolbar" slot="toolbar"></slot>
         <slot name="compose-extension" slot="compose-extension"></slot>
         <div slot="affordance" class="affordance-row">
-          ${this._renderSaveIndicator()}
-          <composer-submit-affordance
-            label=${sendLabel}
-            ?busy=${this.submitting}
-            ?disabled=${sendDisabled}
-            @submit-affordance=${this._onSendClick}
-          ></composer-submit-affordance>
+          ${compactAffordance
+            ? html`
+              ${this._renderHintStrip()}
+              ${this._renderSaveIndicator()}
+              ${this._renderSubmitAffordance(sendLabel, sendDisabled, true, "forward-footer")}
+            `
+            : html`
+              ${this._renderHintStrip()}
+              ${this._renderSaveIndicator()}
+              ${this._renderSubmitAffordance(
+                sendLabel,
+                sendDisabled,
+                this.mode !== "create",
+                "footer"
+              )}
+            `}
         </div>
       </wavy-compose-card>
     `;

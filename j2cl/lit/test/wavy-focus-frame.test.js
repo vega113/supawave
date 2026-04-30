@@ -80,7 +80,7 @@ describe("<wavy-focus-frame>", () => {
     expect(innerFrame.getAttribute("style")).to.contain("height: 64px");
   });
 
-  it("renders the cyan focus ring via --wavy-focus-ring token (computed RGB)", async () => {
+  it("renders the GWT-light cyan focus ring via --wavy-focus-ring token (computed RGB)", async () => {
     const host = await fixture(
       html`<div data-j2cl-read-surface="true" style="position: relative; width: 400px; height: 300px;">
         <wavy-focus-frame></wavy-focus-frame>
@@ -101,10 +101,9 @@ describe("<wavy-focus-frame>", () => {
     await frame.updateComplete;
     const innerFrame = frame.renderRoot.querySelector(".frame");
     const computed = getComputedStyle(innerFrame);
-    // The token resolves to `0 0 0 2px var(--wavy-signal-cyan)` which the
-    // browser computes as `rgb(34, 211, 238) 0px 0px 0px 2px`. We must
+    // The token resolves to `0 0 0 2px rgba(0, 119, 182, 0.16)`. We must
     // assert the resolved RGB string, NOT the var() literal.
-    expect(computed.boxShadow).to.contain("rgb(34, 211, 238)");
+    expect(computed.boxShadow).to.contain("rgba(0, 119, 182, 0.16)");
     expect(computed.boxShadow).to.contain("2px");
   });
 

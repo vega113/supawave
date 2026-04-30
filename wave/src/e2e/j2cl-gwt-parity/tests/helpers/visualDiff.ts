@@ -1,4 +1,6 @@
 import type { Locator, TestInfo } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
@@ -27,6 +29,8 @@ export async function compareLocatorScreenshots(
     body: rightShot,
     contentType: "image/png"
   });
+  writeDebugShot(name, "left", leftShot);
+  writeDebugShot(name, "right", rightShot);
 
   const leftImage = PNG.sync.read(leftShot);
   const rightImage = PNG.sync.read(rightShot);
@@ -48,12 +52,24 @@ export async function compareLocatorScreenshots(
     body: diffBuffer,
     contentType: "image/png"
   });
+  writeDebugShot(name, "diff", diffBuffer);
 
   return {
     mismatchedPixels,
     totalPixels: width * height,
     mismatchRatio: width * height === 0 ? 1 : mismatchedPixels / (width * height)
   };
+}
+
+function writeDebugShot(name: string, side: string, buffer: Buffer): void {
+  const dir = process.env.WAVE_E2E_VISUAL_DEBUG_DIR;
+  if (!dir) return;
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${name}-${side}.png`), buffer);
+  } catch {
+    // Debug artifacts are optional diagnostics; comparison results must still report.
+  }
 }
 
 function normalizeToCanvas(source: PNG, width = source.width, height = source.height): PNG {

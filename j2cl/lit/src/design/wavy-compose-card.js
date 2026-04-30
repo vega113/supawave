@@ -27,18 +27,18 @@ export class WavyComposeCard extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      padding: var(--wavy-spacing-4, 16px);
-      background: var(--wavy-bg-surface, #11192a);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border-radius: var(--wavy-radius-card, 12px);
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      padding: 4px;
+      background: var(--wavy-bg-surface, #f8fafc);
+      color: var(--wavy-text-body, #1a202c);
+      border-radius: var(--wavy-radius-card, 4px);
+      border: 1px solid var(--wavy-border-hairline, #e2e8f0);
       transition: box-shadow var(--wavy-motion-focus-duration, 180ms)
         var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
     }
     :host([focused]) {
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
-      border-color: var(--wavy-signal-cyan, #22d3ee);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+      border-color: var(--wavy-signal-cyan, #0077b6);
     }
     .body {
       min-height: var(--wavy-spacing-7, 32px);
@@ -46,8 +46,8 @@ export class WavyComposeCard extends LitElement {
     .toolbar-row {
       display: flex;
       align-items: center;
-      gap: var(--wavy-spacing-3, 12px);
-      margin-top: var(--wavy-spacing-2, 8px);
+      gap: 0;
+      margin-top: 6px;
       flex-wrap: wrap;
     }
     .ext-slot-wrapper {
@@ -71,7 +71,7 @@ export class WavyComposeCard extends LitElement {
       color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
     }
     .affordance-row {
-      margin-top: var(--wavy-spacing-3, 12px);
+      margin-top: var(--wavy-spacing-1, 4px);
       display: flex;
       justify-content: flex-end;
     }

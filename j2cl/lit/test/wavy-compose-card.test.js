@@ -55,15 +55,11 @@ describe("<wavy-compose-card>", () => {
     }
   });
 
-  it("focused state applies the cyan focus ring border-color", async () => {
-    const wrap = await fixture(
-      html`<div data-wavy-theme="dark">
-        <wavy-compose-card focused></wavy-compose-card>
-      </div>`
-    );
-    const card = wrap.querySelector("wavy-compose-card");
+  it("focused state applies the GWT-light cyan focus ring border-color", async () => {
+    const card = await fixture(html`<wavy-compose-card focused></wavy-compose-card>`);
     const cs = getComputedStyle(card);
-    expect(cs.borderColor.replace(/\s+/g, "")).to.match(/rgb\(34,211,238\)/);
+    expect(cs.borderColor.replace(/\s+/g, "")).to.match(/rgb\(0,119,182\)/);
+    expect(cs.boxShadow).to.contain("rgba(0, 119, 182, 0.16)");
   });
 
   it("submitting state suppresses pointer-events on the affordance row", async () => {

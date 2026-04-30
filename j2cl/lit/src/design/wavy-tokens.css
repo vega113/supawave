@@ -1,59 +1,48 @@
-/* Wavy — Firefly Signal design tokens (issue #1035, F-0).
+/* Wavy visual tokens.
  *
- * Source of truth: Stitch project 15560635515125057401 / asset
- * 6962139294633729409 (v1, "Wavy — Firefly Signal"). The values below
- * reproduce the Stitch designMd field exactly — do not re-interpret
- * without an updated source-of-truth bump.
- *
- * Dark is the default (matches Stitch colorMode: DARK). Light overrides
- * apply via prefers-color-scheme media query OR explicit
- * data-wavy-theme="light" attribute on a scope element. Contrast
- * variant applies via prefers-contrast: more OR explicit
- * data-wavy-theme="contrast".
- *
- * Recipe elements consume only --wavy-* tokens; flipping the data
- * attribute on any ancestor scope swaps the whole packet.
+ * G-PORT-9 (#1118) changed the production source of truth from the
+ * historical Firefly/Stitch mockup palette to the rendered GWT UI. The
+ * default :root values therefore mirror GWT's light chrome: white
+ * panels, #e2e8f0 hairlines, Arial-compatible type, and #0077b6
+ * action blue. Explicit dark/contrast theme scopes remain available
+ * for design previews and accessibility probes.
  */
 :root {
-  /* Color — surface + chrome (DARK default) */
-  --wavy-bg-base: #0b1320;
-  --wavy-bg-surface: #11192a;
-  --wavy-border-hairline: rgba(34, 211, 238, 0.18);
+  /* Color — surface + chrome (GWT production default) */
+  --wavy-bg-base: #ffffff;
+  --wavy-bg-surface: #f8fafc;
+  --wavy-border-hairline: #e2e8f0;
 
-  /* Color — text (DARK default) */
-  --wavy-text-body: rgba(232, 240, 255, 0.92);
-  --wavy-text-muted: rgba(232, 240, 255, 0.62);
-  --wavy-text-quiet: rgba(232, 240, 255, 0.42);
+  /* Color — text */
+  --wavy-text-body: #1a202c;
+  --wavy-text-muted: #64748b;
+  --wavy-text-quiet: #64748b;
 
-  /* Color — signal accents (constant across light/dark) */
-  --wavy-signal-cyan: #22d3ee;
-  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.22);
-  --wavy-signal-violet: #7c3aed;
-  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.22);
-  --wavy-signal-amber: #fb923c;
-  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.22);
+  /* Color — GWT action/task/mention accents */
+  --wavy-signal-cyan: #0077b6;
+  --wavy-signal-cyan-soft: rgba(0, 180, 216, 0.12);
+  --wavy-signal-violet: #174ea6;
+  --wavy-signal-violet-soft: #e8f0fe;
+  --wavy-signal-amber: #9a6700;
+  --wavy-signal-amber-soft: #fff4e5;
 
   /* Color — derived focus + pulse */
-  --wavy-focus-ring: 0 0 0 2px var(--wavy-signal-cyan);
-  --wavy-pulse-ring: 0 0 0 4px var(--wavy-signal-cyan-soft);
+  --wavy-focus-ring: 0 0 0 2px rgba(0, 119, 182, 0.16);
+  --wavy-pulse-ring: 0 0 0 3px rgba(0, 119, 182, 0.10);
 
   /* Typography — font families */
-  --wavy-font-headline: "Space Grotesk", "Inter", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --wavy-font-body: "Inter", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  --wavy-font-label: "Geist", "Inter", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  --wavy-font-headline: Arial, Helvetica, sans-serif;
+  --wavy-font-body: Arial, Helvetica, sans-serif;
+  --wavy-font-label: Arial, Helvetica, sans-serif;
 
   /* Typography — type scale (font shorthand: size/line-height family) */
-  --wavy-type-display: clamp(1.875rem, 1.4rem + 1.6vw, 2.25rem) / 1.18
-    var(--wavy-font-headline);
-  --wavy-type-h1: 1.5rem / 1.25 var(--wavy-font-headline);
-  --wavy-type-h2: 1.25rem / 1.3 var(--wavy-font-headline);
-  --wavy-type-h3: 1.0625rem / 1.35 var(--wavy-font-headline);
-  --wavy-type-body: 0.9375rem / 1.55 var(--wavy-font-body);
-  --wavy-type-label: 0.75rem / 1.35 var(--wavy-font-label);
-  --wavy-type-meta: 0.6875rem / 1.4 var(--wavy-font-label);
+  --wavy-type-display: 24px / 1.2 var(--wavy-font-headline);
+  --wavy-type-h1: 20px / 1.25 var(--wavy-font-headline);
+  --wavy-type-h2: 16px / 1.3 var(--wavy-font-headline);
+  --wavy-type-h3: 13px / 1.3 var(--wavy-font-headline);
+  --wavy-type-body: 13px / 1.35 var(--wavy-font-body);
+  --wavy-type-label: 11px / 1.35 var(--wavy-font-label);
+  --wavy-type-meta: 11px / 1.4 var(--wavy-font-label);
 
   /* Motion — durations */
   --wavy-motion-pulse-duration: 600ms;
@@ -77,58 +66,46 @@
   --wavy-spacing-8: 40px;
 
   /* Shape */
-  --wavy-radius-card: 12px;
-  --wavy-radius-pill: 9999px;
+  --wavy-radius-card: 4px;
+  --wavy-radius-panel: 8px;
+  --wavy-radius-pill: 999px;
 
-  /* V-3 (#1101) — format toolbar tokens. The pill stays dark across all
-   * theme variants per the Stitch/mockup pin (the surrounding tokens
-   * --wavy-bg-surface / --wavy-text-body flip in light/contrast modes
-   * and would otherwise wash the toolbar out). */
-  --wavy-toolbar-pill-bg: #0b1320;
-  --wavy-toolbar-pill-fg: rgba(255, 255, 255, 0.92);
-  --wavy-toolbar-tile-size: 32px;
-  --wavy-toolbar-tile-radius: 8px;
-  --wavy-toolbar-divider: rgba(255, 255, 255, 0.20);
-  --wavy-toolbar-tile-active-bg: var(--wavy-signal-cyan);
-  --wavy-toolbar-tile-active-fg: #0b1320;
-  --wavy-toolbar-tile-hover-bg: rgba(255, 255, 255, 0.08);
+  /* GWT toolbar tokens. */
+  --wavy-toolbar-pill-bg: #f0f4f8;
+  --wavy-toolbar-pill-fg: #1a202c;
+  --wavy-toolbar-tile-size: 28px;
+  --wavy-toolbar-tile-radius: 4px;
+  --wavy-toolbar-divider: rgba(120, 170, 220, 0.35);
+  --wavy-toolbar-tile-active-bg: rgba(0, 119, 182, 0.10);
+  --wavy-toolbar-tile-active-fg: #0077b6;
+  --wavy-toolbar-tile-hover-bg: rgba(0, 119, 182, 0.08);
 
-  /* V-4 (#1102) — per-blip header + toolbar tokens. The hover toolbar
-   * and the header chrome paint on the open wave's blip cards (see
-   * mockup 02-open-wave-threaded-reading.svg). The avatar palette is a
-   * 4-entry deterministic ring keyed off `author-id`; consumers index
-   * the palette via `--wavy-avatar-palette-N` (N in 0..3). */
+  /* Per-blip header + toolbar tokens. */
   --wavy-blip-toolbar-bg: var(--wavy-bg-surface);
   --wavy-blip-toolbar-fg: var(--wavy-text-body);
   --wavy-blip-toolbar-divider: var(--wavy-border-hairline);
   --wavy-blip-toolbar-focused-bg: var(--wavy-signal-cyan-soft);
   --wavy-blip-toolbar-focused-border: var(--wavy-signal-cyan);
-  --wavy-avatar-size-root: 40px;
-  --wavy-avatar-size-reply: 32px;
-  --wavy-avatar-fg: #0b1320;
-  --wavy-avatar-palette-0: #22d3ee;
-  --wavy-avatar-palette-1: #7c3aed;
-  --wavy-avatar-palette-2: #fb923c;
-  --wavy-avatar-palette-3: #475569;
-  --wavy-avatar-palette-3-fg: #ffffff;
-  --wavy-thread-indent-guide: rgba(34, 211, 238, 0.30);
+  --wavy-avatar-size-root: 28px;
+  --wavy-avatar-size-reply: 28px;
+  --wavy-avatar-fg: #1a202c;
+  --wavy-avatar-palette-0: #f8fafc;
+  --wavy-avatar-palette-1: #edf2f7;
+  --wavy-avatar-palette-2: #e8f0fe;
+  --wavy-avatar-palette-3: #f0f4f8;
+  --wavy-avatar-palette-3-fg: #1a202c;
+  --wavy-thread-indent-guide: #e2e8f0;
 
-  /* V-5 (#1103) — density tokens for 01-shell-inbox-with-waves.svg.
-   * Mockup measurements at 1440×900: rail 296 px (20.5%), search-result
-   * panel 448 px, wave panel 696 px; digest cards 92–120 px tall with
-   * 12 px vertical padding and 12 px stack gap. The Lit shell collapses
-   * the rail+search-result panel into one column today, so the rail
-   * here covers the visible nav strip and the wave panel takes the
-   * rest. Pane gutter shrinks the inner inset of the wave-panel
-   * surface to remove the V-1 top-of-pane gap. */
-  --wavy-rail-width-min: 248px;
-  --wavy-rail-width-max: 280px;
-  --wavy-pane-gutter-y: 12px;
-  --wavy-pane-gutter-x: 20px;
-  --wavy-rail-card-padding-y: var(--wavy-spacing-3, 12px);
-  --wavy-rail-card-padding-x: var(--wavy-spacing-4, 16px);
-  --wavy-rail-card-gap: var(--wavy-spacing-3, 12px);
-  --wavy-rail-card-snippet-mb: var(--wavy-spacing-1, 4px);
+  /* GWT-like density tokens for the parity shell. */
+  --wavy-rail-width-min: 360px;
+  --wavy-rail-width-max: 400px;
+  --wavy-pane-gutter-y: 0;
+  --wavy-pane-gutter-x: 0;
+  --wavy-rail-card-padding-y: 10px;
+  --wavy-rail-card-padding-x: 12px;
+  --wavy-rail-card-padding-left: 8px;
+  --wavy-rail-card-gap: 0;
+  --wavy-rail-card-snippet-mb: 0;
 }
 
 /* Light variant — applies under prefers-color-scheme: light unless an
@@ -136,15 +113,18 @@
  * flip; accents stay constant per Stitch markdown. */
 @media (prefers-color-scheme: light) {
   :root:not([data-wavy-theme]) {
-    --wavy-bg-base: #f6f7fb;
-    --wavy-bg-surface: #ffffff;
-    --wavy-border-hairline: rgba(11, 19, 32, 0.10);
-    --wavy-text-body: rgba(11, 19, 32, 0.92);
-    --wavy-text-muted: rgba(11, 19, 32, 0.62);
-    --wavy-text-quiet: rgba(11, 19, 32, 0.55);
-    --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.18);
-    --wavy-signal-violet-soft: rgba(124, 58, 237, 0.16);
-    --wavy-signal-amber-soft: rgba(251, 146, 60, 0.16);
+    --wavy-bg-base: #ffffff;
+    --wavy-bg-surface: #f8fafc;
+    --wavy-border-hairline: #e2e8f0;
+    --wavy-text-body: #1a202c;
+    --wavy-text-muted: #64748b;
+    --wavy-text-quiet: #64748b;
+    --wavy-signal-cyan: #0077b6;
+    --wavy-signal-cyan-soft: rgba(0, 180, 216, 0.12);
+    --wavy-signal-violet: #174ea6;
+    --wavy-signal-violet-soft: #e8f0fe;
+    --wavy-signal-amber: #9a6700;
+    --wavy-signal-amber-soft: #fff4e5;
   }
 }
 
@@ -158,24 +138,32 @@
   --wavy-text-body: rgba(232, 240, 255, 0.92);
   --wavy-text-muted: rgba(232, 240, 255, 0.62);
   --wavy-text-quiet: rgba(232, 240, 255, 0.42);
+  --wavy-signal-cyan: #22d3ee;
   --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.22);
+  --wavy-signal-violet: #7c3aed;
   --wavy-signal-violet-soft: rgba(124, 58, 237, 0.22);
+  --wavy-signal-amber: #fb923c;
   --wavy-signal-amber-soft: rgba(251, 146, 60, 0.22);
+  --wavy-focus-ring: 0 0 0 2px var(--wavy-signal-cyan);
+  --wavy-pulse-ring: 0 0 0 4px var(--wavy-signal-cyan-soft);
 }
 
 /* Explicit light override — wins over media query and over :root.
  * text-quiet uses alpha 0.55 (vs the symmetric 0.42 used in dark) so
  * it composites to ≥3:1 contrast on #ffffff. */
 [data-wavy-theme="light"] {
-  --wavy-bg-base: #f6f7fb;
-  --wavy-bg-surface: #ffffff;
-  --wavy-border-hairline: rgba(11, 19, 32, 0.10);
-  --wavy-text-body: rgba(11, 19, 32, 0.92);
-  --wavy-text-muted: rgba(11, 19, 32, 0.62);
-  --wavy-text-quiet: rgba(11, 19, 32, 0.55);
-  --wavy-signal-cyan-soft: rgba(34, 211, 238, 0.18);
-  --wavy-signal-violet-soft: rgba(124, 58, 237, 0.16);
-  --wavy-signal-amber-soft: rgba(251, 146, 60, 0.16);
+  --wavy-bg-base: #ffffff;
+  --wavy-bg-surface: #f8fafc;
+  --wavy-border-hairline: #e2e8f0;
+  --wavy-text-body: #1a202c;
+  --wavy-text-muted: #64748b;
+  --wavy-text-quiet: #64748b;
+  --wavy-signal-cyan: #0077b6;
+  --wavy-signal-cyan-soft: rgba(0, 180, 216, 0.12);
+  --wavy-signal-violet: #174ea6;
+  --wavy-signal-violet-soft: #e8f0fe;
+  --wavy-signal-amber: #9a6700;
+  --wavy-signal-amber-soft: #fff4e5;
 }
 
 /* High-contrast variant — issue body §Scope.1 mandates from day one.

@@ -73,61 +73,64 @@ export class WavySearchRail extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      padding: var(--wavy-spacing-3, 12px);
-      background: var(--wavy-bg-base, #0b1120);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
-      min-width: 240px;
+      min-height: var(--wavy-rail-min-height, calc(100vh - 90px));
+      padding: 0;
+      background: var(--wavy-bg-base, #ffffff);
+      color: var(--wavy-text-body, #1a202c);
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
+      min-width: 280px;
     }
     .search {
       position: relative;
       display: flex;
       align-items: center;
-      gap: var(--wavy-spacing-2, 8px);
-      margin-bottom: var(--wavy-spacing-2, 8px);
+      gap: 6px;
+      height: 41px;
+      margin-bottom: 0;
+      padding: 0 8px;
+      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
+      background: #ffffff;
+      box-sizing: border-box;
     }
     .query {
       flex: 1 1 auto;
       box-sizing: border-box;
       width: 100%;
-      padding: var(--wavy-spacing-2, 8px) var(--wavy-spacing-3, 12px);
-      padding-left: 32px;
-      background: var(--wavy-bg-surface, #11192a);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      border-radius: var(--wavy-radius-pill, 9999px);
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      height: 31px;
+      padding: 2px 14px;
+      background: var(--wavy-bg-surface, #f7fafc);
+      color: var(--wavy-text-body, #1a202c);
+      border: 1.5px solid var(--wavy-border-hairline, #e2e8f0);
+      border-radius: 20px;
+      font: 14px / 1.35 Arial, sans-serif;
     }
     .query:focus-visible {
       outline: none;
-      box-shadow: var(--wavy-pulse-ring, 0 0 0 2px rgba(34, 211, 238, 0.22));
-      border-color: var(--wavy-signal-cyan, #22d3ee);
+      box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.10);
+      border-color: var(--wavy-signal-cyan, #0077b6);
+      background: var(--wavy-bg-base, #ffffff);
     }
     .waveform {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--wavy-signal-cyan, #22d3ee);
-      pointer-events: none;
-      width: 14px;
-      height: 14px;
+      display: none;
     }
     .help-trigger {
       flex: 0 0 auto;
-      width: 28px;
-      height: 28px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: transparent;
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      background: #f0f6fc;
+      color: var(--wavy-signal-cyan, #0077b6);
+      border: 1.5px solid #b0c4d8;
       cursor: pointer;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
     }
     .help-trigger:hover,
     .help-trigger:focus-visible {
-      color: var(--wavy-signal-cyan, #22d3ee);
-      border-color: var(--wavy-signal-cyan, #22d3ee);
+      background: var(--wavy-signal-cyan, #0077b6);
+      color: #ffffff;
+      border-color: var(--wavy-signal-cyan, #0077b6);
       outline: none;
     }
 
@@ -141,10 +144,13 @@ export class WavySearchRail extends LitElement {
       align-items: center;
       gap: var(--wavy-spacing-1, 4px);
       padding: var(--wavy-spacing-1, 4px);
-      margin-bottom: var(--wavy-spacing-2, 8px);
-      background: var(--wavy-rail-action-bg, rgba(34, 211, 238, 0.08));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      border-radius: var(--wavy-radius-pill, 9999px);
+      min-height: 36px;
+      margin-bottom: 0;
+      background: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
+      border: 0;
+      border-bottom: 1px solid rgba(120, 170, 220, 0.35);
+      border-radius: 0;
+      box-sizing: border-box;
     }
     .action-row button {
       flex: 0 0 auto;
@@ -156,63 +162,65 @@ export class WavySearchRail extends LitElement {
       border: 0;
       border-radius: 50%;
       background: transparent;
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      color: var(--wavy-text-body, #1a202c);
       cursor: pointer;
       padding: 0;
     }
     .action-row button:hover,
     .action-row button:focus-visible {
       outline: none;
-      background: rgba(34, 211, 238, 0.16);
-      color: var(--wavy-signal-cyan, #22d3ee);
+      background: rgba(0, 119, 182, 0.08);
+      color: var(--wavy-signal-cyan, #0077b6);
     }
     .action-row button[aria-pressed="true"] {
-      background: rgba(34, 211, 238, 0.2);
-      color: var(--wavy-signal-cyan, #22d3ee);
+      background: rgba(0, 119, 182, 0.10);
+      color: var(--wavy-signal-cyan, #0077b6);
     }
 
     .actions {
       display: flex;
-      gap: var(--wavy-spacing-2, 8px);
-      margin-bottom: var(--wavy-spacing-3, 12px);
+      gap: 6px;
+      padding: 8px;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
     }
     .new-wave {
       flex: 1 1 auto;
-      background: var(--wavy-signal-cyan, #22d3ee);
-      color: var(--wavy-bg-base, #0b1120);
-      border: 0;
+      background: var(--wavy-signal-cyan, #0077b6);
+      color: #ffffff;
+      border: 1px solid var(--wavy-signal-cyan, #0077b6);
       border-radius: var(--wavy-radius-pill, 9999px);
-      padding: var(--wavy-spacing-2, 8px) var(--wavy-spacing-3, 12px);
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      padding: 6px 12px;
+      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
       font-weight: 600;
       cursor: pointer;
     }
     .manage-saved {
       flex: 0 0 auto;
       background: transparent;
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      color: var(--wavy-text-muted, #64748b);
+      border: 1px solid var(--wavy-border-hairline, #e2e8f0);
       border-radius: var(--wavy-radius-pill, 9999px);
-      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-3, 12px);
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      padding: 6px 10px;
+      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
       cursor: pointer;
     }
     .folders-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: var(--wavy-spacing-1, 4px);
+      margin: 8px 8px 4px;
     }
     .folders-header h2 {
       margin: 0;
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
+      color: var(--wavy-text-muted, #64748b);
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
     ul.folders {
       list-style: none;
-      margin: 0 0 var(--wavy-spacing-3, 12px);
+      margin: 0 0 8px;
       padding: 0;
     }
     .folder {
@@ -222,29 +230,29 @@ export class WavySearchRail extends LitElement {
       justify-content: space-between;
       gap: var(--wavy-spacing-2, 8px);
       background: transparent;
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      color: var(--wavy-text-body, #1a202c);
       border: 0;
       padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
-      border-radius: var(--wavy-radius-pill, 9999px);
+      border-radius: 4px;
       cursor: pointer;
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
       text-align: left;
     }
     .folder[aria-current="page"] {
-      background: rgba(34, 211, 238, 0.12);
-      color: var(--wavy-signal-cyan, #22d3ee);
+      background: rgba(0, 119, 182, 0.10);
+      color: var(--wavy-signal-cyan, #0077b6);
       font-weight: 600;
     }
     .folder:hover,
     .folder:focus-visible {
       outline: none;
-      background: rgba(34, 211, 238, 0.06);
+      background: rgba(0, 119, 182, 0.06);
     }
     .dot.mentions-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--wavy-signal-violet, #7c3aed);
+      background: #e53e3e;
     }
     .chip.tasks-chip {
       display: inline-flex;
@@ -254,15 +262,21 @@ export class WavySearchRail extends LitElement {
       height: 16px;
       padding: 0 6px;
       border-radius: 9999px;
-      background: var(--wavy-signal-amber, #fb923c);
-      color: var(--wavy-bg-base, #0b1120);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      background: var(--wavy-signal-amber, #9a6700);
+      color: #ffffff;
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
       font-weight: 600;
     }
     p.result-count {
-      margin: 0 0 var(--wavy-spacing-3, 12px);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      margin: 0;
+      padding: 0 12px;
+      height: 24px;
+      line-height: 24px;
+      font: 11px / 24px Arial, sans-serif;
+      font-weight: 500;
+      color: var(--wavy-text-muted, #64748b);
+      background: #f8fafc;
+      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
     }
     slot[name="cards"]::slotted(wavy-search-rail-card) {
       display: block;

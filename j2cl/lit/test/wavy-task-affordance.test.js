@@ -25,6 +25,30 @@ describe("<wavy-task-affordance>", () => {
     expect(details.getAttribute("aria-expanded")).to.equal("false");
   });
 
+  it("G-PORT-9: renders the open task control like GWT CheckBase empty metadata", async () => {
+    const el = await fixture(html`
+      <wavy-task-affordance data-blip-id="b1" data-wave-id="w1"></wavy-task-affordance>
+    `);
+    const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    const cs = getComputedStyle(toggle);
+    expect(cs.backgroundColor).to.equal("rgb(241, 243, 244)");
+    expect(cs.color).to.equal("rgb(95, 99, 104)");
+    expect(cs.borderRadius).to.equal("999px");
+    expect(cs.fontSize).to.equal("11px");
+    expect(cs.fontWeight).to.equal("600");
+  });
+
+  it("G-PORT-9: renders the completed task control with the GWT due/task palette", async () => {
+    const el = await fixture(html`
+      <wavy-task-affordance data-blip-id="b1" data-task-completed></wavy-task-affordance>
+    `);
+    const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    const cs = getComputedStyle(toggle);
+    expect(cs.backgroundColor).to.equal("rgb(255, 244, 229)");
+    expect(cs.color).to.equal("rgb(154, 103, 0)");
+    expect(cs.borderColor).to.equal("rgb(154, 103, 0)");
+  });
+
   it("emits wave-blip-task-toggled when the toggle button is clicked", async () => {
     const el = await fixture(html`
       <wavy-task-affordance data-blip-id="b42" data-wave-id="w7"></wavy-task-affordance>

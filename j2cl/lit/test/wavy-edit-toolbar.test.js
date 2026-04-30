@@ -60,23 +60,13 @@ describe("<wavy-edit-toolbar>", () => {
     }
   });
 
-  // V-3 (#1101): the format-toolbar pill is intentionally theme-
-  // invariant — the Stitch/mockup pin keeps the dark pill across
-  // light/contrast modes so the cyan active-tile retains its contrast
-  // ratio. The toolbar reads --wavy-toolbar-pill-bg, defined only at
-  // :root; theme overrides do not flip it.
-  it("keeps the dark pill background across light / contrast theme variants (V-3 pin)", async () => {
-    const variants = ["dark", "light", "contrast"];
-    const surfaces = new Set();
-    for (const v of variants) {
-      const wrap = await fixture(
-        html`<div data-wavy-theme=${v}>
-          <wavy-edit-toolbar></wavy-edit-toolbar>
-        </div>`
-      );
-      const tb = wrap.querySelector("wavy-edit-toolbar");
-      surfaces.add(getComputedStyle(tb).backgroundColor);
-    }
-    expect(surfaces.size).to.equal(1);
+  it("uses the GWT toolbar strip surface in the production light theme", async () => {
+    const el = await fixture(html`<wavy-edit-toolbar></wavy-edit-toolbar>`);
+    const cs = getComputedStyle(el);
+    expect(cs.backgroundColor).to.equal("rgb(240, 244, 248)");
+    expect(cs.color).to.equal("rgb(26, 32, 44)");
+    expect(cs.borderRadius).to.equal("4px");
+    expect(cs.boxShadow).to.equal("none");
+    expect(parseInt(cs.minHeight, 10)).to.equal(36);
   });
 });

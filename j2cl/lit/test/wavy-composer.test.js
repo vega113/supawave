@@ -57,6 +57,12 @@ describe("<wavy-composer>", () => {
     expect(body.getAttribute("aria-multiline")).to.equal("true");
   });
 
+  it("describes the actual submit/cancel keyboard behavior in the hint strip", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const hint = el.renderRoot.querySelector("[data-hint-strip]");
+    expect(hint.textContent.trim()).to.equal("Shift+Enter to submit, Esc to cancel");
+  });
+
   // V-2 (#1100): "Reply target: <id>" paragraph is dev-only.
   it("hides the reply-target paragraph when debugOverlay is off (V-2)", async () => {
     const hadDebugClass = document.body.classList.contains("j2cl-debug-overlay-on");
@@ -102,6 +108,20 @@ describe("<wavy-composer>", () => {
     expect(chip).to.exist;
     expect(chip.textContent.trim()).to.match(/Replying to/);
     expect(chip.textContent).to.include("Yuri");
+  });
+
+  it("keeps a forward-tab submit affordance after the body in compact reply mode", async () => {
+    const el = await fixture(html`
+      <wavy-composer available reply-target-blip-id="b42" target-label="Yuri"></wavy-composer>
+    `);
+    const body = getBody(el);
+    const forwardSubmit = el.renderRoot.querySelector(
+      'composer-submit-affordance[data-submit-location="forward-footer"]'
+    );
+
+    expect(forwardSubmit).to.exist;
+    expect(body.compareDocumentPosition(forwardSubmit) & Node.DOCUMENT_POSITION_FOLLOWING).to.not.equal(0);
+    expect(forwardSubmit.getAttribute("label")).to.equal("Send reply");
   });
 
   it("emits wavy-composer-cancelled when the chip × close is clicked", async () => {

@@ -75,6 +75,7 @@ const SPACING_SHAPE_TOKENS = [
   "--wavy-spacing-7",
   "--wavy-spacing-8",
   "--wavy-radius-card",
+  "--wavy-radius-panel",
   "--wavy-radius-pill"
 ];
 
@@ -156,21 +157,36 @@ describe("wavy-tokens.css", () => {
     }
   });
 
-  it("pins signal accent hex values from the Stitch source of truth", () => {
+  it("pins production signal accents to GWT visual parity values", () => {
     const cs = getComputedStyle(document.documentElement);
-    expect(cs.getPropertyValue("--wavy-signal-cyan").trim().toLowerCase()).to.equal("#22d3ee");
-    expect(cs.getPropertyValue("--wavy-signal-violet").trim().toLowerCase()).to.equal("#7c3aed");
-    expect(cs.getPropertyValue("--wavy-signal-amber").trim().toLowerCase()).to.equal("#fb923c");
+    expect(cs.getPropertyValue("--wavy-signal-cyan").trim().toLowerCase()).to.equal("#0077b6");
+    expect(cs.getPropertyValue("--wavy-signal-violet").trim().toLowerCase()).to.equal("#174ea6");
+    expect(cs.getPropertyValue("--wavy-signal-amber").trim().toLowerCase()).to.equal("#9a6700");
   });
 
-  it("pins motion durations and shape tokens to the spec values", () => {
+  it("pins motion durations and shape tokens to the GWT visual parity values", () => {
     const cs = getComputedStyle(document.documentElement);
     expect(cs.getPropertyValue("--wavy-motion-pulse-duration").trim()).to.equal("600ms");
     expect(cs.getPropertyValue("--wavy-motion-focus-duration").trim()).to.equal("180ms");
     expect(cs.getPropertyValue("--wavy-motion-collapse-duration").trim()).to.equal("240ms");
     expect(cs.getPropertyValue("--wavy-motion-fragment-fade-duration").trim()).to.equal("300ms");
-    expect(cs.getPropertyValue("--wavy-radius-card").trim()).to.equal("12px");
-    expect(cs.getPropertyValue("--wavy-radius-pill").trim()).to.equal("9999px");
+    expect(cs.getPropertyValue("--wavy-radius-card").trim()).to.equal("4px");
+    expect(cs.getPropertyValue("--wavy-radius-panel").trim()).to.equal("8px");
+    expect(cs.getPropertyValue("--wavy-radius-pill").trim()).to.equal("999px");
+  });
+
+  it("uses Arial-compatible production typography to match GWT", () => {
+    const cs = getComputedStyle(document.documentElement);
+    expect(cs.getPropertyValue("--wavy-font-body").trim().toLowerCase()).to.include("arial");
+    expect(cs.getPropertyValue("--wavy-type-body").trim()).to.include("13px");
+    expect(cs.getPropertyValue("--wavy-type-label").trim()).to.include("11px");
+    expect(cs.getPropertyValue("--wavy-type-meta").trim()).to.include("11px");
+  });
+
+  it("pins desktop rail density to the GWT search panel width", () => {
+    const cs = getComputedStyle(document.documentElement);
+    expect(cs.getPropertyValue("--wavy-rail-width-min").trim()).to.equal("360px");
+    expect(cs.getPropertyValue("--wavy-rail-width-max").trim()).to.equal("400px");
   });
 
   it("dark and light variants resolve to different surface colors", async () => {

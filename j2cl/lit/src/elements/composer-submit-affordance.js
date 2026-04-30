@@ -6,7 +6,8 @@ export class ComposerSubmitAffordance extends LitElement {
     status: { type: String },
     error: { type: String },
     busy: { type: Boolean, reflect: true },
-    disabled: { type: Boolean, reflect: true }
+    disabled: { type: Boolean, reflect: true },
+    compact: { type: Boolean, reflect: true }
   };
 
   static styles = css`
@@ -31,6 +32,24 @@ export class ComposerSubmitAffordance extends LitElement {
       opacity: 0.55;
     }
 
+    :host([compact]) button {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: #718096;
+      font-weight: 700;
+    }
+
+    :host([compact]) button:hover,
+    :host([compact]) button:focus-visible {
+      background: rgba(0, 119, 182, 0.08);
+      color: #0077b6;
+      outline: none;
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+    }
+
     .message {
       margin: 0;
       color: var(--shell-color-text-muted, #5b6b80);
@@ -49,6 +68,7 @@ export class ComposerSubmitAffordance extends LitElement {
     this.error = "";
     this.busy = false;
     this.disabled = false;
+    this.compact = false;
   }
 
   render() {
@@ -62,7 +82,7 @@ export class ComposerSubmitAffordance extends LitElement {
         ?disabled=${disabled}
         @click=${this.onClick}
       >
-        ${this.label}
+        ${this.compact ? "✓" : this.label}
       </button>
       ${message
         ? html`<p

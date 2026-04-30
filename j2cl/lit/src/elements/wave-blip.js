@@ -119,38 +119,43 @@ export class WaveBlip extends LitElement {
        * host is a transparent wrapper so the F-0 recipe styling owns
        * focus / unread / pulse visuals. */
     }
-    /* Per-blip toolbar — hidden until focus or hover per F.4 inventory note
-     * "reveal on focus/hover". Uses --wavy-motion-focus-duration so it
-     * matches the focus-frame timing. */
+    /* Per-blip action toolbar. G-PORT-9 keeps the primary action glyphs
+     * visible in the metadata strip because GWT paints them in the blip
+     * header; task-specific controls still reveal on hover/focus below. */
     .toolbar {
-      opacity: 0;
+      opacity: 1;
       transition: opacity var(--wavy-motion-focus-duration, 180ms)
         var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
-      pointer-events: none;
-    }
-    :host([focused]) .toolbar,
-    :host(:focus-within) .toolbar,
-    :host(:hover) .toolbar,
-    .toolbar:focus-within {
-      opacity: 1;
       pointer-events: auto;
     }
     .header {
       display: flex;
       align-items: center;
-      gap: var(--wavy-spacing-2, 8px);
-      margin-bottom: var(--wavy-spacing-2, 8px);
+      gap: 4px;
+      margin-bottom: 0.3em;
+      margin-left: 3.35em;
+      min-height: 32px;
+      padding: 1px 8px 1px 0.3em;
+      border-radius: 6px;
+      background-color: #f0f4f8;
+      color: #718096;
+      font-size: 13px;
+      line-height: 1.3;
     }
     .thread-chevron {
       flex: 0 0 auto;
       width: 16px;
       text-align: center;
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
+      color: #718096;
       user-select: none;
     }
     :host([focused]) .thread-chevron {
-      color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-signal-cyan, #0077b6);
+      font-weight: 700;
+    }
+    :host([tabindex="0"]) .thread-chevron {
+      color: var(--wavy-signal-cyan, #0077b6);
       font-weight: 700;
     }
     /* Hide the chevron entirely when the blip has no replies. The
@@ -161,51 +166,55 @@ export class WaveBlip extends LitElement {
     }
     .avatar {
       flex: 0 0 auto;
-      width: var(--wavy-avatar-size-reply, 32px);
-      height: var(--wavy-avatar-size-reply, 32px);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
-      color: var(--wavy-avatar-fg, #0b1320);
-      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      width: var(--wavy-avatar-size-reply, 28px);
+      height: var(--wavy-avatar-size-reply, 28px);
+      margin-left: -2.6em;
+      border-radius: 50%;
+      background: var(--wavy-avatar-palette-0, #f8fafc);
+      color: var(--wavy-avatar-fg, #1a202c);
+      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
       font-weight: 700;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      border: 0;
+      border: 1.5px solid #ffffff;
       padding: 0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
     }
     :host([data-blip-depth="root"]) .avatar {
-      width: var(--wavy-avatar-size-root, 40px);
-      height: var(--wavy-avatar-size-root, 40px);
-      font-size: 0.8125rem;
+      width: var(--wavy-avatar-size-root, 28px);
+      height: var(--wavy-avatar-size-root, 28px);
+      font-size: 11px;
     }
     .avatar[data-palette="0"] { background: var(--wavy-avatar-palette-0, #22d3ee); }
-    .avatar[data-palette="1"] { background: var(--wavy-avatar-palette-1, #7c3aed); color: #ffffff; }
-    .avatar[data-palette="2"] { background: var(--wavy-avatar-palette-2, #fb923c); }
+    .avatar[data-palette="1"] { background: var(--wavy-avatar-palette-1, #edf2f7); color: #1a202c; }
+    .avatar[data-palette="2"] { background: var(--wavy-avatar-palette-2, #e8f0fe); }
     .avatar[data-palette="3"] {
       background: var(--wavy-avatar-palette-3, #475569);
       color: var(--wavy-avatar-palette-3-fg, #ffffff);
     }
     .avatar:focus-visible {
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
       outline: none;
     }
     .author {
-      font: var(--wavy-type-h3, 1.0625rem / 1.35 sans-serif);
+      font: var(--wavy-type-h3, 13px / 1.3 Arial, sans-serif);
       font-weight: 600;
-      color: var(--wavy-text-body, #fff);
+      color: #1a202c;
     }
     time.posted {
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      color: #718096;
       cursor: help;
+      margin-left: auto;
     }
     .toolbar {
       display: inline-flex;
       align-items: center;
-      gap: var(--wavy-spacing-2, 8px);
-      margin-top: var(--wavy-spacing-2, 8px);
+      gap: 4px;
+      margin: 0 0 0 4px;
+      position: relative;
     }
     /* The toolbar lives as a sibling of .body inside the wavy-blip-card
      * default slot specifically so the F-3.S2 task-completed
@@ -216,22 +225,22 @@ export class WaveBlip extends LitElement {
      * than from a defensive rule. */
     .inline-reply-chip {
       display: inline-block;
-      margin-top: var(--wavy-spacing-2, 8px);
-      padding: 2px var(--wavy-spacing-2, 8px);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
-      color: var(--wavy-text-body, #fff);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
+      margin-top: 6px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1.5px dashed #e2e8f0;
+      background: #f0f4f8;
+      color: #718096;
+      font: italic 13px / 1.35 Arial, sans-serif;
       cursor: pointer;
-      border: 0;
     }
     .inline-reply-chip:focus-visible {
       outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
-    /* When the wrapper carries the has-mention attr, paint a violet
+    /* When the wrapper carries the has-mention attr, paint a cyan
      * accent rail down the left so the mention navigation (E.6 / E.7)
-     * has a visual cue without clashing with unread cyan. */
+     * has a visual cue without reusing the unread-dot geometry. */
     :host([has-mention])::before {
       content: "";
       position: absolute;
@@ -239,8 +248,8 @@ export class WaveBlip extends LitElement {
       top: 6px;
       bottom: 6px;
       left: 0;
-      background: var(--wavy-signal-violet, #7c3aed);
-      border-radius: var(--wavy-radius-pill, 9999px);
+      background: var(--wavy-signal-cyan, #0077b6);
+      border-radius: var(--wavy-radius-pill, 999px);
     }
     :host([has-mention]) {
       position: relative;
@@ -252,13 +261,51 @@ export class WaveBlip extends LitElement {
      * inside the host so the metadata header (author + timestamp)
      * stays legible. */
     :host([data-task-completed]) .body {
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
+      color: #767676;
       text-decoration: line-through;
-      text-decoration-color: var(--wavy-signal-amber, #f59e0b);
+      text-decoration-color: #767676;
+    }
+    .body {
+      margin-left: 3.35em;
+      min-height: 1.5em;
+      padding: 6px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      background: #f8fafc;
+      color: #1a202c;
+      line-height: 1.35;
+      overflow-wrap: break-word;
+      transition: border-color 200ms ease, background 200ms ease;
+    }
+    .body:focus-within {
+      border-color: #90cdf4;
+      background: #ffffff;
+    }
+    :host([focused]) .body,
+    :host([tabindex="0"]) .body {
+      border-color: #d9e2ec;
+      background: #ffffff;
+      color: var(--wavy-signal-cyan, #0077b6);
+      font-weight: 600;
     }
     .task-affordance-slot {
       display: inline-flex;
       align-items: center;
+      position: absolute;
+      top: 100%;
+      right: 8px;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    :host([focused]) .task-affordance-slot,
+    :host([tabindex="0"]) .task-affordance-slot,
+    :host(:focus-within) .task-affordance-slot,
+    :host(:hover) .task-affordance-slot,
+    .task-affordance-slot:focus-within {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
     }
   `;
 
@@ -406,6 +453,10 @@ export class WaveBlip extends LitElement {
     return this.threadCollapsed ? "▸" : "▾";
   }
 
+  _visuallyFocused() {
+    return this.focused || this.getAttribute("tabindex") === "0";
+  }
+
   _onAvatarClick(event) {
     event.stopPropagation();
     this.dispatchEvent(
@@ -537,6 +588,7 @@ export class WaveBlip extends LitElement {
     const timestampSuffix = isRoot && this.postedAt ? " · root" : "";
     const palette = this._palette();
     const hasReplies = this.replyCount > 0;
+    const visuallyFocused = this._visuallyFocused();
     const chevron = hasReplies
       ? html`<span
           class="thread-chevron"
@@ -552,7 +604,7 @@ export class WaveBlip extends LitElement {
         author-name=${this.authorName}
         posted-at=${this.postedAt}
         ?is-author=${this.isAuthor}
-        ?focused=${this.focused}
+        ?focused=${visuallyFocused}
         ?unread=${this.unread}
         ?live-pulse=${this.livePulse}
       >
@@ -576,16 +628,11 @@ export class WaveBlip extends LitElement {
           >
             ${this.postedAt}${timestampSuffix}
           </time>
-        </div>
-        <div class="body">
-          <slot></slot>
-          ${chip}
-        </div>
-        <div class="toolbar" data-blip-toolbar-row="true">
+          <span class="toolbar" data-blip-toolbar-row="true">
           <wave-blip-toolbar
             data-blip-id=${this.blipId}
             data-wave-id=${this.waveId}
-            data-variant=${this.focused ? "focused" : "default"}
+            data-variant=${visuallyFocused ? "focused" : "default"}
             @wave-blip-toolbar-reply=${this._onReplyClick}
             @wave-blip-toolbar-edit=${this._onEditClick}
             @wave-blip-toolbar-link=${this._onLinkClick}
@@ -602,6 +649,11 @@ export class WaveBlip extends LitElement {
               @wave-blip-task-toggled=${this._onTaskToggled}
             ></wavy-task-affordance>
           </span>
+          </span>
+        </div>
+        <div class="body">
+          <slot></slot>
+          ${chip}
         </div>
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>

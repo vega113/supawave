@@ -70,12 +70,14 @@ export class WavyTaskAffordance extends LitElement {
       position: relative;
     }
     button {
-      background: transparent;
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
-      border: 1px solid transparent;
-      border-radius: var(--wavy-radius-pill, 9999px);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
+      background: #f1f3f4;
+      color: #5f6368;
+      border: 1px solid #d0d7de;
+      border-radius: 999px;
+      font: var(--wavy-type-meta, 11px / 16px Arial, sans-serif);
+      font-weight: 600;
+      line-height: 16px;
+      padding: 2px 8px;
       cursor: pointer;
       transition: color var(--wavy-motion-focus-duration, 180ms)
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
@@ -85,17 +87,18 @@ export class WavyTaskAffordance extends LitElement {
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
     button:hover {
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      border-color: var(--wavy-signal-amber, #f59e0b);
+      color: #174ea6;
+      background: #e8f0fe;
+      border-color: #174ea6;
     }
     button:focus-visible {
       outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
     button[aria-checked="true"] {
-      background: var(--wavy-signal-amber-soft, rgba(245, 158, 11, 0.18));
-      border-color: var(--wavy-signal-amber, #f59e0b);
-      color: var(--wavy-signal-amber, #f59e0b);
+      background: #fff4e5;
+      border-color: #9a6700;
+      color: #9a6700;
     }
     .sr-only {
       position: absolute;

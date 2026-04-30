@@ -137,7 +137,7 @@ describe("<wavy-search-rail>", () => {
     folders.forEach((b) => expect(b.getAttribute("aria-current")).to.equal("false"));
   });
 
-  it("Mentions violet dot is hidden by default and revealed when mentions-unread > 0", async () => {
+  it("Mentions red dot is hidden by default and revealed when mentions-unread > 0", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
     const dot = el.renderRoot
@@ -150,11 +150,13 @@ describe("<wavy-search-rail>", () => {
     expect(dot.hasAttribute("hidden")).to.be.false;
   });
 
-  it("Mentions dot uses --wavy-signal-violet (NOT cyan)", async () => {
+  it("Mentions dot uses the GWT unread red, not the task/toolbar palettes", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const cssText = WavySearchRail_styleText();
-    expect(cssText).to.include("var(--wavy-signal-violet");
+    const dot = el.renderRoot
+      .querySelector('[data-folder-id="mentions"]')
+      .querySelector(".mentions-dot");
+    expect(getComputedStyle(dot).backgroundColor).to.equal("rgb(229, 62, 62)");
   });
 
   it("Tasks amber chip is hidden by default and revealed when tasks-pending > 0", async () => {
@@ -174,6 +176,12 @@ describe("<wavy-search-rail>", () => {
   it("Tasks chip uses --wavy-signal-amber", async () => {
     const cssText = WavySearchRail_styleText();
     expect(cssText).to.include("var(--wavy-signal-amber");
+  });
+
+  it("G-PORT-9: stretches the rail to the GWT viewport-height panel", async () => {
+    const cssText = WavySearchRail_styleText();
+    expect(cssText).to.include("min-height: var(--wavy-rail-min-height");
+    expect(cssText).to.include("calc(100vh - 90px)");
   });
 
   it("result-count <p> is aria-live polite (B.12)", async () => {

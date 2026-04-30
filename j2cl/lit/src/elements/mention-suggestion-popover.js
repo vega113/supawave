@@ -53,6 +53,8 @@ export class MentionSuggestionPopover extends LitElement {
     [role="option"] {
       display: block;
       box-sizing: border-box;
+      height: 28px;
+      max-height: 28px;
       border: 0;
       border-radius: 0;
       padding: 6px 12px;
@@ -62,6 +64,7 @@ export class MentionSuggestionPopover extends LitElement {
       font: 13px Arial, sans-serif;
       line-height: 16px;
       cursor: pointer;
+      overflow: hidden;
       white-space: nowrap;
       /* G-PORT-5: options must NOT take focus from the composer body.
        * Suppress the default focus ring on the option div itself —

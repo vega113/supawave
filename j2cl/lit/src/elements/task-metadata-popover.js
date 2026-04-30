@@ -22,41 +22,85 @@ export class TaskMetadataPopover extends LitElement {
     .dialog {
       display: grid;
       gap: 10px;
-      width: min(92vw, 360px);
-      border: 1px solid var(--shell-color-divider-subtle, #d8e3ee);
-      border-radius: 16px;
-      padding: 14px;
-      background: var(--shell-color-surface-overlay, #fff);
-      box-shadow: var(--shell-shadow-modal, 0 22px 70px rgb(10 38 64 / 24%));
+      width: 320px;
+      max-width: 92vw;
+      border: 0;
+      border-radius: 0;
+      padding: 18px;
+      background: #ffffff;
+      box-shadow: none;
+      box-sizing: border-box;
+      color: #202124;
+      font: 13px Arial, sans-serif;
+    }
+
+    h2 {
+      display: block;
+      margin: 0 0 5px;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: #202124;
     }
 
     label {
       display: grid;
-      gap: 4px;
-      color: var(--shell-color-text-muted, #5b6b80);
-      font-size: 0.9rem;
+      gap: 6px;
+      margin: 2px 0;
+      color: #5f6368;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     select,
     input,
     button {
-      border: 1px solid var(--shell-color-divider-subtle, #d8e3ee);
-      border-radius: 10px;
-      padding: 8px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 9px 10px;
+      box-sizing: border-box;
+      background: #ffffff;
+      color: #202124;
       font: inherit;
+      font-size: 14px;
+      font-weight: 400;
     }
 
     select:focus,
     input:focus,
     button:focus {
-      outline: 2px solid var(--shell-color-accent-focus, #206ea6);
-      outline-offset: 2px;
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
     }
 
     .actions {
       display: flex;
       gap: 8px;
       justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    button[type="button"] {
+      padding: 8px 12px;
+      background: #ffffff;
+      color: #3c4043;
+    }
+
+    button[type="submit"] {
+      padding: 8px 12px;
+      border-color: #1a73e8;
+      background: #1a73e8;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    [role="alert"] {
+      margin: -2px 0 0;
+      color: #b42318;
+      font-size: 12px;
     }
   `;
 

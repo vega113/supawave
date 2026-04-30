@@ -236,6 +236,19 @@ describe("<wavy-wave-nav-row>", () => {
     ).to.equal("true");
   });
 
+  it("G-PORT-9: uses the flat GWT toolbar strip surface", async () => {
+    const el = await fixture(html`<wavy-wave-nav-row></wavy-wave-nav-row>`);
+    await el.updateComplete;
+    const host = getComputedStyle(el);
+    expect(host.backgroundColor).to.equal("rgb(240, 244, 248)");
+    expect(parseInt(host.minHeight, 10)).to.equal(36);
+    const button = el.renderRoot.querySelector('button[data-action="recent"]');
+    const buttonStyle = getComputedStyle(button);
+    expect(buttonStyle.borderRadius).to.equal("4px");
+    expect(buttonStyle.width).to.equal("28px");
+    expect(buttonStyle.height).to.equal("28px");
+  });
+
   it("E.2 Next-unread emphasis flips to cyan when unreadCount > 0", async () => {
     const el = await fixture(
       html`<wavy-wave-nav-row unread-count="3"></wavy-wave-nav-row>`
@@ -245,9 +258,9 @@ describe("<wavy-wave-nav-row>", () => {
       'nav > button[data-action="next-unread"]'
     );
     expect(button.dataset.emphasis).to.equal("cyan");
-    // Computed style: rgb(34, 211, 238) is the cyan token.
+    // Computed style: rgb(0, 119, 182) is the GWT-light cyan token.
     const computed = getComputedStyle(button);
-    expect(computed.color).to.contain("rgb(34, 211, 238)");
+    expect(computed.color).to.contain("rgb(0, 119, 182)");
   });
 
   it("E.6/E.7 mention emphasis flips to violet when mentionCount > 0", async () => {
@@ -259,7 +272,7 @@ describe("<wavy-wave-nav-row>", () => {
     const next = el.renderRoot.querySelector('nav > button[data-action="next-mention"]');
     expect(prev.dataset.emphasis).to.equal("violet");
     expect(next.dataset.emphasis).to.equal("violet");
-    expect(getComputedStyle(prev).color).to.contain("rgb(124, 58, 237)");
+    expect(getComputedStyle(prev).color).to.contain("rgb(23, 78, 166)");
   });
 
   it("H keyboard shortcut on the card host emits wave-nav-version-history-requested", async () => {

@@ -86,6 +86,16 @@ describe("<mention-suggestion-popover>", () => {
     );
   });
 
+  it("G-PORT-9: pins option height to the GWT active-row height", async () => {
+    const el = await fixture(html`
+      <mention-suggestion-popover .candidates=${candidates} open></mention-suggestion-popover>
+    `);
+    const option = el.renderRoot.querySelector("[role='option']");
+    expect(getComputedStyle(option).height).to.equal("28px");
+    expect(getComputedStyle(option).maxHeight).to.equal("28px");
+    expect(getComputedStyle(option).overflow).to.equal("hidden");
+  });
+
   it("emits mention-select on click", async () => {
     const el = await fixture(html`
       <mention-suggestion-popover .candidates=${candidates} open></mention-suggestion-popover>

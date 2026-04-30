@@ -77,16 +77,11 @@ describe("<wavy-blip-card>", () => {
     expect(parseInt(cs.height, 10)).to.equal(0);
   });
 
-  it("focused state applies the cyan focus ring border-color", async () => {
-    const dark = await fixture(
-      html`<div data-wavy-theme="dark">
-        <wavy-blip-card focused></wavy-blip-card>
-      </div>`
-    );
-    const card = dark.querySelector("wavy-blip-card");
+  it("focused state applies the GWT-light cyan focus ring border-color", async () => {
+    const card = await fixture(html`<wavy-blip-card focused></wavy-blip-card>`);
     const cs = getComputedStyle(card);
-    // border-color should resolve to the cyan signal (#22d3ee = rgb(34, 211, 238))
-    expect(cs.borderColor.replace(/\s+/g, "")).to.match(/rgb\(34,211,238\)/);
+    // box-shadow resolves to the GWT toolbar blue (#0077b6).
+    expect(cs.boxShadow.replace(/\s+/g, "")).to.match(/rgb\(0,119,182\)/);
   });
 
   it("blipView returns a frozen read-only snapshot of the card state", async () => {

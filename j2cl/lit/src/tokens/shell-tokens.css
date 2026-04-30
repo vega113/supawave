@@ -1,27 +1,26 @@
-/* CSS custom properties implementing design-packet §4 token slots for the shell family.
- * Values are pinned from the Stitch project created for issue #964. */
+/* Shell tokens for the J2CL root shell.
+ * G-PORT-9 aligns production chrome with the legacy GWT light UI. */
 :root {
-  --shell-color-surface-page: #f6fafb;
+  --shell-color-surface-page: #ffffff;
   --shell-color-surface-shell: #ffffff;
-  --shell-color-surface-soft: #f1f4f5;
-  --shell-color-surface-rail: #ebeeef;
-  --shell-color-text-primary: #181c1d;
-  --shell-color-text-muted: #3e494a;
-  --shell-color-divider-subtle: #bdc8ca;
-  --shell-color-accent-brand: #00636e;
-  --shell-color-accent-focus: #087e8b;
+  --shell-color-surface-soft: #f8fafc;
+  --shell-color-surface-rail: #ffffff;
+  --shell-color-text-primary: #1a202c;
+  --shell-color-text-muted: #64748b;
+  --shell-color-divider-subtle: #e2e8f0;
+  --shell-color-accent-brand: #0077b6;
+  --shell-color-accent-focus: #0077b6;
   --shell-space-inline-default: 12px;
-  --shell-space-inset-panel: 18px;
-  --shell-shell-radius: 20px;
-  --shell-shell-shadow: 0 24px 40px rgba(24, 28, 29, 0.06);
-  --shell-font-ui: "Manrope", "Public Sans", -apple-system, "BlinkMacSystemFont", "Segoe UI",
-    sans-serif;
+  --shell-space-inset-panel: 8px;
+  --shell-shell-radius: 4px;
+  --shell-shell-shadow: none;
+  --shell-font-ui: Arial, Helvetica, sans-serif;
 }
 
 body.j2cl-root-shell-page {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f6f7fb 0%, #eef1f7 100%);
+  background: #ffffff;
   color: var(--shell-color-text-primary);
   font-family: var(--shell-font-ui);
 }
@@ -171,17 +170,15 @@ shell-header > [slot="brand"] .j2cl-brand-stack {
 }
 
 shell-header > [slot="brand"] .j2cl-brand-name {
-  font-family: "Space Grotesk", Inter, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  font-size: 1.25rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 18px;
   font-weight: 700;
   color: #0b1320;
 }
 
 shell-header > [slot="brand"] .j2cl-brand-eyebrow {
-  font-family: Geist, Inter, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  font-size: 0.6875rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: rgba(11, 19, 32, 0.55);
   margin-top: 2px;
@@ -254,7 +251,7 @@ shell-nav-rail > a {
 }
 
 shell-nav-rail > a:first-child {
-  background: rgba(0, 99, 110, 0.12);
+  background: rgba(0, 119, 182, 0.10);
   color: var(--shell-color-accent-brand);
   font-weight: 700;
 }

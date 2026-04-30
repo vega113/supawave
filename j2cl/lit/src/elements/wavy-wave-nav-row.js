@@ -64,26 +64,28 @@ export class WavyWaveNavRow extends LitElement {
        * Without this declaration the mobile-collapse path is dead code. */
       container-type: inline-size;
       container-name: wave-nav-row;
-      background: var(--wavy-bg-surface, #11192a);
-      border-bottom: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      padding: var(--wavy-spacing-2, 8px) var(--wavy-spacing-3, 12px);
+      min-height: 36px;
+      box-sizing: border-box;
+      background: var(--wavy-toolbar-pill-bg, #f0f4f8);
+      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
+      padding: 3px 4px;
     }
     nav {
       display: flex;
       align-items: center;
-      gap: var(--wavy-spacing-2, 8px);
+      gap: 2px;
       flex-wrap: nowrap;
     }
     button {
       background: transparent;
-      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      color: var(--wavy-text-muted, #64748b);
       border: 1px solid transparent;
-      border-radius: var(--wavy-radius-pill, 9999px);
-      font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
-      /* G-PORT-8 (#1117): square icon buttons (32x32). The 18px SVG
-       * keeps a 7px halo on each side, matching the GWT toolbar. */
-      width: 32px;
-      height: 32px;
+      border-radius: var(--wavy-toolbar-tile-radius, 4px);
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      /* G-PORT-9 (#1118): compact 28x28 buttons match the GWT toolbar
+       * density while preserving the G-PORT-8 cloned SVG glyphs. */
+      width: var(--wavy-toolbar-tile-size, 28px);
+      height: var(--wavy-toolbar-tile-size, 28px);
       padding: 0;
       display: inline-flex;
       align-items: center;
@@ -101,14 +103,14 @@ export class WavyWaveNavRow extends LitElement {
      * GWT setDown(true) (a tinted background). Cyan for pinned, amber
      * for archived so the two states read as distinct affordances. */
     button[data-action="pin"][aria-pressed="true"] {
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      color: var(--wavy-signal-cyan, #22d3ee);
+      background: var(--wavy-signal-cyan-soft, rgba(0, 180, 216, 0.12));
+      border-color: var(--wavy-signal-cyan, #0077b6);
+      color: var(--wavy-signal-cyan, #0077b6);
     }
     button[data-action="archive"][aria-pressed="true"] {
-      background: var(--wavy-signal-amber-soft, rgba(245, 158, 11, 0.22));
-      border-color: var(--wavy-signal-amber, #f59e0b);
-      color: var(--wavy-signal-amber, #f59e0b);
+      background: var(--wavy-signal-amber-soft, #fff4e5);
+      border-color: var(--wavy-signal-amber, #9a6700);
+      color: var(--wavy-signal-amber, #9a6700);
     }
     button[data-action="archive"][data-busy="true"],
     button[data-action="pin"][data-busy="true"] {
@@ -116,13 +118,13 @@ export class WavyWaveNavRow extends LitElement {
       cursor: progress;
     }
     button:hover {
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-      background: var(--wavy-signal-cyan-soft, rgba(34, 211, 238, 0.22));
-      border-color: var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      color: var(--wavy-text-body, #1a202c);
+      background: var(--wavy-toolbar-tile-hover-bg, rgba(0, 119, 182, 0.08));
+      border-color: var(--wavy-border-hairline, #e2e8f0);
     }
     button:focus-visible {
       outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
     button[disabled] {
       opacity: 0.45;
@@ -130,16 +132,16 @@ export class WavyWaveNavRow extends LitElement {
     }
     /* E.2 next-unread cyan emphasis when unread > 0 */
     button[data-action="next-unread"][data-emphasis="cyan"] {
-      color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-signal-cyan, #0077b6);
     }
     /* E.6/E.7 mention violet emphasis when mentionCount > 0 */
     button[data-action="prev-mention"][data-emphasis="violet"],
     button[data-action="next-mention"][data-emphasis="violet"] {
-      color: var(--wavy-signal-violet, #7c3aed);
+      color: var(--wavy-signal-violet, #174ea6);
     }
     /* E.9 pinned cyan glyph */
     button[data-action="pin"][data-emphasis="cyan"] {
-      color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-signal-cyan, #0077b6);
     }
 
     /* Mobile/narrow collapse — the overflow button + menu are hidden
@@ -162,9 +164,9 @@ export class WavyWaveNavRow extends LitElement {
         display: block;
         position: absolute;
         right: var(--wavy-spacing-2, 8px);
-        background: var(--wavy-bg-surface, #11192a);
-        border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-        border-radius: var(--wavy-radius-card, 12px);
+        background: #ffffff;
+        border: 1px solid var(--wavy-border-hairline, #e2e8f0);
+        border-radius: var(--wavy-radius-card, 4px);
         padding: var(--wavy-spacing-2, 8px);
         z-index: 1;
         margin: 0;

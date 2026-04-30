@@ -1423,8 +1423,9 @@ export class WavyComposer extends LitElement {
    * inspect the body's mixed text / annotation content at submit
    * time. Walks the body's immediate children and emits an array of
    * `{type, text, annotationKey, annotationValue}` records. Mention
-   * chips become annotated components keyed by `link/manual`
-   * carrying the participant address as the value.
+   * chips become annotated components keyed by `mention/user`
+   * carrying the participant address as the value, matching GWT's
+   * persisted mention annotation.
    *
    * The output format is intentionally JS-only. This file does not
    * define the Java submit bridge for these records; the J2CL view
@@ -1462,7 +1463,7 @@ export class WavyComposer extends LitElement {
           components.push({
             type: "annotated",
             text: node.textContent,
-            annotationKey: "link/manual",
+            annotationKey: "mention/user",
             annotationValue: node.getAttribute("data-mention-id") || ""
           });
           continue;
@@ -1536,8 +1537,8 @@ export class WavyComposer extends LitElement {
         // F-3.S4 (#1038, R-5.7 — review-1077 Bug 3): inline link.
         // Anchor elements emit a `link/manual` component carrying the
         // href as the annotation value. The mention-chip path above
-        // handles links injected via the `@` autocompleter; this path
-        // covers links inserted via the H.17 link modal.  Walk
+        // handles `mention/user` chips injected via the `@` autocompleter;
+        // this path covers links inserted via the H.17 link modal.  Walk
         // descendants recursively (instead of taking textContent) so
         // mention chips / formatting nested inside the anchor survive
         // round-trip serialization: plain text inside the <a> is

@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-04-30-g-port-5-mention-autocomplete-parity",
+  "version": "PR #1114",
+  "date": "2026-04-30",
+  "title": "G-PORT-5: Mention autocomplete read-surface parity",
+  "summary": "J2CL mention replies now persist and reload with the same read-surface affordance expected from the legacy GWT mention flow. The parity lane also adds a focused visual regression harness that compares the active J2CL suggestion row against the GWT mention popup without loading unrelated wave content.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Persisted J2CL mention replies render @mentions as highlighted read-surface chips after reload, matching the GWT mention annotation surface instead of reducing them to plain text.",
+        "The J2CL read surface derives mention chips from annotation ranges and visible-window read blip text, preserving lazy viewport loading while still hydrating only the relevant blips in view.",
+        "The GWT mention popup and annotation renderer now expose stable parity attributes so J2CL/GWT E2E tests can compare keyboard state, mention addresses, and focused visual rows directly."
+      ]
+    }
+  ]
+}

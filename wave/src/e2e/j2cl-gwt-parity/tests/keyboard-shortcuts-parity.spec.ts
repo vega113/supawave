@@ -23,9 +23,9 @@
 // genuinely does not bind a key today (j/k vs ArrowDown/Up;
 // Shift+Cmd+O has no key handler at all), the test annotates the gap
 // and ALSO drives the documented GWT equivalent so the same observable
-// outcome is asserted on both views. The mention-popover assertion is
-// J2CL-only until #1121 gives GWT a stable inline-reply harness path;
-// that gap is annotated in the live GWT baseline, not silently skipped.
+// outcome is asserted on both views. This file keeps the focused J2CL
+// mention-keyboard regression from #1125; the full GWT @mention
+// inline-reply drive now lives in G-PORT-5 / #1114.
 import { test, expect, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
@@ -460,8 +460,8 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     test.info().annotations.push({
       type: "gwt-gap",
       description:
-        "Full GWT mention-popover keyboard drive is blocked by the " +
-        "hover-only inline Reply harness gap tracked at #1121."
+        "Full GWT mention-popover keyboard drive is covered by " +
+        "mention-autocomplete-parity.spec.ts for #1114."
     });
 
     await registerAndSignIn(page, BASE_URL, creds);

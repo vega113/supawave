@@ -951,11 +951,11 @@ public final class J2clSelectedWaveProjector {
   }
 
   /**
-   * F-2 (#1037, R-3.4 E.6 / E.7) — a blip "has a mention" when any annotation
-   * carries the {@code mention/} key prefix. The annotation ranges are already
-   * shipped on the wire today via {@link SidecarSelectedWaveDocument} for the
-   * interaction-blip projection; reading them here keeps the read-surface
-   * mention navigation in lockstep with the interaction surface.
+   * F-2 (#1037, R-3.4 E.6 / E.7) plus G-PORT-5 (#1114): a blip "has a mention"
+   * only when an annotation carries the {@code mention/} key prefix. Keeping this
+   * predicate aligned with GWT's {@code mention/user} annotation avoids false
+   * positives from ordinary {@code link/manual} hyperlinks whose visible text
+   * happens to start with {@code @}.
    */
   static boolean documentHasMention(SidecarSelectedWaveDocument document) {
     if (document == null || document.getAnnotationRanges() == null) {

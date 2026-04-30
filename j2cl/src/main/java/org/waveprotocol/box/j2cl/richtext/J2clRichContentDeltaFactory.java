@@ -66,9 +66,10 @@ public final class J2clRichContentDeltaFactory {
 
   /**
    * F-3.S2 (#1038, R-5.3 step 4): sugar wrapper that appends a mention
-   * chip annotation to the supplied builder. Encodes a `link/manual`
+   * chip annotation to the supplied builder. Encodes a {@code mention/user}
    * annotated-text component whose value is the participant address
-   * and whose display text is `@displayName`.
+   * and whose display text is {@code @displayName}, matching the GWT mention
+   * annotation contract.
    *
    * <p>Usage from the composer surface:
    * <pre>
@@ -90,7 +91,7 @@ public final class J2clRichContentDeltaFactory {
     String label = displayName == null || displayName.trim().isEmpty()
         ? normalizedAddress
         : displayName.trim();
-    builder.annotatedText("link/manual", normalizedAddress, "@" + label);
+    builder.annotatedText("mention/user", normalizedAddress, "@" + label);
     return builder;
   }
 

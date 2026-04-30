@@ -71,9 +71,11 @@ public class MentionAnnotationHandler implements AnnotationMutationHandler {
           styles.put("fontWeight", "600");
           styles.put("cursor", "pointer");
           styles.put(AnnotationPaint.MOUSE_LISTENER_ATTR, MENTION_HANDLER_KEY);
-          // Store the mention address as a ContentElement attribute for retrieval in the event handler.
-          // Key must be camelCase to satisfy GWT's Style.setProperty assertion.
+          // Store the mention address for retrieval in the event handler.
+          // Keys applied through GWT Style.setProperty must stay camelCase; data-* keys are
+          // handled as DOM attributes by AnnotationSpreadRenderer instead.
           styles.put("mentionAddr", value.toString());
+          styles.put("data-mention-address", value.toString());
           return styles;
         }
         return Collections.emptyMap();

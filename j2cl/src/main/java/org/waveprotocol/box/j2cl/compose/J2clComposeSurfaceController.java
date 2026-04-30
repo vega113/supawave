@@ -116,7 +116,7 @@ public final class J2clComposeSurfaceController {
      * `<mention-suggestion-popover>` mounted by `<wavy-composer>`. The
      * controller snapshots the participant address + display name in
      * `pendingMentions` so the next reply submit splits the plain
-     * draft at chip-text occurrences and emits `link/manual`
+     * draft at chip-text occurrences and emits {@code mention/user}
      * annotated components carrying the participant address.
      * {@code chipTextOffset} is the chip's plain-text offset within
      * the composer body at pick time (-1 when unavailable). The
@@ -544,7 +544,7 @@ public final class J2clComposeSurfaceController {
       new ArrayList<J2clAttachmentComposerController.AttachmentInsertion>();
   // F-3.S2 (#1038, R-5.3, PR #1066 review thread PRRT_kwDOBwxLXs592RVM):
   // mention picks recorded between draft edits. Each pick becomes an
-  // annotated `link/manual` component on the next reply submit so the
+  // annotated `mention/user` component on the next reply submit so the
   // outgoing delta carries the participant address, not just plain
   // `@DisplayName` text. Cleared on submit success, sign-out, and
   // wave change (mirrors `insertedAttachments`).
@@ -567,7 +567,7 @@ public final class J2clComposeSurfaceController {
    * lit composer. The chip text is `@<displayName>` (or
    * `@<address>` if the display name is blank); on submit the
    * controller splits the plain reply draft at occurrences of this
-   * chip text and emits an annotated component keyed by `link/manual`
+   * chip text and emits an annotated component keyed by `mention/user`
    * carrying {@link #address} as the annotation value.
    */
   static final class PendingMention {
@@ -1212,7 +1212,7 @@ public final class J2clComposeSurfaceController {
    * suggestion popover. The lit composer DOM already inserted the
    * chip span; the controller snapshots the participant address +
    * display name so the next reply submission carries a
-   * `link/manual` annotated component referencing the participant
+   * `mention/user` annotated component referencing the participant
    * address (PR #1066 review thread PRRT_kwDOBwxLXs592RVM —
    * mentions must round-trip through the model, not just emit
    * literal `@DisplayName` text).
@@ -1997,7 +1997,7 @@ public final class J2clComposeSurfaceController {
     // J-UI-5 (#1083, R-5.7): when the inline rich-text composer
     // forwarded a structured component list, build the document
     // straight from it (per-fragment formatting). The components
-    // already encode mention chips (link/manual annotations), list
+    // already encode mention chips (mention/user annotations), list
     // and link annotations, and the new inline-format runs (fontWeight
     // / fontStyle / textDecoration), so the legacy single-annotation
     // path is bypassed entirely.
@@ -2060,7 +2060,7 @@ public final class J2clComposeSurfaceController {
     String annotationKey = annotationKey(action);
     String annotationValue = annotationValue(action);
     // F-3.S2 (#1038, R-5.3): when mention picks are pending and their chip text
-    // occurs in the draft, split into alternating text + `link/manual` components.
+    // occurs in the draft, split into alternating text + `mention/user` components.
     // Only reply submits carry mention annotations; create-wave submits pass
     // includeMentions=false so a mention picked in a reply context can never
     // pollute a concurrent create-wave document that happens to contain the
@@ -2088,7 +2088,7 @@ public final class J2clComposeSurfaceController {
   }
 
   /**
-   * F-3.S2 (#1038, R-5.3): emit text + `link/manual` annotated
+   * F-3.S2 (#1038, R-5.3): emit text + `mention/user` annotated
    * components for each pending mention whose chip text still
    * occurs in {@code draftText}. Returns true when at least one
    * mention was appended (callers then skip the plain-text or
@@ -2159,7 +2159,7 @@ public final class J2clComposeSurfaceController {
       if (idx > cursor) {
         appendTextRun(builder, draftText.substring(cursor, idx), annotationKey, annotationValue);
       }
-      builder.annotatedText("link/manual", mention.address, mention.chipText);
+      builder.annotatedText("mention/user", mention.address, mention.chipText);
       cursor = idx + mention.chipText.length();
     }
     if (cursor < draftText.length()) {

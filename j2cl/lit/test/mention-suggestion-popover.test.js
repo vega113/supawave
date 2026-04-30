@@ -26,6 +26,7 @@ describe("<mention-suggestion-popover>", () => {
     expect(listbox.getAttribute("tabindex")).to.equal("-1");
     expect(listbox.getAttribute("aria-activedescendant")).to.equal(options[0].id);
     expect(options[0].getAttribute("aria-selected")).to.equal("true");
+    expect(options[0].textContent.trim()).to.equal("@alice@example.com");
     expect(options[1].dataset.address).to.equal("bob@example.com");
     expect(el.renderRoot.querySelector("[aria-live='polite']").textContent).to.include(
       "2 mention suggestions"

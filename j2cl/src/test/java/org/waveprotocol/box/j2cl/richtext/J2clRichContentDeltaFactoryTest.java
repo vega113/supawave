@@ -424,11 +424,11 @@ public class J2clRichContentDeltaFactoryTest {
         "{\"1\":\"display-size\",\"2\":\"large\"}");
   }
 
-  // F-3.S2 (#1038, R-5.3 step 4): mention insert appends a link/manual
+  // F-3.S2 (#1038, R-5.3 step 4): mention insert appends a mention/user
   // annotation whose value is the participant address and whose text
   // is `@displayName`.
   @Test
-  public void appendMentionInsertEmitsLinkManualAnnotation() {
+  public void appendMentionInsertEmitsMentionUserAnnotation() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clComposerDocument.Builder builder = J2clComposerDocument.builder().text("Hi ");
     factory.appendMentionInsert(builder, "Alice@Example.COM ", "Alice Adams");
@@ -444,9 +444,9 @@ public class J2clRichContentDeltaFactoryTest {
     String deltaJson = request.getDeltaJson();
     assertContains(
         deltaJson,
-        "{\"1\":{\"3\":[{\"1\":\"link/manual\",\"3\":\"alice@example.com\"}]}}",
+        "{\"1\":{\"3\":[{\"1\":\"mention/user\",\"3\":\"alice@example.com\"}]}}",
         "\"2\":\"@Alice Adams\"",
-        "{\"1\":{\"2\":[\"link/manual\"]}}");
+        "{\"1\":{\"2\":[\"mention/user\"]}}");
   }
 
   @Test

@@ -68,11 +68,15 @@ public final class MentionPopupWidget extends Composite
    */
   public MentionPopupWidget(Element anchor) {
     listPanel = new FlowPanel();
+    listPanel.getElement().setAttribute("data-e2e", "gwt-mention-popover");
+    listPanel.getElement().setAttribute("role", "listbox");
+    listPanel.getElement().setAttribute("aria-label", "Mention suggestions");
     Style listStyle = listPanel.getElement().getStyle();
     listStyle.setProperty("minWidth", "180px");
     listStyle.setProperty("maxHeight", "200px");
     listStyle.setProperty("overflowY", "auto");
     listStyle.setProperty("padding", "4px 0");
+    listStyle.setBackgroundColor("#FFFFFF");
 
     initWidget(listPanel);
 
@@ -101,14 +105,27 @@ public final class MentionPopupWidget extends Composite
     for (int i = 0; i < participants.size(); i++) {
       final ParticipantId participant = participants.get(i);
       Label item = new Label("@" + participant.getAddress());
+      item.getElement().setAttribute("data-e2e", "gwt-mention-option");
+      item.getElement().setAttribute("data-mention-address", participant.getAddress());
+      item.getElement().setAttribute("role", "option");
       Style itemStyle = item.getElement().getStyle();
+      itemStyle.setDisplay(Style.Display.BLOCK);
+      itemStyle.setProperty("boxSizing", "border-box");
       itemStyle.setProperty("padding", "6px 12px");
       itemStyle.setProperty("cursor", "pointer");
+      itemStyle.setProperty("color", "#202124");
+      itemStyle.setProperty("fontFamily", "Arial, sans-serif");
       itemStyle.setProperty("fontSize", "13px");
+      itemStyle.setProperty("lineHeight", "16px");
       itemStyle.setProperty("whiteSpace", "nowrap");
 
       if (i == selectedIndex) {
         itemStyle.setBackgroundColor(SELECTED_BG);
+        item.getElement().setAttribute("data-active", "true");
+        item.getElement().setAttribute("aria-selected", "true");
+      } else {
+        item.getElement().setAttribute("data-active", "false");
+        item.getElement().setAttribute("aria-selected", "false");
       }
 
       item.addClickHandler(new ClickHandler() {
@@ -198,11 +215,15 @@ public final class MentionPopupWidget extends Composite
     // Clear old highlight.
     if (selectedIndex >= 0 && selectedIndex < listPanel.getWidgetCount()) {
       listPanel.getWidget(selectedIndex).getElement().getStyle().setBackgroundColor("");
+      listPanel.getWidget(selectedIndex).getElement().setAttribute("data-active", "false");
+      listPanel.getWidget(selectedIndex).getElement().setAttribute("aria-selected", "false");
     }
     selectedIndex = newIndex;
     // Apply new highlight.
     if (selectedIndex >= 0 && selectedIndex < listPanel.getWidgetCount()) {
       listPanel.getWidget(selectedIndex).getElement().getStyle().setBackgroundColor(SELECTED_BG);
+      listPanel.getWidget(selectedIndex).getElement().setAttribute("data-active", "true");
+      listPanel.getWidget(selectedIndex).getElement().setAttribute("aria-selected", "true");
     }
   }
 }

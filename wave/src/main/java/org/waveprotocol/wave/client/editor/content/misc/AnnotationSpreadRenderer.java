@@ -120,6 +120,12 @@ class AnnotationSpreadRenderer extends RenderingMutationHandler {
       }
     } else if (name.equals(AnnotationPaint.MOUSE_LISTENER_ATTR)) {
       updateEventHandler(element, newValue);
+    } else if (name.startsWith("data-")) {
+      if (newValue == null) {
+        implNodelet.removeAttribute(name);
+      } else {
+        implNodelet.setAttribute(name, Scrub.scrub(newValue));
+      }
     } else {
       try {
         implNodelet.getStyle().setProperty(name, newValue);

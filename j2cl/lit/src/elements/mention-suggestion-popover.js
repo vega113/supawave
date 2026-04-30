@@ -30,27 +30,39 @@ export class MentionSuggestionPopover extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
+      display: inline-block;
+      width: max-content;
+      max-width: 100%;
+      line-height: 0;
+      vertical-align: top;
     }
 
     .popover {
-      border: 1px solid var(--shell-color-divider-subtle, #d8e3ee);
-      border-radius: 14px;
-      padding: 8px;
-      background: var(--shell-color-surface-overlay, #fff);
-      box-shadow: var(--shell-shadow-overlay, 0 16px 44px rgb(10 38 64 / 18%));
+      min-width: 180px;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #c7d2de;
+      border-radius: 2px;
+      padding: 4px 0;
+      background: #fff;
+      background-color: #fff;
+      box-shadow: var(--shell-shadow-overlay, 0 4px 16px rgb(10 38 64 / 16%));
+      line-height: normal;
     }
 
     [role="option"] {
       display: block;
-      width: 100%;
+      box-sizing: border-box;
       border: 0;
-      border-radius: 10px;
-      padding: 8px 10px;
+      border-radius: 0;
+      padding: 6px 12px;
       background: transparent;
+      color: #202124;
       text-align: left;
-      font: inherit;
+      font: 13px Arial, sans-serif;
+      line-height: 16px;
       cursor: pointer;
+      white-space: nowrap;
       /* G-PORT-5: options must NOT take focus from the composer body.
        * Suppress the default focus ring on the option div itself —
        * the visual highlight comes from aria-selected styling. We
@@ -65,8 +77,8 @@ export class MentionSuggestionPopover extends LitElement {
     }
 
     [aria-selected="true"] {
-      background: var(--shell-color-accent-selection, #e4f1fb);
-      box-shadow: inset 3px 0 0 var(--shell-color-accent-focus, #206ea6);
+      background: #e8f0fe;
+      background-color: #e8f0fe;
     }
 
     .sr-only {
@@ -128,7 +140,7 @@ export class MentionSuggestionPopover extends LitElement {
         @mousedown=${this._onOptionMouseDown}
         @click=${() => this.selectCandidate(index)}
       >
-        ${candidate.displayName || candidate.address}
+        @${candidate.address}
       </div>
     `;
   }

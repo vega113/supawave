@@ -596,7 +596,7 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     await el.updateComplete;
     const components = el.serializeRichComponents();
     const annotated = components.find(
-      (c) => c.type === "annotated" && c.annotationKey === "link/manual"
+      (c) => c.type === "annotated" && c.annotationKey === "mention/user"
     );
     expect(annotated).to.exist;
     expect(annotated.annotationValue).to.equal("alice@example.com");
@@ -828,9 +828,9 @@ describe("<wavy-composer> R-5.3 mentions", () => {
         '<ul><li>Hello <span class="wavy-mention-chip" data-mention-id="u1">@Alice</span> world</li></ul>';
       const components = el.serializeRichComponents();
       const annotated = components.filter(c => c.type === "annotated");
-      // The mention chip must survive as a link/manual component, not be
+      // The mention chip must survive as a mention/user component, not be
       // swallowed by the list's textContent serialization.
-      const mention = annotated.find(c => c.annotationKey === "link/manual");
+      const mention = annotated.find(c => c.annotationKey === "mention/user");
       expect(mention).to.exist;
       expect(mention.text).to.equal("@Alice");
       expect(mention.annotationValue).to.equal("u1");
@@ -845,7 +845,7 @@ describe("<wavy-composer> R-5.3 mentions", () => {
         '<blockquote>See <span class="wavy-mention-chip" data-mention-id="u2">@Bob</span></blockquote>';
       const components = el.serializeRichComponents();
       const mention = components.find(
-        c => c.type === "annotated" && c.annotationKey === "link/manual"
+        c => c.type === "annotated" && c.annotationKey === "mention/user"
       );
       expect(mention).to.exist;
       expect(mention.annotationValue).to.equal("u2");
@@ -883,7 +883,7 @@ describe("<wavy-composer> R-5.3 mentions", () => {
       const annotated = components.filter(c => c.type === "annotated");
       const mention = annotated.find(c => c.annotationValue === "u3");
       expect(mention, "mention chip survives as its own component").to.exist;
-      expect(mention.annotationKey).to.equal("link/manual");
+      expect(mention.annotationKey).to.equal("mention/user");
       expect(mention.text).to.equal("@Carol");
       const linkParts = annotated.filter(
         c => c.annotationKey === "link/manual" && c.annotationValue === "https://example.com"

@@ -315,6 +315,14 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
   word-break: normal;
 }
 
+.j2cl-read-mention-chip {
+  background: #d1e8ff;
+  border-radius: 0.45em;
+  color: #173355;
+  font-weight: 600;
+  padding: 0.05em 0.28em;
+}
+
 .j2cl-read-viewport-placeholder,
 .visible-region-placeholder {
   background:

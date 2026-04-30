@@ -664,6 +664,109 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertEquals(12, mention.getEndOffset());
     Assert.assertEquals("teammate@example.com", mention.getUserAddress());
     Assert.assertEquals("@Teammate", mention.getDisplayText());
+    Assert.assertTrue(projected.getReadBlips().get(0).hasMention());
+  }
+
+  @Test
+  public void projectRejectsManualLinkAddressAsMentionMetadata() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "user@example.com",
+                        7L,
+                        8L,
+                        "Hi @Teammate",
+                        Arrays.asList(
+                            new SidecarAnnotationRange(
+                                "link/manual", "teammate@example.com", 3, 12)),
+                        Collections.<SidecarReactionEntry>emptyList())),
+                null),
+            null,
+            0);
+
+    J2clInteractionBlipModel interactionBlip = projected.getInteractionBlips().get(0);
+    Assert.assertTrue(interactionBlip.getMentionRanges().isEmpty());
+    Assert.assertFalse(projected.getReadBlips().get(0).hasMention());
+  }
+
+  @Test
+  public void projectRejectsManualLinkValueStartingWithAtAsMentionMetadata() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "user@example.com",
+                        7L,
+                        8L,
+                        "Hi @Teammate",
+                        Arrays.asList(
+                            new SidecarAnnotationRange(
+                                "link/manual", "@teammate@example.com", 3, 12)),
+                        Collections.<SidecarReactionEntry>emptyList())),
+                null),
+            null,
+            0);
+
+    J2clInteractionBlipModel interactionBlip = projected.getInteractionBlips().get(0);
+    Assert.assertTrue(interactionBlip.getMentionRanges().isEmpty());
+    Assert.assertFalse(projected.getReadBlips().get(0).hasMention());
+  }
+
+  @Test
+  public void projectRejectsManualLinkUrlWithAtAsMentionMetadata() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "user@example.com",
+                        7L,
+                        8L,
+                        "See @Teammate",
+                        Arrays.asList(
+                            new SidecarAnnotationRange(
+                                "link/manual", "mailto:teammate@example.com", 4, 13)),
+                        Collections.<SidecarReactionEntry>emptyList())),
+                null),
+            null,
+            0);
+
+    J2clInteractionBlipModel interactionBlip = projected.getInteractionBlips().get(0);
+    Assert.assertTrue(interactionBlip.getMentionRanges().isEmpty());
+    Assert.assertFalse(projected.getReadBlips().get(0).hasMention());
   }
 
   @Test

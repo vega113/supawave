@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Set;
 import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
 
 /**
@@ -242,6 +243,84 @@ public final class J2clRichContentDeltaFactory {
         new String[] {"tombstone/deleted"},
         new String[] {"true"},
         bodyItemCount);
+  }
+
+  public SidecarSubmitRequest addParticipantRequest(
+      String address, J2clSidecarWriteSession session, List<String> participantsToAdd) {
+    WriteContext context = requireWriteContext(address, session);
+    Set<String> participantAddresses = new LinkedHashSet<String>();
+    if (participantsToAdd != null) {
+      for (String participant : participantsToAdd) {
+        if (participant == null || participant.trim().isEmpty()) {
+          continue;
+        }
+        String normalizedParticipant = normalizeAddress(participant);
+        extractDomain(normalizedParticipant);
+        if (!normalizedParticipant.equals(context.normalizedAddress)) {
+          participantAddresses.add(normalizedParticipant);
+        }
+      }
+    }
+    if (participantAddresses.isEmpty()) {
+      throw new IllegalArgumentException("No participants to add.");
+    }
+    String deltaJson =
+        buildDeltaJson(
+            context.baseVersion,
+            context.historyHash,
+            context.normalizedAddress,
+            buildAddParticipantOperations(participantAddresses));
+    return new SidecarSubmitRequest(context.waveletName(), deltaJson, context.channelId);
+  }
+
+  public SidecarSubmitRequest publicityToggleRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String sharedDomainParticipant,
+      boolean makePublic) {
+    WriteContext context = requireWriteContext(address, session);
+    String sharedParticipant =
+        normalizeSharedDomainParticipant(sharedDomainParticipant, context.normalizedAddress);
+    String operation =
+        makePublic
+            ? buildAddParticipantOperation(sharedParticipant)
+            : buildRemoveParticipantOperation(sharedParticipant);
+    String deltaJson =
+        buildDeltaJson(
+            context.baseVersion, context.historyHash, context.normalizedAddress, operation);
+    return new SidecarSubmitRequest(context.waveletName(), deltaJson, context.channelId);
+  }
+
+  public SidecarSubmitRequest lockStateRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String currentLockState,
+      String nextLockState) {
+    WriteContext context = requireWriteContext(address, session);
+    String current = SidecarSelectedWaveDocument.normalizeLockState(currentLockState);
+    String next = SidecarSelectedWaveDocument.normalizeLockState(nextLockState);
+    if (current.equals(next)) {
+      throw new IllegalArgumentException("Lock state unchanged.");
+    }
+    StringBuilder components = new StringBuilder();
+    if (!SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED.equals(current)) {
+      appendDeleteElementStart(components, "lock", "mode", current);
+      appendComponentSeparator(components);
+      appendDeleteElementEnd(components);
+    }
+    if (!SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED.equals(next)) {
+      appendComponentSeparator(components);
+      appendElementStartWithAttr(components, "lock", "mode", next);
+      appendComponentSeparator(components);
+      appendElementEnd(components);
+    }
+    String deltaJson =
+        buildDeltaJson(
+            context.baseVersion,
+            context.historyHash,
+            context.normalizedAddress,
+            buildRawDocumentOperation("m/lock", components.toString()));
+    return new SidecarSubmitRequest(context.waveletName(), deltaJson, context.channelId);
   }
 
   /**
@@ -955,6 +1034,10 @@ public final class J2clRichContentDeltaFactory {
     return "{\"1\":\"" + escapeJson(address) + "\"}";
   }
 
+  private static String buildRemoveParticipantOperation(String address) {
+    return "{\"2\":\"" + escapeJson(address) + "\"}";
+  }
+
   private static String buildAddParticipantOperations(Set<String> participantAddresses) {
     StringBuilder operations = new StringBuilder();
     for (String participantAddress : participantAddresses) {
@@ -1015,6 +1098,68 @@ public final class J2clRichContentDeltaFactory {
         + "/"
         + waveId.substring(separator + 1)
         + "/~/conv+root";
+  }
+
+  private WriteContext requireWriteContext(String address, J2clSidecarWriteSession session) {
+    requirePresent(session, "Missing write session.");
+    String normalizedAddress = normalizeAddress(address);
+    extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId =
+        requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
+    return new WriteContext(
+        normalizedAddress, selectedWaveId, channelId, baseVersion, historyHash);
+  }
+
+  private static String normalizeSharedDomainParticipant(
+      String sharedDomainParticipant, String normalizedAddress) {
+    String trimmed =
+        sharedDomainParticipant == null
+            ? ""
+            : sharedDomainParticipant.trim().toLowerCase(Locale.ROOT);
+    if (trimmed.isEmpty()) {
+      return "@" + extractDomain(normalizedAddress);
+    }
+    if (!trimmed.startsWith("@")
+        || trimmed.length() == 1
+        || trimmed.indexOf('/', 1) >= 0
+        || trimmed.indexOf('@', 1) >= 0) {
+      throw new IllegalArgumentException(
+          "Invalid shared-domain participant: " + sharedDomainParticipant);
+    }
+    return trimmed;
+  }
+
+  private final class WriteContext {
+    private final String normalizedAddress;
+    private final String selectedWaveId;
+    private final String channelId;
+    private final long baseVersion;
+    private final String historyHash;
+
+    WriteContext(
+        String normalizedAddress,
+        String selectedWaveId,
+        String channelId,
+        long baseVersion,
+        String historyHash) {
+      this.normalizedAddress = normalizedAddress;
+      this.selectedWaveId = selectedWaveId;
+      this.channelId = channelId;
+      this.baseVersion = baseVersion;
+      this.historyHash = historyHash;
+    }
+
+    String waveletName() {
+      return buildWaveletName(selectedWaveId);
+    }
   }
 
   private static <T> T requirePresent(T value, String message) {

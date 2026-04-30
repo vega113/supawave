@@ -2115,7 +2115,7 @@ public final class J2clReadSurfaceDomRenderer {
     J2clReadWindowEntry placeholder = visiblePlaceholder();
     if (placeholder != null) {
       viewportEdgeListener.onViewportEdge(
-          placeholder.getBlipId(), J2clViewportGrowthDirection.FORWARD);
+          placeholder.getBlipId(), visiblePlaceholderDirection(placeholder));
     }
   }
 
@@ -2141,6 +2141,12 @@ public final class J2clReadSurfaceDomRenderer {
       }
     }
     return null;
+  }
+
+  private String visiblePlaceholderDirection(J2clReadWindowEntry placeholder) {
+    return renderedWindowEntries.indexOf(placeholder) == 0
+        ? J2clViewportGrowthDirection.BACKWARD
+        : J2clViewportGrowthDirection.FORWARD;
   }
 
   private J2clReadWindowEntry placeholderEntryByBlipId(String blipId) {

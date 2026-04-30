@@ -261,12 +261,12 @@ test.describe("G-PORT-8 top-of-wave action bar parity", () => {
     );
     await clickActionJ2cl(page, "version-history");
     const info = await (await infoResponse).json();
-    await historyResponse;
+    const history = await (await historyResponse).json();
     await expect(overlay).not.toHaveAttribute("hidden", "");
     await expect(overlay.locator(".current-version-label")).toBeVisible();
     await expect(overlay.locator("button.restore")).toHaveAttribute(
       "aria-disabled",
-      info.canRestore ? "false" : "true"
+      info.canRestore && Array.isArray(history) && history.length > 0 ? "false" : "true"
     );
     // Press Escape — the overlay's own keydown handler closes it and
     // reflects the hidden attribute back. The handler waits a frame

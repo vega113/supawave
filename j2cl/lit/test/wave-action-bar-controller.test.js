@@ -849,6 +849,84 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     }
   });
 
+  it("restore confirmation blocks duplicate POSTs while restore is in flight", async () => {
+    let restoreCalls = 0;
+    let resolveRestore;
+    stub = installFetchStub(async (url, init) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([{ appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 }]);
+      }
+      if (parsed.pathname.endsWith("/api/restore")) {
+        restoreCalls += 1;
+        expect(init.method).to.equal("POST");
+        return new Promise((resolve) => {
+          resolveRestore = () => resolve(jsonResponse({ ok: true, restoredToVersion: 3 }));
+        });
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <section class="sidecar-selected-card">
+          <wavy-wave-nav-row source-wave-id="example.com/w+restore-dupe"></wavy-wave-nav-row>
+        </section>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    const abortController = new AbortController();
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+restore-dupe" }
+        })
+      );
+      await waitFor(() => expect(overlay.restoreEnabled).to.equal(true));
+
+      const refreshed = [];
+      document.addEventListener(
+        "wavy-selected-wave-refresh-requested",
+        (e) => { refreshed.push(e.detail); },
+        { signal: abortController.signal }
+      );
+      const confirmDetail = { index: 0, version: overlay.versions[0] };
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: confirmDetail
+        })
+      );
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: confirmDetail
+        })
+      );
+      await waitFor(() => expect(restoreCalls).to.equal(1));
+      expect(overlay.restoreEnabled).to.equal(false);
+
+      resolveRestore();
+      await waitFor(() => expect(refreshed).to.have.lengthOf(1));
+      expect(overlay.restoreEnabled).to.equal(true);
+      expect(restoreCalls).to.equal(1);
+    } finally {
+      abortController.abort();
+      overlay.remove();
+    }
+  });
+
   it("restore failure is visible and does not request selected-wave refresh", async () => {
     stub = installFetchStub(async (url) => {
       const parsed = new URL(String(url), window.location.origin);

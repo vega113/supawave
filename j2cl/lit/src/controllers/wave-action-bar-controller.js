@@ -391,6 +391,7 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
   unbindOverlay(overlay);
   resetOverlayForWave(overlay);
   let snapshotRequestToken = 0;
+  let restoreInFlight = false;
   overlay.versionLoader = async (start, end) => {
     const info = await fetchJson(buildHistoryUrl(apiBase, "/api/info"));
     const versions = await fetchJson(
@@ -431,7 +432,15 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
 
   const onRestoreConfirmed = async (event) => {
     const version = versionNumberFromDetail(event.detail);
-    if (version == null || !overlay.restoreEnabled || !isCurrentWave(host, waveId)) return;
+    if (
+      version == null ||
+      restoreInFlight ||
+      !overlay.restoreEnabled ||
+      !isCurrentWave(host, waveId)
+    ) return;
+    restoreInFlight = true;
+    const restoreEnabledBeforeSubmit = overlay.restoreEnabled;
+    overlay.restoreEnabled = false;
     overlay.restoreStatus = `Restoring version ${version}…`;
     overlay.error = "";
     try {
@@ -463,6 +472,11 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
       if (isCurrentWave(host, waveId)) {
         overlay.restoreStatus = "";
         overlay.error = messageFromError(err, "Unable to restore version.");
+      }
+    } finally {
+      restoreInFlight = false;
+      if (isCurrentWave(host, waveId)) {
+        overlay.restoreEnabled = restoreEnabledBeforeSubmit;
       }
     }
   };

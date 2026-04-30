@@ -935,15 +935,20 @@ public final class J2clComposeSurfaceController {
 
   /** #1076: shortcut-triggered New Wave focuses the create body and records trigger telemetry. */
   public void focusCreateSurface(String trigger) {
-    if (started) {
-      String normalizedTrigger = normalizeCreateOpenTrigger(trigger);
-      if ("shortcut".equals(normalizedTrigger)) {
-        view.focusCreateComposer();
-      } else {
-        view.focusCreateSurface();
-      }
-      recordComposeOpenedTelemetry(normalizedTrigger);
+    if (!started || !isCreateSurfaceInteractive()) {
+      return;
     }
+    String normalizedTrigger = normalizeCreateOpenTrigger(trigger);
+    if ("shortcut".equals(normalizedTrigger)) {
+      view.focusCreateComposer();
+    } else {
+      view.focusCreateSurface();
+    }
+    recordComposeOpenedTelemetry(normalizedTrigger);
+  }
+
+  private boolean isCreateSurfaceInteractive() {
+    return !signedOut && !createSubmitting;
   }
 
   private void recordComposeOpenedTelemetry(String trigger) {

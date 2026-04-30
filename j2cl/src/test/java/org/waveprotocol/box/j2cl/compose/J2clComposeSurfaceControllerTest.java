@@ -811,6 +811,46 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void focusCreateSurfaceDoesNotRecordTelemetryWhenCreateUnavailable() {
+    RecordingTelemetrySink signedOutTelemetry = new RecordingTelemetrySink();
+    FakeView signedOutView = new FakeView();
+    J2clComposeSurfaceController signedOutController =
+        newControllerWithTelemetry(signedOutView, signedOutTelemetry);
+
+    signedOutController.start();
+    signedOutController.onSignedOut();
+    signedOutController.focusCreateSurface();
+    signedOutController.focusCreateSurface("shortcut");
+
+    Assert.assertEquals(0, signedOutView.focusCreateSurfaceCalls);
+    Assert.assertEquals(0, signedOutView.focusCreateComposerCalls);
+    Assert.assertTrue(signedOutTelemetry.events().isEmpty());
+
+    FakeGateway pendingGateway = new FakeGateway();
+    pendingGateway.autoResolveBootstrap = false;
+    RecordingTelemetrySink pendingTelemetry = new RecordingTelemetrySink();
+    FakeView pendingView = new FakeView();
+    J2clComposeSurfaceController pendingController =
+        new J2clComposeSurfaceController(
+            pendingGateway,
+            pendingView,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            pendingTelemetry);
+
+    pendingController.start();
+    pendingController.onCreateSubmittedWithTitle("Title", "Body");
+    Assert.assertTrue(pendingView.model.isCreateSubmitting());
+    pendingController.focusCreateSurface();
+    pendingController.focusCreateSurface("shortcut");
+
+    Assert.assertEquals(0, pendingView.focusCreateSurfaceCalls);
+    Assert.assertEquals(0, pendingView.focusCreateComposerCalls);
+    Assert.assertTrue(pendingTelemetry.events().isEmpty());
+  }
+
+  @Test
   public void throwingTelemetrySinkDoesNotBreakRichEditCommand() {
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =

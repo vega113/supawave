@@ -5,6 +5,7 @@
 import { fixture, expect, html } from "@open-wc/testing";
 import "../../src/elements/shell-root.js";
 import "../../src/elements/wave-blip.js";
+import { isMacPlatform } from "../../src/shortcuts/keybindings.js";
 
 // Stand-in confirm dialog so we don't pull in the F-3.S4 one + its
 // styling deps; the dispatcher only cares about open/close.
@@ -89,7 +90,11 @@ describe("<shell-root> shell-level keydown dispatcher", () => {
 
   it("Shift+Cmd+O dispatches wavy-new-wave-requested on document.body", () => {
     let sawCount = 0;
-    const handler = () => { sawCount += 1; };
+    let source = "";
+    const handler = (event) => {
+      sawCount += 1;
+      source = event.detail && event.detail.source;
+    };
     document.body.addEventListener("wavy-new-wave-requested", handler);
     try {
       fireKey("o", { shiftKey: true, metaKey: true });
@@ -104,6 +109,45 @@ describe("<shell-root> shell-level keydown dispatcher", () => {
       document.body.removeEventListener("wavy-new-wave-requested", handler);
     }
     expect(sawCount).to.equal(1);
+    expect(source).to.equal("keyboard-shortcut");
+  });
+
+  it("Shift+Cmd/Ctrl+O inside editable targets suppresses browser default without opening New Wave", () => {
+    let sawCount = 0;
+    const handler = () => { sawCount += 1; };
+    const input = document.createElement("input");
+    const composerBody = document.createElement("div");
+    composerBody.contentEditable = "true";
+    const events = [];
+    document.body.appendChild(input);
+    document.body.appendChild(composerBody);
+    document.body.addEventListener("wavy-new-wave-requested", handler);
+    const fireFrom = (target, mods) => {
+      target.focus();
+      const evt = new KeyboardEvent("keydown", {
+        key: "o",
+        code: "KeyO",
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        shiftKey: true,
+        metaKey: !!mods.metaKey,
+        ctrlKey: !!mods.ctrlKey
+      });
+      target.dispatchEvent(evt);
+      events.push(evt);
+    };
+    const primaryMod = isMacPlatform() ? { metaKey: true } : { ctrlKey: true };
+    try {
+      fireFrom(input, primaryMod);
+      fireFrom(composerBody, primaryMod);
+    } finally {
+      document.body.removeEventListener("wavy-new-wave-requested", handler);
+      input.remove();
+      composerBody.remove();
+    }
+    expect(sawCount).to.equal(0);
+    expect(events.every((evt) => evt.defaultPrevented)).to.equal(true);
   });
 
   it("Esc closes an open dialog before dropping blip focus", () => {

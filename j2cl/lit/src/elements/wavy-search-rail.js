@@ -516,7 +516,7 @@ export class WavySearchRail extends LitElement {
           class="new-wave"
           data-shortcut="Shift+Cmd+O"
           aria-keyshortcuts="Shift+Meta+O Shift+Control+O"
-          @click=${() => this._emit("wavy-new-wave-requested")}
+          @click=${() => this._emit("wavy-new-wave-requested", { source: "button" })}
         >
           New Wave
         </button>

@@ -38,6 +38,18 @@ public class J2clRootShellControllerTest {
             Arrays.asList(" Friend@Example.COM ", "", null, 123, "team@example.com")));
   }
 
+  @Test
+  public void newWaveTriggerFromSourceMapsShortcutAndDefaultsToButton() {
+    Assert.assertEquals(
+        "shortcut", J2clRootShellController.newWaveTriggerFromSource("keyboard-shortcut"));
+    Assert.assertEquals(
+        "shortcut", J2clRootShellController.newWaveTriggerFromSource("Keyboard-Shortcut"));
+    Assert.assertEquals("menu", J2clRootShellController.newWaveTriggerFromSource("menu"));
+    Assert.assertEquals("button", J2clRootShellController.newWaveTriggerFromSource("button"));
+    Assert.assertEquals("button", J2clRootShellController.newWaveTriggerFromSource("unknown"));
+    Assert.assertEquals("button", J2clRootShellController.newWaveTriggerFromSource(null));
+  }
+
   private static final class FakeToolbarView implements J2clToolbarSurfaceController.View {
     private J2clToolbarSurfaceModel model;
 

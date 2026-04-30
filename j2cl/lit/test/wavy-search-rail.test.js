@@ -75,6 +75,7 @@ describe("<wavy-search-rail>", () => {
     setTimeout(() => newWave.click(), 0);
     const evt = await oneEvent(el, "wavy-new-wave-requested");
     expect(evt).to.exist;
+    expect(evt.detail.source).to.equal("button");
   });
 
   it("Manage saved searches click emits wavy-manage-saved-searches-requested (B.4)", async () => {

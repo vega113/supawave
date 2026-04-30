@@ -3320,7 +3320,7 @@ public final class HtmlRenderer {
 
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress) {
+      String rootShellReturnTarget) {
     return renderJ2clRootShellPage(
         sessionJson,
         analyticsAccount,
@@ -3328,7 +3328,6 @@ public final class HtmlRenderer {
         serverBuildTime,
         currentReleaseId,
         rootShellReturnTarget,
-        websocketAddress,
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         null,
@@ -3338,7 +3337,7 @@ public final class HtmlRenderer {
 
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
+      String rootShellReturnTarget,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult) {
     return renderJ2clRootShellPage(
         sessionJson,
@@ -3347,7 +3346,6 @@ public final class HtmlRenderer {
         serverBuildTime,
         currentReleaseId,
         rootShellReturnTarget,
-        websocketAddress,
         snapshotResult,
         false,
         null,
@@ -3363,13 +3361,13 @@ public final class HtmlRenderer {
    * is OFF the legacy plain-DOM digest rendering path stays in place.
    *
    * <p>J-UI-5 (#1083) note: callers that need the inline rich-composer
-   * gate must call the 12-arg overload below with
+   * gate must call the 11-arg overload below with
    * {@code inlineRichComposerEnabled} set explicitly. This shorter
    * overload keeps the J-UI-1 callers compiling unchanged.
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
+      String rootShellReturnTarget,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled) {
     return renderJ2clRootShellPage(
@@ -3379,7 +3377,6 @@ public final class HtmlRenderer {
         serverBuildTime,
         currentReleaseId,
         rootShellReturnTarget,
-        websocketAddress,
         snapshotResult,
         railCardsEnabled,
         null,
@@ -3394,7 +3391,7 @@ public final class HtmlRenderer {
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
+      String rootShellReturnTarget,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled,
       String viewerLocale,
@@ -3406,7 +3403,6 @@ public final class HtmlRenderer {
         serverBuildTime,
         currentReleaseId,
         rootShellReturnTarget,
-        websocketAddress,
         snapshotResult,
         railCardsEnabled,
         viewerLocale,
@@ -3420,7 +3416,7 @@ public final class HtmlRenderer {
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
+      String rootShellReturnTarget,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled,
       String viewerLocale,
@@ -3433,7 +3429,6 @@ public final class HtmlRenderer {
         serverBuildTime,
         currentReleaseId,
         rootShellReturnTarget,
-        websocketAddress,
         snapshotResult,
         railCardsEnabled,
         viewerLocale,
@@ -3451,7 +3446,7 @@ public final class HtmlRenderer {
    */
   public static String renderJ2clRootShellPage(JSONObject sessionJson, String analyticsAccount,
       String buildCommit, long serverBuildTime, String currentReleaseId,
-      String rootShellReturnTarget, String websocketAddress,
+      String rootShellReturnTarget,
       J2clSelectedWaveSnapshotRenderer.SnapshotResult snapshotResult,
       boolean railCardsEnabled,
       String viewerLocale,
@@ -3494,14 +3489,6 @@ public final class HtmlRenderer {
     sb.append("<title>SupaWave J2CL Root Shell</title>\n");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<script type=\"text/javascript\">\n");
-    sb.append("var __session = ")
-        .append(escapeInlineJson(resolvedSessionJson.toString()))
-        .append(";\n");
-    sb.append("var __websocket_address = ")
-        .append(escapeJsonString(websocketAddress == null ? "" : websocketAddress))
-        .append(";\n");
-    sb.append("</script>\n");
     sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
     sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
     sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");
@@ -3808,8 +3795,7 @@ public final class HtmlRenderer {
       String buildCommit,
       long serverBuildTime,
       String currentReleaseId,
-      String viewerAddress,
-      String websocketAddress) {
+      String viewerAddress) {
     String resolvedBasePath = contextPath == null || contextPath.isEmpty() ? "/" : contextPath;
     if (!resolvedBasePath.endsWith("/")) {
       resolvedBasePath = resolvedBasePath + "/";

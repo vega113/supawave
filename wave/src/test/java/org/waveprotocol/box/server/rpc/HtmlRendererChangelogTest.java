@@ -58,8 +58,7 @@ public final class HtmlRendererChangelogTest {
         "abc123build",
         1700000000000L,
         "2026-03-27-unread-only-search-filter",
-        "/?view=j2cl-root",
-        "localhost:9898");
+        "/?view=j2cl-root");
 
     assertTrue(html.contains("function waveIdFromLegacyHash(hash){"));
     assertTrue(html.contains("function normalizeLegacyHashDeepLink(){"));
@@ -76,8 +75,7 @@ public final class HtmlRendererChangelogTest {
         "abc123build",
         1700000000000L,
         "2026-03-27-unread-only-search-filter",
-        "/wave/?view=j2cl-root",
-        "localhost:9898");
+        "/wave/?view=j2cl-root");
 
     assertTrue(html.contains("var nextUrl=\"\\/wave\\/\"+'?view=j2cl-root&wave=' + encodeURIComponent(waveId);"));
   }

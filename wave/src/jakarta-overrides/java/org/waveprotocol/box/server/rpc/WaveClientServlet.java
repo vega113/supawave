@@ -197,8 +197,7 @@ public class WaveClientServlet extends HttpServlet {
               buildCommit,
               serverBuildTime,
               currentReleaseId,
-              id.getAddress(),
-              resolveWebsocketAddressForPage(request, true))); // codeql[java/xss]
+              id.getAddress()));
         } catch (IOException e) {
           LOG.warning("Failed to render J2CL read-surface preview page", e);
           response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -298,7 +297,6 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request, true), // codeql[java/xss]
             snapshotResult,
             railCardsEnabled,
             viewerLocale,
@@ -575,12 +573,12 @@ public class WaveClientServlet extends HttpServlet {
   }
 
   /**
-   * Return the same presented WebSocket address this servlet would have
-   * embedded into the rendered HTML page. Exposed for sibling servlets that
-   * need to mirror the address into a JSON contract without re-reading config.
+   * Return the same presented WebSocket address this servlet would resolve for
+   * the J2CL root shell. Exposed for sibling servlets that need to mirror the
+   * address into a JSON contract without re-reading config.
    */
-  String presentedWebsocketAddress() {
-    return websocketPresentedAddress;
+  String presentedWebsocketAddress(HttpServletRequest request) {
+    return resolveWebsocketAddressForPage(request, true);
   }
 
   private JSONObject getSessionJson(WebSession session) {

@@ -30,7 +30,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("role", "user");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/");
 
     assertTrue(html.contains("<shell-root"));
     assertTrue(html.contains("<shell-header slot=\"header\" signed-in"));
@@ -51,7 +51,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     JSONObject session = new JSONObject();
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/");
 
     assertTrue(html.contains("<shell-root-signed-out"));
     assertFalse(html.contains("<shell-root data-j2cl-root-shell"));
@@ -62,7 +62,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/");
 
     assertFalse(html.contains("j2cl-root-shell-banner"));
     assertFalse(html.contains("j2cl-root-shell-nav"));
@@ -74,7 +74,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/");
 
     assertTrue(html.contains("id=\"j2cl-root-shell-workflow\""));
     assertTrue(html.contains("data-j2cl-root-shell-workflow=\"true\""));
@@ -95,7 +95,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/?view=j2cl-root&wave=example.com%2Fw%2B1",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1",
             "<div class=\"wave-content\"><h1 class=\"wave-title\">Inbox wave</h1></div>"));
@@ -112,7 +111,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     // External URL (starts with //) must be rejected and replaced with the safe default.
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "//evil.com/phish", "ws.example:443");
+        session, "", "commit", 0L, "rel", "//evil.com/phish");
 
     assertFalse("External return target must not appear in bootstrap JS",
         html.contains("evil.com"));
@@ -127,7 +126,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // A return target containing '&' must be JS-escaped (not HTML-escaped) inside <script>.
     // HTML escaping turns '&' into '&amp;' which the JS engine cannot decode.
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/?view=j2cl-root&wave=x", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root&wave=x");
 
     // Old broken pattern: single-quoted JS variable with HTML entity
     assertFalse("HTML entity must not appear in JS fallback variable (single-quoted)",
@@ -142,7 +141,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/mypath/?view=j2cl-root", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/mypath/?view=j2cl-root");
 
     assertTrue("Bootstrap must include normalizeLegacyHashDeepLink",
         html.contains("normalizeLegacyHashDeepLink()"));
@@ -164,7 +163,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // No address = signed out; provide a return target to check label markup.
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/wave/inbox", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/wave/inbox");
 
     assertTrue("Signed-out status strip must wrap return-target text in the syncable span",
         html.contains("<span id=\"j2cl-root-return-target-text\">Return target: "));
@@ -175,7 +174,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // No address = signed out
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/");
 
     assertTrue("Signed-out shell must include normalizeLegacyHashDeepLink",
         html.contains("normalizeLegacyHashDeepLink()"));
@@ -200,7 +199,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/?view=j2cl-root&wave=example.com%2Fw%2B1",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1",
             "<div class=\"wave-content\"><h1 class=\"wave-title\">Inbox wave</h1></div>"));
@@ -230,7 +228,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root");
 
     int cardIdx = html.indexOf("<section class=\"sidecar-selected-card\"");
     assertTrue(cardIdx >= 0);
@@ -258,7 +256,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         "fr",
@@ -280,7 +277,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         "pt-BR",
@@ -300,7 +296,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         "zh_CN",
@@ -326,7 +321,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         "\"><script>alert(1)</script>",
@@ -343,10 +337,10 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String htmlNull = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, null, false);
     String htmlEmpty = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "", false);
 
     assertTrue(htmlNull.contains("<html lang=\"en\">"));
@@ -362,7 +356,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1", "<p>wave content</p>"),
         false, "en", true);
@@ -384,7 +378,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en", true);
 
     assertFalse(
@@ -398,7 +392,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     // Use a real snapshot so the only thing suppressing the banner is the flag.
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1", "<p>wave content</p>"),
         false, "en", false);
@@ -414,13 +408,13 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     JSONObject signedOut = new JSONObject();
 
     String htmlSignedIn = HtmlRenderer.renderJ2clRootShellPage(
-        signedIn, "", "commit", 0L, "rel", "/", "ws.example:443",
+        signedIn, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1", "<p>wave content</p>"),
         false, "en", true);
     // Use a snapshot for signed-out too so the only gate is the signed-in check.
     String htmlSignedOut = HtmlRenderer.renderJ2clRootShellPage(
-        signedOut, "", "commit", 0L, "rel", "/", "ws.example:443",
+        signedOut, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1", "<p>wave content</p>"),
         false, "en", true);
@@ -448,10 +442,10 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String htmlLetterSubtag = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en-a", false);
     String htmlDigitSubtag = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en-1", false);
 
     assertTrue(
@@ -468,7 +462,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     // 3-digit region code (UN M.49) — valid BCP-47, must round-trip.
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "es-419", false);
 
     assertTrue(
@@ -481,7 +475,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     session.put("address", "alice@example.com");
 
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-Hans-CN", false);
 
     assertTrue(
@@ -507,7 +501,6 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         0L,
         "rel",
         "/?view=j2cl-root&wave=example.com%2Fw%2B1",
-        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.snapshot(
             "example.com/w+1", snapshotHtml));
 
@@ -533,10 +526,10 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // Unicode locale extension (u-ca-gregory) and private-use (x-phonebk)
     // are valid BCP-47 and must round-trip.
     String htmlUnicode = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "en-US-u-ca-gregory", false);
     String htmlPrivate = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "de-x-phonebk", false);
 
     assertTrue(
@@ -554,7 +547,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // zh-Hant-TW-u-ca-gregory has 5 dashes; the old dashCount>4 guard would
     // have rejected it and fallen back to "en".
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false,
         "zh-Hant-TW-u-ca-gregory", false);
 
@@ -570,7 +563,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // zh-TW in BCP-47 must map to zh_TW (underscore) in <wavy-header locale>,
     // because wavy-header's LOCALES list uses underscore codes.
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-TW", false);
 
     assertTrue(
@@ -588,7 +581,7 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     // zh-TW-u-ca-roc carries a calendar extension; wavy-header must still
     // get zh_TW (the closest supported option).
     String html = HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/", "ws.example:443",
+        session, "", "commit", 0L, "rel", "/",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(), false, "zh-TW-u-ca-roc", false);
 
     assertTrue(

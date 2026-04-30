@@ -180,7 +180,7 @@ public final class J2clStageOneFinalParityTest {
   public void readSurfacePreviewDemoRouteRendersFullChromeSurface() {
     String html =
         HtmlRenderer.renderJ2clReadSurfacePreviewPage(
-            "/", "commit-roll-up", 0L, "rel", "alice@example.com", "ws.example:443");
+            "/", "commit-roll-up", 0L, "rel", "alice@example.com");
     assertTrue("preview page renders an html element", html.contains("<html"));
     // The preview must mount: search rail, depth-nav, wave-nav-row,
     // version-history overlay (open), profile overlay (open),

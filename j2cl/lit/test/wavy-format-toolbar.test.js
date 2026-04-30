@@ -88,6 +88,11 @@ describe("<wavy-format-toolbar>", () => {
     expect(font.getAttribute("aria-label")).to.equal("Font");
     expect(size.getAttribute("aria-label")).to.equal("Size");
 
+    let nativeChangeCount = 0;
+    el.addEventListener("change", () => {
+      nativeChangeCount += 1;
+    });
+
     const fontEvent = oneEvent(el, "wavy-format-toolbar-action");
     font.value = "Georgia";
     font.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
@@ -95,6 +100,7 @@ describe("<wavy-format-toolbar>", () => {
     expect(fontAction.detail.actionId).to.equal("font-family");
     expect(fontAction.detail.value).to.equal("Georgia");
     expect(fontAction.detail.selectionDescriptor).to.equal(el.selectionDescriptor);
+    expect(nativeChangeCount).to.equal(0);
 
     const sizeEvent = oneEvent(el, "wavy-format-toolbar-action");
     size.value = "18px";
@@ -102,6 +108,7 @@ describe("<wavy-format-toolbar>", () => {
     const sizeAction = await sizeEvent;
     expect(sizeAction.detail.actionId).to.equal("font-size");
     expect(sizeAction.detail.value).to.equal("18px");
+    expect(nativeChangeCount).to.equal(0);
   });
 
   // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is

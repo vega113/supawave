@@ -283,7 +283,8 @@ export class WavyFormatToolbar extends LitElement {
   }
 
   _onSelectAction(action, event) {
-    const target = event.target;
+    event.stopPropagation();
+    const target = event.currentTarget;
     const value = target && target.value ? target.value : "";
     if (!value) return;
     this.dispatchEvent(

@@ -213,6 +213,25 @@ public final class WaveClientServletJ2clBootstrapTest {
   }
 
   @Test
+  public void legacyWaveClientResponseSetsPrivateCacheHeaders() throws Exception {
+    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"), false);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    String html = body.toString();
+    assertTrue(html.contains("webclient/webclient.nocache.js"));
+    assertFalse(html.contains("data-j2cl-root-shell"));
+    verify(response).setHeader("Cache-Control", "private, no-store");
+    verify(response).setHeader("Vary", "Cookie");
+  }
+
+  @Test
   public void humanLocaleRedirectUsesRequestUriInsteadOfAbsoluteRequestUrl() throws Exception {
     ParticipantId user = ParticipantId.ofUnsafe("alice@example.com");
     SessionManager sessionManager = mock(SessionManager.class);

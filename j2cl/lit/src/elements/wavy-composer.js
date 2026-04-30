@@ -219,24 +219,27 @@ function inlineFormatAnnotation(tag) {
   }
 }
 
-function inlineFormatAnnotationForNode(node) {
-  if (!node || node.nodeType !== Node.ELEMENT_NODE) return null;
+function inlineFormatAnnotationsForNode(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return [];
   const tag = node.tagName.toLowerCase();
   if (tag === "font") {
     const family = normalizeFontFamilyValue(node.getAttribute("face"));
-    return family ? { key: "style/fontFamily", value: family } : null;
+    return family ? [{ key: "style/fontFamily", value: family }] : [];
   }
   if (tag === "span") {
+    const annotations = [];
     const color = normalizePaletteColor(node.style && node.style.color);
-    if (color) return { key: "style/color", value: color };
+    if (color) annotations.push({ key: "style/color", value: color });
     const size = normalizeFontSizeValue(node.style && node.style.fontSize);
-    return size ? { key: "style/fontSize", value: size } : null;
+    if (size) annotations.push({ key: "style/fontSize", value: size });
+    return annotations;
   }
   if (tag === "mark") {
     const background = normalizePaletteColor(node.style && node.style.backgroundColor);
-    return background ? { key: "style/backgroundColor", value: background } : null;
+    return background ? [{ key: "style/backgroundColor", value: background }] : [];
   }
-  return inlineFormatAnnotation(tag);
+  const annotation = inlineFormatAnnotation(tag);
+  return annotation ? [annotation] : [];
 }
 
 /**
@@ -2042,8 +2045,8 @@ export class WavyComposer extends LitElement {
         // annotation in their `annotations` list and we *append* the
         // outer annotation to that list so the combined run round-trips
         // (codex review #1095 thread PRRT_kwDOBwxLXs5-C84a).
-        const inlineAnnotation = inlineFormatAnnotationForNode(node);
-        if (inlineAnnotation) {
+        const inlineAnnotations = inlineFormatAnnotationsForNode(node);
+        if (inlineAnnotations.length > 0) {
           flushText();
           const snapLen = components.length;
           const snapPending = pending;
@@ -2056,11 +2059,15 @@ export class WavyComposer extends LitElement {
           // outer annotation onto every child run (text + annotated)
           // so combined `<strong><em>x</em></strong>` carries both
           // fontWeight AND fontStyle on the same span.
-          for (const merged of mergeOuterAnnotation(
-            innerComps,
-            inlineAnnotation.key,
-            inlineAnnotation.value
-          )) {
+          let mergedComps = innerComps;
+          for (const inlineAnnotation of inlineAnnotations) {
+            mergedComps = mergeOuterAnnotation(
+              mergedComps,
+              inlineAnnotation.key,
+              inlineAnnotation.value
+            );
+          }
+          for (const merged of mergedComps) {
             components.push(merged);
           }
           continue;

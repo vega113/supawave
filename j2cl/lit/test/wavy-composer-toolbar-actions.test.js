@@ -259,6 +259,27 @@ describe("wavy-composer toolbar action handlers", () => {
     expect(run.text).to.equal("hello");
   });
 
+  it("preserves font size when serializing a colored span", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.innerHTML = '<span style="color: rgb(204, 0, 0); font-size: 18px">hello</span>';
+    el._onBodyInput();
+
+    const components = el.serializeRichComponents();
+    const run = components.find(
+      c => c.type === "annotated"
+        && Array.isArray(c.annotations)
+        && c.annotations.some(
+          a => a.key === "style/color" && a.value === "rgb(204, 0, 0)"
+        )
+        && c.annotations.some(
+          a => a.key === "style/fontSize" && a.value === "18px"
+        )
+    );
+    expect(run).to.exist;
+    expect(run.text).to.equal("hello");
+  });
+
   it("applies highlight color and serializes GWT style/backgroundColor", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);

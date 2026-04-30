@@ -1064,6 +1064,44 @@ public class J2clRichContentDeltaFactoryTest {
         "\"2\":\" today\"");
   }
 
+  @Test
+  public void createReplyRequestRoundTripsSuperscriptAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-4", 3L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("style/verticalAlign", "super", "x²")
+            .build();
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"style/verticalAlign\",\"3\":\"super\"}]}}",
+        "\"2\":\"x²\"",
+        "{\"1\":{\"2\":[\"style/verticalAlign\"]}}");
+  }
+
+  @Test
+  public void createReplyRequestRoundTripsSubscriptAnnotation() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-5", 4L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("style/verticalAlign", "sub", "H₂O")
+            .build();
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"style/verticalAlign\",\"3\":\"sub\"}]}}",
+        "\"2\":\"H₂O\"",
+        "{\"1\":{\"2\":[\"style/verticalAlign\"]}}");
+  }
+
   // F-3.S4 (#1038, R-5.6 F.6): blip-delete request emits a
   // tombstone/deleted=true annotation on the blip body. The op shape
   // mirrors the existing taskToggleRequest single-key writer except for

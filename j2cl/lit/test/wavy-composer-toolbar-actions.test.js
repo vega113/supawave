@@ -5,10 +5,10 @@ import "../src/elements/wavy-link-modal.js";
 // J-UI-5 (#1083) — selection-driven toolbar action handlers.
 //
 // These tests cover the wavy-composer's `_handleToolbarAction` branch
-// added by J-UI-5: bold / italic / underline / strikethrough / list /
-// link / unlink / clear-formatting are applied to the active range,
-// and reply-submit carries a `components` array reflecting the
-// per-fragment formatting.
+// added by J-UI-5: bold / italic / underline / strikethrough /
+// superscript / subscript / list / link / unlink / clear-formatting are
+// applied to the active range, and reply-submit carries a `components`
+// array reflecting the per-fragment formatting.
 
 function ensureWavyTokensLoaded() {
   if (document.querySelector('link[data-wavy-tokens-test]')) return;
@@ -76,6 +76,26 @@ describe("wavy-composer toolbar action handlers", () => {
     dispatchToolbarAction(el, "italic");
 
     expect(bodyOf(el).querySelector("em")).to.exist;
+  });
+
+  it("wraps the active selection in <sup> and <sub>", async () => {
+    const superscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(superscript).textContent = "2";
+    selectAllInBody(superscript);
+
+    dispatchToolbarAction(superscript, "superscript");
+
+    expect(bodyOf(superscript).querySelector("sup")).to.exist;
+    expect(bodyOf(superscript).querySelector("sup").textContent).to.equal("2");
+
+    const subscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    bodyOf(subscript).textContent = "2";
+    selectAllInBody(subscript);
+
+    dispatchToolbarAction(subscript, "subscript");
+
+    expect(bodyOf(subscript).querySelector("sub")).to.exist;
+    expect(bodyOf(subscript).querySelector("sub").textContent).to.equal("2");
   });
 
   it("wraps in <u> and a follow-up click with caret inside <u> unwraps", async () => {

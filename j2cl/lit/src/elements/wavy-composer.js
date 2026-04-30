@@ -188,6 +188,10 @@ function inlineFormatAnnotation(tag) {
     case "strike":
     case "del":
       return { key: "textDecoration", value: "line-through" };
+    case "sup":
+      return { key: "style/verticalAlign", value: "super" };
+    case "sub":
+      return { key: "style/verticalAlign", value: "sub" };
     default:
       return null;
   }
@@ -581,7 +585,9 @@ export class WavyComposer extends LitElement {
       bold: { tag: "strong", siblings: ["b"] },
       italic: { tag: "em", siblings: ["i"] },
       underline: { tag: "u", siblings: [] },
-      strikethrough: { tag: "s", siblings: ["strike", "del"] }
+      strikethrough: { tag: "s", siblings: ["strike", "del"] },
+      superscript: { tag: "sup", siblings: [] },
+      subscript: { tag: "sub", siblings: [] }
     };
     if (inlineWraps[actionId]) {
       this._toggleInlineWrapAtSelection(inlineWraps[actionId]);

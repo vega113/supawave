@@ -43,6 +43,13 @@ function rangeFullyContainsNode(range, node) {
   }
 }
 
+function fragmentHasContent(fragment) {
+  if (!fragment || !fragment.hasChildNodes()) return false;
+  const text = fragment.textContent || "";
+  const hasElementChild = Boolean(fragment.querySelector && fragment.querySelector("*"));
+  return text.length > 0 || hasElementChild;
+}
+
 function isSafeLinkHref(url) {
   if (!url || typeof url !== "string") return false;
   const trimmed = url.trim();
@@ -586,8 +593,8 @@ export class WavyComposer extends LitElement {
       italic: { tag: "em", siblings: ["i"] },
       underline: { tag: "u", siblings: [] },
       strikethrough: { tag: "s", siblings: ["strike", "del"] },
-      superscript: { tag: "sup", siblings: [] },
-      subscript: { tag: "sub", siblings: [] }
+      superscript: { tag: "sup", siblings: [], conflicts: ["sub"] },
+      subscript: { tag: "sub", siblings: [], conflicts: ["sup"] }
     };
     if (inlineWraps[actionId]) {
       this._toggleInlineWrapAtSelection(inlineWraps[actionId]);
@@ -697,9 +704,16 @@ export class WavyComposer extends LitElement {
       this._afterBodyMutation();
       return;
     }
+    const conflictTags = spec.conflicts || [];
+    if (conflictTags.length > 0 && this._replaceConflictingInlineWrapAtSelection(range, spec)) {
+      this._afterBodyMutation();
+      return;
+    }
     const wrapper = document.createElement(spec.tag);
     try {
-      wrapper.appendChild(range.extractContents());
+      const contents = range.extractContents();
+      this._unwrapTagsInFragment(contents, conflictTags);
+      wrapper.appendChild(contents);
       range.insertNode(wrapper);
       const restored = document.createRange();
       restored.selectNodeContents(wrapper);
@@ -710,6 +724,72 @@ export class WavyComposer extends LitElement {
       return;
     }
     this._afterBodyMutation();
+  }
+
+  _replaceConflictingInlineWrapAtSelection(range, spec) {
+    const conflictTags = spec.conflicts || [];
+    const ancestor = this._findAncestorTag(range.startContainer, conflictTags);
+    if (
+      !ancestor
+      || !(ancestor === range.endContainer || ancestor.contains(range.endContainer))
+    ) {
+      return false;
+    }
+    const parent = ancestor.parentNode;
+    if (!parent) return false;
+    let prefixFragment;
+    let middleFragment;
+    let suffixFragment;
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.selectNodeContents(ancestor);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      const middleRange = document.createRange();
+      middleRange.selectNodeContents(ancestor);
+      middleRange.setStart(range.startContainer, range.startOffset);
+      middleRange.setEnd(range.endContainer, range.endOffset);
+      const suffixRange = document.createRange();
+      suffixRange.selectNodeContents(ancestor);
+      suffixRange.setStart(range.endContainer, range.endOffset);
+      prefixFragment = prefixRange.cloneContents();
+      middleFragment = middleRange.cloneContents();
+      suffixFragment = suffixRange.cloneContents();
+    } catch (_e) {
+      return false;
+    }
+    if (!fragmentHasContent(middleFragment)) return false;
+    this._unwrapTagsInFragment(middleFragment, conflictTags);
+
+    const insertFragmentWrapper = (target, frag) => {
+      if (!fragmentHasContent(frag)) return null;
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(frag);
+      parent.insertBefore(wrapper, target);
+      return wrapper;
+    };
+
+    insertFragmentWrapper(ancestor, prefixFragment);
+    const replacement = document.createElement(spec.tag);
+    replacement.appendChild(middleFragment);
+    parent.insertBefore(replacement, ancestor);
+    insertFragmentWrapper(ancestor, suffixFragment);
+    parent.removeChild(ancestor);
+
+    const restored = document.createRange();
+    restored.selectNodeContents(replacement);
+    this._restoreSelectionRange(restored);
+    return true;
+  }
+
+  _unwrapTagsInFragment(fragment, tagNames) {
+    if (!fragment || !tagNames || tagNames.length === 0 || !fragment.querySelectorAll) return;
+    const selector = tagNames.join(",");
+    for (const node of Array.from(fragment.querySelectorAll(selector))) {
+      const parent = node.parentNode;
+      if (!parent) continue;
+      while (node.firstChild) parent.insertBefore(node.firstChild, node);
+      parent.removeChild(node);
+    }
   }
 
   /**
@@ -1310,13 +1390,13 @@ export class WavyComposer extends LitElement {
   _bodyHasRichContent() {
     if (!this._bodyElement) return false;
     // J-UI-5 (#1083): inline format wraps (bold/italic/underline/strike/
-    // link) and block wraps (lists, blockquote, headings) are also rich
+    // link/super/sub) and block wraps (lists, blockquote, headings) are also rich
     // content the plain-text `draft` cannot round-trip. Counting them
     // here keeps the next Lit re-render from clobbering the wraps via
     // a textContent overwrite.
     return Boolean(
       this._bodyElement.querySelector(
-        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, ul, ol, blockquote, h1, h2, h3, h4"
+        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, ul, ol, blockquote, h1, h2, h3, h4"
       )
     );
   }

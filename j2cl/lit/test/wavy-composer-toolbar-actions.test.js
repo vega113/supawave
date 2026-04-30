@@ -40,6 +40,27 @@ function selectAllInBody(el) {
   el._onSelectionChange();
 }
 
+function selectContents(el, node) {
+  bodyOf(el).focus();
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  el._onSelectionChange();
+}
+
+function selectTextRange(el, textNode, startOffset, endOffset) {
+  bodyOf(el).focus();
+  const range = document.createRange();
+  range.setStart(textNode, startOffset);
+  range.setEnd(textNode, endOffset);
+  const sel = document.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  el._onSelectionChange();
+}
+
 function dispatchToolbarAction(el, actionId) {
   el.dispatchEvent(
     new CustomEvent("wavy-format-toolbar-action", {
@@ -96,6 +117,39 @@ describe("wavy-composer toolbar action handlers", () => {
 
     expect(bodyOf(subscript).querySelector("sub")).to.exist;
     expect(bodyOf(subscript).querySelector("sub").textContent).to.equal("2");
+  });
+
+  it("replaces superscript and subscript instead of nesting them", async () => {
+    const superscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const supBody = bodyOf(superscript);
+    supBody.innerHTML = "<sup>2</sup>";
+    selectContents(superscript, supBody.querySelector("sup"));
+
+    dispatchToolbarAction(superscript, "subscript");
+
+    expect(supBody.querySelector("sup")).to.not.exist;
+    expect(supBody.querySelector("sub")).to.exist;
+    expect(supBody.querySelector("sub").textContent).to.equal("2");
+
+    const subscript = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const subBody = bodyOf(subscript);
+    subBody.innerHTML = "<sub>2</sub>";
+    selectContents(subscript, subBody.querySelector("sub"));
+
+    dispatchToolbarAction(subscript, "superscript");
+
+    expect(subBody.querySelector("sub")).to.not.exist;
+    expect(subBody.querySelector("sup")).to.exist;
+    expect(subBody.querySelector("sup").textContent).to.equal("2");
+
+    const partial = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const partialBody = bodyOf(partial);
+    partialBody.innerHTML = "<sup>123</sup>";
+    selectTextRange(partial, partialBody.querySelector("sup").firstChild, 1, 2);
+
+    dispatchToolbarAction(partial, "subscript");
+
+    expect(partialBody.innerHTML).to.equal("<sup>1</sup><sub>2</sub><sup>3</sup>");
   });
 
   it("wraps in <u> and a follow-up click with caret inside <u> unwraps", async () => {

@@ -889,33 +889,39 @@ describe("<wavy-composer> R-5.3 mentions", () => {
     it("emits style/verticalAlign=super for <sup>", async () => {
       const el = await fixture(html`<wavy-composer available></wavy-composer>`);
       document.body.appendChild(el);
-      const body = getBody(el);
-      body.innerHTML = "x<sup>2</sup>";
-      const components = el.serializeRichComponents();
-      const superRun = components.find(
-        c => c.type === "annotated"
-          && c.annotationKey === "style/verticalAlign"
-          && c.annotationValue === "super"
-      );
-      expect(superRun).to.exist;
-      expect(superRun.text).to.equal("2");
-      el.remove();
+      try {
+        const body = getBody(el);
+        body.innerHTML = "x<sup>2</sup>";
+        const components = el.serializeRichComponents();
+        const superRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/verticalAlign"
+            && c.annotationValue === "super"
+        );
+        expect(superRun).to.exist;
+        expect(superRun.text).to.equal("2");
+      } finally {
+        el.remove();
+      }
     });
 
     it("emits style/verticalAlign=sub for <sub>", async () => {
       const el = await fixture(html`<wavy-composer available></wavy-composer>`);
       document.body.appendChild(el);
-      const body = getBody(el);
-      body.innerHTML = "H<sub>2</sub>O";
-      const components = el.serializeRichComponents();
-      const subRun = components.find(
-        c => c.type === "annotated"
-          && c.annotationKey === "style/verticalAlign"
-          && c.annotationValue === "sub"
-      );
-      expect(subRun).to.exist;
-      expect(subRun.text).to.equal("2");
-      el.remove();
+      try {
+        const body = getBody(el);
+        body.innerHTML = "H<sub>2</sub>O";
+        const components = el.serializeRichComponents();
+        const subRun = components.find(
+          c => c.type === "annotated"
+            && c.annotationKey === "style/verticalAlign"
+            && c.annotationValue === "sub"
+        );
+        expect(subRun).to.exist;
+        expect(subRun.text).to.equal("2");
+      } finally {
+        el.remove();
+      }
     });
 
     // review-1077 Bug 3: mention chips nested inside an <a> must not

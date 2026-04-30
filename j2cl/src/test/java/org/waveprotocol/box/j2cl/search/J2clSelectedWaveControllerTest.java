@@ -377,6 +377,28 @@ public class J2clSelectedWaveControllerTest {
   }
 
   @Test
+  public void selectedWaveRefreshHandlerRefreshesOnlyCurrentWave() throws Exception {
+    Harness harness = new Harness();
+    Object controller = harness.createController(false);
+
+    harness.selectWave(controller, "example.com/w+1", null);
+    harness.resolveBootstrap(0);
+    harness.deliverUpdate(0, "Hello from the sidecar");
+
+    Assert.assertNotNull(harness.selectedWaveRefreshHandler);
+    harness.selectedWaveRefreshHandler.refresh("example.com/w+other");
+    Assert.assertEquals(
+        "stale restore events for another wave must not reopen the socket",
+        1,
+        harness.bootstrapAttempts.size());
+
+    harness.selectedWaveRefreshHandler.refresh("example.com/w+1");
+    Assert.assertEquals(1, harness.closedCount);
+    Assert.assertEquals(2, harness.bootstrapAttempts.size());
+    Assert.assertTrue((Boolean) harness.modelValue("isLoading"));
+  }
+
+  @Test
   public void replySubmitHandoffWaitsForLiveUpdateBeforeFallbackRefresh() throws Exception {
     Harness harness = new Harness();
     Object controller = harness.createController(false);
@@ -2368,6 +2390,7 @@ public class J2clSelectedWaveControllerTest {
     private List<String> lastPublishedParticipantIds = Collections.emptyList();
     private boolean lastNavRowPinned;
     private boolean lastNavRowArchived;
+    private J2clSelectedWaveController.SelectedWaveRefreshHandler selectedWaveRefreshHandler;
     private final J2clClientTelemetry.Sink telemetrySink;
 
     private Harness() {
@@ -2520,6 +2543,11 @@ public class J2clSelectedWaveControllerTest {
                   lastNavRowPinned = ((Boolean) args[0]).booleanValue();
                   lastNavRowArchived = ((Boolean) args[1]).booleanValue();
                   viewEvents.add("folder-state:" + lastNavRowPinned + ":" + lastNavRowArchived);
+                  return null;
+                }
+                if ("setSelectedWaveRefreshHandler".equals(method.getName())) {
+                  selectedWaveRefreshHandler =
+                      (J2clSelectedWaveController.SelectedWaveRefreshHandler) args[0];
                   return null;
                 }
                 return null;

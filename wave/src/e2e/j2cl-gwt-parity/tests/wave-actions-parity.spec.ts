@@ -247,8 +247,27 @@ test.describe("G-PORT-8 top-of-wave action bar parity", () => {
     const overlay = page.locator("wavy-version-history");
     await expect(overlay).toHaveCount(1);
     await expect(overlay).toHaveAttribute("hidden", "");
+    const infoResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/history/") &&
+        response.url().includes("/api/info") &&
+        response.status() < 500
+    );
+    const historyResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/history/") &&
+        response.url().includes("/api/history") &&
+        response.status() < 500
+    );
     await clickActionJ2cl(page, "version-history");
+    const info = await (await infoResponse).json();
+    await historyResponse;
     await expect(overlay).not.toHaveAttribute("hidden", "");
+    await expect(overlay.locator(".current-version-label")).toBeVisible();
+    await expect(overlay.locator("button.restore")).toHaveAttribute(
+      "aria-disabled",
+      info.canRestore ? "false" : "true"
+    );
     // Press Escape — the overlay's own keydown handler closes it and
     // reflects the hidden attribute back. The handler waits a frame
     // before applying the attr; give it up to 5s.

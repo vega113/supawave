@@ -253,4 +253,58 @@ describe("<wavy-version-history>", () => {
     expect(observed[0]).to.equal(0);
     expect(observed[1]).to.equal(Number.POSITIVE_INFINITY);
   });
+
+  it("shows loader progress and failed loader text without closing the overlay", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let rejectLoader;
+    el.versionLoader = () =>
+      new Promise((_resolve, reject) => {
+        rejectLoader = reject;
+      });
+    el.open_();
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector(".history-status").textContent).to.match(/Loading/);
+
+    rejectLoader(new Error("history unavailable"));
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.open).to.equal(true);
+    expect(el.renderRoot.querySelector(".history-status").textContent).to.match(
+      /history unavailable/
+    );
+  });
+
+  it("renders current version label and read-only snapshot preview", async () => {
+    const el = await fixture(html`<wavy-version-history open></wavy-version-history>`);
+    el.versions = [
+      { index: 0, label: "v3", timestamp: "2026-04-26T10:05:00Z", version: 3 },
+      { index: 1, label: "v5", timestamp: "2026-04-26T10:15:00Z", version: 5 }
+    ];
+    el.value = 1;
+    el.snapshot = {
+      version: 5,
+      participants: ["alice@example.com", "bob@example.com"],
+      documents: [
+        { id: "b+root", content: "Older title and root body" },
+        { id: "b+child", content: "Nested historical reply" }
+      ]
+    };
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector(".current-version-label").textContent).to.contain("v5");
+    const preview = el.renderRoot.querySelector(".snapshot-preview");
+    expect(preview).to.exist;
+    expect(preview.textContent).to.contain("Version 5");
+    expect(preview.textContent).to.contain("2 participants");
+    expect(preview.textContent).to.contain("Older title and root body");
+  });
+
+  it("renders restore status text near the destructive action", async () => {
+    const el = await fixture(html`<wavy-version-history open></wavy-version-history>`);
+    el.restoreStatus = "Version restored. Refreshing wave.";
+    await el.updateComplete;
+    const status = el.renderRoot.querySelector(".restore-status");
+    expect(status).to.exist;
+    expect(status.textContent).to.contain("Version restored");
+  });
 });

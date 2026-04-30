@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-j2cl-version-history-wiring",
+  "version": "PR #TBD",
+  "date": "2026-04-30",
+  "title": "J2CL version history can preview and restore wave versions",
+  "summary": "The J2CL wave action bar now opens a functional version-history overlay backed by the existing history API, with read-only snapshot previews and restore gating.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Load version history from the existing /history API, show a read-only snapshot preview, and submit confirmed restores only when the server reports restore permission."
+      ]
+    }
+  ]
+}

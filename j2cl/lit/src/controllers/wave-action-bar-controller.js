@@ -37,6 +37,7 @@ const ATTR_BUSY_WAVE_ID = "data-folder-busy-wave-id";
 let installed = false;
 let observer = null;
 const boundRows = new Set();
+const overlayBindings = new WeakMap();
 
 function isNavRow(node) {
   return (
@@ -264,6 +265,209 @@ function buildFolderUrl(params) {
   return "/folder/?" + search.toString();
 }
 
+function parseSelectedWaveId(waveId) {
+  if (typeof waveId !== "string") return null;
+  const slash = waveId.indexOf("/");
+  if (slash <= 0 || slash >= waveId.length - 1) return null;
+  const waveDomain = waveId.slice(0, slash);
+  const waveIdPart = waveId.slice(slash + 1);
+  if (!waveDomain || !waveIdPart) return null;
+  return {
+    waveDomain,
+    waveId: waveIdPart,
+    waveletDomain: waveDomain,
+    waveletId: "conv+root"
+  };
+}
+
+function enc(segment) {
+  return encodeURIComponent(segment);
+}
+
+function buildHistoryApiBase(parts) {
+  return (
+    "/history/" +
+    enc(parts.waveDomain) +
+    "/" +
+    enc(parts.waveId) +
+    "/" +
+    enc(parts.waveletDomain) +
+    "/" +
+    enc(parts.waveletId)
+  );
+}
+
+function buildHistoryUrl(apiBase, endpoint, params = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null) continue;
+    if (typeof value === "number" && !Number.isFinite(value)) continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return apiBase + endpoint + (query ? "?" + query : "");
+}
+
+async function fetchJson(url, init = {}) {
+  const { headers = {}, ...rest } = init;
+  const response = await fetch(url, {
+    ...rest,
+    credentials: "same-origin",
+    headers: { accept: "application/json", ...headers }
+  });
+  if (!response.ok) {
+    let text = "";
+    try { text = await response.text(); } catch (_e) {}
+    throw new Error(text || `Request failed with status ${response.status}`);
+  }
+  return await response.json();
+}
+
+function mapHistoryEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry, index) => {
+    const version = Number(
+      entry && entry.resultingVersion != null
+        ? entry.resultingVersion
+        : entry && entry.version != null
+          ? entry.version
+          : index
+    );
+    return {
+      index,
+      version,
+      label: Number.isFinite(version) ? `v${version}` : `v${index}`,
+      timestamp: entry && entry.timestamp != null ? String(entry.timestamp) : "",
+      appliedAt: entry && entry.appliedAt != null ? Number(entry.appliedAt) : null,
+      author: entry && entry.author ? String(entry.author) : "",
+      opCount: entry && entry.opCount != null ? Number(entry.opCount) : 0
+    };
+  });
+}
+
+function versionNumberFromDetail(detail) {
+  if (!detail || !detail.version) return null;
+  const candidate =
+    detail.version.version != null
+      ? detail.version.version
+      : detail.version.resultingVersion != null
+        ? detail.version.resultingVersion
+        : detail.version.index;
+  const parsed = Number(candidate);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function messageFromError(err, fallback) {
+  if (!err) return fallback;
+  if (typeof err.message === "string" && err.message) return err.message;
+  const text = String(err);
+  return text || fallback;
+}
+
+function resetOverlayForWave(overlay) {
+  if (overlay && typeof overlay.resetForWave === "function") {
+    overlay.resetForWave();
+    return;
+  }
+  overlay.versions = [];
+  overlay.value = 0;
+  overlay.loading = false;
+  overlay.error = "";
+  overlay.snapshot = null;
+  overlay.restoreStatus = "";
+  overlay.restoreEnabled = false;
+  overlay._loaderRan = false;
+}
+
+function unbindOverlay(overlay) {
+  const binding = overlayBindings.get(overlay);
+  if (!binding) return;
+  overlay.removeEventListener("wavy-version-changed", binding.onVersionChanged);
+  overlay.removeEventListener("wavy-version-restore-confirmed", binding.onRestoreConfirmed);
+  overlayBindings.delete(overlay);
+}
+
+function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
+  unbindOverlay(overlay);
+  resetOverlayForWave(overlay);
+  overlay.versionLoader = async (start, end) => {
+    const info = await fetchJson(buildHistoryUrl(apiBase, "/api/info"));
+    const versions = await fetchJson(
+      buildHistoryUrl(apiBase, "/api/history", { start, end })
+    );
+    const mapped = mapHistoryEntries(versions);
+    if (isCurrentWave(host, waveId)) {
+      overlay.restoreEnabled = !!(info && info.canRestore) && mapped.length > 0;
+    }
+    return mapped;
+  };
+
+  const onVersionChanged = async (event) => {
+    const version = versionNumberFromDetail(event.detail);
+    if (version == null || !isCurrentWave(host, waveId)) return;
+    overlay.loading = true;
+    overlay.error = "";
+    try {
+      const snapshot = await fetchJson(
+        buildHistoryUrl(apiBase, "/api/snapshot", { version })
+      );
+      if (!isCurrentWave(host, waveId)) return;
+      overlay.snapshot = snapshot;
+      overlay.error = "";
+    } catch (err) {
+      if (isCurrentWave(host, waveId)) {
+        overlay.error = messageFromError(err, "Unable to load version snapshot.");
+      }
+    } finally {
+      if (isCurrentWave(host, waveId)) {
+        overlay.loading = false;
+      }
+    }
+  };
+
+  const onRestoreConfirmed = async (event) => {
+    const version = versionNumberFromDetail(event.detail);
+    if (version == null || !overlay.restoreEnabled || !isCurrentWave(host, waveId)) return;
+    overlay.restoreStatus = `Restoring version ${version}…`;
+    overlay.error = "";
+    try {
+      const result = await fetchJson(
+        buildHistoryUrl(apiBase, "/api/restore", { version }),
+        {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: ""
+        }
+      );
+      if (!isCurrentWave(host, waveId)) return;
+      const restoredToVersion = Number(
+        result && result.restoredToVersion != null ? result.restoredToVersion : version
+      );
+      overlay.restoreStatus = `Version ${Number.isFinite(restoredToVersion) ? restoredToVersion : version} restored. Refreshing wave.`;
+      host.dispatchEvent(
+        new CustomEvent("wavy-selected-wave-refresh-requested", {
+          bubbles: true,
+          composed: true,
+          detail: {
+            waveId,
+            reason: "version-restore",
+            restoredToVersion: Number.isFinite(restoredToVersion) ? restoredToVersion : version
+          }
+        })
+      );
+    } catch (err) {
+      if (isCurrentWave(host, waveId)) {
+        overlay.restoreStatus = "";
+        overlay.error = messageFromError(err, "Unable to restore version.");
+      }
+    }
+  };
+
+  overlay.addEventListener("wavy-version-changed", onVersionChanged);
+  overlay.addEventListener("wavy-version-restore-confirmed", onRestoreConfirmed);
+  overlayBindings.set(overlay, { onVersionChanged, onRestoreConfirmed });
+}
+
 function folderFetchTimeoutMs() {
   if (typeof window === "undefined") return 15_000;
   const override = window.__G_PORT_8_FOLDER_TIMEOUT_MS;
@@ -434,6 +638,10 @@ function onVersionHistoryRequest(event) {
   const doc = (host && host.ownerDocument) || document;
   const overlay = doc.querySelector(VERSION_HISTORY_TAG.toLowerCase());
   if (!overlay) return;
+  const waveId = readWaveId(event);
+  const parsed = parseSelectedWaveId(waveId);
+  if (!parsed) return;
+  configureVersionHistoryOverlay(overlay, host, waveId, buildHistoryApiBase(parsed));
   // Open the overlay. The element reflects to the `open` attribute
   // and removes `hidden` in its _syncOpen. The overlay's own keydown
   // handler closes it on Esc and restores focus.

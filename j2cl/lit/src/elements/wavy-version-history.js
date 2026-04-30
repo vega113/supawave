@@ -49,7 +49,11 @@ export class WavyVersionHistory extends LitElement {
       type: Boolean,
       attribute: "restore-enabled",
       reflect: true
-    }
+    },
+    loading: { type: Boolean, reflect: true },
+    error: { attribute: false },
+    snapshot: { attribute: false },
+    restoreStatus: { attribute: false }
   };
 
   static styles = css`
@@ -92,6 +96,46 @@ export class WavyVersionHistory extends LitElement {
     .slider-row {
       display: grid;
       gap: var(--wavy-spacing-2, 8px);
+    }
+    .history-status,
+    .current-version-label,
+    .restore-status {
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+    }
+    .history-status[role="alert"] {
+      color: var(--wavy-signal-red, #ef4444);
+    }
+    .snapshot-preview {
+      display: grid;
+      gap: var(--wavy-spacing-2, 8px);
+      padding: var(--wavy-spacing-3, 12px);
+      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      border-radius: var(--wavy-radius-card, 12px);
+      background: rgba(15, 23, 42, 0.68);
+    }
+    .snapshot-preview h3 {
+      margin: 0;
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+    }
+    .snapshot-preview p {
+      margin: 0;
+      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+    }
+    .snapshot-documents {
+      display: grid;
+      gap: var(--wavy-spacing-2, 8px);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .snapshot-documents li {
+      padding: var(--wavy-spacing-2, 8px);
+      border-radius: var(--wavy-radius-card, 12px);
+      background: rgba(34, 211, 238, 0.08);
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      overflow-wrap: anywhere;
     }
     input[type="range"] {
       width: 100%;
@@ -181,6 +225,10 @@ export class WavyVersionHistory extends LitElement {
     this.showChanges = false;
     this.textOnly = false;
     this.restoreEnabled = false;
+    this.loading = false;
+    this.error = "";
+    this.snapshot = null;
+    this.restoreStatus = "";
     this.versionLoader = null;
     this._loaderRan = false;
     this._onKeyDown = this._onKeyDown.bind(this);
@@ -202,6 +250,8 @@ export class WavyVersionHistory extends LitElement {
       this._syncOpen();
       if (this.open && !this._loaderRan && typeof this.versionLoader === "function") {
         this._loaderRan = true;
+        this.loading = true;
+        this.error = "";
         try {
           // Range (0, Infinity) signals the loader to fetch the full
           // version history. Renderer can wrap with windowing as needed.
@@ -215,15 +265,24 @@ export class WavyVersionHistory extends LitElement {
           if (result && typeof result.then === "function") {
             result.then(
               (versions) => {
+                this.loading = false;
+                this.error = "";
                 if (Array.isArray(versions)) {
                   this.versions = versions;
                 }
               },
-              () => {}
+              (err) => {
+                this.loading = false;
+                this.error = messageFromError(err, "Unable to load version history.");
+              }
             );
+          } else {
+            this.loading = false;
           }
-        } catch (_e) {
+        } catch (err) {
           // Same — sync throws must not break the overlay chrome.
+          this.loading = false;
+          this.error = messageFromError(err, "Unable to load version history.");
         }
       }
     }
@@ -306,6 +365,17 @@ export class WavyVersionHistory extends LitElement {
 
   close_() {
     this.open = false;
+  }
+
+  resetForWave() {
+    this.versions = [];
+    this.value = 0;
+    this.loading = false;
+    this.error = "";
+    this.snapshot = null;
+    this.restoreStatus = "";
+    this.restoreEnabled = false;
+    this._loaderRan = false;
   }
 
   _onKeyDown(event) {
@@ -418,6 +488,7 @@ export class WavyVersionHistory extends LitElement {
     const idx = Math.min(Math.max(this.value || 0, 0), max);
     const current = versions[idx] || null;
     const restoreLabel = current ? `Restore version ${current.label}` : "Restore version";
+    const statusText = this.error || (this.loading ? "Loading version history…" : "");
 
     return html`
       <div class="backdrop" @click=${this._onExitClick}></div>
@@ -431,6 +502,15 @@ export class WavyVersionHistory extends LitElement {
           <span aria-hidden="true">×</span>
         </button>
         <h2>Version history</h2>
+        ${statusText
+          ? html`<p
+              class="history-status"
+              role=${this.error ? "alert" : "status"}
+            >${statusText}</p>`
+          : null}
+        <p class="current-version-label">
+          ${current ? `Current preview: ${current.label}` : "No versions loaded yet"}
+        </p>
         <div class="slider-row">
           <input
             type="range"
@@ -456,6 +536,7 @@ export class WavyVersionHistory extends LitElement {
             @click=${this._onTextOnlyClick}
           >Text only</button>
         </div>
+        ${this._renderSnapshotPreview()}
         <div class="actions">
           <button
             class="restore"
@@ -467,6 +548,9 @@ export class WavyVersionHistory extends LitElement {
           ${this.restoreEnabled
             ? null
             : html`<span class="restore-hint">Preview only — restore not available</span>`}
+          ${this.restoreStatus
+            ? html`<span class="restore-status" role="status">${this.restoreStatus}</span>`
+            : null}
         </div>
         <dialog class="confirm">
           <p>${restoreLabel}? This rewrites the wave to this point.</p>
@@ -478,6 +562,37 @@ export class WavyVersionHistory extends LitElement {
       </div>
     `;
   }
+
+  _renderSnapshotPreview() {
+    const snapshot = this.snapshot;
+    if (!snapshot) return null;
+    const docs = Array.isArray(snapshot.documents) ? snapshot.documents : [];
+    const participants = Array.isArray(snapshot.participants)
+      ? snapshot.participants.length
+      : 0;
+    const version = snapshot.version == null ? "selected" : snapshot.version;
+    return html`
+      <section class="snapshot-preview" aria-label="Read-only version preview">
+        <h3>Version ${version}</h3>
+        <p>${participants} participants · ${docs.length} documents</p>
+        <ul class="snapshot-documents">
+          ${docs.slice(0, 5).map((doc) => html`
+            <li>
+              <strong>${doc && doc.id ? doc.id : "document"}</strong>
+              <span>${doc && doc.content ? doc.content : ""}</span>
+            </li>
+          `)}
+        </ul>
+      </section>
+    `;
+  }
+}
+
+function messageFromError(err, fallback) {
+  if (!err) return fallback;
+  if (typeof err.message === "string" && err.message) return err.message;
+  const text = String(err);
+  return text || fallback;
 }
 
 if (!customElements.get("wavy-version-history")) {

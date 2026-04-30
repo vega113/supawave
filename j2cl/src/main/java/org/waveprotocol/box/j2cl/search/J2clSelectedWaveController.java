@@ -145,6 +145,15 @@ public final class J2clSelectedWaveController
      */
     default void setAwarenessPill(int pendingCount) {
     }
+
+    /**
+     * F-2 (#1054): registers the DOM bridge used by the Lit version-history
+     * overlay after a successful restore. The view extracts the wave id from
+     * {@code wavy-selected-wave-refresh-requested}; the controller verifies it
+     * still matches the active selection before reopening the read surface.
+     */
+    default void setSelectedWaveRefreshHandler(SelectedWaveRefreshHandler handler) {
+    }
   }
 
   @FunctionalInterface
@@ -159,6 +168,11 @@ public final class J2clSelectedWaveController
   @FunctionalInterface
   public interface MarkBlipReadHandler {
     void markBlipRead(String blipId, Runnable onError);
+  }
+
+  @FunctionalInterface
+  public interface SelectedWaveRefreshHandler {
+    void refresh(String waveId);
   }
 
   public interface RetryScheduler {
@@ -354,6 +368,7 @@ public final class J2clSelectedWaveController
     this.view.render(currentModel);
     this.view.setViewportEdgeHandler(this::onViewportEdge);
     this.view.setMarkBlipReadHandler(this::onMarkBlipRead);
+    this.view.setSelectedWaveRefreshHandler(this::onSelectedWaveRefreshRequested);
     publishWriteSession();
     if (visibilitySource != null) {
       visibilitySource.addVisibilityListener(this::onVisible);
@@ -377,6 +392,16 @@ public final class J2clSelectedWaveController
     // A refresh happens after the reply already committed on the server, so transient bootstrap or
     // open failures should recover like a reconnect instead of strand the panel on stale content.
     fetchBootstrapAndOpenSelectedWave(generation, 0, true);
+  }
+
+  private void onSelectedWaveRefreshRequested(String waveId) {
+    if (waveId == null || waveId.isEmpty()) {
+      return;
+    }
+    if (selectedWaveId == null || !selectedWaveId.equals(waveId)) {
+      return;
+    }
+    refreshSelectedWave();
   }
 
   /**

@@ -139,6 +139,16 @@ public class J2clToolbarSurfaceControllerTest {
   }
 
   @Test
+  public void colorActionsResolveByStableId() {
+    Assert.assertEquals(
+        J2clDailyToolbarAction.TEXT_COLOR,
+        J2clDailyToolbarAction.fromId("text-color"));
+    Assert.assertEquals(
+        J2clDailyToolbarAction.HIGHLIGHT_COLOR,
+        J2clDailyToolbarAction.fromId("highlight-color"));
+  }
+
+  @Test
   public void editActionWithoutWriteSessionSurfacesExplicitError() {
     FakeView view = new FakeView();
     List<J2clDailyToolbarAction> dispatched = new ArrayList<J2clDailyToolbarAction>();

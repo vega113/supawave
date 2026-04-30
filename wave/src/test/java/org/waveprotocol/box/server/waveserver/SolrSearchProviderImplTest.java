@@ -142,10 +142,10 @@ public class SolrSearchProviderImplTest extends TestCase {
         QueryHelper.parseQuery("has:unknown")));
   }
 
-  public void testPostFilteredQueriesStartAtZeroBeforePagination() {
+  public void testSolrQueriesStartAtZeroBeforeInMemoryPagination() {
     assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, true, false));
     assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, true));
-    assertEquals(5, SolrSearchProviderImpl.computeSolrStart(5, false, false));
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, false));
   }
 
   public void testSearchRejectsMentionsQueries() {

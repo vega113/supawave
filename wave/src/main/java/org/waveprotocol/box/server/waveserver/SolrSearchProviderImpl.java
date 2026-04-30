@@ -37,6 +37,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpStatus;
 import org.waveprotocol.box.stat.Timed;
+import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -187,6 +188,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
     if (hasAttachmentQuery) {
+      expandConversationalWavelets(resultsList, user, isAllQuery);
       AttachmentSearchFilter.filterByHasAttachment(resultsList);
     }
 
@@ -240,6 +242,68 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     }
     return results;
+  }
+
+  private void expandConversationalWavelets(List<WaveViewData> results,
+      final ParticipantId user, final boolean isAllQuery) {
+    Function<ReadableWaveletData, Boolean> matchesFunction =
+        new Function<ReadableWaveletData, Boolean>() {
+
+      @Override
+      public Boolean apply(ReadableWaveletData wavelet) {
+        try {
+          return isWaveletMatchesCriteria(wavelet, user, sharedDomainParticipantId, isAllQuery);
+        } catch (WaveletStateException e) {
+          LOG.warning(
+              "Failed to access wavelet "
+                  + WaveletName.of(wavelet.getWaveId(), wavelet.getWaveletId()), e);
+          return false;
+        }
+      }
+    };
+
+    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
+    for (WaveViewData wave : results) {
+      Set<WaveletId> visibleWaveletIds = new HashSet<WaveletId>();
+      for (ObservableWaveletData waveletData : wave.getWavelets()) {
+        visibleWaveletIds.add(waveletData.getWaveletId());
+      }
+
+      Set<WaveletId> conversationalWaveletIds = new HashSet<WaveletId>();
+      try {
+        Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(wave.getWaveId());
+        if (storedWaveletIds != null) {
+          conversationalWaveletIds.addAll(storedWaveletIds);
+        }
+      } catch (WaveletStateException e) {
+        LOG.warning("Failed to look up stored wavelets for " + wave.getWaveId(), e);
+      }
+
+      Wave loadedWave = loadedWaves.get(wave.getWaveId());
+      if (loadedWave != null) {
+        for (WaveletContainer container : loadedWave) {
+          conversationalWaveletIds.add(container.getWaveletName().waveletId);
+        }
+      }
+
+      for (WaveletId waveletId : conversationalWaveletIds) {
+        if (visibleWaveletIds.contains(waveletId) || !IdUtil.isConversationalId(waveletId)) {
+          continue;
+        }
+
+        WaveletName waveletName = WaveletName.of(wave.getWaveId(), waveletId);
+        try {
+          WaveletContainer container = waveMap.getWavelet(waveletName);
+          if (container == null || !container.applyFunction(matchesFunction)) {
+            continue;
+          }
+          wave.addWavelet(container.copyWaveletData());
+          visibleWaveletIds.add(waveletId);
+        } catch (WaveletStateException e) {
+          LOG.warning("Failed to expand wavelet " + waveletName, e);
+        }
+      }
+    }
   }
 
   private void addSearchResultsToCurrentWaveView(
@@ -314,7 +378,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   static int computeSolrStart(int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
-    return isUnreadOnlyQuery || hasAttachmentQuery ? 0 : startAt;
+    return 0;
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

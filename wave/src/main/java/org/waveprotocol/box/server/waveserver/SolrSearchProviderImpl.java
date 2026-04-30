@@ -185,6 +185,10 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
+    if (AttachmentSearchFilter.isHasAttachmentQuery(queryParams)) {
+      AttachmentSearchFilter.filterByHasAttachment(resultsList);
+    }
+
     // Solr does not index tags, so perform post-filtering for tag: queries.
     Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
         ? queryParams.get(TokenQueryType.TAG)
@@ -283,8 +287,9 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   /**
    * J-UI-2 (#1080): the rail's filter chips emit {@code is:unread},
    * {@code has:attachment}, and {@code from:me}. {@code is:unread} is
-   * handled equivalently to {@code unread:true} via post-filtering; the
-   * other chip tokens are URL-only this slice (deferred follow-ups).
+   * handled equivalently to {@code unread:true} via post-filtering, and
+   * {@code has:attachment} is post-filtered by attachment metadata docs.
+   * {@code from:me} is URL-only this slice (deferred follow-up).
    * In all three cases the token must be stripped before the query is
    * forwarded to Solr — Solr's schema does not know these prefixes and
    * a literal {@code is:unread} term in the user-query clause fails the

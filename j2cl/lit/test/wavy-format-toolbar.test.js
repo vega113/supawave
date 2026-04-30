@@ -162,6 +162,45 @@ describe("<wavy-format-toolbar>", () => {
     expect(event.detail.selectionDescriptor).to.equal(el.selectionDescriptor);
   });
 
+  it("clears an open colorpicker when selection collapses before reselecting text", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+
+    el.renderRoot.querySelector('[data-toolbar-action="text-color"]').dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        detail: { action: "text-color" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    await el.updateComplete;
+    let picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(true);
+
+    el.selectionDescriptor = { collapsed: true };
+    await el.updateComplete;
+    await new Promise((r) => requestAnimationFrame(r));
+    await el.updateComplete;
+    picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(false);
+
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 160, left: 120, width: 70, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+    await new Promise((r) => requestAnimationFrame(r));
+    await el.updateComplete;
+    picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(false);
+  });
+
   // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is
   // present and emits wavy-format-toolbar-action with actionId
   // "attachment-insert" so the controller's

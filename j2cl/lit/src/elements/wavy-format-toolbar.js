@@ -199,13 +199,22 @@ export class WavyFormatToolbar extends LitElement {
     super.disconnectedCallback();
   }
 
+  willUpdate(changed) {
+    if (
+      changed.has("selectionDescriptor") &&
+      !this._hasRenderableSelection(this.selectionDescriptor || {})
+    ) {
+      this._colorPickerMode = "";
+    }
+  }
+
   updated(changed) {
     if (changed.has("selectionDescriptor")) {
       // Cache the live Range when the selection becomes non-collapsed so that
       // scroll/resize repositioning re-reads the updated viewport rect of the
       // *same* range rather than whatever happens to be selected elsewhere.
       const descriptor = this.selectionDescriptor || {};
-      if (descriptor.collapsed === false) {
+      if (this._hasRenderableSelection(descriptor)) {
         const sel = typeof document !== "undefined" ? document.getSelection() : null;
         this._cachedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
       } else {
@@ -213,6 +222,16 @@ export class WavyFormatToolbar extends LitElement {
       }
       this._scheduleReposition();
     }
+  }
+
+  _hasRenderableSelection(descriptor) {
+    const rect = descriptor && descriptor.boundingRect;
+    return (
+      descriptor &&
+      descriptor.collapsed === false &&
+      rect &&
+      (rect.width > 0 || rect.height > 0)
+    );
   }
 
   _scheduleReposition() {
@@ -242,14 +261,13 @@ export class WavyFormatToolbar extends LitElement {
 
   _reposition() {
     const descriptor = this.selectionDescriptor || {};
-    const collapsed = descriptor.collapsed !== false;
-    const rect = descriptor.boundingRect;
-    if (collapsed || !rect || (rect.width === 0 && rect.height === 0)) {
+    if (!this._hasRenderableSelection(descriptor)) {
+      this._colorPickerMode = "";
       this.hidden = true;
       this.style.transform = "translate(-9999px, -9999px)";
       return;
     }
-    this._repositionToRect(rect);
+    this._repositionToRect(descriptor.boundingRect);
   }
 
   _repositionToRect(rect) {

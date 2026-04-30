@@ -579,6 +579,7 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
   });
 
   it("version-history changed fetches snapshot preview for the selected historical version", async () => {
+    let resolveSnapshot;
     stub = installFetchStub(async (url) => {
       const parsed = new URL(String(url), window.location.origin);
       if (parsed.pathname.endsWith("/api/info")) {
@@ -589,10 +590,15 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
       }
       if (parsed.pathname.endsWith("/api/snapshot")) {
         expect(parsed.searchParams.get("version")).to.equal("3");
-        return jsonResponse({
-          version: 3,
-          participants: ["alice@example.com"],
-          documents: [{ id: "b+root", content: "Historical root" }]
+        return new Promise((resolve) => {
+          resolveSnapshot = () =>
+            resolve(
+              jsonResponse({
+                version: 3,
+                participants: ["alice@example.com"],
+                documents: [{ id: "b+root", content: "Historical root" }]
+              })
+            );
         });
       }
       throw new Error(`unexpected fetch ${parsed.pathname}`);
@@ -619,6 +625,11 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
       await overlay.updateComplete;
       await waitFor(() => expect(overlay.versions).to.have.lengthOf(1));
       await overlay.updateComplete;
+      overlay.snapshot = {
+        version: 2,
+        documents: [{ id: "b+root", content: "Stale preview" }]
+      };
+      await overlay.updateComplete;
 
       overlay.dispatchEvent(
         new CustomEvent("wavy-version-changed", {
@@ -627,6 +638,11 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
           detail: { index: 0, version: overlay.versions[0] }
         })
       );
+      await waitFor(() => expect(resolveSnapshot).to.be.a("function"));
+      await overlay.updateComplete;
+      expect(overlay.snapshot).to.equal(null);
+
+      resolveSnapshot();
       await waitFor(() => expect(overlay.snapshot).to.exist);
       await overlay.updateComplete;
 

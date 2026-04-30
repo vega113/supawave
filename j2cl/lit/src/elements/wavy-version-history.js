@@ -488,7 +488,7 @@ export class WavyVersionHistory extends LitElement {
     const idx = Math.min(Math.max(this.value || 0, 0), max);
     const current = versions[idx] || null;
     const restoreLabel = current ? `Restore version ${current.label}` : "Restore version";
-    const statusText = this.error || (this.loading ? "Loading version history…" : "");
+    const statusText = this.error || (this.loading ? "Loading…" : "");
 
     return html`
       <div class="backdrop" @click=${this._onExitClick}></div>

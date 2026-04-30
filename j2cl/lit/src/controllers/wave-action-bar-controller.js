@@ -407,6 +407,7 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
     if (version == null || !isCurrentWave(host, waveId)) return;
     overlay.loading = true;
     overlay.error = "";
+    overlay.snapshot = null;
     try {
       const snapshot = await fetchJson(
         buildHistoryUrl(apiBase, "/api/snapshot", { version })

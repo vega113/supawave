@@ -10,7 +10,7 @@
 
 ## Constraints
 
-- Work only in `/Users/vega/devroot/worktrees/issue-1054-version-history-wiring-20260430`.
+- Work only in the checked-out worktree for this issue.
 - Do not use Maven. Java/server verification must be SBT-only.
 - Run Node/Lit commands only from `j2cl/lit/`.
 - Preserve GWT behavior and the standalone `/history/*` page; this issue only wires the J2CL overlay to the existing API.

@@ -251,13 +251,13 @@ test.describe("G-PORT-8 top-of-wave action bar parity", () => {
       (response) =>
         response.url().includes("/history/") &&
         response.url().includes("/api/info") &&
-        response.status() < 500
+        response.ok()
     );
     const historyResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/history/") &&
         response.url().includes("/api/history") &&
-        response.status() < 500
+        response.ok()
     );
     await clickActionJ2cl(page, "version-history");
     const info = await (await infoResponse).json();

@@ -141,6 +141,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     final boolean isUnreadOnlyQuery =
         queryParams.containsKey(TokenQueryType.UNREAD)
             || QueryHelper.hasIsValue(queryParams, "unread");
+    final boolean hasAttachmentQuery = AttachmentSearchFilter.isHasAttachmentQuery(queryParams);
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);
@@ -150,7 +151,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     if (numResults > 0) {
 
-      int start = isUnreadOnlyQuery ? 0 : startAt;
+      int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery);
       int rows = Math.max(numResults, ROWS);
 
       /*-
@@ -185,7 +186,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
-    if (AttachmentSearchFilter.isHasAttachmentQuery(queryParams)) {
+    if (hasAttachmentQuery) {
       AttachmentSearchFilter.filterByHasAttachment(resultsList);
     }
 
@@ -310,6 +311,10 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // The query is an "all" query if there is no 'in:' filter, or if
     // the explicit 'in:all' filter is used.
     return !IN_PATTERN.matcher(query).find() || IN_ALL_PATTERN.matcher(query).find();
+  }
+
+  static int computeSolrStart(int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery ? 0 : startAt;
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

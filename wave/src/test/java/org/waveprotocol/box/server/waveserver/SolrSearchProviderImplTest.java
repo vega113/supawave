@@ -142,6 +142,12 @@ public class SolrSearchProviderImplTest extends TestCase {
         QueryHelper.parseQuery("has:unknown")));
   }
 
+  public void testPostFilteredQueriesStartAtZeroBeforePagination() {
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, true, false));
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, true));
+    assertEquals(5, SolrSearchProviderImpl.computeSolrStart(5, false, false));
+  }
+
   public void testSearchRejectsMentionsQueries() {
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
         "core.wave_server_domain", "example.com",

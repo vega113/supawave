@@ -3408,6 +3408,106 @@ public class J2clSelectedWaveProjectorTest {
             entries, Collections.<J2clReadBlip>emptyList()));
   }
 
+  @Test
+  public void projectCarriesLockStateFromLockDocument() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                44L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(lockDocument("root")),
+                null),
+            null,
+            0);
+
+    Assert.assertEquals("root", projected.getLockState());
+  }
+
+  @Test
+  public void projectPreservesPreviousLockStateWhenSameWaveUpdateOmitsLockDocument() {
+    J2clSelectedWaveModel previous =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                44L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(lockDocument("all")),
+                null),
+            null,
+            0);
+
+    J2clSelectedWaveModel liveUpdate =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                45L,
+                "HASH2",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                null),
+            previous,
+            0);
+
+    Assert.assertEquals("all", liveUpdate.getLockState());
+  }
+
+  @Test
+  public void projectDropsPreviousLockStateAcrossWaveSwitch() {
+    J2clSelectedWaveModel previous =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                44L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(lockDocument("root")),
+                null),
+            null,
+            0);
+
+    J2clSelectedWaveModel switched =
+        J2clSelectedWaveProjector.project(
+            "example.com/w+2",
+            null,
+            new SidecarSelectedWaveUpdate(
+                2,
+                WAVELET_NAME_2,
+                true,
+                CHANNEL_ID,
+                45L,
+                "HASH2",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                null),
+            previous,
+            0);
+
+    Assert.assertEquals("unlocked", switched.getLockState());
+  }
+
   // -- Helpers ----------------------------------------------------------------
 
   private static J2clSearchDigestItem digest(String title, String snippet, int unreadCount) {
@@ -3426,6 +3526,19 @@ public class J2clSelectedWaveProjectorTest {
         Arrays.asList("user@example.com"),
         new ArrayList<SidecarSelectedWaveDocument>(),
         null);
+  }
+
+  private static SidecarSelectedWaveDocument lockDocument(String lockState) {
+    return new SidecarSelectedWaveDocument(
+        "m/lock",
+        "user@example.com",
+        44L,
+        45L,
+        "",
+        1,
+        Collections.<SidecarAnnotationRange>emptyList(),
+        Collections.<SidecarReactionEntry>emptyList(),
+        lockState);
   }
 
   private static SidecarSelectedWaveUpdate rootFragmentUpdate(

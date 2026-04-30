@@ -1,5 +1,6 @@
 package org.waveprotocol.box.j2cl.search;
 
+import elemental2.core.JsArray;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
@@ -58,6 +59,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   // server-first to avoid the upgrade reset bug.
   private final HTMLElement card;
   private final HTMLElement depthNavBar;
+  private final HTMLElement waveHeaderActions;
   private final HTMLElement waveNavRow;
   // F-2 slice 5 (#1055, R-3.7 G.6): live-update awareness pill.
   // Hidden by default; setAwarenessPill toggles visibility + text.
@@ -117,6 +119,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       // the element is in the DOM — never replaceChild, only property set.
       this.card = existingCard;
       this.depthNavBar = ensureDepthNavBar(existingCard);
+      this.waveHeaderActions = ensureWaveHeaderActions(existingCard);
       this.waveNavRow = ensureWaveNavRow(existingCard);
       this.awarenessPill = ensureAwarenessPill(existingCard);
       bindChromeEvents(existingCard, effectiveTelemetrySink);
@@ -179,6 +182,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     participantSummary = (HTMLElement) DomGlobal.document.createElement("p");
     participantSummary.className = "sidecar-selected-participants";
     coldCard.appendChild(participantSummary);
+
+    // #1074: selected-wave write actions sit between participants and the
+    // navigation row so the controls read as wave metadata, not blip content.
+    waveHeaderActions = (HTMLElement) DomGlobal.document.createElement("wavy-wave-header-actions");
+    coldCard.appendChild(waveHeaderActions);
 
     // F-2 slice 2 (#1046, R-3.4): wave nav row (E.1–E.10). The
     // pin/archive props default to false in S2; S5 wires the data
@@ -285,6 +293,38 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       card.appendChild(row);
     }
     return row;
+  }
+
+  /**
+   * #1074: locate or create the selected-wave header action strip. Server-first
+   * markup may have been rendered before this element existed, so create it
+   * without replacing any upgraded custom elements.
+   */
+  private static HTMLElement ensureWaveHeaderActions(HTMLElement card) {
+    HTMLElement existing = (HTMLElement) card.querySelector("wavy-wave-header-actions");
+    if (existing != null) {
+      return existing;
+    }
+    HTMLElement actions =
+        (HTMLElement) DomGlobal.document.createElement("wavy-wave-header-actions");
+    HTMLElement row = (HTMLElement) card.querySelector("wavy-wave-nav-row");
+    if (row != null) {
+      card.insertBefore(actions, row);
+      return actions;
+    }
+    HTMLElement snippetEl = (HTMLElement) card.querySelector(".sidecar-selected-snippet");
+    if (snippetEl != null) {
+      card.insertBefore(actions, snippetEl);
+      return actions;
+    }
+    HTMLElement participants =
+        (HTMLElement) card.querySelector(".sidecar-selected-participants");
+    if (participants != null && participants.nextSibling != null) {
+      card.insertBefore(actions, participants.nextSibling);
+    } else {
+      card.appendChild(actions);
+    }
+    return actions;
   }
 
   /**
@@ -472,11 +512,13 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
         waveNavRow.removeAttribute("archived");
         waveNavRow.removeAttribute(ATTR_NAV_ROW_FOLDER_STATE_WAVE_ID);
       }
+      clearWaveHeaderActions();
     } else {
       contentList.setAttribute("data-wave-id", renderedWaveId);
       if (waveNavRow != null) {
         waveNavRow.setAttribute("source-wave-id", renderedWaveId);
       }
+      publishWaveHeaderActions(model, renderedWaveId);
     }
     // F-2 slice 2 (#1046, R-3.4): bind the unread count to the nav row's
     // E.2 cyan emphasis. unreadCount may be UNKNOWN_UNREAD_COUNT (-1)
@@ -568,6 +610,77 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             model.getSelectedWaveId() != null && !model.getSelectedWaveId().isEmpty());
       }
     }
+  }
+
+  private void clearWaveHeaderActions() {
+    if (waveHeaderActions == null) {
+      return;
+    }
+    waveHeaderActions.removeAttribute("source-wave-id");
+    waveHeaderActions.removeAttribute("public");
+    waveHeaderActions.removeAttribute("lock-state");
+    waveHeaderActions.setAttribute("disabled", "");
+    setProperty(waveHeaderActions, "sourceWaveId", "");
+    setProperty(waveHeaderActions, "participants", buildStringArray(Collections.<String>emptyList()));
+    setProperty(waveHeaderActions, "public", false);
+    setProperty(waveHeaderActions, "lockState", "");
+    setProperty(waveHeaderActions, "disabled", true);
+  }
+
+  private void publishWaveHeaderActions(J2clSelectedWaveModel model, String waveId) {
+    if (waveHeaderActions == null) {
+      return;
+    }
+    List<String> participants = model.getParticipantIds();
+    boolean isPublic = containsSharedDomainParticipant(participants);
+    String lockState = model.getLockState();
+    boolean disabled = model.getWriteSession() == null;
+    waveHeaderActions.setAttribute("source-wave-id", waveId);
+    waveHeaderActions.setAttribute("lock-state", lockState);
+    if (disabled) {
+      waveHeaderActions.setAttribute("disabled", "");
+    } else {
+      waveHeaderActions.removeAttribute("disabled");
+    }
+    setProperty(waveHeaderActions, "sourceWaveId", waveId);
+    setProperty(waveHeaderActions, "participants", buildStringArray(participants));
+    setProperty(waveHeaderActions, "public", isPublic);
+    setProperty(waveHeaderActions, "lockState", lockState);
+    setProperty(waveHeaderActions, "disabled", disabled);
+    if (isPublic) {
+      waveHeaderActions.setAttribute("public", "");
+    } else {
+      waveHeaderActions.removeAttribute("public");
+    }
+  }
+
+  private static boolean containsSharedDomainParticipant(List<String> participants) {
+    if (participants == null) {
+      return false;
+    }
+    for (String participant : participants) {
+      if (participant != null && participant.trim().startsWith("@")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static JsArray<Object> buildStringArray(List<String> values) {
+    JsArray<Object> array = JsArray.of();
+    if (values == null) {
+      return array;
+    }
+    for (String value : values) {
+      if (value != null) {
+        array.push(value);
+      }
+    }
+    return array;
+  }
+
+  private static void setProperty(HTMLElement element, String name, Object value) {
+    Js.asPropertyMap(element).set(name, value);
   }
 
   public HTMLElement getComposeHost() {

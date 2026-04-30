@@ -418,6 +418,30 @@ public final class J2clComposeSurfaceController {
       throw new UnsupportedOperationException(
           "Blip delete is only available with the rich-content delta factory.");
     }
+
+    default SidecarSubmitRequest createAddParticipantRequest(
+        String address, J2clSidecarWriteSession session, List<String> participantsToAdd) {
+      throw new UnsupportedOperationException(
+          "Add participant is only available with the rich-content delta factory.");
+    }
+
+    default SidecarSubmitRequest createPublicityToggleRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String sharedDomainParticipant,
+        boolean makePublic) {
+      throw new UnsupportedOperationException(
+          "Publicity toggle is only available with the rich-content delta factory.");
+    }
+
+    default SidecarSubmitRequest createLockStateRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String currentLockState,
+        String nextLockState) {
+      throw new UnsupportedOperationException(
+          "Lock toggle is only available with the rich-content delta factory.");
+    }
   }
 
   public interface AttachmentControllerFactory {
@@ -430,6 +454,10 @@ public final class J2clComposeSurfaceController {
 
   interface AttachmentUploadClientFactory {
     J2clAttachmentUploadClient create();
+  }
+
+  private interface WaveHeaderActionRequestBuilder {
+    SidecarSubmitRequest create(String address, J2clSidecarWriteSession session);
   }
 
   public static final class AttachmentFileSelection {
@@ -1464,6 +1492,117 @@ public final class J2clComposeSurfaceController {
         error -> recordTaskMetadataTelemetry("failure-bootstrap"));
   }
 
+  public void onAddParticipantsRequested(
+      final String expectedWaveId, List<String> rawParticipantAddresses) {
+    final List<String> participantsToAdd =
+        normalizeCreateParticipantAddresses(rawParticipantAddresses);
+    if (participantsToAdd.isEmpty()) {
+      recordWaveHeaderActionTelemetry("compose.participants_added", "missing-participants");
+      return;
+    }
+    submitWaveHeaderAction(
+        expectedWaveId,
+        "compose.participants_added",
+        (address, session) ->
+            deltaFactory.createAddParticipantRequest(address, session, participantsToAdd));
+  }
+
+  public void onPublicityToggleRequested(final String expectedWaveId, final boolean makePublic) {
+    submitWaveHeaderAction(
+        expectedWaveId,
+        "compose.publicity_toggled",
+        (address, session) ->
+            deltaFactory.createPublicityToggleRequest(
+                address, session, sharedDomainParticipantForSession(session), makePublic));
+  }
+
+  public void onLockStateToggleRequested(
+      final String expectedWaveId, String currentLockState, String nextLockState) {
+    final String current = currentLockState == null ? "" : currentLockState.trim();
+    final String next = nextLockState == null ? "" : nextLockState.trim();
+    submitWaveHeaderAction(
+        expectedWaveId,
+        "compose.lock_toggled",
+        (address, session) -> deltaFactory.createLockStateRequest(address, session, current, next));
+  }
+
+  private void submitWaveHeaderAction(
+      final String expectedWaveId,
+      final String telemetryEventName,
+      final WaveHeaderActionRequestBuilder requestBuilder) {
+    final String expected = expectedWaveId == null ? "" : expectedWaveId.trim();
+    if (signedOut) {
+      recordWaveHeaderActionTelemetry(telemetryEventName, "signed-out");
+      return;
+    }
+    if (expected.isEmpty()) {
+      recordWaveHeaderActionTelemetry(telemetryEventName, "missing-wave");
+      return;
+    }
+    if (!hasSelectedWave(writeSession)) {
+      recordWaveHeaderActionTelemetry(telemetryEventName, "no-selected-wave");
+      return;
+    }
+    if (!expected.equals(writeSession.getSelectedWaveId())) {
+      recordWaveHeaderActionTelemetry(telemetryEventName, "wave-changed");
+      return;
+    }
+    final J2clSidecarWriteSession submitSession = writeSession;
+    gateway.fetchRootSessionBootstrap(
+        bootstrap -> {
+          if (signedOut
+              || !sameLogicalSession(submitSession, writeSession)
+              || writeSession == null
+              || !expected.equals(writeSession.getSelectedWaveId())) {
+            recordWaveHeaderActionTelemetry(telemetryEventName, "wave-changed");
+            return;
+          }
+          notifyCurrentUserAddress(bootstrap.getAddress());
+          SidecarSubmitRequest request;
+          try {
+            request = requestBuilder.create(bootstrap.getAddress(), submitSession);
+          } catch (RuntimeException e) {
+            recordWaveHeaderActionTelemetry(telemetryEventName, "failure-build");
+            return;
+          }
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> {
+                if (response != null && !response.getErrorMessage().isEmpty()) {
+                  recordWaveHeaderActionTelemetry(telemetryEventName, "failure-submit");
+                  return;
+                }
+                recordWaveHeaderActionTelemetry(telemetryEventName, "success");
+              },
+              error -> recordWaveHeaderActionTelemetry(telemetryEventName, "failure-submit"));
+        },
+        error -> recordWaveHeaderActionTelemetry(telemetryEventName, "failure-bootstrap"));
+  }
+
+  private static String sharedDomainParticipantForSession(J2clSidecarWriteSession session) {
+    if (session == null || session.getSelectedWaveId() == null) {
+      return "";
+    }
+    String waveId = session.getSelectedWaveId();
+    int separator = waveId.indexOf('/');
+    if (separator <= 0) {
+      return "";
+    }
+    return "@" + waveId.substring(0, separator).toLowerCase(Locale.ROOT);
+  }
+
+  private void recordWaveHeaderActionTelemetry(String eventName, String outcome) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event(eventName)
+              .field("outcome", outcome)
+              .build());
+    } catch (Exception ignored) {
+      // Telemetry must never affect composer behavior.
+    }
+  }
+
   private void recordTaskMetadataTelemetry(String outcome) {
     try {
       telemetrySink.record(
@@ -2454,6 +2593,31 @@ public final class J2clComposeSurfaceController {
           String blipId,
           int bodyItemCount) {
         return factory.blipDeleteRequest(address, session, blipId, bodyItemCount);
+      }
+
+      @Override
+      public SidecarSubmitRequest createAddParticipantRequest(
+          String address, J2clSidecarWriteSession session, List<String> participantsToAdd) {
+        return factory.addParticipantRequest(address, session, participantsToAdd);
+      }
+
+      @Override
+      public SidecarSubmitRequest createPublicityToggleRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String sharedDomainParticipant,
+          boolean makePublic) {
+        return factory.publicityToggleRequest(
+            address, session, sharedDomainParticipant, makePublic);
+      }
+
+      @Override
+      public SidecarSubmitRequest createLockStateRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String currentLockState,
+          String nextLockState) {
+        return factory.lockStateRequest(address, session, currentLockState, nextLockState);
       }
     };
   }

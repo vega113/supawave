@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-j2cl-wave-header-actions",
+  "version": "Issue #1074",
+  "date": "2026-04-30",
+  "title": "J2CL selected-wave header actions",
+  "summary": "The J2CL selected-wave surface now has parity actions for adding participants, creating a wave from the current participants, toggling public or private visibility, and cycling wave lock state.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds Wavy-styled selected-wave header actions and bridges them through the J2CL root shell submit pipeline using the existing AddParticipant and m/lock wave semantics."
+      ]
+    }
+  ]
+}

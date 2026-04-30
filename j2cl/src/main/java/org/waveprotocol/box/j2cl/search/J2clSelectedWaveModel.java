@@ -6,6 +6,7 @@ import java.util.List;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
+import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveDocument;
 
 public final class J2clSelectedWaveModel {
   public static final int UNKNOWN_UNREAD_COUNT = -1;
@@ -35,6 +36,7 @@ public final class J2clSelectedWaveModel {
   // viewport-windowed render path. Projector populates from
   // SidecarSelectedWaveUpdate.getConversationManifest().
   private SidecarConversationManifest conversationManifest = SidecarConversationManifest.empty();
+  private String lockState = SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED;
 
   J2clSelectedWaveModel(
       boolean hasSelection,
@@ -279,7 +281,8 @@ public final class J2clSelectedWaveModel {
         prevUnreadCount,
         prevRead,
         prevKnown,
-        prevStale);
+        prevStale)
+        .withLockState(sameWave ? previous.getLockState() : null);
   }
 
   public static J2clSelectedWaveModel error(
@@ -310,7 +313,8 @@ public final class J2clSelectedWaveModel {
         prevUnreadCount,
         prevRead,
         prevKnown,
-        prevStale);
+        prevStale)
+        .withLockState(sameWave ? previous.getLockState() : null);
   }
 
   private static String resolveTitle(String selectedWaveId, J2clSearchDigestItem digestItem) {
@@ -408,6 +412,15 @@ public final class J2clSelectedWaveModel {
     return this;
   }
 
+  public String getLockState() {
+    return lockState;
+  }
+
+  J2clSelectedWaveModel withLockState(String nextLockState) {
+    this.lockState = SidecarSelectedWaveDocument.normalizeLockState(nextLockState);
+    return this;
+  }
+
   public J2clSelectedWaveViewportState getViewportState() {
     return viewportState;
   }
@@ -448,7 +461,8 @@ public final class J2clSelectedWaveModel {
         readStateStale)
         // J-UI-4 (#1082, R-3.1): preserve manifest across clones so
         // viewport-windowed renders keep nesting after fragment growth.
-        .withConversationManifest(conversationManifest);
+        .withConversationManifest(conversationManifest)
+        .withLockState(lockState);
   }
 
   J2clSelectedWaveModel withReadBlips(List<J2clReadBlip> newReadBlips) {
@@ -473,7 +487,8 @@ public final class J2clSelectedWaveModel {
         read,
         readStateKnown,
         readStateStale)
-        .withConversationManifest(conversationManifest);
+        .withConversationManifest(conversationManifest)
+        .withLockState(lockState);
   }
 
   J2clSelectedWaveModel withStatus(String nextStatusText, String nextDetailText) {
@@ -500,7 +515,8 @@ public final class J2clSelectedWaveModel {
         read,
         readStateKnown,
         readStateStale)
-        .withConversationManifest(conversationManifest);
+        .withConversationManifest(conversationManifest)
+        .withLockState(lockState);
   }
 
   public int getUnreadCount() {

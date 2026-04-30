@@ -589,6 +589,124 @@ public class J2clRichContentDeltaFactoryTest {
         () -> factory.blipDeleteRequest("user@example.com", session, "b+root"));
   }
 
+  @Test
+  public void addParticipantRequestEmitsDedupedAddParticipantOperations() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.addParticipantRequest(
+            "User@Example.COM",
+            session,
+            Arrays.asList(
+                " Alice@Example.COM ",
+                "alice@example.com",
+                "",
+                null,
+                "bob@example.com",
+                "user@example.com"));
+
+    Assert.assertEquals("example.com/w+x/~/conv+root", request.getWaveletName());
+    Assert.assertEquals("chan-2", request.getChannelId());
+    String deltaJson = request.getDeltaJson();
+    String alice = "{\"1\":\"alice@example.com\"}";
+    String bob = "{\"1\":\"bob@example.com\"}";
+    assertContains(
+        deltaJson, "\"1\":{\"1\":5,\"2\":\"HASH\"}", "\"2\":\"user@example.com\"", alice, bob);
+    Assert.assertEquals(1, countOccurrences(deltaJson, alice));
+    Assert.assertEquals(1, countOccurrences(deltaJson, bob));
+    Assert.assertEquals(0, countOccurrences(deltaJson, "{\"1\":\"user@example.com\"}"));
+  }
+
+  @Test
+  public void publicityToggleRequestAddsSharedDomainParticipantWhenMakingPublic() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.publicityToggleRequest("user@example.com", session, "@Example.COM", true);
+
+    assertContains(
+        request.getDeltaJson(),
+        "\"1\":{\"1\":5,\"2\":\"HASH\"}",
+        "\"2\":\"user@example.com\"",
+        "{\"1\":\"@example.com\"}");
+    Assert.assertFalse(request.getDeltaJson().contains("{\"2\":\"@example.com\"}"));
+  }
+
+  @Test
+  public void publicityToggleRequestRemovesSharedDomainParticipantWhenMakingPrivate() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.publicityToggleRequest("user@example.com", session, "@Example.COM", false);
+
+    assertContains(
+        request.getDeltaJson(),
+        "\"1\":{\"1\":5,\"2\":\"HASH\"}",
+        "\"2\":\"user@example.com\"",
+        "{\"2\":\"@example.com\"}");
+    Assert.assertFalse(request.getDeltaJson().contains("{\"1\":\"@example.com\"}"));
+  }
+
+  @Test
+  public void lockStateRequestInsertsRootLockWhenUnlocked() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.lockStateRequest("user@example.com", session, "unlocked", "root");
+
+    String deltaJson = request.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "\"1\":\"m/lock\"",
+        "\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"root\"}]}",
+        "{\"4\":true}");
+    Assert.assertFalse(deltaJson.contains("\"7\":{\"1\":\"lock\""));
+  }
+
+  @Test
+  public void lockStateRequestReplacesRootLockWithAllLock() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.lockStateRequest("user@example.com", session, "root", "all");
+
+    assertContains(
+        request.getDeltaJson(),
+        "\"1\":\"m/lock\"",
+        "\"7\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"root\"}]}",
+        "{\"8\":true}",
+        "\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"all\"}]}",
+        "{\"4\":true}");
+  }
+
+  @Test
+  public void lockStateRequestRemovesAllLockWhenUnlocking() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+
+    SidecarSubmitRequest request =
+        factory.lockStateRequest("user@example.com", session, "all", "unlocked");
+
+    String deltaJson = request.getDeltaJson();
+    assertContains(
+        deltaJson,
+        "\"1\":\"m/lock\"",
+        "\"7\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"all\"}]}",
+        "{\"8\":true}");
+    Assert.assertFalse(deltaJson.contains("\"3\":{\"1\":\"lock\""));
+  }
+
   // F-3.S2 (#1038, R-5.4 step 5): metadata request emits both
   // task/assignee and task/dueTs annotations bracketing the blip body.
   // PR #1066 review thread PRRT_kwDOBwxLXs593gTP — task/dueTs must be

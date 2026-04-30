@@ -42,6 +42,7 @@ import "./elements/wave-blip.js";
 // inside its host so the bounds-measurement and positioning ancestor
 // converge on the same node.
 import "./elements/wavy-focus-frame.js";
+import "./elements/wavy-wave-header-actions.js";
 import "./elements/wavy-wave-nav-row.js";
 import "./elements/wavy-depth-nav-bar.js";
 // F-2 slice 3 (#1047): search rail + search-help modal + wavy header

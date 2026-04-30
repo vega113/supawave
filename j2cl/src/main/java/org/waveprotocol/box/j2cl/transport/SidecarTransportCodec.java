@@ -117,7 +117,8 @@ public final class SidecarTransportCodec {
                 extraction.textContent,
                 extraction.bodyItemCount,
                 extraction.annotationRanges,
-                extraction.reactionEntries));
+                extraction.reactionEntries,
+                extraction.lockState));
         if ("conversation".equals(documentId) && conversationManifest.isEmpty()) {
           conversationManifest = extractConversationManifest(documentOperation);
         }
@@ -512,10 +513,12 @@ public final class SidecarTransportCodec {
           "",
           0,
           new ArrayList<SidecarAnnotationRange>(),
-          new ArrayList<SidecarReactionEntry>());
+          new ArrayList<SidecarReactionEntry>(),
+          SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED);
     }
     StringBuilder text = new StringBuilder();
     int bodyItemCount = 0;
+    String lockState = SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED;
     Map<String, ActiveAnnotation> activeAnnotations =
         new LinkedHashMap<String, ActiveAnnotation>();
     List<SidecarAnnotationRange> annotationRanges = new ArrayList<SidecarAnnotationRange>();
@@ -561,6 +564,9 @@ public final class SidecarTransportCodec {
               && !reactionAddresses.contains(address)) {
             reactionAddresses.add(address);
           }
+        } else if ("m/lock".equals(documentId) && "lock".equals(type)) {
+          lockState =
+              SidecarSelectedWaveDocument.normalizeLockState(getAttribute(elementStart, "mode"));
         }
         if ("line".equals(type) && text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
           text.append('\n');
@@ -582,7 +588,8 @@ public final class SidecarTransportCodec {
         text.toString(),
         bodyItemCount,
         annotationRanges,
-        extractReactionEntries(documentId, reactionAddressesByEmoji));
+        extractReactionEntries(documentId, reactionAddressesByEmoji),
+        lockState);
   }
 
   private static void processAnnotationBoundary(
@@ -686,16 +693,19 @@ public final class SidecarTransportCodec {
     private final int bodyItemCount;
     private final List<SidecarAnnotationRange> annotationRanges;
     private final List<SidecarReactionEntry> reactionEntries;
+    private final String lockState;
 
     DocumentExtraction(
         String textContent,
         int bodyItemCount,
         List<SidecarAnnotationRange> annotationRanges,
-        List<SidecarReactionEntry> reactionEntries) {
+        List<SidecarReactionEntry> reactionEntries,
+        String lockState) {
       this.textContent = textContent;
       this.bodyItemCount = bodyItemCount;
       this.annotationRanges = annotationRanges;
       this.reactionEntries = reactionEntries;
+      this.lockState = lockState;
     }
   }
 

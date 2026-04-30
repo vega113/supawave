@@ -114,6 +114,7 @@ public final class J2clSelectedWaveProjector {
     SidecarConversationManifest manifestFromUpdate = updateManifest(update);
     SidecarConversationManifest effectiveManifest =
         chooseManifest(manifestFromUpdate, previousMatchesWave, previous);
+    String lockState = chooseLockState(update, previousMatchesWave, previous);
     if (!hasViewportWindow) {
       readBlips = applyConversationManifest(readBlips, effectiveManifest);
     }
@@ -192,7 +193,34 @@ public final class J2clSelectedWaveProjector {
         // document (live/fragment-only updates do this), preserve the
         // previous wave's manifest so the next renderWindow() does not
         // fall back to flat threading until a full snapshot resends.
-        .withConversationManifest(effectiveManifest);
+        .withConversationManifest(effectiveManifest)
+        .withLockState(lockState);
+  }
+
+  private static String chooseLockState(
+      SidecarSelectedWaveUpdate update,
+      boolean previousMatchesWave,
+      J2clSelectedWaveModel previous) {
+    String fromUpdate = lockStateFromDocuments(update.getDocuments());
+    if (fromUpdate != null) {
+      return fromUpdate;
+    }
+    if (previousMatchesWave && previous != null) {
+      return previous.getLockState();
+    }
+    return SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED;
+  }
+
+  private static String lockStateFromDocuments(List<SidecarSelectedWaveDocument> documents) {
+    if (documents == null) {
+      return null;
+    }
+    for (SidecarSelectedWaveDocument document : documents) {
+      if (document != null && "m/lock".equals(document.getDocumentId())) {
+        return document.getLockState();
+      }
+    }
+    return null;
   }
 
   /**
@@ -290,7 +318,8 @@ public final class J2clSelectedWaveProjector {
         // J-UI-4 (#1082, R-3.1): preserve manifest across read-state
         // re-projections — read-state updates carry no conversation
         // document and must not flatten threading.
-        .withConversationManifest(previous.getConversationManifest());
+        .withConversationManifest(previous.getConversationManifest())
+        .withLockState(previous.getLockState());
   }
 
   private static String appendStatus(String base, String suffix) {

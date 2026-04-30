@@ -208,6 +208,58 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
+  public void decodeSelectedWaveUpdateReadsRootLockDocumentState() {
+    String json =
+        "{\"sequenceNumber\":14,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"m/lock\","
+            + "\"2\":{\"1\":[{\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"root\"}]}}]},"
+            + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch-lock\"}}";
+
+    SidecarSelectedWaveDocument document =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getDocuments().get(0);
+
+    Assert.assertEquals("m/lock", document.getDocumentId());
+    Assert.assertEquals("root", document.getLockState());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateReadsAllLockDocumentState() {
+    String json =
+        "{\"sequenceNumber\":15,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"m/lock\","
+            + "\"2\":{\"1\":[{\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"all\"}]}}]},"
+            + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch-lock\"}}";
+
+    SidecarSelectedWaveDocument document =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getDocuments().get(0);
+
+    Assert.assertEquals("all", document.getLockState());
+  }
+
+  @Test
+  public void decodeSelectedWaveUpdateNormalizesUnknownLockModeToUnlocked() {
+    String json =
+        "{\"sequenceNumber\":16,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"m/lock\","
+            + "\"2\":{\"1\":[{\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"invalid\"}]}}]},"
+            + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch-lock\"}}";
+
+    SidecarSelectedWaveDocument document =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getDocuments().get(0);
+
+    Assert.assertEquals("unlocked", document.getLockState());
+  }
+
+  @Test
   public void decodeSelectedWaveUpdateReadsMentionAnnotationRanges() {
     String json =
         "{\"sequenceNumber\":17,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"

@@ -1,10 +1,13 @@
 package org.waveprotocol.box.j2cl.search;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import elemental2.core.JsArray;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLElement;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import jsinterop.base.Js;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -18,8 +21,9 @@ import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
 /**
  * F-2 slice 2 (#1046) — coverage for the chrome elements
  * {@link J2clSelectedWaveView} mounts: {@code <wavy-depth-nav-bar>},
- * {@code <wavy-wave-nav-row>} (and indirectly {@code <wavy-focus-frame>}
- * which the renderer mounts inside its surface).
+ * {@code <wavy-wave-header-actions>}, {@code <wavy-wave-nav-row>} (and
+ * indirectly {@code <wavy-focus-frame>} which the renderer mounts inside its
+ * surface).
  *
  * <p>These tests run only when a real browser DOM is present (J2CL test
  * runner against Chromium); JVM test runs skip via {@code Assume}.
@@ -47,6 +51,32 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertNotNull(
         "Cold mount must insert <wavy-wave-nav-row>",
         host.querySelector("wavy-wave-nav-row"));
+    Assert.assertNotNull(
+        "Cold mount must insert <wavy-wave-header-actions>",
+        host.querySelector("wavy-wave-header-actions"));
+  }
+
+  @Test
+  public void coldMountPlacesHeaderActionsBetweenParticipantsAndNavRow() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    new J2clSelectedWaveView(host);
+
+    HTMLElement participants = (HTMLElement) host.querySelector(".sidecar-selected-participants");
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+
+    Assert.assertNotNull(participants);
+    Assert.assertNotNull(actions);
+    Assert.assertNotNull(row);
+    Assert.assertSame(
+        "Header actions must sit after participants",
+        actions,
+        participants.nextSibling);
+    Assert.assertSame(
+        "Wave nav row must sit after header actions",
+        row,
+        actions.nextSibling);
   }
 
   @Test
@@ -135,6 +165,60 @@ public class J2clSelectedWaveViewChromeTest {
         "Nav-row receives the source wave id",
         "example.com/w+abc",
         row.getAttribute("source-wave-id"));
+  }
+
+  @Test
+  public void renderBindsSelectedWaveStateToHeaderActions() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    J2clSelectedWaveModel model =
+        selectedWritableModel(
+            "example.com/w+actions",
+            Arrays.asList("@example.com", "alice@example.com", "bob@example.com"));
+
+    view.render(model);
+
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
+    Assert.assertEquals(
+        "Header actions receive the selected wave id",
+        "example.com/w+actions",
+        actions.getAttribute("source-wave-id"));
+    Assert.assertTrue(
+        "Shared-domain participant marks the wave public",
+        actions.hasAttribute("public"));
+    Assert.assertEquals(
+        "Lock state defaults to unlocked until the lock document is projected",
+        "unlocked",
+        actions.getAttribute("lock-state"));
+    Assert.assertFalse(
+        "Header actions are enabled when the selected wave has a write session",
+        actions.hasAttribute("disabled"));
+    Assert.assertFalse(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
+    Object participantsObject = Js.asPropertyMap(actions).get("participants");
+    Assert.assertTrue(
+        "Header actions receive participants as a JS array",
+        JsArray.isArray(participantsObject));
+    JsArray<?> participants = Js.uncheckedCast(participantsObject);
+    Assert.assertEquals(3, participants.length);
+    Assert.assertEquals("@example.com", participants.getAt(0));
+    Assert.assertEquals("alice@example.com", participants.getAt(1));
+    Assert.assertEquals("bob@example.com", participants.getAt(2));
+  }
+
+  @Test
+  public void renderDisablesHeaderActionsWithoutWriteSession() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+readonly"));
+
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
+    Assert.assertTrue(
+        "Read-only selected waves must disable mutating header actions",
+        actions.hasAttribute("disabled"));
+    Assert.assertTrue(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
   }
 
   @Test
@@ -411,6 +495,23 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertFalse(
         "Cleared selection clears stale model ownership marker",
         row.hasAttribute("data-folder-state-wave-id"));
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
+    Assert.assertFalse(
+        "Cleared selection clears the source wave id on header actions",
+        actions.hasAttribute("source-wave-id"));
+    Assert.assertFalse(
+        "Cleared selection clears stale public state",
+        actions.hasAttribute("public"));
+    Assert.assertFalse(
+        "Cleared selection clears stale lock state",
+        actions.hasAttribute("lock-state"));
+    Assert.assertTrue(
+        "Cleared selection disables mutating header actions",
+        actions.hasAttribute("disabled"));
+    Assert.assertTrue(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
+    Object participantsObject = Js.asPropertyMap(actions).get("participants");
+    Assert.assertTrue(JsArray.isArray(participantsObject));
+    Assert.assertEquals(0, Js.<JsArray<?>>uncheckedCast(participantsObject).length);
   }
 
   @Test
@@ -527,6 +628,7 @@ public class J2clSelectedWaveViewChromeTest {
     HTMLElement bar = (HTMLElement) host.querySelector("wavy-depth-nav-bar");
     HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
     J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
     Assert.assertSame(
         "Server-first re-bind must re-use the same depth-nav-bar element (no replaceChild)",
         bar,
@@ -538,6 +640,13 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertFalse(
         "Server-first re-bind starts without model-owned folder marker",
         row.hasAttribute("data-folder-state-wave-id"));
+    Assert.assertNotNull(
+        "Server-first re-bind must create header actions when SSR lacks them",
+        actions);
+    Assert.assertSame(
+        "Server-first header actions must be inserted before the wave nav row",
+        row,
+        actions.nextSibling);
 
     view.render(selectedModel("example.com/w+server-first"));
     view.setNavRowFolderState(true, false);
@@ -626,6 +735,22 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   private static J2clSelectedWaveModel selectedModel(String waveId) {
+    return selectedModel(waveId, Collections.<String>emptyList());
+  }
+
+  private static J2clSelectedWaveModel selectedModel(String waveId, List<String> participants) {
+    return selectedModel(waveId, participants, null);
+  }
+
+  private static J2clSelectedWaveModel selectedWritableModel(String waveId, List<String> participants) {
+    return selectedModel(
+        waveId,
+        participants,
+        new J2clSidecarWriteSession(waveId, "chan-1", 44L, "ABCD", "b+root"));
+  }
+
+  private static J2clSelectedWaveModel selectedModel(
+      String waveId, List<String> participants, J2clSidecarWriteSession writeSession) {
     return new J2clSelectedWaveModel(
         true,
         false,
@@ -637,10 +762,10 @@ public class J2clSelectedWaveViewChromeTest {
         "",
         "",
         0,
-        Collections.<String>emptyList(),
+        participants,
         Arrays.<String>asList(),
         Arrays.<J2clReadBlip>asList(),
-        null,
+        writeSession,
         0,
         true,
         true,

@@ -43,23 +43,29 @@ export class WavyConfirmDialog extends LitElement {
 
   static styles = css`
     :host {
-      display: contents;
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+    }
+    :host([open]) {
+      display: block;
     }
     /* F-3.S4 (#1038, R-5.6): styling uses /* ... *\/ comments only —
      * no back-tick characters appear inside the css\` ... \` template
      * literal (the F-3.S3 footgun called out in the slice plan). */
-    :host([open]) .backdrop {
-      display: grid;
-    }
     .backdrop {
-      display: none;
-      position: fixed;
+      display: grid;
+      position: absolute;
       inset: 0;
       background: rgba(8, 14, 28, 0.62);
       place-items: center;
-      z-index: 1100;
     }
     .dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       min-width: 280px;
       max-width: min(92vw, 420px);
       padding: var(--wavy-spacing-4, 20px);

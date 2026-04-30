@@ -3706,6 +3706,170 @@ public class J2clComposeSurfaceControllerTest {
         gateway.submitCalls);
   }
 
+  @Test
+  public void onAddParticipantsRequestedSubmitsDeltaAndRecordsTelemetry() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+
+    controller.onAddParticipantsRequested(
+        "example.com/w+1", Arrays.asList("Alice@Example.COM", "bob@example.com"));
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "{\"1\":\"alice@example.com\"}",
+        "{\"1\":\"bob@example.com\"}");
+    Assert.assertTrue(
+        "success telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.participants_added".equals(e.getName())
+                        && "success".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void onPublicityToggleRequestedSubmitsSharedDomainParticipantDelta() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+    assertContains(gateway.lastSubmitRequest.getDeltaJson(), "{\"1\":\"@example.com\"}");
+
+    controller.onPublicityToggleRequested("example.com/w+1", false);
+    assertContains(gateway.lastSubmitRequest.getDeltaJson(), "{\"2\":\"@example.com\"}");
+  }
+
+  @Test
+  public void onLockStateToggleRequestedSubmitsLockDelta() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+
+    controller.onLockStateToggleRequested("example.com/w+1", "unlocked", "root");
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    assertContains(
+        gateway.lastSubmitRequest.getDeltaJson(),
+        "\"1\":\"m/lock\"",
+        "\"3\":{\"1\":\"lock\",\"2\":[{\"1\":\"mode\",\"2\":\"root\"}]}");
+    Assert.assertTrue(
+        "success telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.lock_toggled".equals(e.getName())
+                        && "success".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void waveHeaderActionsDropWriteWhenWaveChangesBeforeBootstrapReturns() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    controller.onAddParticipantsRequested("example.com/w+1", Arrays.asList("alice@example.com"));
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+2", "chan-2", 1L, "ZZZZ", "b+root"));
+
+    gateway.resolveBootstrap();
+
+    Assert.assertEquals(0, gateway.submitCalls);
+  }
+
+  @Test
+  public void waveHeaderActionUsesCapturedSessionWhenSameWaveRefreshesBeforeBootstrapReturns() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    controller.onLockStateToggleRequested("example.com/w+1", "unlocked", "root");
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 45L, "EFGH", "b+root"));
+
+    gateway.resolveBootstrap();
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    assertContains(gateway.lastSubmitRequest.getDeltaJson(), "\"1\":44", "\"2\":\"ABCD\"");
+    Assert.assertFalse(
+        "header action must not mix the stale intent with refreshed base metadata",
+        gateway.lastSubmitRequest.getDeltaJson().contains("\"2\":\"EFGH\""));
+  }
+
+  @Test
+  public void waveHeaderActionSubmitErrorRecordsFailureTelemetry() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeGateway gateway = new FakeGateway();
+    gateway.submitResponse = new SidecarSubmitResponse(1, "server rejected", 45L);
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    openWaveForReply(controller);
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+
+    Assert.assertTrue(
+        "failure telemetry recorded",
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.publicity_toggled".equals(e.getName())
+                        && "failure-submit".equals(e.getFields().get("outcome"))));
+  }
+
   // F-3.S4 (#1038, R-5.6 step 1): drag-drop telemetry path. The
   // controller routes onDroppedFiles through the same upload plumbing
   // as the H.19 paperclip path, but emits a separate

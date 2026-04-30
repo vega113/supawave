@@ -207,7 +207,11 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     }
 
     Collection<WaveViewData> searchResult =
-        computeSearchResult(user, startAt, numResults, resultsList);
+        computeSearchResult(
+            user,
+            computeInMemoryStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery),
+            numResults,
+            resultsList);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
         + user);
 
@@ -378,7 +382,12 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   }
 
   static int computeSolrStart(int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
-    return 0;
+    return isUnreadOnlyQuery || hasAttachmentQuery ? 0 : startAt;
+  }
+
+  static int computeInMemoryStart(
+      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery ? startAt : 0;
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

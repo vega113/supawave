@@ -255,11 +255,12 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     // canonical token `is:unread` (parsed under TokenQueryType.IS). Treat
     // it as a synonym for `unread:true` so the chip actually filters
     // server-side. Any other `is:<value>` stays a no-op for now —
-    // `from:me` is deferred to a follow-up issue.
+    // `from:me` is handled below as a root-author filter.
     final boolean isUnreadOnlyQuery =
         queryParams.containsKey(TokenQueryType.UNREAD)
             || QueryHelper.hasIsValue(queryParams, "unread");
     final boolean hasAttachmentQuery = AttachmentSearchFilter.isHasAttachmentQuery(queryParams);
+    final Set<String> fromAuthorValues = FromSearchFilter.normalizeFromValues(queryParams, user);
 
     LinkedHashMultimap<WaveId, WaveletId> currentUserWavesView =
         createWavesViewToFilter(user, isAllQuery);
@@ -275,7 +276,7 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     int candidatesBefore = results.size();
 
     // Per-filter result counts for the combined summary log (-1 means filter was not active).
-    int tagsAfter = -1, attachmentsAfter = -1, titleAfter = -1, contentAfter = -1;
+    int tagsAfter = -1, attachmentsAfter = -1, fromAfter = -1, titleAfter = -1, contentAfter = -1;
     int mentionsAfter = -1, tasksAfter = -1, unreadAfter = -1;
 
     // Shared caches for supplement-building across all filter stages.
@@ -312,6 +313,17 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
       AttachmentSearchFilter.filterByHasAttachment(results);
       attachmentsAfter = results.size();
       LOG.fine("Attachment filter result: " + attachmentsAfter + " remain");
+    }
+
+    if (!fromAuthorValues.isEmpty()) {
+      // from: is a wave-level root-author filter, so it must see the root even when
+      // creator:/with: matched only a reply wavelet.
+      ensureConversationRootWaveletPresent(results);
+      LOG.fine("From-author filter: required=" + fromAuthorValues + ", candidates="
+          + results.size());
+      FromSearchFilter.filterByRootAuthor(results, fromAuthorValues);
+      fromAfter = results.size();
+      LOG.fine("From-author filter result: " + fromAfter + " remain");
     }
 
     // Extract title filter values (e.g., "title:meeting").
@@ -430,13 +442,15 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     summary.append(", query=\"").append(query).append("\"");
     summary.append(", results=").append(searchResult.size()).append("/").append(totalBeforePagination);
     summary.append(", candidatesBefore=").append(candidatesBefore);
-    boolean hasFilters = tagsAfter >= 0 || attachmentsAfter >= 0 || titleAfter >= 0 || contentAfter >= 0
-        || mentionsAfter >= 0 || tasksAfter >= 0 || unreadAfter >= 0;
+    boolean hasFilters = tagsAfter >= 0 || attachmentsAfter >= 0 || fromAfter >= 0
+        || titleAfter >= 0 || contentAfter >= 0 || mentionsAfter >= 0 || tasksAfter >= 0
+        || unreadAfter >= 0;
     if (hasFilters) {
       summary.append(" (");
       String sep = "";
       if (tagsAfter >= 0) { summary.append(sep).append("tags:").append(tagsAfter); sep = ", "; }
       if (attachmentsAfter >= 0) { summary.append(sep).append("attachments:").append(attachmentsAfter); sep = ", "; }
+      if (fromAfter >= 0) { summary.append(sep).append("from:").append(fromAfter); sep = ", "; }
       if (titleAfter >= 0) { summary.append(sep).append("title:").append(titleAfter); sep = ", "; }
       if (contentAfter >= 0) { summary.append(sep).append("content:").append(contentAfter); sep = ", "; }
       if (mentionsAfter >= 0) { summary.append(sep).append("mentions:").append(mentionsAfter); sep = ", "; }
@@ -539,6 +553,66 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         }
       }
     }
+  }
+
+  private void ensureConversationRootWaveletPresent(List<WaveViewData> results) {
+    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
+    for (WaveViewData wave : results) {
+      if (hasConversationRootWavelet(wave)) {
+        continue;
+      }
+
+      WaveletId rootWaveletId = findConversationRootWaveletId(wave.getWaveId(), loadedWaves);
+      if (rootWaveletId == null) {
+        continue;
+      }
+
+      WaveletName waveletName = WaveletName.of(wave.getWaveId(), rootWaveletId);
+      try {
+        WaveletContainer container = waveMap.getWavelet(waveletName);
+        if (container != null) {
+          wave.addWavelet(container.copyWaveletData());
+        }
+      } catch (WaveletStateException e) {
+        LOG.warning("Failed to load root wavelet " + waveletName, e);
+      }
+    }
+  }
+
+  private boolean hasConversationRootWavelet(WaveViewData wave) {
+    for (ObservableWaveletData waveletData : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(waveletData.getWaveletId())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private WaveletId findConversationRootWaveletId(WaveId waveId, Map<WaveId, Wave> loadedWaves) {
+    try {
+      Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(waveId);
+      if (storedWaveletIds != null) {
+        for (WaveletId waveletId : storedWaveletIds) {
+          if (IdUtil.isConversationRootWaveletId(waveletId)) {
+            return waveletId;
+          }
+        }
+      }
+    } catch (WaveletStateException e) {
+      LOG.warning("Failed to look up stored wavelets for " + waveId, e);
+    }
+
+    Wave loadedWave = loadedWaves.get(waveId);
+    if (loadedWave == null) {
+      return null;
+    }
+    for (WaveletContainer container : loadedWave) {
+      WaveletId waveletId = container.getWaveletName().waveletId;
+      if (IdUtil.isConversationRootWaveletId(waveletId)) {
+        return waveletId;
+      }
+    }
+    return null;
   }
 
   /**

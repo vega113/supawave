@@ -133,6 +133,42 @@ public class SolrSearchProviderImplTest extends TestCase {
     assertTrue(results.isEmpty());
   }
 
+  public void testFromFilterKeepsConversationRootCreator() throws Exception {
+    WaveViewData userWave = waveWithCreator("from-user", USER);
+    WaveViewData otherWave =
+        waveWithCreator("from-other", ParticipantId.ofUnsafe("other@" + DOMAIN));
+    List<WaveViewData> results = new ArrayList<WaveViewData>();
+    results.add(userWave);
+    results.add(otherWave);
+
+    FromSearchFilter.filterByRootAuthor(
+        results, Collections.singleton(USER.getAddress().toLowerCase()));
+
+    assertEquals(1, results.size());
+    assertSame(userWave, results.get(0));
+  }
+
+  public void testFromFilterReturnsNoMatchForDifferentRootCreator() throws Exception {
+    WaveViewData userWave = waveWithCreator("from-user-no-match", USER);
+    List<WaveViewData> results = new ArrayList<WaveViewData>();
+    results.add(userWave);
+
+    FromSearchFilter.filterByRootAuthor(
+        results, Collections.singleton("other@" + DOMAIN));
+
+    assertTrue(results.isEmpty());
+  }
+
+  public void testFromQueryNormalizesValues() throws Exception {
+    assertTrue(FromSearchFilter.isFromQuery(QueryHelper.parseQuery("in:inbox from:me")));
+    assertEquals(
+        Collections.singleton(USER.getAddress().toLowerCase()),
+        FromSearchFilter.normalizeFromValues(QueryHelper.parseQuery("from:me"), USER));
+    assertEquals(
+        Collections.singleton("alice@" + DOMAIN),
+        FromSearchFilter.normalizeFromValues(QueryHelper.parseQuery("from:Alice"), USER));
+  }
+
   public void testIsHasAttachmentQueryOnlyMatchesAttachmentValue() throws Exception {
     assertTrue(AttachmentSearchFilter.isHasAttachmentQuery(
         QueryHelper.parseQuery("in:inbox has:attachment")));
@@ -143,13 +179,22 @@ public class SolrSearchProviderImplTest extends TestCase {
   }
 
   public void testSolrPostFilteredQueriesStartAtZeroBeforeInMemoryPagination() {
-    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, true, false));
-    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, true));
-    assertEquals(5, SolrSearchProviderImpl.computeSolrStart(5, false, false));
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, true, false, false));
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, true, false));
+    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, false, true));
+    assertEquals(5, SolrSearchProviderImpl.computeSolrStart(5, false, false, false));
 
-    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, true, false));
-    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, false, true));
-    assertEquals(0, SolrSearchProviderImpl.computeInMemoryStart(5, false, false));
+    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, true, false, false));
+    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, false, true, false));
+    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, false, false, true));
+    assertEquals(0, SolrSearchProviderImpl.computeInMemoryStart(5, false, false, false));
+  }
+
+  public void testSolrPostFilteredQueriesFetchRequestedPageWindow() {
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, true, false, false));
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, true, false));
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, true));
+    assertEquals(10, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, false));
   }
 
   public void testSearchRejectsMentionsQueries() {
@@ -168,14 +213,24 @@ public class SolrSearchProviderImplTest extends TestCase {
 
   private static WaveViewData waveWithDocument(String waveIdToken, String documentId)
       throws Exception {
+    return waveWithDocumentAndCreator(waveIdToken, documentId, USER);
+  }
+
+  private static WaveViewData waveWithCreator(String waveIdToken, ParticipantId creator)
+      throws Exception {
+    return waveWithDocumentAndCreator(waveIdToken, "b+plain", creator);
+  }
+
+  private static WaveViewData waveWithDocumentAndCreator(
+      String waveIdToken, String documentId, ParticipantId creator) throws Exception {
     WaveId waveId = WaveId.of(DOMAIN, waveIdToken);
     WaveletName waveletName =
         WaveletName.of(waveId, WaveletId.of(DOMAIN, IdConstants.CONVERSATION_ROOT_WAVELET));
     ObservableWaveletData wavelet = WaveletDataUtil.createEmptyWavelet(
-        waveletName, USER, HashedVersion.unsigned(0), 1234567890);
+        waveletName, creator, HashedVersion.unsigned(0), 1234567890);
     wavelet.createDocument(
         documentId,
-        USER,
+        creator,
         Collections.<ParticipantId>emptySet(),
         new DocInitializationBuilder().characters("metadata").build(),
         1234567890,

@@ -739,6 +739,83 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(0, results.getNumResults());
   }
 
+  public void testSearchFilterByFromMeUsesRootCreator() throws Exception {
+    createRootWave("from-user1", USER1, USER1);
+    createRootWave("from-user2", USER2, USER1, USER2);
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox from:me", 0, 10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("from-user1",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByFromLiteralAndBareAddress() throws Exception {
+    createRootWave("from-literal-user1", USER1, USER1);
+    createRootWave("from-literal-user2", USER2, USER1, USER2);
+
+    SearchResult literal =
+        searchProvider.search(USER1, "in:inbox from:" + USER2.getAddress(), 0, 10);
+    SearchResult bare = searchProvider.search(USER1, "in:inbox from:user2", 0, 10);
+
+    assertEquals(1, literal.getNumResults());
+    assertEquals("from-literal-user2",
+        WaveId.deserialise(literal.getDigests().get(0).getWaveId()).getId());
+    assertEquals(1, bare.getNumResults());
+    assertEquals("from-literal-user2",
+        WaveId.deserialise(bare.getDigests().get(0).getWaveId()).getId());
+  }
+
+  public void testSearchFilterByFromNoMatchReturnsEmpty() throws Exception {
+    createRootWave("from-no-match", USER1, USER1);
+
+    SearchResult results = searchProvider.search(USER1, "in:inbox from:missing", 0, 10);
+
+    assertEquals(0, results.getNumResults());
+  }
+
+  public void testSearchFilterByFromDoesNotChangeCreatorSemantics() throws Exception {
+    createRootWave("from-creator-user1", USER1, USER1);
+    createRootWave("from-creator-user2", USER2, USER1, USER2);
+
+    SearchResult fromMeAndCreatorUser2 =
+        searchProvider.search(
+            USER1, "in:inbox from:me creator:" + USER2.getAddress(), 0, 10);
+    SearchResult creatorUser2 =
+        searchProvider.search(USER1, "in:inbox creator:" + USER2.getAddress(), 0, 10);
+
+    assertEquals(0, fromMeAndCreatorUser2.getNumResults());
+    assertEquals(1, creatorUser2.getNumResults());
+  }
+
+  public void testSearchFilterByFromComposesWithReplyCreatorAndWithFilters() throws Exception {
+    WaveletName root =
+        WaveletName.of(WaveId.of(DOMAIN, "from-reply-composition"), WAVELET_ID);
+    WaveletName reply =
+        WaveletName.of(root.waveId, WaveletId.of(DOMAIN, "conv+from-reply"));
+
+    submitDeltaToNewWavelet(root, USER1, addParticipantToWavelet(USER1, root));
+    addWaveletToUserView(reply, USER1);
+    submitDeltaToNewWaveletWithoutView(
+        reply,
+        USER2,
+        new AddParticipant(CONTEXT, USER1),
+        new AddParticipant(CONTEXT, USER2));
+
+    SearchResult results =
+        searchProvider.search(
+            USER1,
+            "in:inbox creator:" + USER2.getAddress()
+                + " with:" + USER2.getAddress()
+                + " from:me",
+            0,
+            10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("from-reply-composition",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
   public void testSearchFilterByImplicitContentWorks() throws Exception {
     WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching"), WAVELET_ID);
     WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial"), WAVELET_ID);
@@ -1264,6 +1341,16 @@ public class SimpleSearchProviderImplTest extends TestCase {
     HashedVersion version = V0_HASH_FACTORY.createVersionZero(name);
     addWaveletToUserView(name, user);
     submitDelta(name, user, version, ops);
+  }
+
+  private void createRootWave(String waveId, ParticipantId creator, ParticipantId... participants)
+      throws Exception {
+    WaveletName name = WaveletName.of(WaveId.of(DOMAIN, waveId), WAVELET_ID);
+    List<WaveletOperation> ops = new ArrayList<WaveletOperation>();
+    for (ParticipantId participant : participants) {
+      ops.add(addParticipantToWavelet(participant, name));
+    }
+    submitDeltaToNewWavelet(name, creator, ops.toArray(new WaveletOperation[ops.size()]));
   }
 
   private void submitDeltaToExistingWavelet(WaveletName name, ParticipantId user,

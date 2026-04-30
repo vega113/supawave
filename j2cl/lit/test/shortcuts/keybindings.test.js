@@ -74,19 +74,19 @@ describe("matchShortcut", () => {
     expect(matchShortcut(fakeEvent("Escape", { ctrlKey: true }), { isMac: true })).to.equal(null);
   });
 
-  it("matches Shift+Cmd+O on Mac -> OPEN_NEW_WAVE (global)", () => {
+  it("matches Shift+Cmd+O on Mac -> OPEN_NEW_WAVE (not global)", () => {
     expect(
       matchShortcut(fakeEvent("o", { shiftKey: true, metaKey: true }), { isMac: true })
-    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: true });
+    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: false });
     expect(
       matchShortcut(fakeEvent("O", { shiftKey: true, metaKey: true }), { isMac: true })
-    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: true });
+    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: false });
   });
 
-  it("matches Shift+Ctrl+O on non-Mac -> OPEN_NEW_WAVE (global)", () => {
+  it("matches Shift+Ctrl+O on non-Mac -> OPEN_NEW_WAVE (not global)", () => {
     expect(
       matchShortcut(fakeEvent("o", { shiftKey: true, ctrlKey: true }), { isMac: false })
-    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: true });
+    ).to.deep.equal({ action: KEY_ACTION.OPEN_NEW_WAVE, global: false });
   });
 
   it("does not match Shift+Cmd+O on non-Mac (wrong primary modifier)", () => {

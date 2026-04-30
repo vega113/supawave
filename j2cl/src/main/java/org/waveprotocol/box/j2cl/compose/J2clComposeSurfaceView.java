@@ -438,6 +438,16 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     }
   }
 
+  @Override
+  public void focusCreateComposer() {
+    // #1076: the keyboard shortcut drops the user straight into the body
+    // composer and scrolls it into view without changing the button/title path.
+    if (!createInput.disabled) {
+      createInput.scrollIntoView();
+      createInput.focus();
+    }
+  }
+
   /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */
   private void openInlineComposer(String blipId, String mode) {
     String key = blipId == null ? "" : blipId;

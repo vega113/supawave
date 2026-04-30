@@ -785,6 +785,32 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void focusCreateSurfaceRecordsOpenedTelemetryAndUsesShortcutBodyFocus() {
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller = newControllerWithTelemetry(view, telemetry);
+
+    controller.start();
+    controller.focusCreateSurface();
+
+    Assert.assertEquals(1, view.focusCreateSurfaceCalls);
+    Assert.assertEquals(0, view.focusCreateComposerCalls);
+    J2clClientTelemetry.Event buttonEvent = telemetry.lastEvent();
+    Assert.assertEquals("compose.opened", buttonEvent.getName());
+    Assert.assertEquals("create", buttonEvent.getFields().get("mode"));
+    Assert.assertEquals("button", buttonEvent.getFields().get("trigger"));
+
+    controller.focusCreateSurface("shortcut");
+
+    Assert.assertEquals(1, view.focusCreateSurfaceCalls);
+    Assert.assertEquals(1, view.focusCreateComposerCalls);
+    J2clClientTelemetry.Event shortcutEvent = telemetry.lastEvent();
+    Assert.assertEquals("compose.opened", shortcutEvent.getName());
+    Assert.assertEquals("create", shortcutEvent.getFields().get("mode"));
+    Assert.assertEquals("shortcut", shortcutEvent.getFields().get("trigger"));
+  }
+
+  @Test
   public void throwingTelemetrySinkDoesNotBreakRichEditCommand() {
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
@@ -4350,6 +4376,8 @@ public class J2clComposeSurfaceControllerTest {
     private J2clComposeSurfaceModel model;
     private int openAttachmentPickerCalls;
     private int focusReplyComposerCalls;
+    private int focusCreateSurfaceCalls;
+    private int focusCreateComposerCalls;
 
     @Override
     public void bind(J2clComposeSurfaceController.Listener listener) {
@@ -4368,6 +4396,16 @@ public class J2clComposeSurfaceControllerTest {
     @Override
     public void focusReplyComposer() {
       focusReplyComposerCalls++;
+    }
+
+    @Override
+    public void focusCreateSurface() {
+      focusCreateSurfaceCalls++;
+    }
+
+    @Override
+    public void focusCreateComposer() {
+      focusCreateComposerCalls++;
     }
   }
 

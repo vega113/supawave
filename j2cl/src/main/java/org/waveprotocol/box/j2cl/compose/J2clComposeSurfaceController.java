@@ -53,6 +53,14 @@ public final class J2clComposeSurfaceController {
      * Default no-op so existing test doubles compile unchanged.
      */
     default void focusCreateSurface() {}
+
+    /**
+     * #1076: focus the create body composer for the keyboard shortcut path.
+     * Defaults to the title-focus method so older view doubles remain valid.
+     */
+    default void focusCreateComposer() {
+      focusCreateSurface();
+    }
   }
 
   public interface Listener {
@@ -922,9 +930,42 @@ public final class J2clComposeSurfaceController {
    * Public entrypoint for the rail's New Wave button via the root shell.
    */
   public void focusCreateSurface() {
+    focusCreateSurface("button");
+  }
+
+  /** #1076: shortcut-triggered New Wave focuses the create body and records trigger telemetry. */
+  public void focusCreateSurface(String trigger) {
     if (started) {
-      view.focusCreateSurface();
+      String normalizedTrigger = normalizeCreateOpenTrigger(trigger);
+      if ("shortcut".equals(normalizedTrigger)) {
+        view.focusCreateComposer();
+      } else {
+        view.focusCreateSurface();
+      }
+      recordComposeOpenedTelemetry(normalizedTrigger);
     }
+  }
+
+  private void recordComposeOpenedTelemetry(String trigger) {
+    try {
+      telemetrySink.record(
+          J2clClientTelemetry.event("compose.opened")
+              .field("mode", "create")
+              .field("trigger", normalizeCreateOpenTrigger(trigger))
+              .build());
+    } catch (RuntimeException ignored) {
+      // Telemetry must never affect focus or shortcut behavior.
+    }
+  }
+
+  private static String normalizeCreateOpenTrigger(String trigger) {
+    String normalized = trigger == null ? "" : trigger.trim().toLowerCase(Locale.ROOT);
+    if ("shortcut".equals(normalized)
+        || "button".equals(normalized)
+        || "menu".equals(normalized)) {
+      return normalized;
+    }
+    return "button";
   }
 
   public void onReplyDraftChanged(String draft) {

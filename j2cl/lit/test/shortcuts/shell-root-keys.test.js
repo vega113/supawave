@@ -89,7 +89,11 @@ describe("<shell-root> shell-level keydown dispatcher", () => {
 
   it("Shift+Cmd+O dispatches wavy-new-wave-requested on document.body", () => {
     let sawCount = 0;
-    const handler = () => { sawCount += 1; };
+    let source = "";
+    const handler = (event) => {
+      sawCount += 1;
+      source = event.detail && event.detail.source;
+    };
     document.body.addEventListener("wavy-new-wave-requested", handler);
     try {
       fireKey("o", { shiftKey: true, metaKey: true });
@@ -104,6 +108,42 @@ describe("<shell-root> shell-level keydown dispatcher", () => {
       document.body.removeEventListener("wavy-new-wave-requested", handler);
     }
     expect(sawCount).to.equal(1);
+    expect(source).to.equal("keyboard-shortcut");
+  });
+
+  it("Shift+Cmd/Ctrl+O inside editable targets does not open New Wave", () => {
+    let sawCount = 0;
+    const handler = () => { sawCount += 1; };
+    const input = document.createElement("input");
+    const composerBody = document.createElement("div");
+    composerBody.contentEditable = "true";
+    document.body.appendChild(input);
+    document.body.appendChild(composerBody);
+    document.body.addEventListener("wavy-new-wave-requested", handler);
+    const fireFrom = (target, mods) => {
+      target.focus();
+      target.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "o",
+        code: "KeyO",
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        shiftKey: true,
+        metaKey: !!mods.metaKey,
+        ctrlKey: !!mods.ctrlKey
+      }));
+    };
+    try {
+      fireFrom(input, { metaKey: true });
+      fireFrom(input, { ctrlKey: true });
+      fireFrom(composerBody, { metaKey: true });
+      fireFrom(composerBody, { ctrlKey: true });
+    } finally {
+      document.body.removeEventListener("wavy-new-wave-requested", handler);
+      input.remove();
+      composerBody.remove();
+    }
+    expect(sawCount).to.equal(0);
   });
 
   it("Esc closes an open dialog before dropping blip focus", () => {

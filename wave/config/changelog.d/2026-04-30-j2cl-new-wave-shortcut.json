@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-j2cl-new-wave-shortcut",
+  "version": "Issue #1076",
+  "date": "2026-04-30",
+  "title": "J2CL New Wave keyboard shortcut",
+  "summary": "Completes the J2CL New Wave shortcut by focusing the create composer body from Shift+Cmd/Ctrl+O while preserving button title-focus behavior.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Suppresses the New Wave shortcut while editable fields own focus, matching the J2CL parity acceptance.",
+        "Adds trigger-aware compose.opened telemetry for New Wave button and shortcut invocations."
+      ]
+    }
+  ]
+}

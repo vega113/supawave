@@ -84,8 +84,8 @@ export class ShellRoot extends LitElement {
     const match = matchShortcut(evt);
     if (!match) return;
     if (!match.global && isEditableTarget(evt)) {
-      // j / k inside an input must reach the input. Esc and
-      // Shift+Cmd+O are global per the matcher and bypass this guard.
+      // j/k and New Wave shortcuts inside inputs must reach the input.
+      // Esc remains global per the matcher and bypasses this guard.
       return;
     }
     const handled = this._dispatchAction(match.action, evt);

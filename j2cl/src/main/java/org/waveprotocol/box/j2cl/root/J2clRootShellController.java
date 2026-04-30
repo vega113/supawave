@@ -6,6 +6,7 @@ import elemental2.dom.HTMLElement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController.CreateSuccessHandler;
@@ -169,7 +170,7 @@ public final class J2clRootShellController {
     // up regardless of where the rail is currently mounted.
     elemental2.dom.DomGlobal.document.body.addEventListener(
         "wavy-new-wave-requested",
-        evt -> composeController.focusCreateSurface());
+        evt -> composeController.focusCreateSurface(newWaveTriggerFromEvent(evt)));
     elemental2.dom.DomGlobal.document.body.addEventListener(
         "wave-new-with-participants-requested",
         evt -> composeController.onCreateRequestedWithParticipants(participantsFromEvent(evt)));
@@ -358,6 +359,28 @@ public final class J2clRootShellController {
       return;
     }
     view.setDepthFocus(depthBlipId, "", "");
+  }
+
+  private static String newWaveTriggerFromEvent(Event evt) {
+    if (evt == null) {
+      return "button";
+    }
+    Object detail = Js.asPropertyMap(evt).get("detail");
+    if (detail == null) {
+      return "button";
+    }
+    return newWaveTriggerFromSource(Js.asPropertyMap(detail).get("source"));
+  }
+
+  static String newWaveTriggerFromSource(Object source) {
+    String normalized = source == null ? "" : String.valueOf(source).trim().toLowerCase(Locale.ROOT);
+    if ("keyboard-shortcut".equals(normalized) || "shortcut".equals(normalized)) {
+      return "shortcut";
+    }
+    if ("menu".equals(normalized)) {
+      return "menu";
+    }
+    return "button";
   }
 
   private static HTMLElement createChildHost(HTMLElement parent, String className) {

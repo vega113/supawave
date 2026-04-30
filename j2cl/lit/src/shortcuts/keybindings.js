@@ -31,10 +31,10 @@ export const KEY_ACTION = Object.freeze({
 /**
  * Returns true when the keyboard event originated inside an editable
  * surface (input, textarea, select, contenteditable). Bindings tagged
- * `global: true` (Esc, Shift+Cmd+O) STILL fire when the target is
- * editable — Esc to close a popover that ate keyboard focus, and
- * Shift+Cmd+O to open a new wave from inside the search box are both
- * cases where the user reasonably expects the shortcut to win.
+ * `global: true` actions still fire when the target is editable. Esc
+ * remains global for native dialog semantics. Shift+Cmd/Ctrl+O is not
+ * global because #1076 requires New Wave to stay suppressed while the
+ * user is typing in a composer body, search input, or form field.
  */
 export function isEditableTarget(evt) {
   if (!evt) return false;
@@ -116,8 +116,8 @@ export function matchShortcut(evt, opts = {}) {
     return { action: KEY_ACTION.CLOSE_TOPMOST, global: true };
   }
 
-  // Shift+Cmd+O on Mac, Shift+Ctrl+O elsewhere. Global so it fires
-  // even from the search input. Block repeats (no benefit to auto-fire).
+  // Shift+Cmd+O on Mac, Shift+Ctrl+O elsewhere. Not global: #1076 says
+  // the shortcut must not fire from editable targets. Block repeats.
   if (
     (evt.key === "O" || evt.key === "o") &&
     evt.shiftKey &&
@@ -126,7 +126,7 @@ export function matchShortcut(evt, opts = {}) {
       (!isMac && evt.ctrlKey && !evt.metaKey))
   ) {
     if (evt.repeat) return null;
-    return { action: KEY_ACTION.OPEN_NEW_WAVE, global: true };
+    return { action: KEY_ACTION.OPEN_NEW_WAVE, global: false };
   }
 
   // j / k — blip navigation. Bare key only; not global. Modifiers

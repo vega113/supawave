@@ -619,10 +619,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     waveHeaderActions.removeAttribute("source-wave-id");
     waveHeaderActions.removeAttribute("public");
     waveHeaderActions.removeAttribute("lock-state");
+    waveHeaderActions.setAttribute("disabled", "");
     setProperty(waveHeaderActions, "sourceWaveId", "");
     setProperty(waveHeaderActions, "participants", buildStringArray(Collections.<String>emptyList()));
     setProperty(waveHeaderActions, "public", false);
     setProperty(waveHeaderActions, "lockState", "");
+    setProperty(waveHeaderActions, "disabled", true);
   }
 
   private void publishWaveHeaderActions(J2clSelectedWaveModel model, String waveId) {
@@ -632,12 +634,19 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     List<String> participants = model.getParticipantIds();
     boolean isPublic = containsSharedDomainParticipant(participants);
     String lockState = model.getLockState();
+    boolean disabled = model.getWriteSession() == null;
     waveHeaderActions.setAttribute("source-wave-id", waveId);
     waveHeaderActions.setAttribute("lock-state", lockState);
+    if (disabled) {
+      waveHeaderActions.setAttribute("disabled", "");
+    } else {
+      waveHeaderActions.removeAttribute("disabled");
+    }
     setProperty(waveHeaderActions, "sourceWaveId", waveId);
     setProperty(waveHeaderActions, "participants", buildStringArray(participants));
     setProperty(waveHeaderActions, "public", isPublic);
     setProperty(waveHeaderActions, "lockState", lockState);
+    setProperty(waveHeaderActions, "disabled", disabled);
     if (isPublic) {
       waveHeaderActions.setAttribute("public", "");
     } else {

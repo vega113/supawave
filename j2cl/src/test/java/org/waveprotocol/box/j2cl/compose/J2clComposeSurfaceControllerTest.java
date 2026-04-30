@@ -3816,6 +3816,33 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void waveHeaderActionUsesCapturedSessionWhenSameWaveRefreshesBeforeBootstrapReturns() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.autoResolveBootstrap = false;
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { });
+    controller.start();
+    openWaveForReply(controller);
+    controller.onLockStateToggleRequested("example.com/w+1", "unlocked", "root");
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 45L, "EFGH", "b+root"));
+
+    gateway.resolveBootstrap();
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    assertContains(gateway.lastSubmitRequest.getDeltaJson(), "\"1\":44", "\"2\":\"ABCD\"");
+    Assert.assertFalse(
+        "header action must not mix the stale intent with refreshed base metadata",
+        gateway.lastSubmitRequest.getDeltaJson().contains("\"2\":\"EFGH\""));
+  }
+
+  @Test
   public void waveHeaderActionSubmitErrorRecordsFailureTelemetry() {
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
     FakeGateway gateway = new FakeGateway();

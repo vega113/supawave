@@ -173,7 +173,7 @@ public class J2clSelectedWaveViewChromeTest {
     HTMLElement host = createHost();
     J2clSelectedWaveView view = new J2clSelectedWaveView(host);
     J2clSelectedWaveModel model =
-        selectedModel(
+        selectedWritableModel(
             "example.com/w+actions",
             Arrays.asList("@example.com", "alice@example.com", "bob@example.com"));
 
@@ -191,6 +191,10 @@ public class J2clSelectedWaveViewChromeTest {
         "Lock state defaults to unlocked until the lock document is projected",
         "unlocked",
         actions.getAttribute("lock-state"));
+    Assert.assertFalse(
+        "Header actions are enabled when the selected wave has a write session",
+        actions.hasAttribute("disabled"));
+    Assert.assertFalse(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
     Object participantsObject = Js.asPropertyMap(actions).get("participants");
     Assert.assertTrue(
         "Header actions receive participants as a JS array",
@@ -200,6 +204,21 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertEquals("@example.com", participants.getAt(0));
     Assert.assertEquals("alice@example.com", participants.getAt(1));
     Assert.assertEquals("bob@example.com", participants.getAt(2));
+  }
+
+  @Test
+  public void renderDisablesHeaderActionsWithoutWriteSession() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+readonly"));
+
+    HTMLElement actions = (HTMLElement) host.querySelector("wavy-wave-header-actions");
+    Assert.assertTrue(
+        "Read-only selected waves must disable mutating header actions",
+        actions.hasAttribute("disabled"));
+    Assert.assertTrue(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
   }
 
   @Test
@@ -486,6 +505,10 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertFalse(
         "Cleared selection clears stale lock state",
         actions.hasAttribute("lock-state"));
+    Assert.assertTrue(
+        "Cleared selection disables mutating header actions",
+        actions.hasAttribute("disabled"));
+    Assert.assertTrue(Boolean.TRUE.equals(Js.asPropertyMap(actions).get("disabled")));
     Object participantsObject = Js.asPropertyMap(actions).get("participants");
     Assert.assertTrue(JsArray.isArray(participantsObject));
     Assert.assertEquals(0, Js.<JsArray<?>>uncheckedCast(participantsObject).length);
@@ -716,6 +739,18 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   private static J2clSelectedWaveModel selectedModel(String waveId, List<String> participants) {
+    return selectedModel(waveId, participants, null);
+  }
+
+  private static J2clSelectedWaveModel selectedWritableModel(String waveId, List<String> participants) {
+    return selectedModel(
+        waveId,
+        participants,
+        new J2clSidecarWriteSession(waveId, "chan-1", 44L, "ABCD", "b+root"));
+  }
+
+  private static J2clSelectedWaveModel selectedModel(
+      String waveId, List<String> participants, J2clSidecarWriteSession writeSession) {
     return new J2clSelectedWaveModel(
         true,
         false,
@@ -730,7 +765,7 @@ public class J2clSelectedWaveViewChromeTest {
         participants,
         Arrays.<String>asList(),
         Arrays.<J2clReadBlip>asList(),
-        null,
+        writeSession,
         0,
         true,
         true,

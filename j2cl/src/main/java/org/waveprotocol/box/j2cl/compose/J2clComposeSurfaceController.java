@@ -1560,7 +1560,7 @@ public final class J2clComposeSurfaceController {
           notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
-            request = requestBuilder.create(bootstrap.getAddress(), writeSession);
+            request = requestBuilder.create(bootstrap.getAddress(), submitSession);
           } catch (RuntimeException e) {
             recordWaveHeaderActionTelemetry(telemetryEventName, "failure-build");
             return;

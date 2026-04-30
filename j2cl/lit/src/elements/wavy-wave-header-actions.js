@@ -163,6 +163,14 @@ export class WavyWaveHeaderActions extends LitElement {
     document.body.removeEventListener("wavy-confirm-resolved", this._onConfirmResolved);
   }
 
+  willUpdate(changedProperties) {
+    if (changedProperties.has("sourceWaveId")) {
+      this._pendingConfirm = null;
+      this._addDialogOpen = false;
+      this._participantDraft = "";
+    }
+  }
+
   render() {
     const unavailable = this._unavailable();
     const lockState = normalizeLockState(this.lockState);
@@ -327,13 +335,14 @@ export class WavyWaveHeaderActions extends LitElement {
 
   _requestConfirmation(kind, message, confirmLabel, eventName, detail) {
     ensureWavyConfirmDialogMounted();
+    const sourceWaveId = String(this.sourceWaveId || "");
     const requestId = [
       "wavy-wave-header-actions",
       kind,
-      String(this.sourceWaveId || ""),
+      sourceWaveId,
       String(Date.now())
     ].join(":");
-    this._pendingConfirm = { requestId, eventName, detail };
+    this._pendingConfirm = { requestId, eventName, detail, sourceWaveId };
     document.body.dispatchEvent(
       new CustomEvent("wavy-confirm-requested", {
         bubbles: true,
@@ -354,16 +363,16 @@ export class WavyWaveHeaderActions extends LitElement {
     if (!pending || event.detail?.requestId !== pending.requestId) return;
     this._pendingConfirm = null;
     if (!event.detail?.confirmed) return;
-    this._emit(pending.eventName, pending.detail);
+    this._emit(pending.eventName, pending.detail, pending.sourceWaveId);
   }
 
-  _emit(eventName, extra) {
+  _emit(eventName, extra, sourceWaveIdOverride) {
     this.dispatchEvent(
       new CustomEvent(eventName, {
         bubbles: true,
         composed: true,
         detail: {
-          sourceWaveId: this.sourceWaveId,
+          sourceWaveId: sourceWaveIdOverride != null ? sourceWaveIdOverride : this.sourceWaveId,
           ...(extra || {})
         }
       })

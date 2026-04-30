@@ -137,6 +137,45 @@ describe("<wavy-wave-header-actions>", () => {
     });
   });
 
+  it("drops pending confirmations when the selected source wave changes", async () => {
+    const el = await createActions({ lockState: "root" });
+    let emitted = false;
+    el.addEventListener("wave-root-lock-toggle-requested", () => {
+      emitted = true;
+    });
+
+    const confirmPromise = oneEvent(document.body, "wavy-confirm-requested");
+    actionButton(el, "lock-toggle").click();
+    const confirmEvent = await confirmPromise;
+    el.sourceWaveId = "example.com/w+other";
+    await el.updateComplete;
+
+    document.body.dispatchEvent(
+      new CustomEvent("wavy-confirm-resolved", {
+        bubbles: true,
+        composed: true,
+        detail: { requestId: confirmEvent.detail.requestId, confirmed: true }
+      })
+    );
+
+    expect(emitted).to.be.false;
+  });
+
+  it("closes the add-participant draft when the selected source wave changes", async () => {
+    const el = await createActions();
+    actionButton(el, "add-participant").click();
+    await el.updateComplete;
+    const input = el.renderRoot.querySelector('input[name="participant-addresses"]');
+    input.value = "carol@example.com";
+    input.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    await el.updateComplete;
+
+    el.sourceWaveId = "example.com/w+other";
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector('input[name="participant-addresses"]')).to.not.exist;
+  });
+
   it("mounts the shared confirm dialog before requesting public/private confirmation", async () => {
     const el = await createActions();
     expect(document.body.querySelector("wavy-confirm-dialog")).to.not.exist;

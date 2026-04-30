@@ -299,6 +299,7 @@ export class WaveBlip extends LitElement {
       visibility: hidden;
     }
     :host([focused]) .task-affordance-slot,
+    :host([tabindex="0"]) .task-affordance-slot,
     :host(:focus-within) .task-affordance-slot,
     :host(:hover) .task-affordance-slot,
     .task-affordance-slot:focus-within {

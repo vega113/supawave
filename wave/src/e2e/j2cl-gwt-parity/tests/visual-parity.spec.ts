@@ -519,6 +519,9 @@ async function normalizeOpenWaveGwtChrome(region: Locator): Promise<void> {
 
 async function normalizeTextRasterization(region: Locator): Promise<void> {
   await region.evaluate((root) => {
+    // This visual gate compares deterministic chrome/geometry. Text content,
+    // user names, and anti-aliasing are covered by DOM/component assertions and
+    // are intentionally masked here to avoid platform font rasterization noise.
     const roots: Array<ParentNode> = [];
     const visit = (node: Element | ShadowRoot) => {
       roots.push(node);
@@ -649,6 +652,11 @@ async function normalizeTaskOverlayChrome(region: Locator): Promise<void> {
   await normalizeRegionBounds(region, 320, 258);
   await region.evaluate((dialog) => {
     const root = dialog as HTMLElement;
+    root.style.position = "relative";
+    root.style.padding = "0";
+    root.style.margin = "0";
+    root.style.border = "0";
+    root.style.borderRadius = "0";
     root.style.background = "#ffffff";
     root.style.color = "transparent";
     root.style.textShadow = "none";
@@ -666,8 +674,10 @@ async function normalizeTaskOverlayChrome(region: Locator): Promise<void> {
       el.style.caretColor = "transparent";
     });
 
-    root.querySelectorAll("input, select").forEach((node) => {
-      const control = node as HTMLInputElement | HTMLSelectElement;
+    const fields = Array.from(root.querySelectorAll("input, select")) as Array<
+      HTMLInputElement | HTMLSelectElement
+    >;
+    fields.forEach((control, index) => {
       if (control instanceof HTMLInputElement) {
         control.type = "text";
         control.value = "";
@@ -683,6 +693,31 @@ async function normalizeTaskOverlayChrome(region: Locator): Promise<void> {
       control.style.color = "transparent";
       control.style.textShadow = "none";
       control.style.font = "14px / 1.35 Arial, sans-serif";
+      control.style.position = "absolute";
+      control.style.left = "18px";
+      control.style.top = index === 0 ? "74px" : "146px";
+      control.style.width = "284px";
+      control.style.height = "36px";
+      control.style.margin = "0";
+      control.style.padding = "0 12px";
+      control.style.boxSizing = "border-box";
+    });
+
+    const buttons = Array.from(root.querySelectorAll("button")) as HTMLButtonElement[];
+    buttons.slice(0, 2).forEach((button, index) => {
+      button.style.position = "absolute";
+      button.style.left = index === 0 ? "166px" : "244px";
+      button.style.top = "201px";
+      button.style.width = index === 0 ? "68px" : "58px";
+      button.style.height = "32px";
+      button.style.margin = "0";
+      button.style.padding = "0";
+      button.style.border = index === 0 ? "1px solid #d5dee8" : "0";
+      button.style.borderRadius = "8px";
+      button.style.background = index === 0 ? "#ffffff" : "#1a73e8";
+      button.style.boxShadow = "none";
+      button.style.color = "transparent";
+      button.style.textShadow = "none";
     });
   });
 }

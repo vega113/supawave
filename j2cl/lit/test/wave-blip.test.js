@@ -363,6 +363,11 @@ describe("<wave-blip>", () => {
     el.setAttribute("focused", "");
     await el.updateComplete;
     expect(getComputedStyle(slot).visibility).to.equal("visible");
+
+    el.removeAttribute("focused");
+    el.setAttribute("tabindex", "0");
+    await el.updateComplete;
+    expect(getComputedStyle(slot).visibility).to.equal("visible");
   });
 
   it("reflects taskCompleted as data-task-completed on the host", async () => {

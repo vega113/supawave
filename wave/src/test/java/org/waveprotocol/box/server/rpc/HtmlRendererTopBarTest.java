@@ -162,8 +162,7 @@ public final class HtmlRendererTopBarTest extends TestCase {
         "abc123build",
         1700000000000L,
         null,
-        "/?view=j2cl-root",
-        "localhost:9898");
+        "/?view=j2cl-root");
 
     assertFalse(html.contains("var __session = "));
     assertFalse(html.contains("var __websocket_address = "));

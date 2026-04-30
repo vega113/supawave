@@ -305,8 +305,7 @@ public final class WaveClientServletJ2clRootShellTest {
             "test",
             0L,
             "",
-            "https://evil.example/steal",
-            "");
+            "https://evil.example/steal");
 
     assertTrue(html.contains("href=\"/?view=j2cl-root\""));
     assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));

@@ -197,8 +197,7 @@ public class WaveClientServlet extends HttpServlet {
               buildCommit,
               serverBuildTime,
               currentReleaseId,
-              id.getAddress(),
-              resolveWebsocketAddressForPage(request, true))); // codeql[java/xss]
+              id.getAddress()));
         } catch (IOException e) {
           LOG.warning("Failed to render J2CL read-surface preview page", e);
           response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -298,7 +297,6 @@ public class WaveClientServlet extends HttpServlet {
             serverBuildTime,
             currentReleaseId,
             rootShellReturnTarget,
-            resolveWebsocketAddressForPage(request, true), // codeql[java/xss]
             snapshotResult,
             railCardsEnabled,
             viewerLocale,

@@ -653,6 +653,90 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
     }
   });
 
+  it("version-history changed ignores stale snapshot responses after newer selections", async () => {
+    let resolveFirstSnapshot;
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: false });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([
+          { appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 },
+          { appliedAt: 1, resultingVersion: 7, timestamp: 20, opCount: 2 }
+        ]);
+      }
+      if (parsed.pathname.endsWith("/api/snapshot")) {
+        const version = parsed.searchParams.get("version");
+        if (version === "3") {
+          return new Promise((resolve) => {
+            resolveFirstSnapshot = () =>
+              resolve(
+                jsonResponse({
+                  version: 3,
+                  documents: [{ id: "b+root", content: "Stale root" }]
+                })
+              );
+          });
+        }
+        if (version === "7") {
+          return jsonResponse({
+            version: 7,
+            documents: [{ id: "b+root", content: "Current root" }]
+          });
+        }
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="example.com/w+snap-race"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+snap-race" }
+        })
+      );
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(2));
+
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 0, version: overlay.versions[0] }
+        })
+      );
+      await waitFor(() => expect(resolveFirstSnapshot).to.be.a("function"));
+
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 1, version: overlay.versions[1] }
+        })
+      );
+      await waitFor(() => expect(overlay.snapshot && overlay.snapshot.version).to.equal(7));
+      resolveFirstSnapshot();
+      await Promise.resolve();
+      await overlay.updateComplete;
+
+      expect(overlay.snapshot.version).to.equal(7);
+      expect(overlay.snapshot.documents[0].content).to.equal("Current root");
+    } finally {
+      overlay.remove();
+    }
+  });
+
   it("keeps restore disabled when the server allows restore but no history entries load", async () => {
     stub = installFetchStub(async (url) => {
       const parsed = new URL(String(url), window.location.origin);

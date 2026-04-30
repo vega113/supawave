@@ -390,6 +390,7 @@ function unbindOverlay(overlay) {
 function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
   unbindOverlay(overlay);
   resetOverlayForWave(overlay);
+  let snapshotRequestToken = 0;
   overlay.versionLoader = async (start, end) => {
     const info = await fetchJson(buildHistoryUrl(apiBase, "/api/info"));
     const versions = await fetchJson(
@@ -405,6 +406,7 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
   const onVersionChanged = async (event) => {
     const version = versionNumberFromDetail(event.detail);
     if (version == null || !isCurrentWave(host, waveId)) return;
+    const requestToken = ++snapshotRequestToken;
     overlay.loading = true;
     overlay.error = "";
     overlay.snapshot = null;
@@ -412,15 +414,16 @@ function configureVersionHistoryOverlay(overlay, host, waveId, apiBase) {
       const snapshot = await fetchJson(
         buildHistoryUrl(apiBase, "/api/snapshot", { version })
       );
-      if (!isCurrentWave(host, waveId)) return;
+      if (!isCurrentWave(host, waveId) || requestToken !== snapshotRequestToken) return;
       overlay.snapshot = snapshot;
       overlay.error = "";
     } catch (err) {
-      if (isCurrentWave(host, waveId)) {
+      if (isCurrentWave(host, waveId) && requestToken === snapshotRequestToken) {
+        overlay.snapshot = null;
         overlay.error = messageFromError(err, "Unable to load version snapshot.");
       }
     } finally {
-      if (isCurrentWave(host, waveId)) {
+      if (isCurrentWave(host, waveId) && requestToken === snapshotRequestToken) {
         overlay.loading = false;
       }
     }

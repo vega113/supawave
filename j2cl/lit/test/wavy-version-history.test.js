@@ -274,6 +274,53 @@ describe("<wavy-version-history>", () => {
     );
   });
 
+  it("ignores stale version-loader completions after rebinding to another wave", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let resolveLoader;
+    el.versionLoader = () =>
+      new Promise((resolve) => {
+        resolveLoader = resolve;
+      });
+    el.open_();
+    await el.updateComplete;
+    expect(el.loading).to.equal(true);
+
+    el.resetForWave();
+    await el.updateComplete;
+    resolveLoader([{ index: 0, label: "stale", version: 9 }]);
+    await Promise.resolve();
+    await el.updateComplete;
+
+    expect(el.loading).to.equal(false);
+    expect(el.versions).to.deep.equal([]);
+  });
+
+  it("allows version history load retry after loader failure", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let calls = 0;
+    el.versionLoader = () => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.reject(new Error("transient history failure"));
+      }
+      return [{ index: 0, label: "v8", version: 8 }];
+    };
+
+    el.open_();
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.error).to.contain("transient history failure");
+
+    el.close_();
+    await el.updateComplete;
+    el.open_();
+    await el.updateComplete;
+
+    expect(calls).to.equal(2);
+    expect(el.error).to.equal("");
+    expect(el.versions.map((v) => v.version)).to.deep.equal([8]);
+  });
+
   it("renders current version label and read-only snapshot preview", async () => {
     const el = await fixture(html`<wavy-version-history open></wavy-version-history>`);
     el.versions = [

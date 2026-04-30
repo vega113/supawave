@@ -231,6 +231,7 @@ export class WavyVersionHistory extends LitElement {
     this.restoreStatus = "";
     this.versionLoader = null;
     this._loaderRan = false;
+    this._loadToken = 0;
     this._onKeyDown = this._onKeyDown.bind(this);
   }
 
@@ -250,6 +251,7 @@ export class WavyVersionHistory extends LitElement {
       this._syncOpen();
       if (this.open && !this._loaderRan && typeof this.versionLoader === "function") {
         this._loaderRan = true;
+        const loadToken = ++this._loadToken;
         this.loading = true;
         this.error = "";
         try {
@@ -265,6 +267,7 @@ export class WavyVersionHistory extends LitElement {
           if (result && typeof result.then === "function") {
             result.then(
               (versions) => {
+                if (loadToken !== this._loadToken) return;
                 this.loading = false;
                 this.error = "";
                 if (Array.isArray(versions)) {
@@ -272,16 +275,24 @@ export class WavyVersionHistory extends LitElement {
                 }
               },
               (err) => {
+                if (loadToken !== this._loadToken) return;
                 this.loading = false;
+                this._loaderRan = false;
                 this.error = messageFromError(err, "Unable to load version history.");
               }
             );
           } else {
+            if (loadToken !== this._loadToken) return;
             this.loading = false;
+            if (Array.isArray(result)) {
+              this.versions = result;
+            }
           }
         } catch (err) {
+          if (loadToken !== this._loadToken) return;
           // Same — sync throws must not break the overlay chrome.
           this.loading = false;
+          this._loaderRan = false;
           this.error = messageFromError(err, "Unable to load version history.");
         }
       }
@@ -368,6 +379,7 @@ export class WavyVersionHistory extends LitElement {
   }
 
   resetForWave() {
+    this._loadToken += 1;
     this.versions = [];
     this.value = 0;
     this.loading = false;

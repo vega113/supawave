@@ -1,10 +1,10 @@
 # J2CL Parity Issue Map
 
-Status: Historical execution map; superseded by final audit
-Updated: 2026-04-30
-Owner: Project Maintainers  
-Review cadence: on-change  
-Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)  
+Status: Historical execution map; superseded by final audit\
+Updated: 2026-04-30\
+Owner: Project Maintainers\
+Review cadence: on-change\
+Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)\
 Task issue: [#960](https://github.com/vega113/supawave/issues/960)
 
 Final acceptance audit:

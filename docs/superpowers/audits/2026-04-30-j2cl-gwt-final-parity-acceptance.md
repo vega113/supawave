@@ -92,7 +92,7 @@ No new `agent-task` gap issue was created by this audit.
 
 | Command or check | Result | Notes |
 | --- | --- | --- |
-| `sbt --batch compile j2clSearchTest` | PASS | Completed successfully on 2026-05-01 local time; only existing deprecation warnings were emitted |
+| `sbt --batch compile j2clSearchTest` | PASS | Completed successfully at 2026-05-01 00:41 Asia/Jerusalem (2026-04-30 21:41 UTC); only existing deprecation warnings were emitted |
 | `cd wave/src/e2e/j2cl-gwt-parity && npm ci && npx tsc --noEmit` | PASS | `npm ci` added 10 packages from lockfile; `0` vulnerabilities; TypeScript exited 0 |
 | `python3 scripts/assemble-changelog.py` | PASS | Required once because `wave/config/changelog.json` was absent in the fresh worktree; generated file matched tracked/ignored state with no git diff |
 | `bash scripts/worktree-boot.sh --port 9959` | PASS after changelog assembly | GWT assets and Lit shell staged successfully |

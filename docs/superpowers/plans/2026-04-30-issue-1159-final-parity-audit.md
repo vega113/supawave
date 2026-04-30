@@ -77,13 +77,16 @@ gh pr list --state merged --search 'label:j2cl-parity' --json number,title,merge
 jq -r 'sort_by(.number)[] | "- PR #" + (.number|tostring) + " " + .title + " merged " + .mergedAt + " " + .mergeCommit.oid + " " + .url' /tmp/issue-1159-merged-j2cl-prs.json
 ```
 
-Expected: output includes the PRs that closed the parity child issues. If a closed issue was merged through a PR without the `j2cl-parity` label, find it with:
+This search is a convenience check only and may return an empty list if merged
+PRs did not carry the `j2cl-parity` label. Treat issue closure references as
+the primary source of truth. For each closed issue, resolve the closing PR with:
 
 ```bash
-gh issue view <issue-number> --json timelineItems --jq '.timelineItems.nodes[] | select(.source.type=="PULL_REQUEST") | [.source.number, .source.title, .source.url] | @tsv'
+gh issue view <issue-number> --json closedByPullRequestsReferences --jq '.closedByPullRequestsReferences[] | [.number, .title, .url] | @tsv'
 ```
 
-Record every exception explicitly in the audit table.
+If `closedByPullRequestsReferences` is empty, fall back to timeline/source
+inspection and record the exception explicitly in the audit table.
 
 ## Task 2: Run Static And Harness Verification
 

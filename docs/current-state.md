@@ -1,7 +1,7 @@
 # Apache Wave Current State and Resumption Guide
 
 Status: Canonical
-Updated: 2026-04-18
+Updated: 2026-04-30
 Owner: Project Maintainers
 Review cadence: quarterly
 

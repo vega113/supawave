@@ -190,6 +190,13 @@ public class SolrSearchProviderImplTest extends TestCase {
     assertEquals(0, SolrSearchProviderImpl.computeInMemoryStart(5, false, false, false));
   }
 
+  public void testSolrPostFilteredQueriesFetchRequestedPageWindow() {
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, true, false, false));
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, true, false));
+    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, true));
+    assertEquals(10, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, false));
+  }
+
   public void testSearchRejectsMentionsQueries() {
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
         "core.wave_server_domain", "example.com",

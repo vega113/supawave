@@ -788,6 +788,34 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(1, creatorUser2.getNumResults());
   }
 
+  public void testSearchFilterByFromComposesWithReplyCreatorAndWithFilters() throws Exception {
+    WaveletName root =
+        WaveletName.of(WaveId.of(DOMAIN, "from-reply-composition"), WAVELET_ID);
+    WaveletName reply =
+        WaveletName.of(root.waveId, WaveletId.of(DOMAIN, "conv+from-reply"));
+
+    submitDeltaToNewWavelet(root, USER1, addParticipantToWavelet(USER1, root));
+    addWaveletToUserView(reply, USER1);
+    submitDeltaToNewWaveletWithoutView(
+        reply,
+        USER2,
+        new AddParticipant(CONTEXT, USER1),
+        new AddParticipant(CONTEXT, USER2));
+
+    SearchResult results =
+        searchProvider.search(
+            USER1,
+            "in:inbox creator:" + USER2.getAddress()
+                + " with:" + USER2.getAddress()
+                + " from:me",
+            0,
+            10);
+
+    assertEquals(1, results.getNumResults());
+    assertEquals("from-reply-composition",
+        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
+  }
+
   public void testSearchFilterByImplicitContentWorks() throws Exception {
     WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching"), WAVELET_ID);
     WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial"), WAVELET_ID);

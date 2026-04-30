@@ -155,7 +155,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     if (numResults > 0) {
 
       int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery);
-      int rows = Math.max(numResults, ROWS);
+      int rows =
+          computeSolrRows(startAt, numResults, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery);
 
       /*-
        * "fq" stands for Filter Query. see
@@ -398,6 +399,23 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   static int computeInMemoryStart(
       int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery, boolean hasFromQuery) {
     return isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery ? startAt : 0;
+  }
+
+  static int computeSolrRows(
+      int startAt,
+      int numResults,
+      boolean isUnreadOnlyQuery,
+      boolean hasAttachmentQuery,
+      boolean hasFromQuery) {
+    int rows = Math.max(numResults, ROWS);
+    if (!(isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery)) {
+      return rows;
+    }
+    long requestedWindow = (long) Math.max(0, startAt) + Math.max(0, numResults);
+    if (requestedWindow > Integer.MAX_VALUE) {
+      return Integer.MAX_VALUE;
+    }
+    return Math.max(rows, (int) requestedWindow);
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

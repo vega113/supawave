@@ -316,6 +316,9 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
     }
 
     if (!fromAuthorValues.isEmpty()) {
+      // from: is a wave-level root-author filter, so it must see the root even when
+      // creator:/with: matched only a reply wavelet.
+      ensureConversationRootWaveletPresent(results);
       LOG.fine("From-author filter: required=" + fromAuthorValues + ", candidates="
           + results.size());
       FromSearchFilter.filterByRootAuthor(results, fromAuthorValues);
@@ -550,6 +553,66 @@ public class SimpleSearchProviderImpl extends AbstractSearchProviderImpl {
         }
       }
     }
+  }
+
+  private void ensureConversationRootWaveletPresent(List<WaveViewData> results) {
+    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
+    for (WaveViewData wave : results) {
+      if (hasConversationRootWavelet(wave)) {
+        continue;
+      }
+
+      WaveletId rootWaveletId = findConversationRootWaveletId(wave.getWaveId(), loadedWaves);
+      if (rootWaveletId == null) {
+        continue;
+      }
+
+      WaveletName waveletName = WaveletName.of(wave.getWaveId(), rootWaveletId);
+      try {
+        WaveletContainer container = waveMap.getWavelet(waveletName);
+        if (container != null) {
+          wave.addWavelet(container.copyWaveletData());
+        }
+      } catch (WaveletStateException e) {
+        LOG.warning("Failed to load root wavelet " + waveletName, e);
+      }
+    }
+  }
+
+  private boolean hasConversationRootWavelet(WaveViewData wave) {
+    for (ObservableWaveletData waveletData : wave.getWavelets()) {
+      if (IdUtil.isConversationRootWaveletId(waveletData.getWaveletId())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private WaveletId findConversationRootWaveletId(WaveId waveId, Map<WaveId, Wave> loadedWaves) {
+    try {
+      Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(waveId);
+      if (storedWaveletIds != null) {
+        for (WaveletId waveletId : storedWaveletIds) {
+          if (IdUtil.isConversationRootWaveletId(waveletId)) {
+            return waveletId;
+          }
+        }
+      }
+    } catch (WaveletStateException e) {
+      LOG.warning("Failed to look up stored wavelets for " + waveId, e);
+    }
+
+    Wave loadedWave = loadedWaves.get(waveId);
+    if (loadedWave == null) {
+      return null;
+    }
+    for (WaveletContainer container : loadedWave) {
+      WaveletId waveletId = container.getWaveletName().waveletId;
+      if (IdUtil.isConversationRootWaveletId(waveletId)) {
+        return waveletId;
+      }
+    }
+    return null;
   }
 
   /**

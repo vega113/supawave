@@ -238,6 +238,59 @@ describe("wavy-composer toolbar action handlers", () => {
     expect(body.innerHTML).to.equal("hello");
   });
 
+  it("applies text color and serializes style/color", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "text-color", "rgb(204, 0, 0)");
+
+    const span = body.querySelector("span");
+    expect(span).to.exist;
+    expect(span.style.color).to.equal("rgb(204, 0, 0)");
+    const components = el.serializeRichComponents();
+    const run = components.find(
+      c => c.type === "annotated"
+        && c.annotationKey === "style/color"
+        && c.annotationValue === "rgb(204, 0, 0)"
+    );
+    expect(run).to.exist;
+    expect(run.text).to.equal("hello");
+  });
+
+  it("applies highlight color and serializes GWT style/backgroundColor", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "highlight-color", "rgb(255, 242, 204)");
+
+    const mark = body.querySelector("mark");
+    expect(mark).to.exist;
+    expect(mark.style.backgroundColor).to.equal("rgb(255, 242, 204)");
+    const components = el.serializeRichComponents();
+    const run = components.find(
+      c => c.type === "annotated"
+        && c.annotationKey === "style/backgroundColor"
+        && c.annotationValue === "rgb(255, 242, 204)"
+    );
+    expect(run).to.exist;
+    expect(run.text).to.equal("hello");
+  });
+
+  it("ignores color values outside the GWT palette", async () => {
+    const el = await fixture(html`<wavy-composer available></wavy-composer>`);
+    const body = bodyOf(el);
+    body.textContent = "hello";
+    selectAllInBody(el);
+
+    dispatchToolbarAction(el, "text-color", "url(javascript:alert(1))");
+
+    expect(body.innerHTML).to.equal("hello");
+  });
+
   it("replaces superscript and subscript instead of nesting them", async () => {
     const superscript = await fixture(html`<wavy-composer available></wavy-composer>`);
     const supBody = bodyOf(superscript);

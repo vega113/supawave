@@ -3,8 +3,9 @@ import { LitElement, css, html } from "lit";
 /**
  * <wavy-profile-overlay> — F-2.S4 (#1048, L.1 + L.5) modal that opens
  * when an avatar is clicked on a <wave-blip>. Mounts the overlay
- * scaffolding only; L.2 (Send Message) and L.3 (Edit Profile) are
- * delegated to the named `actions` slot for later slices to fill.
+ * scaffolding and the profile-card parity actions for L.2 (Send Message)
+ * and L.3 (Edit Profile). The named `actions` slot remains for future
+ * shell-specific extensions.
  *
  * Open path (L.1):
  *   The element listens on `document` for `wave-blip-profile-requested`
@@ -18,11 +19,17 @@ import { LitElement, css, html } from "lit";
  *   - participants: Array<{ id, displayName, avatarUrl? }> — populated
  *     by the renderer from the wave model. Default [].
  *   - index: number — currently shown participant index. Default 0.
+ *   - currentUserId: string — signed-in participant address used to gate
+ *     own-profile actions.
+ *   - editProfileUrl: string — destination for the Edit Profile action.
  *
  * Events emitted (CustomEvent, bubbles + composed):
  *   - `wavy-profile-overlay-opened` — `{detail: {authorId}}`.
  *   - `wavy-profile-participant-changed` — `{detail: {index, participant}}`.
  *   - `wavy-profile-overlay-closed` — emitted on Exit / Escape.
+ *   - `wave-new-with-participants-requested` —
+ *     `{detail: {participants, source}}` from Send Message.
+ *   - `wavy-profile-edit-requested` — cancelable route hook from Edit Profile.
  *
  * L.4 (close): the inventory marks close as F-0-owned (style). S4
  * ships a tactical close (× button + Escape) using wavy tokens so the
@@ -33,7 +40,9 @@ export class WavyProfileOverlay extends LitElement {
   static properties = {
     open: { type: Boolean, reflect: true },
     participants: { attribute: false },
-    index: { type: Number, reflect: true }
+    index: { type: Number, reflect: true },
+    currentUserId: { type: String, attribute: "current-user-id" },
+    editProfileUrl: { type: String, attribute: "edit-profile-url" }
   };
 
   static styles = css`
@@ -139,7 +148,29 @@ export class WavyProfileOverlay extends LitElement {
     }
     .actions-slot {
       display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: var(--wavy-spacing-2, 8px);
+    }
+    .profile-action {
+      min-height: 34px;
+      padding: 0 var(--wavy-spacing-4, 16px);
+      border-radius: var(--wavy-radius-pill, 9999px);
+      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      cursor: pointer;
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .profile-action-primary {
+      background: var(--wavy-signal-cyan, #22d3ee);
+      border-color: var(--wavy-signal-cyan, #22d3ee);
+      color: var(--wavy-bg-base, #0b1320);
+    }
+    .profile-action[hidden] {
+      display: none;
     }
   `;
 
@@ -148,6 +179,8 @@ export class WavyProfileOverlay extends LitElement {
     this.open = false;
     this.participants = [];
     this.index = 0;
+    this.currentUserId = "";
+    this.editProfileUrl = "/userprofile/edit";
     this._onAvatarRequest = this._onAvatarRequest.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -347,6 +380,62 @@ export class WavyProfileOverlay extends LitElement {
     this.close_();
   }
 
+  _profileAddress(participant) {
+    return participant && participant.id ? String(participant.id).trim() : "";
+  }
+
+  _normalizedAddress(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  _isSelfParticipant(participant) {
+    if (!participant) return false;
+    if (participant.isSelf === true || participant.isSelf === "true") {
+      return true;
+    }
+    const profileAddress = this._normalizedAddress(this._profileAddress(participant));
+    const currentUserId = this._normalizedAddress(this.currentUserId);
+    return Boolean(profileAddress && currentUserId && profileAddress === currentUserId);
+  }
+
+  _onSendMessage(participant) {
+    const address = this._profileAddress(participant);
+    if (!address || this._isSelfParticipant(participant)) {
+      return;
+    }
+    this.dispatchEvent(
+      new CustomEvent("wave-new-with-participants-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { participants: [address], source: "profile-overlay" }
+      })
+    );
+    this.close_();
+  }
+
+  _onEditProfile(participant) {
+    if (!this._isSelfParticipant(participant)) {
+      return;
+    }
+    const url = this.editProfileUrl || "/userprofile/edit";
+    const event = new CustomEvent("wavy-profile-edit-requested", {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+      detail: { url, participant }
+    });
+    const shouldNavigate = this.dispatchEvent(event);
+    this.close_();
+    if (shouldNavigate) {
+      const loc = globalThis && globalThis.location;
+      if (loc && typeof loc.assign === "function") {
+        loc.assign(url);
+      } else if (loc) {
+        loc.href = url;
+      }
+    }
+  }
+
   _initials(displayName) {
     const name = String(displayName || "?").trim();
     if (!name) return "?";
@@ -361,6 +450,8 @@ export class WavyProfileOverlay extends LitElement {
     const current = list[idx] || null;
     const displayName = current ? current.displayName : "Unknown participant";
     const pid = current ? current.id : "";
+    const isSelf = this._isSelfParticipant(current);
+    const canSendMessage = Boolean(this._profileAddress(current)) && !isSelf;
     const prevDisabled = list.length === 0 || idx === 0;
     const nextDisabled = list.length === 0 || idx >= max;
 
@@ -401,6 +492,24 @@ export class WavyProfileOverlay extends LitElement {
         <h2 class="name" id="wavy-profile-name">${displayName}</h2>
         ${pid ? html`<p class="pid">${pid}</p>` : null}
         <div class="actions-slot">
+          <button
+            class="profile-action profile-action-primary"
+            type="button"
+            data-profile-send-message
+            ?hidden=${!canSendMessage}
+            @click=${() => this._onSendMessage(current)}
+          >
+            Send Message
+          </button>
+          <button
+            class="profile-action"
+            type="button"
+            data-profile-edit
+            ?hidden=${!isSelf}
+            @click=${() => this._onEditProfile(current)}
+          >
+            Edit Profile
+          </button>
           <slot name="actions"></slot>
         </div>
       </div>

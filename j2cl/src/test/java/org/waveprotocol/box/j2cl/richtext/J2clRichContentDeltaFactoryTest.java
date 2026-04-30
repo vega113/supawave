@@ -54,6 +54,34 @@ public class J2clRichContentDeltaFactoryTest {
             < deltaJson.indexOf("\"1\":\"b+root\""));
   }
 
+  @Test
+  public void createWaveRequestEmitsDedupedAdditionalParticipantsBeforeRoot() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clComposerDocument document = J2clComposerDocument.builder().text("Hi").build();
+
+    J2clRichContentDeltaFactory.CreateWaveRequest request =
+        factory.createWaveRequest(
+            "User@Example.COM ",
+            document,
+            Arrays.asList(
+                "friend@example.com",
+                " USER@example.COM ",
+                "friend@example.com",
+                " teammate@example.com "));
+
+    String deltaJson = request.getSubmitRequest().getDeltaJson();
+    String self = "{\"1\":\"user@example.com\"}";
+    String friend = "{\"1\":\"friend@example.com\"}";
+    String teammate = "{\"1\":\"teammate@example.com\"}";
+    assertContains(deltaJson, self, friend, teammate, "\"1\":\"b+root\"", "\"2\":\"Hi\"");
+    Assert.assertEquals(1, countOccurrences(deltaJson, self));
+    Assert.assertEquals(1, countOccurrences(deltaJson, friend));
+    Assert.assertEquals(1, countOccurrences(deltaJson, teammate));
+    Assert.assertTrue(deltaJson.indexOf(self) < deltaJson.indexOf(friend));
+    Assert.assertTrue(deltaJson.indexOf(friend) < deltaJson.indexOf(teammate));
+    Assert.assertTrue(deltaJson.indexOf(teammate) < deltaJson.indexOf("\"1\":\"b+root\""));
+  }
+
   // J-UI-3 (#1081, R-5.1): titleText emits an ANNOTATED_TEXT component
   // whose key is conv/title and whose value is the AUTO_VALUE empty string,
   // so WaveDigester.extractTitle (TitleHelper) picks it up server-side.

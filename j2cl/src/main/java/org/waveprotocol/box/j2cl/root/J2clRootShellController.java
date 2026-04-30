@@ -1,7 +1,11 @@
 package org.waveprotocol.box.j2cl.root;
 
+import elemental2.core.JsArray;
 import elemental2.dom.Event;
 import elemental2.dom.HTMLElement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import jsinterop.base.Js;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController;
 import org.waveprotocol.box.j2cl.compose.J2clComposeSurfaceController.CreateSuccessHandler;
@@ -166,6 +170,9 @@ public final class J2clRootShellController {
     elemental2.dom.DomGlobal.document.body.addEventListener(
         "wavy-new-wave-requested",
         evt -> composeController.focusCreateSurface());
+    elemental2.dom.DomGlobal.document.body.addEventListener(
+        "wave-new-with-participants-requested",
+        evt -> composeController.onCreateRequestedWithParticipants(participantsFromEvent(evt)));
     // F-4 (#1039 / R-4.4): bridge the selected-wave controller's live read
     // state into the search panel so the matching digest's unread badge
     // decrements without re-rendering the whole list.
@@ -215,6 +222,47 @@ public final class J2clRootShellController {
   static J2clToolbarSurfaceController.EditState editStateForWriteSession(
       J2clSidecarWriteSession writeSession) {
     return new J2clToolbarSurfaceController.EditState(writeSession != null);
+  }
+
+  static List<String> participantsFromEvent(Event event) {
+    if (event == null) {
+      return Collections.emptyList();
+    }
+    Object detail = Js.asPropertyMap(event).get("detail");
+    if (detail == null) {
+      return Collections.emptyList();
+    }
+    Object participantsObject = Js.asPropertyMap(detail).get("participants");
+    if (participantsObject == null || !JsArray.isArray(participantsObject)) {
+      return Collections.emptyList();
+    }
+    JsArray<?> participants = Js.uncheckedCast(participantsObject);
+    List<Object> values = new ArrayList<Object>();
+    int length = participants.length;
+    for (int i = 0; i < length; i++) {
+      values.add(participants.getAt(i));
+    }
+    return normalizeParticipantValues(values);
+  }
+
+  static List<String> normalizeParticipantValues(List<?> participants) {
+    if (participants == null || participants.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> result = new ArrayList<String>();
+    for (Object participant : participants) {
+      if (participant == null) {
+        continue;
+      }
+      if (!(participant instanceof String)) {
+        continue;
+      }
+      String address = ((String) participant).trim();
+      if (!address.isEmpty()) {
+        result.add(address);
+      }
+    }
+    return result;
   }
 
   /**

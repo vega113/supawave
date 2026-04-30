@@ -2879,6 +2879,36 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals("Wave created.", view.model.getCreateStatusText());
   }
 
+  @Test
+  public void createRequestedWithParticipantsAllowsEmptyDirectWaveAndNormalizesParticipants() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    List<String> created = new ArrayList<String>();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            created::add,
+            waveId -> {});
+    controller.start();
+    controller.onCreateTitleChanged("Draft title");
+    controller.onCreateDraftChanged("Draft body");
+
+    controller.onCreateRequestedWithParticipants(
+        Arrays.asList(" Friend@Example.COM ", "", null, "friend@example.com"));
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    Assert.assertEquals(Arrays.asList("example.com/w+direct"), created);
+    Assert.assertEquals(Arrays.asList("friend@example.com"), factory.lastAdditionalParticipants);
+    Assert.assertEquals("", factory.lastDraftText);
+    Assert.assertEquals(0, factory.lastDocumentComponentCount);
+    Assert.assertEquals("Draft title", view.model.getCreateTitleDraft());
+    Assert.assertEquals("Draft body", view.model.getCreateDraft());
+    Assert.assertEquals("Wave created.", view.model.getCreateStatusText());
+  }
+
   // J-UI-3 — submitting with both fields blank surfaces the existing
   // "enter some text" validation error rather than calling the gateway.
   @Test
@@ -4358,6 +4388,52 @@ public class J2clComposeSurfaceControllerTest {
 
     void complete(int index, J2clAttachmentUploadClient.HttpResponse response) {
       handlers.get(index).onResponse(response);
+    }
+  }
+
+  private static final class CapturingDeltaFactory implements J2clComposeSurfaceController.DeltaFactory {
+    private List<String> lastAdditionalParticipants = Collections.emptyList();
+    private String lastDraftText = null;
+    private int lastDocumentComponentCount = -1;
+
+    @Override
+    public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
+        String address, String draftText, org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
+      return createWaveRequest(address, draftText, document, Collections.emptyList());
+    }
+
+    @Override
+    public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
+        String address,
+        String draftText,
+        org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document,
+        List<String> additionalParticipants) {
+      lastDraftText = draftText;
+      lastAdditionalParticipants = new ArrayList<String>(additionalParticipants);
+      lastDocumentComponentCount = componentCount(document);
+      return new J2clComposeSurfaceController.CreateWaveRequest(
+          "example.com/w+direct",
+          new SidecarSubmitRequest(
+              "example.com/w+direct/~/conv+root", "{\"create\":true}", null));
+    }
+
+    @Override
+    public SidecarSubmitRequest createReplyRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String draftText,
+        org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
+      throw new UnsupportedOperationException("Not needed by this test.");
+    }
+
+    private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
+      try {
+        Field field = document.getClass().getDeclaredField("components");
+        field.setAccessible(true);
+        return ((List<?>) field.get(document)).size();
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
   }
 

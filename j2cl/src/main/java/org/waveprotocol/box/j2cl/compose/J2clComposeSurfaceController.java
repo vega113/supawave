@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -328,6 +329,18 @@ public final class J2clComposeSurfaceController {
     CreateWaveRequest createWaveRequest(
         String address, String draftText, J2clComposerDocument document);
 
+    default CreateWaveRequest createWaveRequest(
+        String address,
+        String draftText,
+        J2clComposerDocument document,
+        List<String> additionalParticipantAddresses) {
+      if (additionalParticipantAddresses != null && !additionalParticipantAddresses.isEmpty()) {
+        throw new UnsupportedOperationException(
+            "Additional create participants require the rich-content delta factory.");
+      }
+      return createWaveRequest(address, draftText, document);
+    }
+
     SidecarSubmitRequest createReplyRequest(
         String address,
         J2clSidecarWriteSession session,
@@ -506,6 +519,7 @@ public final class J2clComposeSurfaceController {
   // Composed into the rich-content document on submit alongside the body so
   // WaveDigester picks the conv/title annotation up server-side.
   private String createTitleDraft = "";
+  private List<String> pendingCreateParticipantAddresses = Collections.emptyList();
 
   /**
    * F-3.S3 (#1038, R-5.5): callback fired after each successful
@@ -883,6 +897,24 @@ public final class J2clComposeSurfaceController {
     createTitleDraft = normalizeTitleForSubmit(title);
     createDraft = normalizeDraft(draft);
     submitCreate();
+  }
+
+  /**
+   * F-3 follow-up (#1075, L.2): create a direct wave from profile-card Send
+   * Message. Participant-driven creates may be title/body empty, but normal
+   * create-form submissions still require user content.
+   */
+  public void onCreateRequestedWithParticipants(List<String> participantAddresses) {
+    if (signedOut || createSubmitting) {
+      render();
+      return;
+    }
+    List<String> normalized = normalizeCreateParticipantAddresses(participantAddresses);
+    if (normalized.isEmpty()) {
+      focusCreateSurface();
+      return;
+    }
+    submitCreate("", "", normalized, false);
   }
 
   /**
@@ -1696,14 +1728,29 @@ public final class J2clComposeSurfaceController {
   }
 
   private void submitCreate() {
+    submitCreate(createTitleDraft, createDraft, pendingCreateParticipantAddresses, true);
+  }
+
+  private void submitCreate(
+      String submittedTitle,
+      String submittedDraft,
+      List<String> participantAddresses,
+      boolean clearCreateDraftOnSuccess) {
     if (signedOut || createSubmitting) {
       render();
       return;
     }
+    final List<String> submittedParticipantAddresses =
+        participantAddresses == null || participantAddresses.isEmpty()
+            ? Collections.emptyList()
+            : new ArrayList<String>(participantAddresses);
+    pendingCreateParticipantAddresses = Collections.emptyList();
     // J-UI-3 (#1081, R-5.1): allow submit when EITHER title or body has text.
     // The user story is "type a title and a message" so a body-only or
     // title-only submission is still a valid create.
-    if (createDraft.trim().isEmpty() && createTitleDraft.trim().isEmpty()) {
+    if (submittedDraft.trim().isEmpty()
+        && submittedTitle.trim().isEmpty()
+        && submittedParticipantAddresses.isEmpty()) {
       createStatusText = "";
       createErrorText = "Enter some text before creating a wave.";
       render();
@@ -1712,8 +1759,6 @@ public final class J2clComposeSurfaceController {
     createSubmitting = true;
     createStatusText = "Bootstrapping the root-shell submit session.";
     createErrorText = "";
-    final String submittedDraft = createDraft;
-    final String submittedTitle = createTitleDraft;
     final int generation = ++createGeneration;
     // J-UI-3 (#1081, R-5.1) — codex P2 PRRT_kwDOBwxLXs5-CyWx: stamp the
     // pre-submit search query (via the root shell's hook) BEFORE the
@@ -1747,7 +1792,8 @@ public final class J2clComposeSurfaceController {
                 deltaFactory.createWaveRequest(
                     bootstrap.getAddress(),
                     submittedDraft,
-                    buildDocument(submittedTitle, submittedDraft, false, ""));
+                    buildDocument(submittedTitle, submittedDraft, false, ""),
+                    submittedParticipantAddresses);
           } catch (RuntimeException e) {
             handleCreateFailure(generation, messageOrDefault(e, "Unable to build the create request."));
             return;
@@ -1757,7 +1803,14 @@ public final class J2clComposeSurfaceController {
           gateway.submit(
               bootstrap,
               request.getSubmitRequest(),
-              response -> handleCreateResponse(generation, request, submittedTitle, submittedDraft, response),
+              response ->
+                  handleCreateResponse(
+                      generation,
+                      request,
+                      submittedTitle,
+                      submittedDraft,
+                      clearCreateDraftOnSuccess,
+                      response),
               error -> handleCreateFailure(generation, error));
         },
         error -> handleCreateFailure(generation, error));
@@ -1768,6 +1821,7 @@ public final class J2clComposeSurfaceController {
       CreateWaveRequest request,
       String submittedTitle,
       String submittedDraft,
+      boolean clearCreateDraftOnSuccess,
       SidecarSubmitResponse response) {
     if (generation != createGeneration) {
       // J-UI-3 codex P2 PRRT_kwDOBwxLXs5-DZqM: superseded; retire this
@@ -1785,8 +1839,10 @@ public final class J2clComposeSurfaceController {
     // stub title passed to the optimistic-digest handler.
     String createdTitle = submittedTitle;
     String createdBodyForStub = submittedDraft;
-    createDraft = "";
-    createTitleDraft = "";
+    if (clearCreateDraftOnSuccess) {
+      createDraft = "";
+      createTitleDraft = "";
+    }
     activeCommandId = "";
     annotationCommandId = "";
     commandStatusText = "";
@@ -2288,8 +2344,17 @@ public final class J2clComposeSurfaceController {
       @Override
       public CreateWaveRequest createWaveRequest(
           String address, String draftText, J2clComposerDocument document) {
+        return createWaveRequest(address, draftText, document, Collections.emptyList());
+      }
+
+      @Override
+      public CreateWaveRequest createWaveRequest(
+          String address,
+          String draftText,
+          J2clComposerDocument document,
+          List<String> additionalParticipantAddresses) {
         J2clRichContentDeltaFactory.CreateWaveRequest request =
-            factory.createWaveRequest(address, document);
+            factory.createWaveRequest(address, document, additionalParticipantAddresses);
         return new CreateWaveRequest(request.getCreatedWaveId(), request.getSubmitRequest());
       }
 
@@ -2707,6 +2772,26 @@ public final class J2clComposeSurfaceController {
 
   private static String normalizeDraft(String draft) {
     return draft == null ? "" : draft;
+  }
+
+  private static List<String> normalizeCreateParticipantAddresses(List<String> participantAddresses) {
+    if (participantAddresses == null || participantAddresses.isEmpty()) {
+      return Collections.emptyList();
+    }
+    Set<String> normalized = new LinkedHashSet<String>();
+    for (String participantAddress : participantAddresses) {
+      if (participantAddress == null) {
+        continue;
+      }
+      String trimmed = participantAddress.trim().toLowerCase(Locale.ROOT);
+      if (!trimmed.isEmpty()) {
+        normalized.add(trimmed);
+      }
+    }
+    if (normalized.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return new ArrayList<String>(normalized);
   }
 
   /**

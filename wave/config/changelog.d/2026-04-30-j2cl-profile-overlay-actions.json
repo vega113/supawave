@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-j2cl-profile-overlay-actions",
+  "version": "Issue #1075",
+  "date": "2026-04-30",
+  "title": "J2CL profile cards can send messages and edit own profile",
+  "summary": "The J2CL profile overlay now includes parity actions for starting a 1:1 wave with another participant and opening the existing profile editor for the signed-in user's own profile.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added Wavy-styled Send Message and Edit Profile actions to the J2CL profile overlay, bridged Send Message through the root compose pipeline, and emitted additional participant AddParticipant operations for direct-message creates."
+      ]
+    }
+  ]
+}

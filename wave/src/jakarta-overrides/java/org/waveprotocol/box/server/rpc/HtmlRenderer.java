@@ -3677,7 +3677,9 @@ public final class HtmlRenderer {
       sb.append("<wavy-wave-controls-toggle data-j2cl-floating-mount=\"true\"></wavy-wave-controls-toggle>\n");
       sb.append("<wavy-floating-scroll-to-new data-j2cl-floating-mount=\"true\" hidden></wavy-floating-scroll-to-new>\n");
       sb.append("<wavy-version-history data-j2cl-floating-mount=\"true\" hidden></wavy-version-history>\n");
-      sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" hidden></wavy-profile-overlay>\n");
+      sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" current-user-id=\"")
+          .append(safeAddress)
+          .append("\" hidden></wavy-profile-overlay>\n");
       sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
       appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     } else {
@@ -3888,7 +3890,9 @@ public final class HtmlRenderer {
     sb.append("<wavy-wave-controls-toggle data-j2cl-floating-mount=\"true\"></wavy-wave-controls-toggle>\n");
     sb.append("<wavy-floating-scroll-to-new data-j2cl-floating-mount=\"true\"></wavy-floating-scroll-to-new>\n");
     sb.append("<wavy-version-history data-j2cl-floating-mount=\"true\" open></wavy-version-history>\n");
-    sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" open data-participant=\"carol@example.com\"></wavy-profile-overlay>\n");
+    sb.append("<wavy-profile-overlay data-j2cl-floating-mount=\"true\" current-user-id=\"")
+        .append(safeAddress)
+        .append("\" open data-participant=\"carol@example.com\"></wavy-profile-overlay>\n");
     sb.append("<script src=\"").append(safeResolvedBasePath).append("j2cl-search/sidecar/j2cl-sidecar.js\"></script>\n");
     appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, true);
     sb.append("</body>\n</html>\n");

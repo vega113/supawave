@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.root;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
@@ -27,6 +28,14 @@ public class J2clRootShellControllerTest {
             new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root")));
 
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+  }
+
+  @Test
+  public void normalizeParticipantValuesTrimsAndSkipsBlankEntries() {
+    Assert.assertEquals(
+        Arrays.asList("Friend@Example.COM", "team@example.com"),
+        J2clRootShellController.normalizeParticipantValues(
+            Arrays.asList(" Friend@Example.COM ", "", null, "team@example.com")));
   }
 
   private static final class FakeToolbarView implements J2clToolbarSurfaceController.View {

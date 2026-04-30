@@ -192,6 +192,71 @@ describe("<wavy-profile-overlay>", () => {
     expect(slot).to.exist;
   });
 
+  it("shows Send Message for non-self profile and emits requested participant", async () => {
+    const el = await fixture(
+      html`<wavy-profile-overlay open current-user-id="alice@example.com"></wavy-profile-overlay>`
+    );
+    el.participants = PARTICIPANTS;
+    el.index = 1;
+    await el.updateComplete;
+
+    const send = el.renderRoot.querySelector("[data-profile-send-message]");
+    const edit = el.renderRoot.querySelector("[data-profile-edit]");
+    expect(send).to.exist;
+    expect(send.hasAttribute("hidden")).to.equal(false);
+    expect(edit).to.exist;
+    expect(edit.hasAttribute("hidden")).to.equal(true);
+
+    setTimeout(() => send.click());
+    const ev = await oneEvent(el, "wave-new-with-participants-requested");
+    expect(ev.detail).to.deep.equal({
+      participants: ["bob@example.com"],
+      source: "profile-overlay"
+    });
+    expect(el.open).to.equal(false);
+  });
+
+  it("shows Edit Profile for current user and emits a cancelable edit event", async () => {
+    const el = await fixture(
+      html`<wavy-profile-overlay open current-user-id="alice@example.com"></wavy-profile-overlay>`
+    );
+    el.participants = PARTICIPANTS;
+    await el.updateComplete;
+
+    const send = el.renderRoot.querySelector("[data-profile-send-message]");
+    const edit = el.renderRoot.querySelector("[data-profile-edit]");
+    expect(send).to.exist;
+    expect(send.hasAttribute("hidden")).to.equal(true);
+    expect(edit).to.exist;
+    expect(edit.hasAttribute("hidden")).to.equal(false);
+
+    let observed = null;
+    el.addEventListener("wavy-profile-edit-requested", (event) => {
+      observed = event;
+      event.preventDefault();
+    });
+    edit.click();
+
+    expect(observed).to.exist;
+    expect(observed.cancelable).to.equal(true);
+    expect(observed.detail.url).to.equal("/userprofile/edit");
+    expect(observed.detail.participant).to.deep.equal(PARTICIPANTS[0]);
+  });
+
+  it("participant isSelf gates Edit Profile without currentUserId", async () => {
+    const el = await fixture(html`<wavy-profile-overlay open></wavy-profile-overlay>`);
+    el.participants = [
+      { id: "viewer@example.com", displayName: "Viewer", isSelf: true },
+      { id: "bob@example.com", displayName: "Bob" }
+    ];
+    await el.updateComplete;
+
+    const send = el.renderRoot.querySelector("[data-profile-send-message]");
+    const edit = el.renderRoot.querySelector("[data-profile-edit]");
+    expect(send.hasAttribute("hidden")).to.equal(true);
+    expect(edit.hasAttribute("hidden")).to.equal(false);
+  });
+
   it("avatar event with empty participants list still opens; nav buttons disabled both ends", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = [];

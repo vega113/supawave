@@ -1,8 +1,10 @@
 package org.waveprotocol.box.j2cl.richtext;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.waveprotocol.box.j2cl.search.J2clSidecarWriteSession;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarSubmitRequest;
@@ -43,9 +45,26 @@ public final class J2clRichContentDeltaFactory {
   }
 
   public CreateWaveRequest createWaveRequest(String address, J2clComposerDocument document) {
+    return createWaveRequest(address, document, null);
+  }
+
+  public CreateWaveRequest createWaveRequest(
+      String address, J2clComposerDocument document, List<String> additionalParticipants) {
     requirePresent(document, "Missing composer document.");
     String normalizedAddress = normalizeAddress(address);
     String domain = extractDomain(normalizedAddress);
+    Set<String> participantAddresses = new LinkedHashSet<String>();
+    participantAddresses.add(normalizedAddress);
+    if (additionalParticipants != null) {
+      for (String participant : additionalParticipants) {
+        if (participant == null || participant.trim().isEmpty()) {
+          continue;
+        }
+        String normalizedParticipant = normalizeAddress(participant);
+        extractDomain(normalizedParticipant);
+        participantAddresses.add(normalizedParticipant);
+      }
+    }
     String waveToken = nextToken("w+");
     String createdWaveId = domain + "/" + waveToken;
     String versionZeroHistoryHash = buildVersionZeroHistoryHash(domain, waveToken);
@@ -54,7 +73,7 @@ public final class J2clRichContentDeltaFactory {
             0L,
             versionZeroHistoryHash,
             normalizedAddress,
-            buildAddParticipantOperation(normalizedAddress)
+            buildAddParticipantOperations(participantAddresses)
                 + ","
                 + buildConversationRootOperation("b+root")
                 + ","
@@ -934,6 +953,17 @@ public final class J2clRichContentDeltaFactory {
 
   private static String buildAddParticipantOperation(String address) {
     return "{\"1\":\"" + escapeJson(address) + "\"}";
+  }
+
+  private static String buildAddParticipantOperations(Set<String> participantAddresses) {
+    StringBuilder operations = new StringBuilder();
+    for (String participantAddress : participantAddresses) {
+      if (operations.length() > 0) {
+        operations.append(",");
+      }
+      operations.append(buildAddParticipantOperation(participantAddress));
+    }
+    return operations.toString();
   }
 
   private static void appendComponentSeparator(StringBuilder builder) {

@@ -115,6 +115,17 @@ const ICON_TEMPLATES = {
     <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
     <path d="M5 8l2.25 2.25L11 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  "text-color": svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
+    <path d="M4 13.5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M5.25 11.25L8 2.5l2.75 8.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6.5 8.25h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M3.5 15h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  "highlight-color": svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
+    <path d="M10.75 2.5l3 3-6.25 6.25-3.75.75.75-3.75 6.25-6.25z" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"/>
+    <path d="M9.5 3.75l3 3" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
+    <path d="M2.5 14h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
   "attachment-insert": svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none">
     <path d="M11.5 4l-5.5 5.5a2.4 2.4 0 0 0 3.4 3.4l6.1-6.1a4 4 0 0 0-5.66-5.66l-6.1 6.1a5.6 5.6 0 0 0 7.92 7.92l5.5-5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`

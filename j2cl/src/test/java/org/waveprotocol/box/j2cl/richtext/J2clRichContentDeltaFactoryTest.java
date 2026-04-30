@@ -1238,6 +1238,32 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void createReplyRequestRoundTripsTextColorAndBackgroundColorAnnotations() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+abc", "chan-4", 3L, "HASH", "b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder()
+            .annotatedText("style/color", "rgb(204, 0, 0)", "Red")
+            .text(" and ")
+            .annotatedText("style/backgroundColor", "rgb(255, 242, 204)", "Highlight")
+            .build();
+
+    String deltaJson =
+        factory.createReplyRequest("user@example.com", session, document).getDeltaJson();
+
+    assertContains(
+        deltaJson,
+        "{\"1\":{\"3\":[{\"1\":\"style/color\",\"3\":\"rgb(204, 0, 0)\"}]}}",
+        "\"2\":\"Red\"",
+        "{\"1\":{\"2\":[\"style/color\"]}}",
+        "{\"1\":{\"3\":[{\"1\":\"style/backgroundColor\",\"3\":\"rgb(255, 242, 204)\"}]}}",
+        "\"2\":\"Highlight\"",
+        "{\"1\":{\"2\":[\"style/backgroundColor\"]}}");
+  }
+
+  @Test
   public void createReplyRequestRoundTripsSuperscriptAnnotation() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

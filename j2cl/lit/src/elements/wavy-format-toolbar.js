@@ -3,6 +3,7 @@ import "../design/wavy-edit-toolbar.js";
 import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.js";
 import "./toolbar-button.js";
 import "./toolbar-group.js";
+import "./wavy-colorpicker-popover.js";
 
 /**
  * <wavy-format-toolbar> — F-3.S1 (#1038, R-5.2) selection-driven floating
@@ -96,6 +97,8 @@ const DAILY_RICH_EDIT_ACTIONS = [
     kind: "select",
     options: FONT_SIZE_OPTIONS
   },
+  { id: "text-color", label: "Text color", group: "text", toggle: false },
+  { id: "highlight-color", label: "Highlight color", group: "text", toggle: false },
   { id: "heading", label: "Heading", group: "block", toggle: false },
   { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },
   { id: "ordered-list", label: "Numbered list", group: "block", toggle: true },
@@ -132,7 +135,8 @@ const GROUP_LABELS = {
 export class WavyFormatToolbar extends LitElement {
   static properties = {
     hidden: { type: Boolean, reflect: true },
-    selectionDescriptor: { type: Object, attribute: false }
+    selectionDescriptor: { type: Object, attribute: false },
+    _colorPickerMode: { state: true }
   };
 
   static styles = css`
@@ -172,6 +176,7 @@ export class WavyFormatToolbar extends LitElement {
     super();
     this.hidden = true;
     this.selectionDescriptor = {};
+    this._colorPickerMode = "";
     this._frameHandle = 0;
     this._cachedRange = null;
     this._handleScroll = () => this._scheduleRepositionFromCachedRect();
@@ -194,13 +199,22 @@ export class WavyFormatToolbar extends LitElement {
     super.disconnectedCallback();
   }
 
+  willUpdate(changed) {
+    if (
+      changed.has("selectionDescriptor") &&
+      !this._hasRenderableSelection(this.selectionDescriptor || {})
+    ) {
+      this._colorPickerMode = "";
+    }
+  }
+
   updated(changed) {
     if (changed.has("selectionDescriptor")) {
       // Cache the live Range when the selection becomes non-collapsed so that
       // scroll/resize repositioning re-reads the updated viewport rect of the
       // *same* range rather than whatever happens to be selected elsewhere.
       const descriptor = this.selectionDescriptor || {};
-      if (descriptor.collapsed === false) {
+      if (this._hasRenderableSelection(descriptor)) {
         const sel = typeof document !== "undefined" ? document.getSelection() : null;
         this._cachedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
       } else {
@@ -208,6 +222,16 @@ export class WavyFormatToolbar extends LitElement {
       }
       this._scheduleReposition();
     }
+  }
+
+  _hasRenderableSelection(descriptor) {
+    const rect = descriptor && descriptor.boundingRect;
+    return (
+      descriptor &&
+      descriptor.collapsed === false &&
+      rect &&
+      (rect.width > 0 || rect.height > 0)
+    );
   }
 
   _scheduleReposition() {
@@ -240,6 +264,7 @@ export class WavyFormatToolbar extends LitElement {
     const collapsed = descriptor.collapsed !== false;
     const rect = descriptor.boundingRect;
     if (collapsed || !rect || (rect.width === 0 && rect.height === 0)) {
+      this._colorPickerMode = "";
       this.hidden = true;
       this.style.transform = "translate(-9999px, -9999px)";
       return;
@@ -270,6 +295,14 @@ export class WavyFormatToolbar extends LitElement {
     const actionId = (event.detail && event.detail.action) || "";
     if (!actionId) return;
     event.stopPropagation();
+    if (actionId === "text-color" || actionId === "highlight-color") {
+      this._colorPickerMode = actionId === "highlight-color" ? "highlight" : "text";
+      return;
+    }
+    this._emitAction(actionId);
+  }
+
+  _emitAction(actionId) {
     this.dispatchEvent(
       new CustomEvent("wavy-format-toolbar-action", {
         detail: {
@@ -280,6 +313,33 @@ export class WavyFormatToolbar extends LitElement {
         composed: true
       })
     );
+  }
+
+  _onColorSelected(event) {
+    event.stopPropagation();
+    const mode = event.detail && event.detail.mode === "highlight" ? "highlight" : "text";
+    const color = (event.detail && event.detail.color) || "";
+    if (!color) {
+      this._colorPickerMode = "";
+      return;
+    }
+    this.dispatchEvent(
+      new CustomEvent("wavy-format-toolbar-action", {
+        detail: {
+          actionId: mode === "highlight" ? "highlight-color" : "text-color",
+          value: color,
+          selectionDescriptor: this.selectionDescriptor
+        },
+        bubbles: true,
+        composed: true
+      })
+    );
+    this._colorPickerMode = "";
+  }
+
+  _onColorPickerClosed(event) {
+    event.stopPropagation();
+    this._colorPickerMode = "";
   }
 
   _onSelectAction(action, event) {
@@ -344,6 +404,13 @@ export class WavyFormatToolbar extends LitElement {
     return html`
       <wavy-edit-toolbar @toolbar-action=${this._onToolbarAction.bind(this)}>
         ${groups}
+        <wavy-colorpicker-popover
+          slot="toolbar-extension"
+          mode=${this._colorPickerMode || "text"}
+          .open=${this._colorPickerMode !== ""}
+          @wavy-colorpicker-color-selected=${this._onColorSelected}
+          @wavy-colorpicker-popover-closed=${this._onColorPickerClosed}
+        ></wavy-colorpicker-popover>
         <slot name="toolbar-extension" slot="toolbar-extension"></slot>
       </wavy-edit-toolbar>
     `;

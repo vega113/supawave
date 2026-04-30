@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-04-30-j2cl-colorpicker",
+  "version": "Issue #1073",
+  "date": "2026-04-30",
+  "title": "J2CL composer text and highlight colors",
+  "summary": "Adds GWT-parity text color and highlight color affordances to the J2CL rich-text composer.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds a keyboard-accessible J2CL color picker using the legacy GWT color palette.",
+        "Serializes selected text color as style/color and highlight color as GWT-compatible style/backgroundColor annotations for rich-content DocOp round trips."
+      ]
+    }
+  ]
+}

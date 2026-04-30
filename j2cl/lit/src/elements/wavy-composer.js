@@ -4,6 +4,7 @@ import "../design/wavy-compose-card.js";
 import "./composer-submit-affordance.js";
 import "./mention-suggestion-popover.js";
 import "./wavy-link-modal.js";
+import { normalizePaletteColor } from "../format/color-options.js";
 import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.js";
 
 function normalizeFontFamilyValue(value) {
@@ -218,18 +219,33 @@ function inlineFormatAnnotation(tag) {
   }
 }
 
-function inlineFormatAnnotationForNode(node) {
-  if (!node || node.nodeType !== Node.ELEMENT_NODE) return null;
+function inlineFormatAnnotationsForNode(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return [];
   const tag = node.tagName.toLowerCase();
   if (tag === "font") {
     const family = normalizeFontFamilyValue(node.getAttribute("face"));
-    return family ? { key: "style/fontFamily", value: family } : null;
+    return family ? [{ key: "style/fontFamily", value: family }] : [];
   }
   if (tag === "span") {
+    const annotations = [];
+    const color = normalizePaletteColor(node.style && node.style.color);
+    if (color) annotations.push({ key: "style/color", value: color });
     const size = normalizeFontSizeValue(node.style && node.style.fontSize);
-    return size ? { key: "style/fontSize", value: size } : null;
+    if (size) annotations.push({ key: "style/fontSize", value: size });
+    return annotations;
   }
-  return inlineFormatAnnotation(tag);
+  if (tag === "mark") {
+    const annotations = [];
+    const background = normalizePaletteColor(node.style && node.style.backgroundColor);
+    if (background) annotations.push({ key: "style/backgroundColor", value: background });
+    const color = normalizePaletteColor(node.style && node.style.color);
+    if (color) annotations.push({ key: "style/color", value: color });
+    const size = normalizeFontSizeValue(node.style && node.style.fontSize);
+    if (size) annotations.push({ key: "style/fontSize", value: size });
+    return annotations;
+  }
+  const annotation = inlineFormatAnnotation(tag);
+  return annotation ? [annotation] : [];
 }
 
 /**
@@ -639,6 +655,16 @@ export class WavyComposer extends LitElement {
       event.stopPropagation();
       return;
     }
+    if (actionId === "text-color") {
+      this._applyColorSelection("text", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
+    if (actionId === "highlight-color") {
+      this._applyColorSelection("highlight", event.detail && event.detail.value);
+      event.stopPropagation();
+      return;
+    }
     if (actionId === "unordered-list" || actionId === "ordered-list") {
       this._toggleListAtSelection(actionId === "ordered-list" ? "ol" : "ul");
       event.stopPropagation();
@@ -953,6 +979,187 @@ export class WavyComposer extends LitElement {
       if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
       const size = normalizeFontSizeValue(node.style && node.style.fontSize);
       if (!size) continue;
+      const parent = node.parentNode;
+      if (!parent) continue;
+      while (node.firstChild) parent.insertBefore(node.firstChild, node);
+      parent.removeChild(node);
+    }
+  }
+
+  _applyColorSelection(kind, rawValue) {
+    if (!this._bodyElement) return;
+    const value = normalizePaletteColor(rawValue);
+    if (!value) return;
+    const range = this._activeRange();
+    if (!range || range.collapsed) return;
+    if (!this._bodyElement.contains(range.startContainer)) return;
+    const sameKindAncestor = this._findColorWrapperAncestor(range.startContainer, kind);
+    if (
+      sameKindAncestor
+      && (sameKindAncestor === range.endContainer || sameKindAncestor.contains(range.endContainer))
+      && this._replaceColorWrapperAtSelection(range, kind, value, sameKindAncestor)
+    ) {
+      this._afterBodyMutation();
+      return;
+    }
+    const wrapper = this._createColorWrapper(kind, value);
+    try {
+      const contents = range.extractContents();
+      this._unwrapColorWrappersInFragment(contents, kind);
+      wrapper.appendChild(contents);
+      range.insertNode(wrapper);
+      const restored = document.createRange();
+      restored.selectNodeContents(wrapper);
+      this._restoreSelectionRange(restored);
+    } catch (_e) {
+      return;
+    }
+    this._afterBodyMutation();
+  }
+
+  _createColorWrapper(kind, value, sourceNode = null) {
+    const wrapper = kind === "highlight"
+      ? document.createElement("mark")
+      : document.createElement("span");
+    this._copyNonTargetColorStyles(wrapper, sourceNode, kind);
+    if (kind === "highlight") {
+      wrapper.style.backgroundColor = value;
+    } else {
+      wrapper.style.color = value;
+    }
+    return wrapper;
+  }
+
+  _copyNonTargetColorStyles(target, sourceNode, kind) {
+    if (
+      !target
+      || !sourceNode
+      || sourceNode.nodeType !== Node.ELEMENT_NODE
+      || !sourceNode.style
+    ) {
+      return;
+    }
+    const styleText = sourceNode.getAttribute("style") || "";
+    if (!styleText.trim()) return;
+    target.style.cssText = styleText;
+    this._removeTargetColorStyle(target, kind);
+  }
+
+  _removeTargetColorStyle(node, kind) {
+    if (!node || !node.style) return;
+    if (kind === "highlight") {
+      node.style.removeProperty("background-color");
+    } else {
+      node.style.removeProperty("color");
+    }
+    if (node.hasAttribute("style") && !(node.getAttribute("style") || "").trim()) {
+      node.removeAttribute("style");
+    }
+  }
+
+  _replaceStyledMarkWithSpan(node) {
+    const parent = node && node.parentNode;
+    if (!parent || node.tagName.toLowerCase() !== "mark") return;
+    const styleText = node.getAttribute("style") || "";
+    const span = document.createElement("span");
+    if (styleText.trim()) {
+      span.setAttribute("style", styleText);
+    }
+    while (node.firstChild) {
+      span.appendChild(node.firstChild);
+    }
+    parent.replaceChild(span, node);
+  }
+
+  _findColorWrapperAncestor(container, kind) {
+    let node = container && container.nodeType === Node.ELEMENT_NODE
+      ? container
+      : container && container.parentNode;
+    while (node && node !== this._bodyElement) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (
+          kind === "text"
+          && tag === "span"
+          && normalizePaletteColor(node.style && node.style.color)
+        ) {
+          return node;
+        }
+        if (
+          kind === "highlight"
+          && tag === "mark"
+          && normalizePaletteColor(node.style && node.style.backgroundColor)
+        ) {
+          return node;
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  _replaceColorWrapperAtSelection(range, kind, value, ancestor) {
+    const parent = ancestor && ancestor.parentNode;
+    if (!parent) return false;
+    let prefixFragment;
+    let middleFragment;
+    let suffixFragment;
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.selectNodeContents(ancestor);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      const middleRange = document.createRange();
+      middleRange.selectNodeContents(ancestor);
+      middleRange.setStart(range.startContainer, range.startOffset);
+      middleRange.setEnd(range.endContainer, range.endOffset);
+      const suffixRange = document.createRange();
+      suffixRange.selectNodeContents(ancestor);
+      suffixRange.setStart(range.endContainer, range.endOffset);
+      prefixFragment = prefixRange.cloneContents();
+      middleFragment = middleRange.cloneContents();
+      suffixFragment = suffixRange.cloneContents();
+    } catch (_e) {
+      return false;
+    }
+    if (!fragmentHasContent(middleFragment)) return false;
+    this._unwrapColorWrappersInFragment(middleFragment, kind);
+
+    const insertExistingWrapper = (target, frag) => {
+      if (!fragmentHasContent(frag)) return;
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(frag);
+      parent.insertBefore(wrapper, target);
+    };
+
+    insertExistingWrapper(ancestor, prefixFragment);
+    const replacement = this._createColorWrapper(kind, value, ancestor);
+    replacement.appendChild(middleFragment);
+    parent.insertBefore(replacement, ancestor);
+    insertExistingWrapper(ancestor, suffixFragment);
+    parent.removeChild(ancestor);
+
+    const restored = document.createRange();
+    restored.selectNodeContents(replacement);
+    this._restoreSelectionRange(restored);
+    return true;
+  }
+
+  _unwrapColorWrappersInFragment(fragment, kind) {
+    if (!fragment || !fragment.querySelectorAll) return;
+    const selector = kind === "highlight" ? "mark" : "span";
+    for (const node of Array.from(fragment.querySelectorAll(selector))) {
+      if (node.classList && node.classList.contains("wavy-mention-chip")) continue;
+      const value = kind === "highlight"
+        ? normalizePaletteColor(node.style && node.style.backgroundColor)
+        : normalizePaletteColor(node.style && node.style.color);
+      if (!value) continue;
+      this._removeTargetColorStyle(node, kind);
+      if (node.hasAttribute("style") && (node.getAttribute("style") || "").trim()) {
+        if (kind === "highlight") {
+          this._replaceStyledMarkWithSpan(node);
+        }
+        continue;
+      }
       const parent = node.parentNode;
       if (!parent) continue;
       while (node.firstChild) parent.insertBefore(node.firstChild, node);
@@ -1317,6 +1524,7 @@ export class WavyComposer extends LitElement {
       "sub",
       "font",
       "span",
+      "mark",
       "a",
       "h1",
       "h2",
@@ -1568,7 +1776,7 @@ export class WavyComposer extends LitElement {
     // a textContent overwrite.
     return Boolean(
       this._bodyElement.querySelector(
-        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, font, span[style*='font-size'], ul, ol, blockquote, h1, h2, h3, h4"
+        ".wavy-mention-chip, .wavy-task-list, strong, b, em, i, u, s, strike, del, a, sup, sub, font, span[style*='font-size'], span[style*='color'], mark[style*='background'], ul, ol, blockquote, h1, h2, h3, h4"
       )
     );
   }
@@ -1892,8 +2100,8 @@ export class WavyComposer extends LitElement {
         // annotation in their `annotations` list and we *append* the
         // outer annotation to that list so the combined run round-trips
         // (codex review #1095 thread PRRT_kwDOBwxLXs5-C84a).
-        const inlineAnnotation = inlineFormatAnnotationForNode(node);
-        if (inlineAnnotation) {
+        const inlineAnnotations = inlineFormatAnnotationsForNode(node);
+        if (inlineAnnotations.length > 0) {
           flushText();
           const snapLen = components.length;
           const snapPending = pending;
@@ -1906,11 +2114,15 @@ export class WavyComposer extends LitElement {
           // outer annotation onto every child run (text + annotated)
           // so combined `<strong><em>x</em></strong>` carries both
           // fontWeight AND fontStyle on the same span.
-          for (const merged of mergeOuterAnnotation(
-            innerComps,
-            inlineAnnotation.key,
-            inlineAnnotation.value
-          )) {
+          let mergedComps = innerComps;
+          for (const inlineAnnotation of inlineAnnotations) {
+            mergedComps = mergeOuterAnnotation(
+              mergedComps,
+              inlineAnnotation.key,
+              inlineAnnotation.value
+            );
+          }
+          for (const merged of mergedComps) {
             components.push(merged);
           }
           continue;

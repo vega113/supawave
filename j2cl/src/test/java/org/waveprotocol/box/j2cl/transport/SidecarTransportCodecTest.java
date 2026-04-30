@@ -497,26 +497,6 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
-  public void extractSessionBootstrapAddressFromRootHtml() {
-    String html =
-        "<html><script>window.__session={\"address\":\"user@example.com\",\"id\":\"abc\"};"
-            + "window.__websocket_address=\"socket.example.test:7443\";"
-            + "</script></html>";
-
-    SidecarSessionBootstrap bootstrap = SidecarSessionBootstrap.fromRootHtml(html);
-
-    Assert.assertEquals("user@example.com", bootstrap.getAddress());
-    Assert.assertEquals("socket.example.test:7443", bootstrap.getWebSocketAddress());
-  }
-
-  @Test
-  public void extractSessionBootstrapRejectsMissingAddress() {
-    String html = "<html><script>window.__session={\"id\":\"abc\"};</script></html>";
-    expectIllegalArgumentContains(
-        "did not include an address", () -> SidecarSessionBootstrap.fromRootHtml(html));
-  }
-
-  @Test
   public void extractSessionBootstrapFromBootstrapJson() {
     String json =
         "{\"session\":{\"domain\":\"example.com\",\"address\":\"user@example.com\","

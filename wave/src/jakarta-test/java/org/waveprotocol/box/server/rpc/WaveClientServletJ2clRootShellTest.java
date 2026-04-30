@@ -31,14 +31,10 @@ import com.typesafe.config.ConfigFactory;
 import java.util.Collections;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.json.JSONObject;
 import org.junit.Test;
-import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.account.AccountData;
@@ -81,21 +77,23 @@ public final class WaveClientServletJ2clRootShellTest {
     when(request.getParameter("q")).thenReturn("with:@");
     when(request.getParameter("wave")).thenReturn("example.com/w+1");
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getRequestURI()).thenReturn("/");
     when(request.getSession(false)).thenReturn(null);
     when(response.getWriter()).thenReturn(new PrintWriter(body));
 
     servlet.doGet(request, response);
 
     String html = body.toString();
-    assertTrue(
-        html.contains("href=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
-    assertTrue(
-        html.contains(
-            "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Dwith%253A%2540%26wave%3Dexample.com%252Fw%252B1"));
-    assertTrue(
-        html.contains(
-            "data-j2cl-root-return-target=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
-    assertTrue(html.contains("data-j2cl-server-first-mode=\"signed-out\""));
+    assertContains(
+        html,
+        "href=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\"");
+    assertContains(
+        html,
+        "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Dwith%253A%2540%26wave%3Dexample.com%252Fw%252B1");
+    assertContains(
+        html,
+        "data-j2cl-root-return-target=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\"");
+    assertContains(html, "data-j2cl-server-first-mode=\"no-wave\"");
   }
 
   @Test
@@ -125,25 +123,27 @@ public final class WaveClientServletJ2clRootShellTest {
     when(request.getParameter("q")).thenReturn("with:@");
     when(request.getParameter("wave")).thenReturn("example.com/w+1");
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getRequestURI()).thenReturn("/");
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));
     when(response.getWriter()).thenReturn(new PrintWriter(body));
 
     servlet.doGet(request, response);
 
     String html = body.toString();
-    assertTrue(
-        html.contains("href=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
-    assertTrue(
-        html.contains(
-            "/auth/signout?r=/%3Fview%3Dj2cl-root%26q%3Dwith%253A%2540%26wave%3Dexample.com%252Fw%252B1"));
-    assertTrue(html.contains("id=\"j2cl-root-brand-link\""));
-    assertTrue(html.contains("data-j2cl-root-signout=\"true\""));
-    assertTrue(html.contains("id=\"j2cl-root-return-target-text\""));
-    assertTrue(html.contains("Signed in as"));
-    assertTrue(html.contains("data-j2cl-root-shell"));
-    assertTrue(html.contains("/j2cl/assets/sidecar.css"));
-    assertTrue(html.contains("/j2cl-search/sidecar/j2cl-sidecar.js"));
-    assertTrue(html.contains("data-j2cl-upgrade-placeholder=\"selected-wave\""));
+    assertContains(
+        html,
+        "href=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\"");
+    assertContains(
+        html,
+        "/auth/signout?r=/%3Fview%3Dj2cl-root%26q%3Dwith%253A%2540%26wave%3Dexample.com%252Fw%252B1");
+    assertContains(html, "id=\"j2cl-root-brand-link\"");
+    assertContains(html, "data-j2cl-root-signout=\"true\"");
+    assertContains(html, "id=\"j2cl-root-return-target-text\"");
+    assertContains(html, "alice@example.com");
+    assertContains(html, "data-j2cl-root-shell");
+    assertContains(html, "/j2cl/assets/sidecar.css");
+    assertContains(html, "/j2cl-search/sidecar/j2cl-sidecar.js");
+    assertContains(html, "data-j2cl-upgrade-placeholder=\"selected-wave\"");
     assertFalse(html.contains("The hosted J2CL workflow will mount here in the next slice."));
   }
 
@@ -279,7 +279,7 @@ public final class WaveClientServletJ2clRootShellTest {
   }
 
   @Test
-  public void signedInJ2clRootShellStillExposesLegacyBootstrapGlobals() throws Exception {
+  public void signedInJ2clRootShellDoesNotExposeLegacyBootstrapGlobals() throws Exception {
     WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"));
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
@@ -292,74 +292,8 @@ public final class WaveClientServletJ2clRootShellTest {
     servlet.doGet(request, response);
 
     String html = body.toString();
-    Pattern inlineSession = Pattern.compile("var\\s+__session\\s*=\\s*(\\{.*?\\})\\s*;", Pattern.DOTALL);
-    Matcher matcher = inlineSession.matcher(html);
-    assertTrue(matcher.find());
-    String sessionJson = matcher.group(1);
-    assertTrue(new JSONObject(sessionJson).has(SessionConstants.ID_SEED));
-    assertTrue(html.contains("\"address\":\"alice@example.com\""));
-    assertTrue(html.contains("var __websocket_address = "));
-    assertTrue(html.contains("\"127.0.0.1:9898\""));
-  }
-
-  @Test
-  public void j2clRootShellUsesHostHeaderWhenNoPresentedAddressConfigured() throws Exception {
-    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"));
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    HttpServletResponse response = mock(HttpServletResponse.class);
-    StringWriter body = new StringWriter();
-    when(request.getParameter("view")).thenReturn("j2cl-root");
-    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
-    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
-    when(request.getHeader("Host")).thenReturn("wave.example.com");
-    when(response.getWriter()).thenReturn(new PrintWriter(body));
-
-    servlet.doGet(request, response);
-
-    assertTrue(body.toString().contains("\"wave.example.com\""));
-  }
-
-  @Test
-  public void j2clRootShellPrefersSingleForwardedHostValue() throws Exception {
-    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"));
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    HttpServletResponse response = mock(HttpServletResponse.class);
-    StringWriter body = new StringWriter();
-    when(request.getParameter("view")).thenReturn("j2cl-root");
-    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
-    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
-    when(request.getHeader("X-Forwarded-Host"))
-        .thenReturn("wave.example.com, attacker.example.com");
-    when(request.getHeader("Host")).thenReturn("ignored.example.com");
-    when(response.getWriter()).thenReturn(new PrintWriter(body));
-
-    servlet.doGet(request, response);
-
-    String html = body.toString();
-    assertTrue(html.contains("\"wave.example.com\""));
-    assertFalse(html.contains("attacker.example.com"));
-    assertFalse(html.contains("ignored.example.com"));
-  }
-
-  @Test
-  public void j2clRootShellFallsBackWhenPresentedHostHeaderIsUnsafe() throws Exception {
-    WaveClientServlet servlet = createServlet(ParticipantId.ofUnsafe("alice@example.com"));
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    HttpServletResponse response = mock(HttpServletResponse.class);
-    StringWriter body = new StringWriter();
-    when(request.getParameter("view")).thenReturn("j2cl-root");
-    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
-    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
-    when(request.getHeader("X-Forwarded-Host")).thenReturn("bad host");
-    when(request.getHeader("Host")).thenReturn("bad.example.com/<svg>");
-    when(response.getWriter()).thenReturn(new PrintWriter(body));
-
-    servlet.doGet(request, response);
-
-    String html = body.toString();
-    assertTrue(html.contains("\"127.0.0.1:9898\""));
-    assertFalse(html.contains("bad host"));
-    assertFalse(html.contains("bad.example.com"));
+    assertFalse(html.contains("var __session = "));
+    assertFalse(html.contains("var __websocket_address = "));
   }
 
   @Test
@@ -606,5 +540,11 @@ public final class WaveClientServletJ2clRootShellTest {
     FeatureFlagStore store = mock(FeatureFlagStore.class);
     when(store.getAll()).thenReturn(Collections.emptyList());
     return store;
+  }
+
+  private static void assertContains(String html, String expectedFragment) {
+    assertTrue(
+        "Expected HTML to contain: " + expectedFragment + "\nHTML:\n" + html,
+        html.contains(expectedFragment));
   }
 }

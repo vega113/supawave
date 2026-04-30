@@ -3494,14 +3494,6 @@ public final class HtmlRenderer {
     sb.append("<title>SupaWave J2CL Root Shell</title>\n");
     sb.append("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">\n");
     sb.append("<link rel=\"alternate icon\" href=\"/static/favicon.ico\">\n");
-    sb.append("<script type=\"text/javascript\">\n");
-    sb.append("var __session = ")
-        .append(escapeInlineJson(resolvedSessionJson.toString()))
-        .append(";\n");
-    sb.append("var __websocket_address = ")
-        .append(escapeJsonString(websocketAddress == null ? "" : websocketAddress))
-        .append(";\n");
-    sb.append("</script>\n");
     sb.append("<meta name=\"build-commit\" content=\"").append(escapeHtml(buildCommit == null ? "" : buildCommit)).append("\">\n");
     sb.append("<meta name=\"server-build-time\" content=\"").append(serverBuildTime).append("\">\n");
     sb.append("<meta name=\"current-release-id\" content=\"").append(escapeHtml(currentReleaseId == null ? "" : currentReleaseId)).append("\">\n");

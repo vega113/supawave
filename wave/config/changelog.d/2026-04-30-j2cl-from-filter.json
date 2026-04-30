@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-j2cl-from-filter",
+  "version": "Issue #1092",
+  "date": "2026-04-30",
+  "title": "J2CL From me search chip filters server-side",
+  "summary": "The J2CL From me search chip now filters waves server-side for both simple and Solr search providers.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Executes canonical from:me and from:<address> queries by matching the conversation root wavelet creator while preserving existing creator: behavior."
+      ]
+    }
+  ]
+}

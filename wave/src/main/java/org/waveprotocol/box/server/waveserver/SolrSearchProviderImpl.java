@@ -143,6 +143,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
         queryParams.containsKey(TokenQueryType.UNREAD)
             || QueryHelper.hasIsValue(queryParams, "unread");
     final boolean hasAttachmentQuery = AttachmentSearchFilter.isHasAttachmentQuery(queryParams);
+    final Set<String> fromAuthorValues = FromSearchFilter.normalizeFromValues(queryParams, user);
+    final boolean hasFromQuery = !fromAuthorValues.isEmpty();
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);
@@ -152,7 +154,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     if (numResults > 0) {
 
-      int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery);
+      int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery);
       int rows = Math.max(numResults, ROWS);
 
       /*-
@@ -187,9 +189,16 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
-    if (hasAttachmentQuery) {
+    if (hasAttachmentQuery || hasFromQuery) {
       expandConversationalWavelets(resultsList, user, isAllQuery);
+    }
+
+    if (hasAttachmentQuery) {
       AttachmentSearchFilter.filterByHasAttachment(resultsList);
+    }
+
+    if (hasFromQuery) {
+      FromSearchFilter.filterByRootAuthor(resultsList, fromAuthorValues);
     }
 
     // Solr does not index tags, so perform post-filtering for tag: queries.
@@ -209,7 +218,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     Collection<WaveViewData> searchResult =
         computeSearchResult(
             user,
-            computeInMemoryStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery),
+            computeInMemoryStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery),
             numResults,
             resultsList);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
@@ -357,8 +366,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
    * J-UI-2 (#1080): the rail's filter chips emit {@code is:unread},
    * {@code has:attachment}, and {@code from:me}. {@code is:unread} is
    * handled equivalently to {@code unread:true} via post-filtering, and
-   * {@code has:attachment} is post-filtered by attachment metadata docs.
-   * {@code from:me} is URL-only this slice (deferred follow-up).
+   * {@code has:attachment} and {@code from:*} are post-filtered from
+   * materialized wave metadata.
    * In all three cases the token must be stripped before the query is
    * forwarded to Solr — Solr's schema does not know these prefixes and
    * a literal {@code is:unread} term in the user-query clause fails the
@@ -381,13 +390,14 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     return !IN_PATTERN.matcher(query).find() || IN_ALL_PATTERN.matcher(query).find();
   }
 
-  static int computeSolrStart(int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
-    return isUnreadOnlyQuery || hasAttachmentQuery ? 0 : startAt;
+  static int computeSolrStart(
+      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery, boolean hasFromQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery ? 0 : startAt;
   }
 
   static int computeInMemoryStart(
-      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery) {
-    return isUnreadOnlyQuery || hasAttachmentQuery ? startAt : 0;
+      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery, boolean hasFromQuery) {
+    return isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery ? startAt : 0;
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

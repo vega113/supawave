@@ -40,6 +40,18 @@ describe("<wavy-colorpicker-popover>", () => {
     expect(event.detail.color).to.equal("rgb(67, 67, 67)");
   });
 
+  it("emits a close event when dismissed with Escape", async () => {
+    const el = await fixture(html`<wavy-colorpicker-popover open></wavy-colorpicker-popover>`);
+    const grid = el.renderRoot.querySelector("[role='grid']");
+    const closed = oneEvent(el, "wavy-colorpicker-popover-closed");
+
+    grid.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    const event = await closed;
+    expect(event.detail.reason).to.equal("escape");
+    expect(el.open).to.equal(false);
+  });
+
   it("focuses the palette grid when opened for keyboard users", async () => {
     const el = await fixture(html`<wavy-colorpicker-popover></wavy-colorpicker-popover>`);
     el.open = true;

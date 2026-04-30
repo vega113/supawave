@@ -37,7 +37,7 @@ Plan decision:
 - Modify `j2cl/src/main/java/org/waveprotocol/box/j2cl/toolbar/J2clDailyToolbarAction.java`: add stable enum IDs.
 - Modify `j2cl/src/test/java/org/waveprotocol/box/j2cl/toolbar/J2clToolbarSurfaceControllerTest.java`: assert stable ID lookup only, unless the Java toolbar is explicitly wired later.
 - Modify `j2cl/src/test/java/org/waveprotocol/box/j2cl/richtext/J2clRichContentDeltaFactoryTest.java`: prove `style/color` and `style/backgroundColor` round-trip.
-- Add `wave/config/changelog.d/20260430-j2cl-colorpicker.yaml`: user-facing changelog fragment.
+- Add `wave/config/changelog.d/2026-04-30-j2cl-colorpicker.json`: user-facing changelog fragment.
 
 ## Task 1: RED Tests For Color Picker And Toolbar Surface
 

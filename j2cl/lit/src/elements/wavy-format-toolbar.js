@@ -335,6 +335,11 @@ export class WavyFormatToolbar extends LitElement {
     this._colorPickerMode = "";
   }
 
+  _onColorPickerClosed(event) {
+    event.stopPropagation();
+    this._colorPickerMode = "";
+  }
+
   _onSelectAction(action, event) {
     event.stopPropagation();
     const target = event.currentTarget;
@@ -402,6 +407,7 @@ export class WavyFormatToolbar extends LitElement {
           mode=${this._colorPickerMode || "text"}
           .open=${this._colorPickerMode !== ""}
           @wavy-colorpicker-color-selected=${this._onColorSelected}
+          @wavy-colorpicker-popover-closed=${this._onColorPickerClosed}
         ></wavy-colorpicker-popover>
         <slot name="toolbar-extension" slot="toolbar-extension"></slot>
       </wavy-edit-toolbar>

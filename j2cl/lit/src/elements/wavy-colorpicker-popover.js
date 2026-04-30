@@ -170,7 +170,7 @@ export class WavyColorpickerPopover extends LitElement {
       return;
     } else if (event.key === "Escape") {
       event.preventDefault();
-      this.open = false;
+      this._close("escape");
       return;
     } else {
       return;
@@ -190,6 +190,17 @@ export class WavyColorpickerPopover extends LitElement {
           color,
           mode: this.mode === "highlight" ? "highlight" : "text"
         },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+
+  _close(reason) {
+    this.open = false;
+    this.dispatchEvent(
+      new CustomEvent("wavy-colorpicker-popover-closed", {
+        detail: { reason },
         bubbles: true,
         composed: true
       })

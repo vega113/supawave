@@ -201,6 +201,46 @@ describe("<wavy-format-toolbar>", () => {
     expect(picker.open).to.equal(false);
   });
 
+  it("clears toolbar colorpicker state when Escape dismisses the popover", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+
+    const button = el.renderRoot.querySelector('[data-toolbar-action="text-color"]');
+    button.dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        detail: { action: "text-color" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    await el.updateComplete;
+    let picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(true);
+
+    picker.renderRoot.querySelector("[role='grid']").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+    await el.updateComplete;
+    picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(false);
+
+    button.dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        detail: { action: "text-color" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    await el.updateComplete;
+    picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker.open).to.equal(true);
+  });
+
   // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is
   // present and emits wavy-format-toolbar-action with actionId
   // "attachment-insert" so the controller's

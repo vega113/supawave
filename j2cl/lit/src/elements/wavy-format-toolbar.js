@@ -261,13 +261,15 @@ export class WavyFormatToolbar extends LitElement {
 
   _reposition() {
     const descriptor = this.selectionDescriptor || {};
-    if (!this._hasRenderableSelection(descriptor)) {
+    const collapsed = descriptor.collapsed !== false;
+    const rect = descriptor.boundingRect;
+    if (collapsed || !rect || (rect.width === 0 && rect.height === 0)) {
       this._colorPickerMode = "";
       this.hidden = true;
       this.style.transform = "translate(-9999px, -9999px)";
       return;
     }
-    this._repositionToRect(descriptor.boundingRect);
+    this._repositionToRect(rect);
   }
 
   _repositionToRect(rect) {

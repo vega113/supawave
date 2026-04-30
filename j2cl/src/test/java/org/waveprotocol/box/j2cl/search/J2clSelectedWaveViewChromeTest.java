@@ -455,6 +455,28 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void selectedWaveRefreshEventInvokesRefreshHandler() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    final String[] refreshedWaveId = {null};
+    view.setSelectedWaveRefreshHandler(waveId -> refreshedWaveId[0] = waveId);
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    jsinterop.base.JsPropertyMap<Object> detail = jsinterop.base.JsPropertyMap.of();
+    detail.set("waveId", "example.com/w+restore");
+    init.setDetail(detail);
+    elemental2.dom.CustomEvent<Object> evt =
+        new elemental2.dom.CustomEvent<Object>("wavy-selected-wave-refresh-requested", init);
+    row.dispatchEvent(evt);
+
+    Assert.assertEquals("example.com/w+restore", refreshedWaveId[0]);
+  }
+
+  @Test
   public void depthNavEventsEmitTelemetry() {
     assumeBrowserDom();
     HTMLElement host = createHost();

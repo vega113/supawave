@@ -253,4 +253,105 @@ describe("<wavy-version-history>", () => {
     expect(observed[0]).to.equal(0);
     expect(observed[1]).to.equal(Number.POSITIVE_INFINITY);
   });
+
+  it("shows loader progress and failed loader text without closing the overlay", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let rejectLoader;
+    el.versionLoader = () =>
+      new Promise((_resolve, reject) => {
+        rejectLoader = reject;
+      });
+    el.open_();
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector(".history-status").textContent).to.match(/Loading/);
+
+    rejectLoader(new Error("history unavailable"));
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.open).to.equal(true);
+    expect(el.renderRoot.querySelector(".history-status").textContent).to.match(
+      /history unavailable/
+    );
+  });
+
+  it("ignores stale version-loader completions after rebinding to another wave", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let resolveLoader;
+    el.versionLoader = () =>
+      new Promise((resolve) => {
+        resolveLoader = resolve;
+      });
+    el.open_();
+    await el.updateComplete;
+    expect(el.loading).to.equal(true);
+
+    el.resetForWave();
+    await el.updateComplete;
+    resolveLoader([{ index: 0, label: "stale", version: 9 }]);
+    await Promise.resolve();
+    await el.updateComplete;
+
+    expect(el.loading).to.equal(false);
+    expect(el.versions).to.deep.equal([]);
+  });
+
+  it("allows version history load retry after loader failure", async () => {
+    const el = await fixture(html`<wavy-version-history></wavy-version-history>`);
+    let calls = 0;
+    el.versionLoader = () => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.reject(new Error("transient history failure"));
+      }
+      return [{ index: 0, label: "v8", version: 8 }];
+    };
+
+    el.open_();
+    await Promise.resolve();
+    await el.updateComplete;
+    expect(el.error).to.contain("transient history failure");
+
+    el.close_();
+    await el.updateComplete;
+    el.open_();
+    await el.updateComplete;
+
+    expect(calls).to.equal(2);
+    expect(el.error).to.equal("");
+    expect(el.versions.map((v) => v.version)).to.deep.equal([8]);
+  });
+
+  it("renders current version label and read-only snapshot preview", async () => {
+    const el = await fixture(html`<wavy-version-history open></wavy-version-history>`);
+    el.versions = [
+      { index: 0, label: "v3", timestamp: "2026-04-26T10:05:00Z", version: 3 },
+      { index: 1, label: "v5", timestamp: "2026-04-26T10:15:00Z", version: 5 }
+    ];
+    el.value = 1;
+    el.snapshot = {
+      version: 5,
+      participants: ["alice@example.com", "bob@example.com"],
+      documents: [
+        { id: "b+root", content: "Older title and root body" },
+        { id: "b+child", content: "Nested historical reply" }
+      ]
+    };
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector(".current-version-label").textContent).to.contain("v5");
+    const preview = el.renderRoot.querySelector(".snapshot-preview");
+    expect(preview).to.exist;
+    expect(preview.textContent).to.contain("Version 5");
+    expect(preview.textContent).to.contain("2 participants");
+    expect(preview.textContent).to.contain("Older title and root body");
+  });
+
+  it("renders restore status text near the destructive action", async () => {
+    const el = await fixture(html`<wavy-version-history open></wavy-version-history>`);
+    el.restoreStatus = "Version restored. Refreshing wave.";
+    await el.updateComplete;
+    const status = el.renderRoot.querySelector(".restore-status");
+    expect(status).to.exist;
+    expect(status.textContent).to.contain("Version restored");
+  });
 });

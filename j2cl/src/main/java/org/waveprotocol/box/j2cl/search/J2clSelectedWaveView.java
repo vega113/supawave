@@ -76,6 +76,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   // user's own chip as aria-pressed=true. Updated by the root shell
   // after each bootstrap response; empty when no user is signed in.
   private String currentUserAddress = "";
+  private J2clSelectedWaveController.SelectedWaveRefreshHandler selectedWaveRefreshHandler;
 
   public J2clSelectedWaveView(HTMLElement host) {
     this(host, J2clClientTelemetry.noop());
@@ -119,6 +120,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       this.waveNavRow = ensureWaveNavRow(existingCard);
       this.awarenessPill = ensureAwarenessPill(existingCard);
       bindChromeEvents(existingCard, effectiveTelemetrySink);
+      bindSelectedWaveRefreshListener(existingCard);
       serverFirstActive = true;
       serverFirstWaveId = J2clServerFirstRootShellDom.serverFirstWaveId(host);
       serverFirstMode = J2clServerFirstRootShellDom.serverFirstMode(host);
@@ -206,6 +208,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     coldCard.appendChild(emptyState);
 
     bindChromeEvents(coldCard, effectiveTelemetrySink);
+    bindSelectedWaveRefreshListener(coldCard);
 
     serverFirstActive = false;
     serverFirstSwapRecorded = false;
@@ -338,6 +341,29 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             waveId = hostWaveId == null ? "" : hostWaveId;
           }
           renderer.noteOptimisticTaskState(waveId, blipId, completed);
+        });
+  }
+
+  private void bindSelectedWaveRefreshListener(HTMLElement card) {
+    if (card == null) {
+      return;
+    }
+    card.addEventListener(
+        "wavy-selected-wave-refresh-requested",
+        evt -> {
+          if (selectedWaveRefreshHandler == null) {
+            return;
+          }
+          Object detail = Js.asPropertyMap(evt).get("detail");
+          if (detail == null) {
+            return;
+          }
+          Object waveIdValue = Js.asPropertyMap(detail).get("waveId");
+          String waveId = waveIdValue == null ? "" : String.valueOf(waveIdValue);
+          if (waveId.isEmpty()) {
+            return;
+          }
+          selectedWaveRefreshHandler.refresh(waveId);
         });
   }
 
@@ -561,6 +587,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     // hook in place so re-installation on visibility change works.
     readSurface.setMarkBlipReadListener(
         handler == null ? null : (blipId, onError) -> handler.markBlipRead(blipId, onError));
+  }
+
+  @Override
+  public void setSelectedWaveRefreshHandler(
+      J2clSelectedWaveController.SelectedWaveRefreshHandler handler) {
+    selectedWaveRefreshHandler = handler;
   }
 
   @Override

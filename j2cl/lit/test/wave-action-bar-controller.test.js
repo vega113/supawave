@@ -31,6 +31,27 @@ function okResponse() {
   return new Response("", { status: 200 });
 }
 
+function jsonResponse(value, status = 200) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "content-type": "application/json" }
+  });
+}
+
+async function waitFor(assertion, attempts = 20) {
+  let lastError;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      assertion();
+      return;
+    } catch (err) {
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  throw lastError;
+}
+
 describe("wave-action-bar-controller (G-PORT-8)", () => {
   let stub;
 
@@ -448,9 +469,19 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
   });
 
   it("version-history click flips the document overlay's open property", async () => {
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 1, canRestore: false });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([]);
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
     const wrapper = await fixture(
       html`<div>
-        <wavy-wave-nav-row source-wave-id="w+v"></wavy-wave-nav-row>
+        <wavy-wave-nav-row source-wave-id="example.com/w+v"></wavy-wave-nav-row>
         <wavy-version-history hidden></wavy-version-history>
       </div>`
     );
@@ -467,13 +498,520 @@ describe("wave-action-bar-controller (G-PORT-8)", () => {
         new CustomEvent("wave-nav-version-history-requested", {
           bubbles: true,
           composed: true,
-          detail: { sourceWaveId: "w+v" }
+          detail: { sourceWaveId: "example.com/w+v" }
         })
       );
       // Reactive update microtask.
       await overlay.updateComplete;
       expect(overlay.open).to.be.true;
       expect(overlay.hasAttribute("hidden")).to.be.false;
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("version-history click wires /history loader and enables restore from canRestore", async () => {
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        expect(parsed.searchParams.get("start")).to.equal("0");
+        return jsonResponse([
+          {
+            appliedAt: 0,
+            resultingVersion: 3,
+            author: "alice@example.com",
+            timestamp: 1770000010000,
+            opCount: 2
+          },
+          {
+            appliedAt: 3,
+            resultingVersion: 7,
+            author: "bob@example.com",
+            timestamp: 1770000020000,
+            opCount: 1
+          }
+        ]);
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="example.com/w+v"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+v" }
+        })
+      );
+      await overlay.updateComplete;
+      await waitFor(() => expect(stub.calls).to.have.lengthOf(2));
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(2));
+      await overlay.updateComplete;
+
+      expect(stub.calls).to.have.lengthOf(2);
+      const first = new URL(stub.calls[0].url, window.location.origin);
+      const second = new URL(stub.calls[1].url, window.location.origin);
+      expect(first.pathname).to.equal(
+        "/history/example.com/w%2Bv/example.com/conv%2Broot/api/info"
+      );
+      expect(second.pathname).to.equal(
+        "/history/example.com/w%2Bv/example.com/conv%2Broot/api/history"
+      );
+      expect(overlay.restoreEnabled).to.equal(true);
+      expect(overlay.versions.map((v) => v.version)).to.deep.equal([3, 7]);
+      expect(overlay.versions[0].label).to.equal("v3");
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("version-history changed fetches snapshot preview for the selected historical version", async () => {
+    let resolveSnapshot;
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: false });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([{ appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 }]);
+      }
+      if (parsed.pathname.endsWith("/api/snapshot")) {
+        expect(parsed.searchParams.get("version")).to.equal("3");
+        return new Promise((resolve) => {
+          resolveSnapshot = () =>
+            resolve(
+              jsonResponse({
+                version: 3,
+                participants: ["alice@example.com"],
+                documents: [{ id: "b+root", content: "Historical root" }]
+              })
+            );
+        });
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="example.com/w+snap"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+snap" }
+        })
+      );
+      await overlay.updateComplete;
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(1));
+      await overlay.updateComplete;
+      overlay.snapshot = {
+        version: 2,
+        documents: [{ id: "b+root", content: "Stale preview" }]
+      };
+      await overlay.updateComplete;
+
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 0, version: overlay.versions[0] }
+        })
+      );
+      await waitFor(() => expect(resolveSnapshot).to.be.a("function"));
+      await overlay.updateComplete;
+      expect(overlay.snapshot).to.equal(null);
+
+      resolveSnapshot();
+      await waitFor(() => expect(overlay.snapshot).to.exist);
+      await overlay.updateComplete;
+
+      expect(overlay.snapshot.version).to.equal(3);
+      expect(overlay.snapshot.documents[0].content).to.equal("Historical root");
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("version-history changed ignores stale snapshot responses after newer selections", async () => {
+    let resolveFirstSnapshot;
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: false });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([
+          { appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 },
+          { appliedAt: 1, resultingVersion: 7, timestamp: 20, opCount: 2 }
+        ]);
+      }
+      if (parsed.pathname.endsWith("/api/snapshot")) {
+        const version = parsed.searchParams.get("version");
+        if (version === "3") {
+          return new Promise((resolve) => {
+            resolveFirstSnapshot = () =>
+              resolve(
+                jsonResponse({
+                  version: 3,
+                  documents: [{ id: "b+root", content: "Stale root" }]
+                })
+              );
+          });
+        }
+        if (version === "7") {
+          return jsonResponse({
+            version: 7,
+            documents: [{ id: "b+root", content: "Current root" }]
+          });
+        }
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="example.com/w+snap-race"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+snap-race" }
+        })
+      );
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(2));
+
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 0, version: overlay.versions[0] }
+        })
+      );
+      await waitFor(() => expect(resolveFirstSnapshot).to.be.a("function"));
+
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 1, version: overlay.versions[1] }
+        })
+      );
+      await waitFor(() => expect(overlay.snapshot && overlay.snapshot.version).to.equal(7));
+      resolveFirstSnapshot();
+      await Promise.resolve();
+      await overlay.updateComplete;
+
+      expect(overlay.snapshot.version).to.equal(7);
+      expect(overlay.snapshot.documents[0].content).to.equal("Current root");
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("keeps restore disabled when the server allows restore but no history entries load", async () => {
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 0, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([]);
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="example.com/w+empty"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+empty" }
+        })
+      );
+      await waitFor(() => expect(stub.calls).to.have.lengthOf(2));
+      await overlay.updateComplete;
+
+      expect(overlay.versions).to.deep.equal([]);
+      expect(overlay.restoreEnabled).to.equal(false);
+      expect(overlay.renderRoot.querySelector("button.restore").hasAttribute("disabled")).to.equal(
+        true
+      );
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("restore confirmation POSTs existing API and requests selected-wave refresh", async () => {
+    stub = installFetchStub(async (url, init) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([{ appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 }]);
+      }
+      if (parsed.pathname.endsWith("/api/restore")) {
+        expect(init.method).to.equal("POST");
+        expect(parsed.searchParams.get("version")).to.equal("3");
+        return jsonResponse({ ok: true, restoredToVersion: 3, opsApplied: 2 });
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <section class="sidecar-selected-card">
+          <wavy-wave-nav-row source-wave-id="example.com/w+restore"></wavy-wave-nav-row>
+        </section>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+restore" }
+        })
+      );
+      await overlay.updateComplete;
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(1));
+      await overlay.updateComplete;
+
+      const refreshed = new Promise((resolve) =>
+        document.addEventListener(
+          "wavy-selected-wave-refresh-requested",
+          (e) => resolve(e.detail),
+          { once: true }
+        )
+      );
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 0, version: overlay.versions[0] }
+        })
+      );
+      const detail = await refreshed;
+      await overlay.updateComplete;
+
+      expect(detail).to.deep.equal({
+        waveId: "example.com/w+restore",
+        reason: "version-restore",
+        restoredToVersion: 3
+      });
+      expect(overlay.restoreStatus).to.match(/restored/i);
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("restore confirmation blocks duplicate POSTs while restore is in flight", async () => {
+    let restoreCalls = 0;
+    let resolveRestore;
+    stub = installFetchStub(async (url, init) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([{ appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 }]);
+      }
+      if (parsed.pathname.endsWith("/api/restore")) {
+        restoreCalls += 1;
+        expect(init.method).to.equal("POST");
+        return new Promise((resolve) => {
+          resolveRestore = () => resolve(jsonResponse({ ok: true, restoredToVersion: 3 }));
+        });
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <section class="sidecar-selected-card">
+          <wavy-wave-nav-row source-wave-id="example.com/w+restore-dupe"></wavy-wave-nav-row>
+        </section>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    const abortController = new AbortController();
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+restore-dupe" }
+        })
+      );
+      await waitFor(() => expect(overlay.restoreEnabled).to.equal(true));
+
+      const refreshed = [];
+      document.addEventListener(
+        "wavy-selected-wave-refresh-requested",
+        (e) => { refreshed.push(e.detail); },
+        { signal: abortController.signal }
+      );
+      const confirmDetail = { index: 0, version: overlay.versions[0] };
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: confirmDetail
+        })
+      );
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: confirmDetail
+        })
+      );
+      await waitFor(() => expect(restoreCalls).to.equal(1));
+      expect(overlay.restoreEnabled).to.equal(false);
+
+      resolveRestore();
+      await waitFor(() => expect(refreshed).to.have.lengthOf(1));
+      expect(overlay.restoreEnabled).to.equal(true);
+      expect(restoreCalls).to.equal(1);
+    } finally {
+      abortController.abort();
+      overlay.remove();
+    }
+  });
+
+  it("restore failure is visible and does not request selected-wave refresh", async () => {
+    stub = installFetchStub(async (url) => {
+      const parsed = new URL(String(url), window.location.origin);
+      if (parsed.pathname.endsWith("/api/info")) {
+        return jsonResponse({ version: 7, canRestore: true });
+      }
+      if (parsed.pathname.endsWith("/api/history")) {
+        return jsonResponse([{ appliedAt: 0, resultingVersion: 3, timestamp: 10, opCount: 1 }]);
+      }
+      if (parsed.pathname.endsWith("/api/restore")) {
+        return new Response("restore denied", { status: 403 });
+      }
+      throw new Error(`unexpected fetch ${parsed.pathname}`);
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <section class="sidecar-selected-card">
+          <wavy-wave-nav-row source-wave-id="example.com/w+denied"></wavy-wave-nav-row>
+        </section>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "example.com/w+denied" }
+        })
+      );
+      await waitFor(() => expect(overlay.versions).to.have.lengthOf(1));
+
+      let refreshed = false;
+      document.addEventListener(
+        "wavy-selected-wave-refresh-requested",
+        () => { refreshed = true; },
+        { once: true }
+      );
+      overlay.dispatchEvent(
+        new CustomEvent("wavy-version-restore-confirmed", {
+          bubbles: true,
+          composed: true,
+          detail: { index: 0, version: overlay.versions[0] }
+        })
+      );
+      await waitFor(() => expect(overlay.error).to.match(/restore denied/));
+      expect(refreshed).to.equal(false);
+      expect(overlay.restoreStatus).to.equal("");
+    } finally {
+      overlay.remove();
+    }
+  });
+
+  it("malformed source-wave-id leaves version history inert and does not fetch", async () => {
+    stub = installFetchStub(async () => {
+      throw new Error("fetch should not be called");
+    });
+    const wrapper = await fixture(
+      html`<div>
+        <wavy-wave-nav-row source-wave-id="malformed"></wavy-wave-nav-row>
+        <wavy-version-history hidden></wavy-version-history>
+      </div>`
+    );
+    const row = wrapper.querySelector("wavy-wave-nav-row");
+    const overlay = wrapper.querySelector("wavy-version-history");
+    document.body.appendChild(overlay);
+    try {
+      controllerModule.start();
+      await Promise.resolve();
+      row.dispatchEvent(
+        new CustomEvent("wave-nav-version-history-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { sourceWaveId: "malformed" }
+        })
+      );
+      await overlay.updateComplete;
+      await new Promise((r) => setTimeout(r, 0));
+      expect(overlay.open).to.equal(false);
+      expect(stub.calls).to.have.lengthOf(0);
     } finally {
       overlay.remove();
     }

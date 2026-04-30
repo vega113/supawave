@@ -167,6 +167,7 @@ public final class J2clSelectedWaveViewportState {
                   existing.getRawSnapshot(),
                   existing.getAdjustOperationCount(),
                   existing.getDiffOperationCount(),
+                  existing.getBodyItemCount(),
                   existing.shouldParseAttachmentElements(),
                   existing.attachmentOverrides,
                   existing.parsedContent));
@@ -260,7 +261,8 @@ public final class J2clSelectedWaveViewportState {
                 mergedToVersion,
                 documentEntry.getRawSnapshot(),
                 existing.getAdjustOperationCount(),
-                existing.getDiffOperationCount()));
+                existing.getDiffOperationCount(),
+                documentEntry.getBodyItemCount()));
       } else {
         merged.add(documentEntry);
       }
@@ -651,7 +653,8 @@ public final class J2clSelectedWaveViewportState {
         String rawSnapshot,
         int adjustOperationCount,
         int diffOperationCount) {
-      // Default loaded entries are document text snapshots; fragment debug XML opts in below.
+      // Body-wide annotation writes need an authoritative document item count. Treat legacy
+      // call sites as unknown rather than deriving an unsafe proxy from raw text/XML length.
       return loaded(
           segment,
           fromVersion,
@@ -659,7 +662,7 @@ public final class J2clSelectedWaveViewportState {
           rawSnapshot,
           adjustOperationCount,
           diffOperationCount,
-          plainTextItemCount(rawSnapshot),
+          0,
           false);
     }
 
@@ -699,7 +702,7 @@ public final class J2clSelectedWaveViewportState {
           diffOperationCount,
           parseAttachmentElements
               ? SidecarSelectedWaveFragment.estimateBodyItemCount(rawSnapshot)
-              : plainTextItemCount(rawSnapshot),
+              : 0,
           parseAttachmentElements,
           Collections.<J2clAttachmentRenderModel>emptyList());
     }
@@ -743,7 +746,7 @@ public final class J2clSelectedWaveViewportState {
           diffOperationCount,
           parseAttachmentElements
               ? SidecarSelectedWaveFragment.estimateBodyItemCount(rawSnapshot)
-              : plainTextItemCount(rawSnapshot),
+              : 0,
           parseAttachmentElements,
           attachmentOverrides,
           null);
@@ -791,7 +794,7 @@ public final class J2clSelectedWaveViewportState {
           diffOperationCount,
           parseAttachmentElements
               ? SidecarSelectedWaveFragment.estimateBodyItemCount(rawSnapshot)
-              : plainTextItemCount(rawSnapshot),
+              : 0,
           parseAttachmentElements,
           attachmentOverrides,
           parsedContent);
@@ -990,8 +993,5 @@ public final class J2clSelectedWaveViewportState {
       return blipId == null ? "" : blipId;
     }
 
-    private static int plainTextItemCount(String rawSnapshot) {
-      return rawSnapshot == null ? 0 : rawSnapshot.length();
-    }
   }
 }

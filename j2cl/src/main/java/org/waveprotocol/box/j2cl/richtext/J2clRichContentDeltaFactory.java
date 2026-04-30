@@ -105,10 +105,14 @@ public final class J2clRichContentDeltaFactory {
    * <p>The returned request is independent of any reply draft so a
    * task toggle on blip B does not clobber an in-flight reply on
    * blip A.
+   *
+   * @deprecated Body-wide annotation writes require the target blip body item count. Use
+   *     {@link #taskToggleRequest(String, J2clSidecarWriteSession, String, boolean, int)}.
    */
+  @Deprecated
   public SidecarSubmitRequest taskToggleRequest(
       String address, J2clSidecarWriteSession session, String blipId, boolean completed) {
-    return taskToggleRequest(address, session, blipId, completed, 0);
+    throw missingBodyItemCount("taskToggleRequest");
   }
 
   public SidecarSubmitRequest taskToggleRequest(
@@ -145,14 +149,18 @@ public final class J2clRichContentDeltaFactory {
    * the empty-string "unset" sentinel rather than written as a
    * non-numeric annotation that the reader silently drops.
    * (PR #1066 review thread PRRT_kwDOBwxLXs593gTP.)
+   *
+   * @deprecated Body-wide annotation writes require the target blip body item count. Use
+   *     {@link #taskMetadataRequest(String, J2clSidecarWriteSession, String, String, String, int)}.
    */
+  @Deprecated
   public SidecarSubmitRequest taskMetadataRequest(
       String address,
       J2clSidecarWriteSession session,
       String blipId,
       String assigneeAddress,
       String dueDate) {
-    return taskMetadataRequest(address, session, blipId, assigneeAddress, dueDate, 0);
+    throw missingBodyItemCount("taskMetadataRequest");
   }
 
   public SidecarSubmitRequest taskMetadataRequest(
@@ -196,10 +204,14 @@ public final class J2clRichContentDeltaFactory {
    * single-key writer so the delta JSON envelope is identical except
    * for the annotation key + value. Any future server-side migration
    * to a manifest-edit op only needs to swap this one method.
+   *
+   * @deprecated Body-wide annotation writes require the target blip body item count. Use
+   *     {@link #blipDeleteRequest(String, J2clSidecarWriteSession, String, int)}.
    */
+  @Deprecated
   public SidecarSubmitRequest blipDeleteRequest(
       String address, J2clSidecarWriteSession session, String blipId) {
-    return blipDeleteRequest(address, session, blipId, 0);
+    throw missingBodyItemCount("blipDeleteRequest");
   }
 
   public SidecarSubmitRequest blipDeleteRequest(
@@ -740,6 +752,11 @@ public final class J2clRichContentDeltaFactory {
       throw new IllegalArgumentException("Missing blip body item count.");
     }
     return bodyItemCount;
+  }
+
+  private static IllegalArgumentException missingBodyItemCount(String methodName) {
+    return new IllegalArgumentException(
+        methodName + " requires the overload with bodyItemCount.");
   }
 
   public SidecarSubmitRequest createReplyRequest(

@@ -32,7 +32,7 @@ describe("<wavy-format-toolbar>", () => {
     const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
     const buttons = el.renderRoot.querySelectorAll("[data-toolbar-action]");
     const actionIds = Array.from(buttons).map((b) => b.getAttribute("data-toolbar-action"));
-    expect(actionIds.slice(0, 9)).to.deep.equal([
+    expect(actionIds.slice(0, 11)).to.deep.equal([
       "bold",
       "italic",
       "underline",
@@ -41,6 +41,8 @@ describe("<wavy-format-toolbar>", () => {
       "subscript",
       "font-family",
       "font-size",
+      "text-color",
+      "highlight-color",
       "heading"
     ]);
     expect(actionIds).to.include.members([
@@ -52,6 +54,8 @@ describe("<wavy-format-toolbar>", () => {
       "subscript",
       "font-family",
       "font-size",
+      "text-color",
+      "highlight-color",
       "heading",
       "unordered-list",
       "ordered-list",
@@ -109,6 +113,53 @@ describe("<wavy-format-toolbar>", () => {
     expect(sizeAction.detail.actionId).to.equal("font-size");
     expect(sizeAction.detail.value).to.equal("18px");
     expect(nativeChangeCount).to.equal(0);
+  });
+
+  it("includes text and highlight color affordances beside font controls", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    const actionIds = Array.from(el.renderRoot.querySelectorAll("[data-toolbar-action]"))
+      .map((node) => node.getAttribute("data-toolbar-action"));
+
+    expect(actionIds).to.include("text-color");
+    expect(actionIds).to.include("highlight-color");
+    expect(actionIds.indexOf("text-color")).to.be.greaterThan(actionIds.indexOf("font-size"));
+    expect(actionIds.indexOf("highlight-color")).to.equal(actionIds.indexOf("text-color") + 1);
+  });
+
+  it("opens a colorpicker and emits text-color with the selected color", async () => {
+    const el = await fixture(html`<wavy-format-toolbar></wavy-format-toolbar>`);
+    el.selectionDescriptor = {
+      collapsed: false,
+      boundingRect: { top: 100, left: 100, width: 60, height: 18 },
+      activeAnnotations: []
+    };
+    await el.updateComplete;
+
+    el.renderRoot.querySelector('[data-toolbar-action="text-color"]').dispatchEvent(
+      new CustomEvent("toolbar-action", {
+        detail: { action: "text-color" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    await el.updateComplete;
+
+    const picker = el.renderRoot.querySelector("wavy-colorpicker-popover");
+    expect(picker).to.exist;
+    expect(picker.mode).to.equal("text");
+
+    const action = oneEvent(el, "wavy-format-toolbar-action");
+    picker.dispatchEvent(
+      new CustomEvent("wavy-colorpicker-color-selected", {
+        detail: { color: "rgb(204, 0, 0)", mode: "text" },
+        bubbles: true,
+        composed: true
+      })
+    );
+    const event = await action;
+    expect(event.detail.actionId).to.equal("text-color");
+    expect(event.detail.value).to.equal("rgb(204, 0, 0)");
+    expect(event.detail.selectionDescriptor).to.equal(el.selectionDescriptor);
   });
 
   // F-3.S4 (#1038, R-5.6 step 3 + H.19): the paperclip button is

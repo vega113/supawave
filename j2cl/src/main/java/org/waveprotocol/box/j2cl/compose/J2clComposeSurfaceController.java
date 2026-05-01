@@ -457,7 +457,7 @@ public final class J2clComposeSurfaceController {
   }
 
   private interface WaveHeaderActionRequestBuilder {
-    SidecarSubmitRequest create(String address, J2clSidecarWriteSession session);
+    SidecarSubmitRequest create(SidecarSessionBootstrap bootstrap, J2clSidecarWriteSession session);
   }
 
   public static final class AttachmentFileSelection {
@@ -1503,17 +1503,21 @@ public final class J2clComposeSurfaceController {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.participants_added",
-        (address, session) ->
-            deltaFactory.createAddParticipantRequest(address, session, participantsToAdd));
+        (bootstrap, session) ->
+            deltaFactory.createAddParticipantRequest(bootstrap.getAddress(), session, participantsToAdd));
   }
 
   public void onPublicityToggleRequested(final String expectedWaveId, final boolean makePublic) {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.publicity_toggled",
-        (address, session) ->
-            deltaFactory.createPublicityToggleRequest(
-                address, session, sharedDomainParticipantForSession(session), makePublic));
+        (bootstrap, session) -> {
+          if (!canTogglePublicity(bootstrap.getAddress(), bootstrap.isAdmin(), session, makePublic)) {
+            throw new IllegalStateException("Publicity toggle not allowed for this user/session.");
+          }
+          return deltaFactory.createPublicityToggleRequest(
+              bootstrap.getAddress(), session, sharedDomainParticipantForSession(session), makePublic);
+        });
   }
 
   public void onLockStateToggleRequested(
@@ -1523,7 +1527,7 @@ public final class J2clComposeSurfaceController {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.lock_toggled",
-        (address, session) -> deltaFactory.createLockStateRequest(address, session, current, next));
+        (bootstrap, session) -> deltaFactory.createLockStateRequest(bootstrap.getAddress(), session, current, next));
   }
 
   private void submitWaveHeaderAction(
@@ -1560,7 +1564,7 @@ public final class J2clComposeSurfaceController {
           notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
-            request = requestBuilder.create(bootstrap.getAddress(), submitSession);
+            request = requestBuilder.create(bootstrap, submitSession);
           } catch (RuntimeException e) {
             recordWaveHeaderActionTelemetry(telemetryEventName, "failure-build");
             return;
@@ -1580,6 +1584,45 @@ public final class J2clComposeSurfaceController {
         error -> recordWaveHeaderActionTelemetry(telemetryEventName, "failure-bootstrap"));
   }
 
+
+  private static boolean canTogglePublicity(
+      String address, boolean isAdmin, J2clSidecarWriteSession session, boolean makePublic) {
+    if (session == null) {
+      return false;
+    }
+    List<String> participants = session.getParticipantIds();
+    if (participants == null || participants.isEmpty()) {
+      return false;
+    }
+    String normalizedAddress = normalizeParticipantAddress(address);
+    if (normalizedAddress.isEmpty()) {
+      return false;
+    }
+    String creator = normalizeParticipantAddress(participants.get(0));
+    if (!isAdmin && (creator.isEmpty() || !normalizedAddress.equals(creator))) {
+      return false;
+    }
+    if (makePublic && isDirectMessageParticipants(participants)) {
+      return false;
+    }
+    return true;
+  }
+
+  private static boolean isDirectMessageParticipants(List<String> participants) {
+    int userParticipants = 0;
+    for (String participant : participants) {
+      String normalized = normalizeParticipantAddress(participant);
+      if (normalized.isEmpty() || normalized.startsWith("@")) {
+        continue;
+      }
+      userParticipants++;
+    }
+    return userParticipants == 2;
+  }
+
+  private static String normalizeParticipantAddress(String participant) {
+    return participant == null ? "" : participant.trim().toLowerCase(Locale.ROOT);
+  }
   private static String sharedDomainParticipantForSession(J2clSidecarWriteSession session) {
     if (session == null || session.getSelectedWaveId() == null) {
       return "";

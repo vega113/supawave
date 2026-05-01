@@ -3751,7 +3751,11 @@ public class J2clComposeSurfaceControllerTest {
             waveId -> { },
             waveId -> { });
     controller.start();
-    openWaveForReply(controller);
+    // creator must be the bootstrap user so canTogglePublicity passes
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1", "chan-1", 44L, "ABCD", "b+root",
+            Arrays.asList("user@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
     assertContains(gateway.lastSubmitRequest.getDeltaJson(), "{\"1\":\"@example.com\"}");
@@ -3842,6 +3846,77 @@ public class J2clComposeSurfaceControllerTest {
         gateway.lastSubmitRequest.getDeltaJson().contains("\"2\":\"EFGH\""));
   }
 
+
+  @Test
+  public void publicityToggleBlockedForNonCreator() {
+    FakeGateway gateway = new FakeGateway();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1",
+            "chan-1",
+            44L,
+            "ABCD",
+            "b+root",
+            // alice is the creator; user@example.com is a non-creator participant
+            Arrays.asList("alice@example.com", "user@example.com", "bob@example.com")));
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+
+    Assert.assertEquals(0, gateway.submitCalls);
+    Assert.assertTrue(
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.publicity_toggled".equals(e.getName())
+                        && "failure-build".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void publicityToggleBlockedWhenMakingDirectMessagePublic() {
+    FakeGateway gateway = new FakeGateway();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1",
+            "chan-1",
+            44L,
+            "ABCD",
+            "b+root",
+            // user@example.com is the creator; alice is the one other participant (2-person DM)
+            Arrays.asList("user@example.com", "alice@example.com")));
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+
+    Assert.assertEquals(0, gateway.submitCalls);
+    Assert.assertTrue(
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.publicity_toggled".equals(e.getName())
+                        && "failure-build".equals(e.getFields().get("outcome"))));
+  }
+
   @Test
   public void waveHeaderActionSubmitErrorRecordsFailureTelemetry() {
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
@@ -3857,7 +3932,12 @@ public class J2clComposeSurfaceControllerTest {
             waveId -> { },
             telemetry);
     controller.start();
-    openWaveForReply(controller);
+    // user@example.com is the creator so canTogglePublicity passes; the
+    // gateway error response then triggers the failure-submit path.
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1", "chan-1", 44L, "ABCD", "b+root",
+            Arrays.asList("user@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
 

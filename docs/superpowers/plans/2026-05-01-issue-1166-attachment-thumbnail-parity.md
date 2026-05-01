@@ -16,9 +16,9 @@
   - Adds read-surface attachment layout and size caps for `.j2cl-read-attachment-preview` under `[data-display-size="small|medium|large"]`.
   - Ensures oversized images cannot exceed the wave panel width.
 - Modify: `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
-  - Adds explicit `width`/`height` metadata attributes on image previews so tests and browser diagnostics can prove the selected cap.
+  - Keeps explicit `data-display-size` metadata on image previews so tests and browser diagnostics can prove the selected cap without presentation attributes that can upscale smaller thumbnails.
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRendererTest.java`
-  - Adds/extends DOM tests for image preview source, display-size attributes, and max-dimension attributes.
+  - Adds/extends DOM tests for image preview source and display-size attributes.
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModelTest.java`
   - Updates model expectation so medium/large inline images use thumbnails as the preview source and keep the full attachment URL only for open/download.
 - Create: `wave/config/changelog.d/2026-05-01-j2cl-attachment-thumbnail-parity.json`
@@ -48,18 +48,16 @@ In `renderWindowEntriesIncludeKeyboardReachableAttachmentControls`, after `Asser
 
 ```java
 Assert.assertEquals("/thumbnail/example.com/att+hero", preview.getAttribute("src"));
-Assert.assertEquals("300", preview.getAttribute("width"));
-Assert.assertEquals("200", preview.getAttribute("height"));
 Assert.assertEquals("medium", preview.getAttribute("data-display-size"));
 ```
 
 - [ ] **Step 3: Add a large image renderer test**
 
-Add a test named `largeImagePreviewCarriesGwtCompatibleBounds`:
+Add a test named `largeImagePreviewUsesThumbnailAndDataDisplaySize`:
 
 ```java
 @Test
-public void largeImagePreviewCarriesGwtCompatibleBounds() {
+public void largeImagePreviewUsesThumbnailAndDataDisplaySize() {
   assumeBrowserDom();
   HTMLDivElement host = createHost();
   J2clAttachmentRenderModel attachment =
@@ -88,8 +86,6 @@ public void largeImagePreviewCarriesGwtCompatibleBounds() {
   HTMLElement preview = (HTMLElement) tile.querySelector(".j2cl-read-attachment-preview");
   Assert.assertEquals("large", tile.getAttribute("data-display-size"));
   Assert.assertEquals("/thumbnail/example.com/att+large", preview.getAttribute("src"));
-  Assert.assertEquals("600", preview.getAttribute("width"));
-  Assert.assertEquals("400", preview.getAttribute("height"));
   Assert.assertEquals("large", preview.getAttribute("data-display-size"));
 }
 ```
@@ -102,7 +98,7 @@ Run:
 sbt --batch 'testOnly org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModelTest' 'testOnly org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRendererTest'
 ```
 
-Expected: fail because medium/large previews still use `/attachment/...` and preview images do not carry cap attributes.
+Expected: fail because medium/large previews still use `/attachment/...` and preview images do not carry the selected display-size metadata.
 
 ## Task 2: Implement Thumbnail Preview Selection And Cap Metadata
 
@@ -121,44 +117,16 @@ String sourceUrl =
 
 Keep `openUrl` and `downloadUrl` as `metadata.getAttachmentUrl()`.
 
-- [ ] **Step 2: Add cap helpers to the renderer**
-
-Add helpers near `renderAttachment`:
-
-```java
-private static int attachmentPreviewWidth(String displaySize) {
-  if ("large".equals(displaySize)) {
-    return 600;
-  }
-  if ("medium".equals(displaySize)) {
-    return 300;
-  }
-  return 120;
-}
-
-private static int attachmentPreviewHeight(String displaySize) {
-  if ("large".equals(displaySize)) {
-    return 400;
-  }
-  if ("medium".equals(displaySize)) {
-    return 200;
-  }
-  return 80;
-}
-```
-
-- [ ] **Step 3: Stamp preview size attributes**
+- [ ] **Step 2: Stamp preview display-size metadata**
 
 In `renderAttachment`, after setting preview `src`, add:
 
 ```java
 String displaySize = model.getDisplaySize();
 preview.setAttribute("data-display-size", displaySize);
-preview.setAttribute("width", String.valueOf(attachmentPreviewWidth(displaySize)));
-preview.setAttribute("height", String.valueOf(attachmentPreviewHeight(displaySize)));
 ```
 
-- [ ] **Step 4: Run green tests**
+- [ ] **Step 3: Run green tests**
 
 Run the same focused tests from Task 1. Expected: pass.
 

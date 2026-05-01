@@ -101,7 +101,8 @@ public final class J2clAttachmentRenderModel {
                 || DISPLAY_LARGE.equals(normalizedDisplaySize));
     String effectiveDisplaySize =
         image && !hasImageDimensions ? DISPLAY_SMALL : normalizedDisplaySize;
-    String sourceUrl = firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
+    String sourceUrl =
+        firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
 
     return new J2clAttachmentRenderModel(
         normalizedAttachmentId,

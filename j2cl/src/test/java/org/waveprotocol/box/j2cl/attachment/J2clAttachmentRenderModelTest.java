@@ -161,6 +161,27 @@ public class J2clAttachmentRenderModelTest {
   }
 
   @Test
+  public void unsafeThumbnailFallsBackToSafeAttachmentPreview() {
+    J2clAttachmentRenderModel model =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+fallback",
+            "Fallback",
+            "medium",
+            metadata(
+                "example.com/att+fallback",
+                "fallback.png",
+                "image/png",
+                "/attachment/example.com/att+fallback",
+                "http://cdn.example.test/fallback-thumb.png",
+                new J2clAttachmentMetadata.ImageMetadata(640, 480),
+                false));
+
+    Assert.assertTrue(model.isInlineImage());
+    Assert.assertEquals("/attachment/example.com/att+fallback", model.getSourceUrl());
+    Assert.assertEquals("/attachment/example.com/att+fallback", model.getOpenUrl());
+  }
+
+  @Test
   public void httpsUrlsAreAcceptedAndControlCharactersAreRejected() {
     J2clAttachmentRenderModel accepted =
         J2clAttachmentRenderModel.fromMetadata(

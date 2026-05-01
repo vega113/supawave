@@ -1614,7 +1614,7 @@ public final class J2clComposeSurfaceController {
       }
       userParticipants++;
     }
-    return userParticipants <= 2;
+    return userParticipants == 2;
   }
 
   private static String normalizeParticipantAddress(String participant) {

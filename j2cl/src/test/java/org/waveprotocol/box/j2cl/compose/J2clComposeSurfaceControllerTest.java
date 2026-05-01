@@ -3864,7 +3864,8 @@ public class J2clComposeSurfaceControllerTest {
             44L,
             "ABCD",
             "b+root",
-            Arrays.asList("alice@example.com", "bob@example.com")));
+            // alice is the creator; user@example.com is a non-creator participant
+            Arrays.asList("alice@example.com", "user@example.com", "bob@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
 
@@ -3898,7 +3899,8 @@ public class J2clComposeSurfaceControllerTest {
             44L,
             "ABCD",
             "b+root",
-            Arrays.asList("bob@example.com", "alice@example.com")));
+            // user@example.com is the creator; alice is the one other participant (2-person DM)
+            Arrays.asList("user@example.com", "alice@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
 

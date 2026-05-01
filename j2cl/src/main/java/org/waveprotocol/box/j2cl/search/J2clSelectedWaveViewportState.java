@@ -253,16 +253,37 @@ public final class J2clSelectedWaveViewportState {
         // window backward just because a document has an older modified version.
         long mergedFromVersion =
             knownOrFallback(existing.getFromVersion(), documentEntry.getFromVersion());
-        merged.set(
-            existingIndex,
-            Entry.loaded(
-                existing.getSegment(),
-                mergedFromVersion,
-                mergedToVersion,
-                documentEntry.getRawSnapshot(),
-                existing.getAdjustOperationCount(),
-                existing.getDiffOperationCount(),
-                documentEntry.getBodyItemCount()));
+        // Preserve fragment-parsed content (inline reply anchors) across document refreshes.
+        // Fragment entries carry DocOp debug-XML snapshots that contain <reply> anchor tags;
+        // document entries carry plain text and cannot re-derive those anchors. By keeping
+        // parseAttachmentElements=true and the pre-computed parsedContent, the merged entry
+        // continues to emit inline-reply-anchor state until the next fragment refresh.
+        Entry next;
+        if (existing.shouldParseAttachmentElements()) {
+          next =
+              Entry.loaded(
+                  existing.getSegment(),
+                  mergedFromVersion,
+                  mergedToVersion,
+                  documentEntry.getRawSnapshot(),
+                  existing.getAdjustOperationCount(),
+                  existing.getDiffOperationCount(),
+                  documentEntry.getBodyItemCount(),
+                  /* parseAttachmentElements= */ true,
+                  existing.getAttachmentOverrides(),
+                  existing.getParsedContent());
+        } else {
+          next =
+              Entry.loaded(
+                  existing.getSegment(),
+                  mergedFromVersion,
+                  mergedToVersion,
+                  documentEntry.getRawSnapshot(),
+                  existing.getAdjustOperationCount(),
+                  existing.getDiffOperationCount(),
+                  documentEntry.getBodyItemCount());
+        }
+        merged.set(existingIndex, next);
       } else {
         merged.add(documentEntry);
       }

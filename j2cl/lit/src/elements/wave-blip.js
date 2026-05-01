@@ -597,7 +597,6 @@ export class WaveBlip extends LitElement {
           class="thread-chevron"
           data-thread-chevron="true"
           aria-label=${`Drill into ${this.replyCount} replies under this blip`}
-          aria-expanded=${String(!this.threadCollapsed)}
           @click=${this._onThreadChevronClick}
         >${this._chevronGlyph()}</button>`
       : html`<span class="thread-chevron" hidden></span>`;

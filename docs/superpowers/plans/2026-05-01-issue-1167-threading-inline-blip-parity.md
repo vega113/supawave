@@ -2,7 +2,7 @@
 
 Issue: #1167
 Parent tracker: #904
-Worktree: `/Users/vega/devroot/worktrees/issue-1167-threading-parity-20260501`
+Worktree: `<local-worktrees>/issue-1167-threading-parity-20260501`
 Branch: `codex/issue-1167-threading-parity-20260501`
 
 ## Goal

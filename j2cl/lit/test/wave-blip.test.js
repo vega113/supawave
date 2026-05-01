@@ -345,9 +345,23 @@ describe("<wave-blip>", () => {
   });
 
   // F-3.S2 (#1038, R-5.4) per-blip task integration.
-  it("mounts <wavy-task-affordance> next to the toolbar in the metadata slot", async () => {
+  it("does not mount a generic task affordance on normal blips", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b20" data-wave-id="w20" author-name="A"></wave-blip>
+    `);
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.equal(null);
+    expect(el.renderRoot.textContent).to.not.include("Task");
+  });
+
+  it("mounts <wavy-task-affordance> only when task state is present", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b20"
+        data-wave-id="w20"
+        author-name="A"
+        data-task-assignee="alice@example.com"
+      ></wave-blip>
     `);
     await el.updateComplete;
     const slot = el.renderRoot.querySelector('[data-task-affordance-slot]');
@@ -360,7 +374,12 @@ describe("<wave-blip>", () => {
 
   it("keeps task affordances out of visible focus flow until the blip is active", async () => {
     const el = await fixture(html`
-      <wave-blip data-blip-id="b20a" data-wave-id="w20a" author-name="A"></wave-blip>
+      <wave-blip
+        data-blip-id="b20a"
+        data-wave-id="w20a"
+        author-name="A"
+        data-task-completed
+      ></wave-blip>
     `);
     await el.updateComplete;
     const slot = el.renderRoot.querySelector('[data-task-affordance-slot]');
@@ -390,7 +409,12 @@ describe("<wave-blip>", () => {
 
   it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
     const el = await fixture(html`
-      <wave-blip data-blip-id="b22" data-wave-id="w22" data-blip-doc-size="17"></wave-blip>
+      <wave-blip
+        data-blip-id="b22"
+        data-wave-id="w22"
+        data-blip-doc-size="17"
+        data-task-assignee="alice@example.com"
+      ></wave-blip>
     `);
     await el.updateComplete;
     const affordance = el.renderRoot.querySelector("wavy-task-affordance");
@@ -409,13 +433,7 @@ describe("<wave-blip>", () => {
     });
   });
 
-  // J-UI-6 (#1084, R-5.4): when the read renderer writes
-  // data-task-completed onto the host (because the wavelet's task/done
-  // annotation is true), the body wrapper inside the shadow root must
-  // pick up the line-through styling. Computed-style assertions are the
-  // most stable way to test this — the CSS rule sets text-decoration on
-  // ".body" inside :host([data-task-completed]).
-  it("paints the body with line-through when data-task-completed is set", async () => {
+  it("does not strike through the whole body when data-task-completed is set", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b30" data-wave-id="w30" data-task-completed>
         Body text
@@ -425,12 +443,7 @@ describe("<wave-blip>", () => {
     const body = el.renderRoot.querySelector(".body");
     expect(body).to.exist;
     const style = getComputedStyle(body);
-    // Browsers serialise text-decoration as either the legacy single-line
-    // form ("line-through") or the modern shorthand
-    // ("line-through ..."), so just check that line-through is present.
-    expect(style.textDecorationLine || style.textDecoration).to.contain(
-      "line-through"
-    );
+    expect(style.textDecorationLine || style.textDecoration).to.not.contain("line-through");
   });
 
   it("propagates taskAssignee + taskDueDate to the inner affordance", async () => {

@@ -19,6 +19,8 @@ describe("<wavy-task-affordance>", () => {
     const details = el.renderRoot.querySelector('[data-task-details-trigger="true"]');
     expect(toggle).to.exist;
     expect(details).to.exist;
+    expect(toggle.textContent.trim()).to.equal("☐");
+    expect(toggle.textContent.trim()).to.not.equal("Task");
     expect(toggle.getAttribute("aria-checked")).to.equal("false");
     expect(toggle.getAttribute("role")).to.equal("checkbox");
     expect(details.getAttribute("aria-haspopup")).to.equal("dialog");
@@ -31,6 +33,7 @@ describe("<wavy-task-affordance>", () => {
     `);
     const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
     const cs = getComputedStyle(toggle);
+    expect(toggle.textContent.trim()).to.equal("☐");
     expect(cs.backgroundColor).to.equal("rgb(241, 243, 244)");
     expect(cs.color).to.equal("rgb(95, 99, 104)");
     expect(cs.borderRadius).to.equal("999px");
@@ -43,6 +46,7 @@ describe("<wavy-task-affordance>", () => {
       <wavy-task-affordance data-blip-id="b1" data-task-completed></wavy-task-affordance>
     `);
     const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    expect(toggle.textContent.trim()).to.equal("☑");
     const cs = getComputedStyle(toggle);
     expect(cs.backgroundColor).to.equal("rgb(255, 244, 229)");
     expect(cs.color).to.equal("rgb(154, 103, 0)");

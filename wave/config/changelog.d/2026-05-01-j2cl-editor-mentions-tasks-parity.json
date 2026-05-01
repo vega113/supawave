@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-editor-mentions-tasks-parity",
+  "version": "Issue #1165",
+  "date": "2026-05-01",
+  "title": "J2CL editor and task parity",
+  "summary": "Improves J2CL editor and task affordances toward GWT parity.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stops normal J2CL blips from exposing a generic Task text toggle that strikes through the whole blip.",
+        "Keeps existing task controls icon-style while preserving task metadata and completion events for real task blips."
+      ]
+    }
+  ]
+}

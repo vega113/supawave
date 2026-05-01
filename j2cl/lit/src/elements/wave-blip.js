@@ -255,17 +255,6 @@ export class WaveBlip extends LitElement {
     :host([has-mention]) {
       position: relative;
     }
-    /* F-3.S2 (#1038, R-5.4 step 4): completed tasks fade the body via
-     * the F-0 quiet text token and apply a strikethrough so the blip
-     * card visually communicates the closed state without re-painting
-     * the wavy envelope. The strikethrough lives on the body wrapper
-     * inside the host so the metadata header (author + timestamp)
-     * stays legible. */
-    :host([data-task-completed]) .body {
-      color: #767676;
-      text-decoration: line-through;
-      text-decoration-color: #767676;
-    }
     .body {
       margin-left: 3.35em;
       min-height: 1.5em;
@@ -459,6 +448,14 @@ export class WaveBlip extends LitElement {
     return this.focused || this.getAttribute("tabindex") === "0";
   }
 
+  _hasTaskAffordance() {
+    return Boolean(
+      this.taskCompleted ||
+        String(this.taskAssignee || "").trim() ||
+        String(this.taskDueDate || "").trim()
+    );
+  }
+
   _onAvatarClick(event) {
     event.stopPropagation();
     this.dispatchEvent(
@@ -644,19 +641,21 @@ export class WaveBlip extends LitElement {
             @wave-blip-toolbar-link=${this._onLinkClick}
             @wave-blip-toolbar-delete=${this._onDeleteClick}
           ></wave-blip-toolbar>
-          <span class="task-affordance-slot" data-task-affordance-slot>
-            <wavy-task-affordance
-              data-blip-id=${this.blipId}
-              data-wave-id=${this.waveId}
-              ?data-task-completed=${this.taskCompleted}
-              data-task-assignee=${this.taskAssignee || ""}
-              data-task-due-date=${this.taskDueDate || ""}
-              data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
-              .bodySize=${this.bodySize || 0}
-              .participants=${this._participants}
-              @wave-blip-task-toggled=${this._onTaskToggled}
-            ></wavy-task-affordance>
-          </span>
+          ${this._hasTaskAffordance()
+            ? html`<span class="task-affordance-slot" data-task-affordance-slot>
+                <wavy-task-affordance
+                  data-blip-id=${this.blipId}
+                  data-wave-id=${this.waveId}
+                  ?data-task-completed=${this.taskCompleted}
+                  data-task-assignee=${this.taskAssignee || ""}
+                  data-task-due-date=${this.taskDueDate || ""}
+                  data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
+                  .bodySize=${this.bodySize || 0}
+                  .participants=${this._participants}
+                  @wave-blip-task-toggled=${this._onTaskToggled}
+                ></wavy-task-affordance>
+              </span>`
+            : ""}
           </span>
         </div>
         <div class="body">

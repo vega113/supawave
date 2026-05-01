@@ -28,9 +28,13 @@ import com.google.gwt.core.client.JavaScriptObject;
  */
 public class JavascriptJsonSerializer implements JsonSerializer {
   @Override
-  public native JavaScriptObject parse(String json) /*-{
-    return eval("(" + json + ")");
-  }-*/;
+  public JavaScriptObject parse(String json) {
+    try {
+      return com.google.gwt.core.client.JsonUtils.safeEval(json);
+    } catch (IllegalArgumentException e) {
+      throw new com.google.gwt.core.client.JavaScriptException(e.getMessage());
+    }
+  }
 
   @Override
   public native String serialize(JavaScriptObject obj) /*-{

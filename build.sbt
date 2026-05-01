@@ -377,8 +377,7 @@ Test / unmanagedSources := (Test / unmanagedSources).value.filterNot { f =>
   val fn = f.getName
   val isConvertedJvmClientTest =
     p.endsWith("/wave/src/test/java/org/waveprotocol/wave/client/scheduler/DelayedJobRegistryTest.java") ||
-    p.endsWith("/wave/src/test/java/org/waveprotocol/wave/client/util/UrlParametersTest.java") ||
-    p.endsWith("/wave/src/test/java/org/waveprotocol/wave/client/render/ReductionBasedRendererFilterTest.java")
+    p.endsWith("/wave/src/test/java/org/waveprotocol/wave/client/util/UrlParametersTest.java")
   // GWT test bases/cases
   fn.contains("GwtTest") || fn == "GwtTestCase.java" ||
   fn == "TestBase.java" || fn == "GenericGWTTestBase.java" ||

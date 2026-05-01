@@ -1,4 +1,5 @@
 // Entry point for the SupaWave Lit shell bundle (issue #964).
+import { createInlineShellInput } from "./input/inline-shell-input.js";
 import { createJsonShellInput } from "./input/json-shell-input.js";
 import "./elements/shell-skip-link.js";
 import "./elements/shell-header.js";
@@ -86,4 +87,7 @@ import "./elements/wavy-confirm-dialog.js";
 // and the existing <wavy-version-history> overlay.
 import "./controllers/wave-action-bar-controller.js";
 
-window.__litShellInput = createJsonShellInput(window);
+window.__litShellInput =
+  window.__bootstrap && typeof window.__bootstrap === "object"
+    ? createJsonShellInput(window)
+    : createInlineShellInput(window);

@@ -99,7 +99,7 @@ public final class J2clBootstrapServlet extends HttpServlet {
     JSONObject sessionJson = waveClientServlet.buildSessionJson(webSession);
     // /bootstrap.json must not expose the volatile HTML client ID seed.
     sessionJson.remove(SessionConstants.ID_SEED);
-    String websocketAddress = waveClientServlet.presentedWebsocketAddress(request);
+    String websocketAddress = waveClientServlet.presentedWebsocketAddress();
     String routeReturnTarget = buildRouteReturnTarget(request);
 
     JSONObject body = new JSONObject();

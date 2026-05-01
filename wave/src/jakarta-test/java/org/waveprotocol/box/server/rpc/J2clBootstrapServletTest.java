@@ -111,45 +111,6 @@ public final class J2clBootstrapServletTest {
   }
 
   @Test
-  public void socketAddressUsesTrustedHostHeaderWhenNoPresentedAddressConfigured() throws Exception {
-    HttpServletRequest request = signedInRequest();
-    when(request.getHeader("Host")).thenReturn("wave.example.com");
-
-    JSONObject socket =
-        renderBootstrapJson(createServlet(ParticipantId.ofUnsafe("alice@example.com")), request)
-            .getJSONObject(J2clBootstrapContract.KEY_SOCKET);
-
-    assertEquals("wave.example.com", socket.getString(J2clBootstrapContract.SOCKET_ADDRESS));
-  }
-
-  @Test
-  public void socketAddressPrefersFirstTrustedForwardedHostValue() throws Exception {
-    HttpServletRequest request = signedInRequest();
-    when(request.getHeader("X-Forwarded-Host"))
-        .thenReturn("wave.example.com, attacker.example.com");
-    when(request.getHeader("Host")).thenReturn("ignored.example.com");
-
-    JSONObject socket =
-        renderBootstrapJson(createServlet(ParticipantId.ofUnsafe("alice@example.com")), request)
-            .getJSONObject(J2clBootstrapContract.KEY_SOCKET);
-
-    assertEquals("wave.example.com", socket.getString(J2clBootstrapContract.SOCKET_ADDRESS));
-  }
-
-  @Test
-  public void socketAddressFallsBackWhenPresentedHostHeaderIsUnsafe() throws Exception {
-    HttpServletRequest request = signedInRequest();
-    when(request.getHeader("X-Forwarded-Host")).thenReturn("bad host");
-    when(request.getHeader("Host")).thenReturn("bad.example.com/<svg>");
-
-    JSONObject socket =
-        renderBootstrapJson(createServlet(ParticipantId.ofUnsafe("alice@example.com")), request)
-            .getJSONObject(J2clBootstrapContract.KEY_SOCKET);
-
-    assertEquals("127.0.0.1:9898", socket.getString(J2clBootstrapContract.SOCKET_ADDRESS));
-  }
-
-  @Test
   public void signedOutRequestOmitsAddressAndFeatures() throws Exception {
     StringWriter body = new StringWriter();
     HttpServletResponse response = mock(HttpServletResponse.class);
@@ -259,7 +220,6 @@ public final class J2clBootstrapServletTest {
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
     when(request.getContextPath()).thenReturn("");
-    when(request.getRequestURI()).thenReturn("/");
     when(request.getMethod()).thenReturn("GET");
     return request;
   }

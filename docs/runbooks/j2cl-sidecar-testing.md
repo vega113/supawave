@@ -216,7 +216,7 @@ Expected top-level keys and fields:
 
 - `session.domain` / `session.role` — always present
 - `session.address` / `session.features` — present only when signed in
-- `/bootstrap.json` intentionally omits `SessionConstants.ID_SEED`; J2CL/Lit clients must not use any bootstrap seed as a session or correlation identifier
+- `/bootstrap.json` intentionally omits `SessionConstants.ID_SEED`; that volatile HTML `session.id` seed remains only in the legacy inline `window.__session` bootstrap during the #978 overlap window
 - `socket.address` — the presented WebSocket `host:port`
 - `shell.buildCommit`, `shell.serverBuildTime`, `shell.currentReleaseId`, `shell.routeReturnTarget`
 
@@ -238,16 +238,20 @@ Forward compatibility: follow-up work under issue #933 may add a
 `socket.token` field. J2CL clients must ignore unknown keys under `socket`,
 `session`, and `shell`.
 
-Coexistence: the J2CL root shell and sidecar are JSON-only bootstrap consumers.
-The J2CL root shell no longer emits inline `var __session = ...` or
-`var __websocket_address = ...` fallback globals. The legacy GWT host page still
-owns its normal inline bootstrap globals because the GWT client consumes them.
+Coexistence: the legacy inline `var __session = ...; var __websocket_address =
+...;` script block stays in the rendered HTML for one release so a previously
+deployed J2CL bundle that still calls `SidecarSessionBootstrap.fromRootHtml`
+keeps working through a rolling deploy. Cleanup of that temporary overlap is
+tracked in issue `#978`.
 
-Rollback rule: J2CL bundles expect `/bootstrap.json` and do not fall back to HTML
-scraping. Roll server and client artifacts together, or roll the client back
-before any server rollback that would change the JSON bootstrap contract. The
-former `session.id` divergence was closed by issue `#979`: `/bootstrap.json` no
-longer publishes the volatile HTML client ID seed.
+Rollback rule: newer J2CL bundles now expect `/bootstrap.json` and do not fall
+back to HTML scraping. During the overlap window, roll the server forward
+before the client, and roll the client back before or together with any server
+rollback so clients do not land on a server that no longer matches their
+bootstrap expectations. The former `session.id` divergence was closed by issue
+`#979`: `/bootstrap.json` no longer publishes the volatile HTML client ID seed,
+so new J2CL/Lit clients must not use it as a session or correlation
+identifier.
 
 ## Dual-Mode Coexistence Matrix
 

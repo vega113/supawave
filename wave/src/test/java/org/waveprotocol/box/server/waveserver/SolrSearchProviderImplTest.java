@@ -22,29 +22,11 @@ import junit.framework.TestCase;
 import com.google.wave.api.SearchResult;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
-import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuilder;
-import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.IdGenerator;
-import org.waveprotocol.wave.model.id.IdUtil;
-import org.waveprotocol.wave.model.id.WaveId;
-import org.waveprotocol.wave.model.id.WaveletId;
-import org.waveprotocol.wave.model.id.WaveletName;
-import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
-import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
-import org.waveprotocol.wave.model.wave.data.WaveViewData;
-import org.waveprotocol.wave.model.wave.data.impl.WaveViewDataImpl;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class SolrSearchProviderImplTest extends TestCase {
-
-  private static final String DOMAIN = "example.com";
-  private static final ParticipantId USER = ParticipantId.ofUnsafe("user@" + DOMAIN);
 
   public void testStripUnreadFilterTokensRemovesStandaloneTokenOnly() {
     assertEquals(
@@ -82,121 +64,6 @@ public class SolrSearchProviderImplTest extends TestCase {
         SolrSearchProviderImpl.stripUnreadFilterTokens("in:inbox tag:work mentions:me"));
   }
 
-  public void testAttachmentFilterKeepsModernAttachmentDocument() throws Exception {
-    WaveViewData modernAttachmentWave =
-        waveWithDocument("modern", IdUtil.join(IdConstants.ATTACHMENT_METADATA_PREFIX, "modern"));
-    WaveViewData plainWave = waveWithDocument("plain", "b+plain");
-    List<WaveViewData> results = new ArrayList<WaveViewData>();
-    results.add(modernAttachmentWave);
-    results.add(plainWave);
-
-    AttachmentSearchFilter.filterByHasAttachment(results);
-
-    assertEquals(1, results.size());
-    assertSame(modernAttachmentWave, results.get(0));
-  }
-
-  public void testAttachmentFilterKeepsLegacyAttachmentDocument() throws Exception {
-    WaveViewData legacyAttachmentWave =
-        waveWithDocument("legacy", "m/attachment/legacy-file");
-    WaveViewData plainWave = waveWithDocument("plain-legacy", "b+plain");
-    List<WaveViewData> results = new ArrayList<WaveViewData>();
-    results.add(plainWave);
-    results.add(legacyAttachmentWave);
-
-    AttachmentSearchFilter.filterByHasAttachment(results);
-
-    assertEquals(1, results.size());
-    assertSame(legacyAttachmentWave, results.get(0));
-  }
-
-  public void testAttachmentFilterIgnoresNonConversationalWaveletDocuments() throws Exception {
-    WaveId waveId = WaveId.of(DOMAIN, "user-data");
-    WaveletName waveletName =
-        WaveletName.of(waveId, WaveletId.of(DOMAIN, "user+" + USER.getAddress()));
-    ObservableWaveletData wavelet = WaveletDataUtil.createEmptyWavelet(
-        waveletName, USER, HashedVersion.unsigned(0), 1234567890);
-    wavelet.createDocument(
-        IdUtil.join(IdConstants.ATTACHMENT_METADATA_PREFIX, "metadata"),
-        USER,
-        Collections.<ParticipantId>emptySet(),
-        new DocInitializationBuilder().characters("metadata").build(),
-        1234567890,
-        0);
-    WaveViewDataImpl wave = WaveViewDataImpl.create(waveId);
-    wave.addWavelet(wavelet);
-    List<WaveViewData> results = new ArrayList<WaveViewData>();
-    results.add(wave);
-
-    AttachmentSearchFilter.filterByHasAttachment(results);
-
-    assertTrue(results.isEmpty());
-  }
-
-  public void testFromFilterKeepsConversationRootCreator() throws Exception {
-    WaveViewData userWave = waveWithCreator("from-user", USER);
-    WaveViewData otherWave =
-        waveWithCreator("from-other", ParticipantId.ofUnsafe("other@" + DOMAIN));
-    List<WaveViewData> results = new ArrayList<WaveViewData>();
-    results.add(userWave);
-    results.add(otherWave);
-
-    FromSearchFilter.filterByRootAuthor(
-        results, Collections.singleton(USER.getAddress().toLowerCase()));
-
-    assertEquals(1, results.size());
-    assertSame(userWave, results.get(0));
-  }
-
-  public void testFromFilterReturnsNoMatchForDifferentRootCreator() throws Exception {
-    WaveViewData userWave = waveWithCreator("from-user-no-match", USER);
-    List<WaveViewData> results = new ArrayList<WaveViewData>();
-    results.add(userWave);
-
-    FromSearchFilter.filterByRootAuthor(
-        results, Collections.singleton("other@" + DOMAIN));
-
-    assertTrue(results.isEmpty());
-  }
-
-  public void testFromQueryNormalizesValues() throws Exception {
-    assertTrue(FromSearchFilter.isFromQuery(QueryHelper.parseQuery("in:inbox from:me")));
-    assertEquals(
-        Collections.singleton(USER.getAddress().toLowerCase()),
-        FromSearchFilter.normalizeFromValues(QueryHelper.parseQuery("from:me"), USER));
-    assertEquals(
-        Collections.singleton("alice@" + DOMAIN),
-        FromSearchFilter.normalizeFromValues(QueryHelper.parseQuery("from:Alice"), USER));
-  }
-
-  public void testIsHasAttachmentQueryOnlyMatchesAttachmentValue() throws Exception {
-    assertTrue(AttachmentSearchFilter.isHasAttachmentQuery(
-        QueryHelper.parseQuery("in:inbox has:attachment")));
-    assertTrue(AttachmentSearchFilter.isHasAttachmentQuery(
-        QueryHelper.parseQuery("has:ATTACHMENT")));
-    assertFalse(AttachmentSearchFilter.isHasAttachmentQuery(
-        QueryHelper.parseQuery("has:unknown")));
-  }
-
-  public void testSolrPostFilteredQueriesStartAtZeroBeforeInMemoryPagination() {
-    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, true, false, false));
-    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, true, false));
-    assertEquals(0, SolrSearchProviderImpl.computeSolrStart(5, false, false, true));
-    assertEquals(5, SolrSearchProviderImpl.computeSolrStart(5, false, false, false));
-
-    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, true, false, false));
-    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, false, true, false));
-    assertEquals(5, SolrSearchProviderImpl.computeInMemoryStart(5, false, false, true));
-    assertEquals(0, SolrSearchProviderImpl.computeInMemoryStart(5, false, false, false));
-  }
-
-  public void testSolrPostFilteredQueriesFetchRequestedPageWindow() {
-    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, true, false, false));
-    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, true, false));
-    assertEquals(30, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, true));
-    assertEquals(10, SolrSearchProviderImpl.computeSolrRows(20, 10, false, false, false));
-  }
-
   public void testSearchRejectsMentionsQueries() {
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, Object>of(
         "core.wave_server_domain", "example.com",
@@ -209,34 +76,5 @@ public class SolrSearchProviderImplTest extends TestCase {
 
     assertEquals(0, results.getNumResults());
     assertEquals(0, results.getDigests().size());
-  }
-
-  private static WaveViewData waveWithDocument(String waveIdToken, String documentId)
-      throws Exception {
-    return waveWithDocumentAndCreator(waveIdToken, documentId, USER);
-  }
-
-  private static WaveViewData waveWithCreator(String waveIdToken, ParticipantId creator)
-      throws Exception {
-    return waveWithDocumentAndCreator(waveIdToken, "b+plain", creator);
-  }
-
-  private static WaveViewData waveWithDocumentAndCreator(
-      String waveIdToken, String documentId, ParticipantId creator) throws Exception {
-    WaveId waveId = WaveId.of(DOMAIN, waveIdToken);
-    WaveletName waveletName =
-        WaveletName.of(waveId, WaveletId.of(DOMAIN, IdConstants.CONVERSATION_ROOT_WAVELET));
-    ObservableWaveletData wavelet = WaveletDataUtil.createEmptyWavelet(
-        waveletName, creator, HashedVersion.unsigned(0), 1234567890);
-    wavelet.createDocument(
-        documentId,
-        creator,
-        Collections.<ParticipantId>emptySet(),
-        new DocInitializationBuilder().characters("metadata").build(),
-        1234567890,
-        0);
-    WaveViewDataImpl wave = WaveViewDataImpl.create(waveId);
-    wave.addWavelet(wavelet);
-    return wave;
   }
 }

@@ -213,7 +213,9 @@ public final class TagsViewBuilder implements UiBuilder {
         .append("firstChild.className=x?'").append(css.expandButton())
         .append("':'").append(css.collapseButton()).append("';")
         .append("parentNode.nextSibling.style.display=x?'':'none';");
-    return escapeHtmlAttribute(sb.toString());
+    String js = escapeHtmlAttribute(sb.toString());
+    assert !js.contains("\"");
+    return js;
   }
 
   private static String escapeJsSingleQuoted(String value) {

@@ -1,8 +1,8 @@
 # J2CL GWT Parity Matrix
 
-Status: Accepted; final parity acceptance audited 2026-04-30\
+Status: Proposed\
 Owner: Project Maintainers\
-Updated: 2026-04-30\
+Updated: 2026-04-25\
 Review cadence: on-change
 
 Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)
@@ -11,13 +11,6 @@ Related: [`docs/j2cl-parity-architecture.md`](./j2cl-parity-architecture.md),
 [`docs/j2cl-parity-issue-map.md`](./j2cl-parity-issue-map.md),
 [`docs/j2cl-lit-implementation-workflow.md`](./j2cl-lit-implementation-workflow.md)
 Template: [`docs/j2cl-parity-slice-packet-template.md`](./j2cl-parity-slice-packet-template.md)
-
-Final acceptance audit:
-[`docs/superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md`](./superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md).
-The audit verified the current merged implementation against this matrix with
-SBT, viewport-window tests, local smoke checks, and the Playwright J2CL/GWT
-parity harness. It does not authorize removing the explicit GWT route or
-changing production defaults by itself; those remain separate rollout decisions.
 
 ## 1. Purpose
 

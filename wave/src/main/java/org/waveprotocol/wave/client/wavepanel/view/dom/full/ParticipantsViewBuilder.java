@@ -495,7 +495,17 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         .append("firstChild.className=x?'").append(css.expandButton())
         .append("':'").append(css.collapseButton()).append("';")
         .append("parentNode.nextSibling.style.display=x?'':'none';");
-    return escapeHtmlAttribute(sb.toString());
+    String js = escapeHtmlAttribute(sb.toString());
+    assert !js.contains("\"");
+    return js;
+  }
+
+  private static String escapeJsSingleQuoted(String value) {
+    return value
+        .replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n");
   }
 
   private static String escapeHtmlAttribute(String value) {
@@ -505,13 +515,5 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         .replace("\"", "&quot;")
         .replace("<", "&lt;")
         .replace(">", "&gt;");
-  }
-
-  private static String escapeJsSingleQuoted(String value) {
-    return value
-        .replace("\\", "\\\\")
-        .replace("'", "\\'")
-        .replace("\r", "\\r")
-        .replace("\n", "\\n");
   }
 }

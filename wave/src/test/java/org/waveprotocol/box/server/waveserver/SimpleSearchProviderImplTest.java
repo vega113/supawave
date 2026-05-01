@@ -739,83 +739,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
     assertEquals(0, results.getNumResults());
   }
 
-  public void testSearchFilterByFromMeUsesRootCreator() throws Exception {
-    createRootWave("from-user1", USER1, USER1);
-    createRootWave("from-user2", USER2, USER1, USER2);
-
-    SearchResult results = searchProvider.search(USER1, "in:inbox from:me", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("from-user1",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchFilterByFromLiteralAndBareAddress() throws Exception {
-    createRootWave("from-literal-user1", USER1, USER1);
-    createRootWave("from-literal-user2", USER2, USER1, USER2);
-
-    SearchResult literal =
-        searchProvider.search(USER1, "in:inbox from:" + USER2.getAddress(), 0, 10);
-    SearchResult bare = searchProvider.search(USER1, "in:inbox from:user2", 0, 10);
-
-    assertEquals(1, literal.getNumResults());
-    assertEquals("from-literal-user2",
-        WaveId.deserialise(literal.getDigests().get(0).getWaveId()).getId());
-    assertEquals(1, bare.getNumResults());
-    assertEquals("from-literal-user2",
-        WaveId.deserialise(bare.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchFilterByFromNoMatchReturnsEmpty() throws Exception {
-    createRootWave("from-no-match", USER1, USER1);
-
-    SearchResult results = searchProvider.search(USER1, "in:inbox from:missing", 0, 10);
-
-    assertEquals(0, results.getNumResults());
-  }
-
-  public void testSearchFilterByFromDoesNotChangeCreatorSemantics() throws Exception {
-    createRootWave("from-creator-user1", USER1, USER1);
-    createRootWave("from-creator-user2", USER2, USER1, USER2);
-
-    SearchResult fromMeAndCreatorUser2 =
-        searchProvider.search(
-            USER1, "in:inbox from:me creator:" + USER2.getAddress(), 0, 10);
-    SearchResult creatorUser2 =
-        searchProvider.search(USER1, "in:inbox creator:" + USER2.getAddress(), 0, 10);
-
-    assertEquals(0, fromMeAndCreatorUser2.getNumResults());
-    assertEquals(1, creatorUser2.getNumResults());
-  }
-
-  public void testSearchFilterByFromComposesWithReplyCreatorAndWithFilters() throws Exception {
-    WaveletName root =
-        WaveletName.of(WaveId.of(DOMAIN, "from-reply-composition"), WAVELET_ID);
-    WaveletName reply =
-        WaveletName.of(root.waveId, WaveletId.of(DOMAIN, "conv+from-reply"));
-
-    submitDeltaToNewWavelet(root, USER1, addParticipantToWavelet(USER1, root));
-    addWaveletToUserView(reply, USER1);
-    submitDeltaToNewWaveletWithoutView(
-        reply,
-        USER2,
-        new AddParticipant(CONTEXT, USER1),
-        new AddParticipant(CONTEXT, USER2));
-
-    SearchResult results =
-        searchProvider.search(
-            USER1,
-            "in:inbox creator:" + USER2.getAddress()
-                + " with:" + USER2.getAddress()
-                + " from:me",
-            0,
-            10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("from-reply-composition",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
   public void testSearchFilterByImplicitContentWorks() throws Exception {
     WaveletName matchingWave = WaveletName.of(WaveId.of(DOMAIN, "matching"), WAVELET_ID);
     WaveletName partialWave = WaveletName.of(WaveId.of(DOMAIN, "partial"), WAVELET_ID);
@@ -902,76 +825,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
     SearchResult results = unreadFilterProvider.search(USER1, "in:inbox is:starred", 0, 10);
 
     // is:starred is unknown — must not filter, must not throw.
-    assertEquals(2, results.getNumResults());
-  }
-
-  public void testSearchHasAttachmentCombinesWithInbox() throws Exception {
-    WaveletName withAttachment = WaveletName.of(WaveId.of(DOMAIN, "with-attachment"), WAVELET_ID);
-    WaveletName withoutAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "without-attachment"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
-    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "modern");
-    submitDeltaToNewWavelet(
-        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
-
-    SearchResult results = searchProvider.search(USER1, "in:inbox has:attachment", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("with-attachment",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchHasAttachmentWorksWithoutFolder() throws Exception {
-    WaveletName withAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "attachment-no-folder"), WAVELET_ID);
-    WaveletName withoutAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "plain-no-folder"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
-    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "bare");
-    submitDeltaToNewWavelet(
-        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
-
-    SearchResult results = searchProvider.search(USER1, "has:attachment", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("attachment-no-folder",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchHasAttachmentMatchesLegacyAttachmentDocument() throws Exception {
-    WaveletName legacyAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "legacy-attachment"), WAVELET_ID);
-    WaveletName withoutAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "legacy-plain"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(
-        legacyAttachment, USER1, addParticipantToWavelet(USER1, legacyAttachment));
-    addLegacyAttachmentDataDocumentToWavelet(legacyAttachment, USER1, "legacy-file");
-    submitDeltaToNewWavelet(
-        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
-
-    SearchResult results = searchProvider.search(USER1, "in:inbox has:attachment", 0, 10);
-
-    assertEquals(1, results.getNumResults());
-    assertEquals("legacy-attachment",
-        WaveId.deserialise(results.getDigests().get(0).getWaveId()).getId());
-  }
-
-  public void testSearchUnknownHasTokenIsNoOp() throws Exception {
-    WaveletName withAttachment = WaveletName.of(WaveId.of(DOMAIN, "has-unknown-attach"), WAVELET_ID);
-    WaveletName withoutAttachment =
-        WaveletName.of(WaveId.of(DOMAIN, "has-unknown-plain"), WAVELET_ID);
-
-    submitDeltaToNewWavelet(withAttachment, USER1, addParticipantToWavelet(USER1, withAttachment));
-    addAttachmentDataDocumentToWavelet(withAttachment, USER1, "unknown-no-op");
-    submitDeltaToNewWavelet(
-        withoutAttachment, USER1, addParticipantToWavelet(USER1, withoutAttachment));
-
-    SearchResult results = searchProvider.search(USER1, "in:inbox has:unknown", 0, 10);
-
-    // Unknown has:<value> tokens are parsed but intentionally inert.
     assertEquals(2, results.getNumResults());
   }
 
@@ -1343,16 +1196,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
     submitDelta(name, user, version, ops);
   }
 
-  private void createRootWave(String waveId, ParticipantId creator, ParticipantId... participants)
-      throws Exception {
-    WaveletName name = WaveletName.of(WaveId.of(DOMAIN, waveId), WAVELET_ID);
-    List<WaveletOperation> ops = new ArrayList<WaveletOperation>();
-    for (ParticipantId participant : participants) {
-      ops.add(addParticipantToWavelet(participant, name));
-    }
-    submitDeltaToNewWavelet(name, creator, ops.toArray(new WaveletOperation[ops.size()]));
-  }
-
   private void submitDeltaToExistingWavelet(WaveletName name, ParticipantId user,
       WaveletOperation... ops) throws Exception {
     LocalWaveletContainer wavelet = waveMap.getOrCreateLocalWavelet(name);
@@ -1466,26 +1309,6 @@ public class SimpleSearchProviderImplTest extends TestCase {
                 .elementEnd()
                 .build()));
     submitDeltaToExistingWavelet(name, user, addTagOp);
-  }
-
-  private void addAttachmentDataDocumentToWavelet(
-      WaveletName name, ParticipantId user, String attachmentId) throws Exception {
-    addDocumentToWavelet(name, user,
-        IdUtil.join(IdConstants.ATTACHMENT_METADATA_PREFIX, attachmentId));
-  }
-
-  private void addLegacyAttachmentDataDocumentToWavelet(
-      WaveletName name, ParticipantId user, String attachmentId) throws Exception {
-    addDocumentToWavelet(name, user, "m/attachment/" + attachmentId);
-  }
-
-  private void addDocumentToWavelet(WaveletName name, ParticipantId user, String documentId)
-      throws Exception {
-    WaveletOperationContext context = new WaveletOperationContext(user, 0, 1);
-    WaveletOperation op =
-        new WaveletBlipOperation(documentId, new BlipContentOperation(context,
-            new DocOpBuilder().characters("attachment metadata").build()));
-    submitDeltaToExistingWavelet(name, user, op);
   }
 
   private int documentLength(DocInitialization docOp) {

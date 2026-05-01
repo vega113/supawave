@@ -3842,6 +3842,75 @@ public class J2clComposeSurfaceControllerTest {
         gateway.lastSubmitRequest.getDeltaJson().contains("\"2\":\"EFGH\""));
   }
 
+
+  @Test
+  public void publicityToggleBlockedForNonCreator() {
+    FakeGateway gateway = new FakeGateway();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1",
+            "chan-1",
+            44L,
+            "ABCD",
+            "b+root",
+            Arrays.asList("alice@example.com", "bob@example.com")));
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+
+    Assert.assertEquals(0, gateway.submitCalls);
+    Assert.assertTrue(
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.publicity_toggled".equals(e.getName())
+                        && "failure-build".equals(e.getFields().get("outcome"))));
+  }
+
+  @Test
+  public void publicityToggleBlockedWhenMakingDirectMessagePublic() {
+    FakeGateway gateway = new FakeGateway();
+    RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            J2clComposeSurfaceController.richContentDeltaFactory("seed"),
+            waveId -> { },
+            waveId -> { },
+            telemetry);
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1",
+            "chan-1",
+            44L,
+            "ABCD",
+            "b+root",
+            Arrays.asList("bob@example.com", "alice@example.com")));
+
+    controller.onPublicityToggleRequested("example.com/w+1", true);
+
+    Assert.assertEquals(0, gateway.submitCalls);
+    Assert.assertTrue(
+        telemetry.events().stream()
+            .anyMatch(
+                e ->
+                    "compose.publicity_toggled".equals(e.getName())
+                        && "failure-build".equals(e.getFields().get("outcome"))));
+  }
+
   @Test
   public void waveHeaderActionSubmitErrorRecordsFailureTelemetry() {
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();

@@ -1511,9 +1511,13 @@ public final class J2clComposeSurfaceController {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.publicity_toggled",
-        (address, session) ->
-            deltaFactory.createPublicityToggleRequest(
-                address, session, sharedDomainParticipantForSession(session), makePublic));
+        (address, session) -> {
+          if (!canTogglePublicity(address, session, makePublic)) {
+            throw new IllegalStateException("Publicity toggle not allowed for this user/session.");
+          }
+          return deltaFactory.createPublicityToggleRequest(
+              address, session, sharedDomainParticipantForSession(session), makePublic);
+        });
   }
 
   public void onLockStateToggleRequested(
@@ -1580,6 +1584,42 @@ public final class J2clComposeSurfaceController {
         error -> recordWaveHeaderActionTelemetry(telemetryEventName, "failure-bootstrap"));
   }
 
+
+  private static boolean canTogglePublicity(
+      String address, J2clSidecarWriteSession session, boolean makePublic) {
+    if (session == null) {
+      return false;
+    }
+    List<String> participants = session.getParticipantIds();
+    if (participants == null || participants.isEmpty()) {
+      return false;
+    }
+    String normalizedAddress = normalizeParticipantAddress(address);
+    String creator = normalizeParticipantAddress(participants.get(0));
+    if (normalizedAddress.isEmpty() || creator.isEmpty() || !normalizedAddress.equals(creator)) {
+      return false;
+    }
+    if (makePublic && isDirectMessageParticipants(participants)) {
+      return false;
+    }
+    return true;
+  }
+
+  private static boolean isDirectMessageParticipants(List<String> participants) {
+    int userParticipants = 0;
+    for (String participant : participants) {
+      String normalized = normalizeParticipantAddress(participant);
+      if (normalized.isEmpty() || normalized.startsWith("@")) {
+        continue;
+      }
+      userParticipants++;
+    }
+    return userParticipants <= 2;
+  }
+
+  private static String normalizeParticipantAddress(String participant) {
+    return participant == null ? "" : participant.trim().toLowerCase(Locale.ROOT);
+  }
   private static String sharedDomainParticipantForSession(J2clSidecarWriteSession session) {
     if (session == null || session.getSelectedWaveId() == null) {
       return "";

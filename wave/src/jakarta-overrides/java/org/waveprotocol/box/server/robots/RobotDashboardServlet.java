@@ -1264,7 +1264,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'- Build BOTH active + data mode for the most capable robot\\n'");
     sb.append("+'- Prefer expiry=3600 for robot JWTs; 0 preserves legacy no-expiry behavior\\n'");
     sb.append("+'- Refresh the token after any HTTP 401\\n'");
-    sb.append("+'- Management tokens expire in 1 hour (registration only)\\n'");
+    sb.append("+'- Management token lifetime is chosen when you generate it (registration only)\\n'");
     sb.append("+'- Callback URL must be set before requesting any robot tokens\\n'");
     sb.append("+'- Use rpcServerUrl from the event bundle when it is present\\n'");
     sb.append("+'- Read robotAddress from the bundle and treat missing threads as {}\\n'");

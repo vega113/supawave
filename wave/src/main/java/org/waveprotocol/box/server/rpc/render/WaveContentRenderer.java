@@ -215,8 +215,7 @@ public final class WaveContentRenderer {
     try {
       checkBudget(budget);
       ServerHtmlRenderer rules = new ServerHtmlRenderer(viewer, budget, windowOptions);
-      String rendered = ReductionBasedRenderer.renderWith(
-          rules, conversations, buildBlipRenderFilter(windowOptions));
+      String rendered = ReductionBasedRenderer.renderWith(rules, conversations);
       checkBudget(budget);
       conversationHtml = rendered != null ? rendered : "";
     } catch (RenderBudgetExceededException e) {
@@ -350,19 +349,6 @@ public final class WaveContentRenderer {
         allowed,
         clamps ? VISIBLE_REGION_PLACEHOLDER_HTML : null,
         rootThread);
-  }
-
-  static ReductionBasedRenderer.BlipRenderFilter buildBlipRenderFilter(
-      final ServerHtmlRenderer.WindowOptions windowOptions) {
-    if (windowOptions == null || !windowOptions.isWindowed()) {
-      return null;
-    }
-    return new ReductionBasedRenderer.BlipRenderFilter() {
-      @Override
-      public boolean shouldRender(ConversationThread thread, ConversationBlip blip) {
-        return !windowOptions.isTargetThread(thread) || windowOptions.isAllowed(blip.getId());
-      }
-    };
   }
 
   // =========================================================================

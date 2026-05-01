@@ -39,53 +39,27 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
  */
 public final class ReductionBasedRenderer<R> implements WaveRenderer<R> {
 
-  public interface BlipRenderFilter {
-    boolean shouldRender(ConversationThread thread, ConversationBlip blip);
-  }
-
   /** Nesting structure of conversations. */
   private final ConversationStructure structure;
 
   /** Production rules. */
   private final RenderingRules<R> builders;
 
-  /** Optional traversal filter used to skip expensive blip rendering. */
-  private final BlipRenderFilter blipRenderFilter;
-
   /** Creates a rendering builder. */
-  private ReductionBasedRenderer(
-      RenderingRules<R> builders,
-      ConversationStructure structure,
-      BlipRenderFilter blipRenderFilter) {
+  private ReductionBasedRenderer(RenderingRules<R> builders, ConversationStructure structure) {
     this.builders = builders;
     this.structure = structure;
-    this.blipRenderFilter = blipRenderFilter;
   }
 
   /** @return a renderer of {@code wave}, using {@code builders}. */
   public static <R> ReductionBasedRenderer<R> of(
       RenderingRules<R> builders, ConversationView wave) {
-    return of(builders, wave, null);
-  }
-
-  /** @return a renderer of {@code wave}, using {@code builders}. */
-  public static <R> ReductionBasedRenderer<R> of(
-      RenderingRules<R> builders,
-      ConversationView wave,
-      BlipRenderFilter blipRenderFilter) {
-    return new ReductionBasedRenderer<R>(
-        builders, ConversationStructure.of(wave), blipRenderFilter);
+    return new ReductionBasedRenderer<R>(builders, ConversationStructure.of(wave));
   }
 
   /** @return a rendering of {@code wave}, using {@code builders}. */
   public static <R> R renderWith(RenderingRules<R> builders, ConversationView wave) {
     return of(builders, wave).render(wave);
-  }
-
-  /** @return a rendering of {@code wave}, using {@code builders} and optional filter. */
-  public static <R> R renderWith(
-      RenderingRules<R> builders, ConversationView wave, BlipRenderFilter filter) {
-    return of(builders, wave, filter).render(wave);
   }
 
   @Override
@@ -118,9 +92,6 @@ public final class ReductionBasedRenderer<R> implements WaveRenderer<R> {
   private R renderInner(ConversationThread thread) {
     IdentityMap<ConversationBlip, R> blips = null;
     for (ConversationBlip blip : thread.getBlips()) {
-      if (blipRenderFilter != null && !blipRenderFilter.shouldRender(thread, blip)) {
-        continue;
-      }
       if (blips == null) {
         blips = CollectionUtils.createIdentityMap();
       }

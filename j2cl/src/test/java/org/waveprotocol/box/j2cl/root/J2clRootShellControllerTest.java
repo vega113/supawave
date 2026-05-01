@@ -60,6 +60,13 @@ public class J2clRootShellControllerTest {
     Assert.assertEquals("unlocked", J2clRootShellController.normalizeLockStateValue("bogus"));
   }
 
+  @Test
+  public void previewRouteHostSkipsLiveSidecarStartup() {
+    Assert.assertTrue(J2clRootShellController.isReadSurfacePreviewHost(true, false));
+    Assert.assertTrue(J2clRootShellController.isReadSurfacePreviewHost(false, true));
+    Assert.assertFalse(J2clRootShellController.isReadSurfacePreviewHost(false, false));
+  }
+
   private static final class FakeToolbarView implements J2clToolbarSurfaceController.View {
     private J2clToolbarSurfaceModel model;
 

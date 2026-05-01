@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-inline-anchor-hydration",
+  "version": "Unreleased",
+  "date": "2026-05-01",
+  "title": "J2CL preserves read-surface preview hydration and inline reply anchors",
+  "summary": "The J2CL root read-surface preview route now keeps its server-rendered content visible after boot, and raw inline reply anchors are preserved as read-surface metadata for follow-up inline placement work.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Keep the J2CL read-surface preview route in preview mode after boot instead of replacing the server-rendered fixture with the normal live shell.",
+        "Preserve inline reply anchor ids and text offsets from raw Wave blip markup through read blips and the window-render path so inline-thread placement can be restored without losing anchor metadata."
+      ]
+    }
+  ]
+}

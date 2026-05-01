@@ -1116,7 +1116,9 @@ public final class J2clSelectedWaveController
         existing.isTaskDone(),
         existing.getTaskAssignee(),
         existing.getTaskDueTimestamp(),
-        existing.getBodyItemCount());
+        existing.getBodyItemCount(),
+        existing.isTask(),
+        existing.getInlineReplyAnchors());
   }
 
   private static String nullToEmpty(String value) {

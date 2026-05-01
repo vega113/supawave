@@ -255,6 +255,75 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderExposesInlineReplyAnchorMetadataOnBlipHost() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip blip =
+        new J2clReadBlip(
+            "b+root",
+            "Before  after",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 15,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", "Before ".length())));
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(blip), Collections.<String>emptyList()));
+
+    HTMLElement element = blip(host, "b+root");
+    Assert.assertEquals("1", element.getAttribute("data-inline-reply-anchor-count"));
+    Assert.assertEquals("t+inline@7", element.getAttribute("data-inline-reply-anchors"));
+  }
+
+  @Test
+  public void renderCountsOnlySerializableInlineReplyAnchors() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip blip =
+        new J2clReadBlip(
+            "b+root",
+            "Before  after",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 15,
+            /* isTask= */ false,
+            Arrays.asList(
+                new J2clInlineReplyAnchor("", 1),
+                null,
+                new J2clInlineReplyAnchor("t+inline", "Before ".length())));
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(blip), Collections.<String>emptyList()));
+
+    HTMLElement element = blip(host, "b+root");
+    Assert.assertEquals("1", element.getAttribute("data-inline-reply-anchor-count"));
+    Assert.assertEquals("t+inline@7", element.getAttribute("data-inline-reply-anchors"));
+  }
+
+  @Test
   public void renderOmitsTaskAttributesWhenOpen() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

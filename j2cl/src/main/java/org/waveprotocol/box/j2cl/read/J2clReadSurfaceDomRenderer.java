@@ -666,7 +666,9 @@ public final class J2clReadSurfaceDomRenderer {
               /* taskDone= */ entry.isTaskDone(),
               /* taskAssignee= */ entry.getTaskAssignee(),
               /* taskDueTimestamp= */ entry.getTaskDueTimestamp(),
-              /* bodyItemCount= */ entry.getBodyItemCount());
+              /* bodyItemCount= */ entry.getBodyItemCount(),
+              /* isTask= */ entry.isTask(),
+              entry.getInlineReplyAnchors());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
       // V-4 (#1102): mark blip depth so the larger root avatar paints
       // and the timestamp picks up the ` · root` suffix. Check parent
@@ -1086,6 +1088,7 @@ public final class J2clReadSurfaceDomRenderer {
         blip.getTaskDueTimestamp(),
         blip.getBodyItemCount(),
         blip.isTask());
+    applyInlineReplyAnchorState(element, blip.getInlineReplyAnchors());
 
     // The renderer doesn't know the parent wave id (it lives one layer up
     // in J2clSelectedWaveView). The view sets `data-wave-id` on the host
@@ -1126,6 +1129,34 @@ public final class J2clReadSurfaceDomRenderer {
     setProperty(reactionRow, "reactions", buildReactionsArray(blip.getBlipId()));
     element.appendChild(reactionRow);
     return element;
+  }
+
+  private static void applyInlineReplyAnchorState(
+      HTMLElement element, List<J2clInlineReplyAnchor> anchors) {
+    if (anchors == null || anchors.isEmpty()) {
+      element.removeAttribute("data-inline-reply-anchor-count");
+      element.removeAttribute("data-inline-reply-anchors");
+      return;
+    }
+    StringBuilder serialized = new StringBuilder();
+    int validAnchorCount = 0;
+    for (J2clInlineReplyAnchor anchor : anchors) {
+      if (anchor == null || anchor.getThreadId().isEmpty()) {
+        continue;
+      }
+      if (serialized.length() > 0) {
+        serialized.append(",");
+      }
+      serialized.append(anchor.getThreadId()).append("@").append(anchor.getTextOffset());
+      validAnchorCount++;
+    }
+    if (validAnchorCount > 0) {
+      element.setAttribute("data-inline-reply-anchor-count", String.valueOf(validAnchorCount));
+      element.setAttribute("data-inline-reply-anchors", serialized.toString());
+    } else {
+      element.removeAttribute("data-inline-reply-anchor-count");
+      element.removeAttribute("data-inline-reply-anchors");
+    }
   }
 
   private static void setProperty(HTMLElement element, String name, Object value) {
@@ -2526,7 +2557,8 @@ public final class J2clReadSurfaceDomRenderer {
         && left.isTaskDone() == right.isTaskDone()
         && left.getTaskAssignee().equals(right.getTaskAssignee())
         && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
-        && left.getBodyItemCount() == right.getBodyItemCount();
+        && left.getBodyItemCount() == right.getBodyItemCount()
+        && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
   }
 
   private boolean matchesRenderedWindowEntries(List<J2clReadWindowEntry> entries) {
@@ -2604,7 +2636,8 @@ public final class J2clReadSurfaceDomRenderer {
         && left.isTaskDone() == right.isTaskDone()
         && left.getTaskAssignee().equals(right.getTaskAssignee())
         && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
-        && left.getBodyItemCount() == right.getBodyItemCount();
+        && left.getBodyItemCount() == right.getBodyItemCount()
+        && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
   }
 
   private HTMLElement renderedBlipById(String blipId) {

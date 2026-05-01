@@ -14,6 +14,8 @@ import org.junit.Test;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadataClient;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
+import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
@@ -1236,6 +1238,52 @@ public class J2clSelectedWaveControllerTest {
     Assert.assertEquals(1777463436001L, readBlips.get(1).getLastModifiedTimeMillis());
     Assert.assertEquals("tail-author@example.com", readBlips.get(2).getAuthorId());
     Assert.assertEquals(1777463436277L, readBlips.get(2).getLastModifiedTimeMillis());
+  }
+
+  @Test
+  public void fragmentBlipMetadataMergePreservesInlineReplyAnchors() throws Exception {
+    J2clReadBlip existing =
+        new J2clReadBlip(
+            "b+next",
+            "Before  after",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "",
+            /* threadId= */ "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", "Before ".length())));
+    SidecarFragmentsResponse response =
+        fragmentsResponseWithBlipMetadata(
+            "b+next",
+            "Before  after",
+            "next-author@example.com",
+            1777463436001L,
+            null,
+            null,
+            null,
+            0L);
+    Method merge =
+        J2clSelectedWaveController.class.getDeclaredMethod(
+            "mergeFragmentBlipMetadata",
+            J2clReadBlip.class,
+            SidecarFragmentsResponse.BlipMetadata.class);
+    merge.setAccessible(true);
+
+    J2clReadBlip merged =
+        (J2clReadBlip) merge.invoke(null, existing, response.getBlips().get(0));
+
+    Assert.assertEquals("next-author@example.com", merged.getAuthorId());
+    Assert.assertEquals(1, merged.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+inline", merged.getInlineReplyAnchors().get(0).getThreadId());
   }
 
   @Test

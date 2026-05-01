@@ -24,6 +24,7 @@ public final class J2clReadBlipContent {
   private final String taskAssignee;
   private final long taskDueTimestamp;
   private final boolean deleted;
+  private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
 
   private J2clReadBlipContent(
       String text,
@@ -32,7 +33,8 @@ public final class J2clReadBlipContent {
       boolean taskDone,
       String taskAssignee,
       long taskDueTimestamp,
-      boolean deleted) {
+      boolean deleted,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     this.text = text == null ? "" : text;
     this.attachments =
         attachments == null
@@ -43,6 +45,11 @@ public final class J2clReadBlipContent {
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
     this.deleted = deleted;
+    this.inlineReplyAnchors =
+        inlineReplyAnchors == null
+            ? Collections.<J2clInlineReplyAnchor>emptyList()
+            : Collections.unmodifiableList(
+                new ArrayList<J2clInlineReplyAnchor>(inlineReplyAnchors));
   }
 
   public static J2clReadBlipContent parseRawSnapshot(String rawSnapshot) {
@@ -89,14 +96,16 @@ public final class J2clReadBlipContent {
         cursor = imageClose + IMAGE_CLOSE_TAG.length();
       }
     }
+    StripResult stripped = stripTagsWithInlineReplyAnchors(visibleText.toString());
     return new J2clReadBlipContent(
-        decodeEntities(stripTags(visibleText.toString())),
+        decodeEntities(stripped.text),
         attachments,
         annotations.hasTask,
         annotations.taskDone,
         annotations.taskAssignee,
         annotations.taskDueTimestamp,
-        annotations.deleted);
+        annotations.deleted,
+        stripped.inlineReplyAnchors);
   }
 
   public String getText() {
@@ -127,9 +136,19 @@ public final class J2clReadBlipContent {
     return deleted;
   }
 
+  public List<J2clInlineReplyAnchor> getInlineReplyAnchors() {
+    return inlineReplyAnchors;
+  }
+
   private static String attributeValue(String tag, String name) {
     // Start after the tag name; indexOf(' ') would miss tabs or newlines as the first separator.
-    int cursor = "<image".length();
+    int cursor = 1;
+    while (cursor < tag.length()
+        && tag.charAt(cursor) != '>'
+        && tag.charAt(cursor) != '/'
+        && !Character.isWhitespace(tag.charAt(cursor))) {
+      cursor++;
+    }
     if (cursor >= tag.length()) {
       return "";
     }
@@ -205,30 +224,56 @@ public final class J2clReadBlipContent {
   }
 
   private static String stripTags(String value) {
+    return stripTagsWithInlineReplyAnchors(value).text;
+  }
+
+  private static StripResult stripTagsWithInlineReplyAnchors(String value) {
     // This is intentionally not an XML parser; it handles the narrow debug-XML snapshots emitted
     // for selected-wave text and leaves malformed tags as best-effort visible text.
     StringBuilder stripped = new StringBuilder(value.length());
+    List<J2clInlineReplyAnchor> inlineReplyAnchors = new ArrayList<J2clInlineReplyAnchor>();
     StringBuilder tagBuf = new StringBuilder();
     boolean insideTag = false;
+    int decodedVisibleLength = 0;
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
-      if (c == '<') {
+      if (c == '<' && !insideTag) {
         insideTag = true;
         tagBuf.setLength(0);
       } else if (c == '>' && insideTag) {
         insideTag = false;
         // <line/> and <line> are DocOp structural separators: Hello<line/>World -> Hello\nWorld.
-        if (isLineTag(tagBuf.toString())) {
-          appendLineSeparator(stripped);
+        String tagContent = tagBuf.toString();
+        if (isLineTag(tagContent)) {
+          decodedVisibleLength = appendLineSeparator(stripped, decodedVisibleLength);
+        } else if (isInlineReplyAnchorTag(tagContent)) {
+          String threadId = attributeValue("<" + tagContent + ">", "id");
+          if (!threadId.isEmpty()) {
+            inlineReplyAnchors.add(
+                new J2clInlineReplyAnchor(
+                    decodeEntities(threadId), decodedVisibleLength));
+          }
         }
         tagBuf.setLength(0);
       } else if (insideTag) {
         tagBuf.append(c);
+      } else if (c == '&') {
+        String decodedEntity = decodedEntityAt(value, i);
+        if (!decodedEntity.isEmpty()) {
+          int entityEnd = value.indexOf(';', i);
+          stripped.append(value, i, entityEnd + 1);
+          decodedVisibleLength += decodedEntity.length();
+          i = entityEnd;
+        } else {
+          stripped.append(c);
+          decodedVisibleLength++;
+        }
       } else {
         stripped.append(c);
+        decodedVisibleLength++;
       }
     }
-    return stripped.toString();
+    return new StripResult(stripped.toString(), inlineReplyAnchors);
   }
 
   private static boolean isLineTag(String tagContent) {
@@ -240,16 +285,64 @@ public final class J2clReadBlipContent {
             || Character.isWhitespace(normalized.charAt(4)));
   }
 
-  private static void appendLineSeparator(StringBuilder stripped) {
+  private static boolean isInlineReplyAnchorTag(String tagContent) {
+    String normalized = tagContent.trim().toLowerCase(Locale.ROOT);
+    return normalized.startsWith("reply")
+        && (normalized.length() == 5
+            || normalized.charAt(5) == '/'
+            || Character.isWhitespace(normalized.charAt(5)));
+  }
+
+  private static String decodedEntityAt(String value, int ampersandIndex) {
+    int entityEnd = value.indexOf(';', ampersandIndex);
+    if (entityEnd < 0) {
+      return "";
+    }
+    String entity = value.substring(ampersandIndex, entityEnd + 1);
+    if ("&quot;".equals(entity)) {
+      return "\"";
+    }
+    if ("&apos;".equals(entity)) {
+      return "'";
+    }
+    if ("&lt;".equals(entity)) {
+      return "<";
+    }
+    if ("&gt;".equals(entity)) {
+      return ">";
+    }
+    if ("&amp;".equals(entity)) {
+      return "&";
+    }
+    return "";
+  }
+
+  private static final class StripResult {
+    private final String text;
+    private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
+
+    private StripResult(String text, List<J2clInlineReplyAnchor> inlineReplyAnchors) {
+      this.text = text == null ? "" : text;
+      this.inlineReplyAnchors =
+          inlineReplyAnchors == null
+              ? Collections.<J2clInlineReplyAnchor>emptyList()
+              : inlineReplyAnchors;
+    }
+  }
+
+  private static int appendLineSeparator(StringBuilder stripped, int decodedVisibleLength) {
     // Normalize horizontal whitespace at paragraph boundaries before emitting one line break.
     while (stripped.length() > 0
         && Character.isWhitespace(stripped.charAt(stripped.length() - 1))
         && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.deleteCharAt(stripped.length() - 1);
+      decodedVisibleLength = Math.max(0, decodedVisibleLength - 1);
     }
     if (stripped.length() > 0 && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.append('\n');
+      decodedVisibleLength++;
     }
+    return decodedVisibleLength;
   }
 
   private static AnnotationSnapshot parseAnnotationSnapshot(String raw) {

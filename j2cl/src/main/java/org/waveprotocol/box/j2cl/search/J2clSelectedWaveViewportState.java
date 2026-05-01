@@ -13,6 +13,7 @@ import java.util.Set;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.read.J2clReadBlipContent;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
@@ -170,7 +171,8 @@ public final class J2clSelectedWaveViewportState {
                   existing.getBodyItemCount(),
                   existing.shouldParseAttachmentElements(),
                   existing.attachmentOverrides,
-                  existing.parsedContent));
+                  existing.parsedContent,
+                  existing.getInlineReplyAnchors()));
         } else {
           merged.set(existingIndex, fragmentEntry.withCachedParsedContentFrom(existing));
         }
@@ -262,7 +264,11 @@ public final class J2clSelectedWaveViewportState {
                 documentEntry.getRawSnapshot(),
                 existing.getAdjustOperationCount(),
                 existing.getDiffOperationCount(),
-                documentEntry.getBodyItemCount()));
+                documentEntry.getBodyItemCount(),
+                /* parseAttachmentElements= */ false,
+                Collections.<J2clAttachmentRenderModel>emptyList(),
+                null,
+                existing.getInlineReplyAnchors()));
       } else {
         merged.add(documentEntry);
       }
@@ -400,7 +406,8 @@ public final class J2clSelectedWaveViewportState {
                 /* taskAssignee= */ content.getTaskAssignee(),
                 /* taskDueTimestamp= */ content.getTaskDueTimestamp(),
                 entry.getBodyItemCount(),
-                /* isTask= */ content.isTask()));
+                /* isTask= */ content.isTask(),
+                content.getInlineReplyAnchors()));
       } else {
         readBlips.add(
             new J2clReadBlip(
@@ -418,7 +425,9 @@ public final class J2clSelectedWaveViewportState {
                 /* taskDone= */ false,
                 /* taskAssignee= */ "",
                 /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
-                entry.getBodyItemCount()));
+                entry.getBodyItemCount(),
+                /* isTask= */ false,
+                entry.getInlineReplyAnchors()));
       }
     }
     return readBlips;
@@ -452,7 +461,8 @@ public final class J2clSelectedWaveViewportState {
                   /* taskAssignee= */ content.getTaskAssignee(),
                   /* taskDueTimestamp= */ content.getTaskDueTimestamp(),
                   entry.getBodyItemCount(),
-                  /* isTask= */ content.isTask()));
+                  /* isTask= */ content.isTask(),
+                  content.getInlineReplyAnchors()));
         } else {
           windowEntries.add(
               J2clReadWindowEntry.loadedWithTaskMetadata(
@@ -472,7 +482,9 @@ public final class J2clSelectedWaveViewportState {
                   /* taskDone= */ false,
                   /* taskAssignee= */ "",
                   /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
-                  entry.getBodyItemCount()));
+                  entry.getBodyItemCount(),
+                  /* isTask= */ false,
+                  entry.getInlineReplyAnchors()));
         }
       } else {
         windowEntries.add(
@@ -577,6 +589,7 @@ public final class J2clSelectedWaveViewportState {
     private final boolean loaded;
     private final boolean parseAttachmentElements;
     private final List<J2clAttachmentRenderModel> attachmentOverrides;
+    private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
     // Cache only: never include this mutable field in equality/hash semantics if Entry later gains
     // value-style comparison. A loaded fragment can be projected into content, read blips, and
     // attachment metadata overrides during the same viewport lifetime.
@@ -593,7 +606,8 @@ public final class J2clSelectedWaveViewportState {
         boolean loaded,
         boolean parseAttachmentElements,
         List<J2clAttachmentRenderModel> attachmentOverrides,
-        J2clReadBlipContent parsedContent) {
+        J2clReadBlipContent parsedContent,
+        List<J2clInlineReplyAnchor> inlineReplyAnchors) {
       this.segment = segment == null ? "" : segment;
       this.fromVersion = fromVersion;
       this.toVersion = toVersion;
@@ -608,6 +622,11 @@ public final class J2clSelectedWaveViewportState {
               ? Collections.<J2clAttachmentRenderModel>emptyList()
               : Collections.unmodifiableList(
                   new ArrayList<J2clAttachmentRenderModel>(attachmentOverrides));
+      this.inlineReplyAnchors =
+          inlineReplyAnchors == null
+              ? Collections.<J2clInlineReplyAnchor>emptyList()
+              : Collections.unmodifiableList(
+                  new ArrayList<J2clInlineReplyAnchor>(inlineReplyAnchors));
       this.parsedContent = parsedContent;
     }
 
@@ -627,6 +646,7 @@ public final class J2clSelectedWaveViewportState {
           true,
           true,
           Collections.<J2clAttachmentRenderModel>emptyList(),
+          null,
           null);
     }
 
@@ -645,6 +665,7 @@ public final class J2clSelectedWaveViewportState {
           true,
           true,
           Collections.<J2clAttachmentRenderModel>emptyList(),
+          null,
           null);
     }
 
@@ -813,6 +834,34 @@ public final class J2clSelectedWaveViewportState {
         boolean parseAttachmentElements,
         List<J2clAttachmentRenderModel> attachmentOverrides,
         J2clReadBlipContent parsedContent) {
+      return loaded(
+          segment,
+          fromVersion,
+          toVersion,
+          rawSnapshot,
+          adjustOperationCount,
+          diffOperationCount,
+          bodyItemCount,
+          parseAttachmentElements,
+          attachmentOverrides,
+          parsedContent,
+          parsedContent == null
+              ? Collections.<J2clInlineReplyAnchor>emptyList()
+              : parsedContent.getInlineReplyAnchors());
+    }
+
+    static Entry loaded(
+        String segment,
+        long fromVersion,
+        long toVersion,
+        String rawSnapshot,
+        int adjustOperationCount,
+        int diffOperationCount,
+        int bodyItemCount,
+        boolean parseAttachmentElements,
+        List<J2clAttachmentRenderModel> attachmentOverrides,
+        J2clReadBlipContent parsedContent,
+        List<J2clInlineReplyAnchor> inlineReplyAnchors) {
       return new Entry(
           segment,
           fromVersion,
@@ -824,7 +873,10 @@ public final class J2clSelectedWaveViewportState {
           true,
           parseAttachmentElements,
           attachmentOverrides,
-          parsedContent);
+          parsedContent,
+          parsedContent == null
+              ? inlineReplyAnchors
+              : parsedContent.getInlineReplyAnchors());
     }
 
     static Entry placeholder(String segment, long fromVersion, long toVersion) {
@@ -839,6 +891,7 @@ public final class J2clSelectedWaveViewportState {
           false,
           false,
           Collections.<J2clAttachmentRenderModel>emptyList(),
+          null,
           null);
     }
 
@@ -977,6 +1030,13 @@ public final class J2clSelectedWaveViewportState {
 
     List<J2clAttachmentRenderModel> getAttachmentOverrides() {
       return attachmentOverrides;
+    }
+
+    List<J2clInlineReplyAnchor> getInlineReplyAnchors() {
+      if (loaded && parseAttachmentElements) {
+        return getParsedContent().getInlineReplyAnchors();
+      }
+      return inlineReplyAnchors;
     }
 
     J2clReadBlipContent getParsedContent() {

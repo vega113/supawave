@@ -81,8 +81,12 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       String statusText = model == null ? "" : model.getStatusText();
       HTMLElement statusStrip = findStatusStrip(findRootShell());
       if (statusStrip != null) {
-        statusStrip.setAttribute(
-            "data-route-state", model == null ? "ready" : model.getRouteState());
+        String connectionState = model == null ? "online" : model.getConnectionState();
+        String saveState = model == null ? "saved" : model.getSaveState();
+        String routeState = model == null ? "ready" : model.getRouteState();
+        statusStrip.setAttribute("data-connection-state", connectionState);
+        statusStrip.setAttribute("data-save-state", saveState);
+        statusStrip.setAttribute("data-route-state", routeState);
         statusStrip.setAttribute("data-live-status-text", statusText);
       }
       String desiredSeparatorDisplay = statusText.isEmpty() ? "none" : "";

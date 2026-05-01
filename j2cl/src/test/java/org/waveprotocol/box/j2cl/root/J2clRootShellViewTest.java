@@ -270,8 +270,8 @@ public class J2clRootShellViewTest {
 
     view.publishLiveStatus(J2clRootLiveSurfaceModel.starting().withSelectedWaveId("example/w+1"));
 
-    Assert.assertNull(statusStrip.getAttribute("data-connection-state"));
-    Assert.assertNull(statusStrip.getAttribute("data-save-state"));
+    Assert.assertEquals("online", statusStrip.getAttribute("data-connection-state"));
+    Assert.assertEquals("saved", statusStrip.getAttribute("data-save-state"));
     Assert.assertEquals("selected-wave", statusStrip.getAttribute("data-route-state"));
     Assert.assertEquals(
         "Selected wave is active.", statusStrip.getAttribute("data-live-status-text"));

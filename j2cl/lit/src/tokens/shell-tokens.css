@@ -102,6 +102,7 @@ shell-root-signed-out > [slot="main"] {
 }
 
 .j2cl-shell-splitter {
+  box-sizing: border-box;
   align-self: stretch;
   width: 6px;
   min-width: 6px;

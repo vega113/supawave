@@ -33,6 +33,19 @@ function uniqueValues(values) {
   return result;
 }
 
+function uniqueValuesCaseInsensitive(values) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    const normalizedValue = String(value || "").trim();
+    const normalizedKey = normalizedValue.toLowerCase();
+    if (!normalizedValue || seen.has(normalizedKey)) continue;
+    seen.add(normalizedKey);
+    result.push(normalizedValue);
+  }
+  return result;
+}
+
 const ACTION_ICON_PATHS = {
   addParticipant: svg`<path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
     <path d="M2.5 18a5.5 5.5 0 0 1 11 0"></path>
@@ -414,7 +427,7 @@ export class WavyWaveHeaderActions extends LitElement {
     if (!values.some((value) => value.toLowerCase() === normalizedAddress.toLowerCase())) {
       values.push(normalizedAddress);
     }
-    this._participantDraft = uniqueValues(values).join(", ");
+    this._participantDraft = uniqueValuesCaseInsensitive(values).join(", ");
   }
 
   _openAddParticipant(event) {

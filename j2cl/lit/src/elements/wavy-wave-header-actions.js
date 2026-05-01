@@ -1,4 +1,4 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, svg } from "lit";
 import { ensureWavyConfirmDialogMounted } from "./wavy-confirm-dialog.js";
 
 const LOCK_CYCLE = {
@@ -33,6 +33,52 @@ function uniqueValues(values) {
   return result;
 }
 
+function uniqueValuesCaseInsensitive(values) {
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    const normalizedValue = String(value || "").trim();
+    const normalizedKey = normalizedValue.toLowerCase();
+    if (!normalizedValue || seen.has(normalizedKey)) continue;
+    seen.add(normalizedKey);
+    result.push(normalizedValue);
+  }
+  return result;
+}
+
+const ACTION_ICON_PATHS = {
+  addParticipant: svg`<path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+    <path d="M2.5 18a5.5 5.5 0 0 1 11 0"></path>
+    <path d="M17 8v6"></path>
+    <path d="M14 11h6"></path>`,
+  newWave: svg`<path d="M4 5.5h12a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H9l-5 3v-11a3 3 0 0 1 3-3Z"></path>
+    <path d="M11.5 8.5v5"></path>
+    <path d="M9 11h5"></path>`,
+  public: svg`<path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"></path>
+    <path d="M4.5 9h15"></path>
+    <path d="M4.5 15h15"></path>
+    <path d="M12 4a12 12 0 0 1 0 16"></path>
+    <path d="M12 4a12 12 0 0 0 0 16"></path>`,
+  lock: svg`<rect x="5" y="10" width="14" height="10" rx="2"></rect>
+    <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>`
+};
+
+function actionIcon(name) {
+  if (!(name in ACTION_ICON_PATHS)) {
+    console.warn(`actionIcon: unknown icon "${name}"`);
+    return svg``;
+  }
+  return svg`<svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >${ACTION_ICON_PATHS[name]}</svg>`;
+}
+
 export class WavyWaveHeaderActions extends LitElement {
   static properties = {
     sourceWaveId: { type: String, attribute: "source-wave-id", reflect: true },
@@ -41,7 +87,10 @@ export class WavyWaveHeaderActions extends LitElement {
     lockState: { type: String, attribute: "lock-state", reflect: true },
     disabled: { type: Boolean, reflect: true },
     _addDialogOpen: { state: true },
-    _participantDraft: { state: true }
+    _participantDraft: { state: true },
+    _contactSuggestions: { state: true },
+    _contactsLoaded: { state: true },
+    _contactsLoading: { state: true }
   };
 
   static styles = css`
@@ -79,6 +128,41 @@ export class WavyWaveHeaderActions extends LitElement {
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
         color var(--wavy-motion-focus-duration, 180ms)
           var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+    }
+
+    button svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      color: currentColor;
+      stroke: currentColor;
+      stroke-width: 2.4;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .row > button[data-action] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      padding: 0;
+      background: var(--wavy-signal-cyan-soft, #e6f6ff);
+      border-color: rgba(0, 119, 182, 0.32);
+      color: var(--wavy-signal-cyan-strong, #005f93);
+    }
+
+    .action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
     }
 
     button:hover:not([disabled]) {
@@ -138,6 +222,23 @@ export class WavyWaveHeaderActions extends LitElement {
       gap: var(--wavy-spacing-2, 8px);
       justify-content: flex-end;
     }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--wavy-spacing-1, 4px);
+    }
+
+    .suggestions-label {
+      flex-basis: 100%;
+      color: var(--wavy-text-muted, #64748b);
+      font: var(--wavy-type-meta, 12px / 1.35 Arial, sans-serif);
+    }
+
+    .suggestion {
+      min-height: 26px;
+      padding: 0 var(--wavy-spacing-2, 8px);
+    }
   `;
 
   constructor() {
@@ -149,6 +250,9 @@ export class WavyWaveHeaderActions extends LitElement {
     this.disabled = false;
     this._addDialogOpen = false;
     this._participantDraft = "";
+    this._contactSuggestions = [];
+    this._contactsLoaded = false;
+    this._contactsLoading = false;
     this._pendingConfirm = null;
     this._onConfirmResolved = this._onConfirmResolved.bind(this);
   }
@@ -183,7 +287,8 @@ export class WavyWaveHeaderActions extends LitElement {
           ?disabled=${unavailable}
           @click=${this._openAddParticipant}
         >
-          Add participant
+          ${actionIcon("addParticipant")}
+          <span class="action-label">Add participant</span>
         </button>
         <button
           type="button"
@@ -192,7 +297,8 @@ export class WavyWaveHeaderActions extends LitElement {
           ?disabled=${unavailable}
           @click=${this._newWithParticipants}
         >
-          New with participants
+          ${actionIcon("newWave")}
+          <span class="action-label">New with participants</span>
         </button>
         <button
           type="button"
@@ -202,7 +308,8 @@ export class WavyWaveHeaderActions extends LitElement {
           ?disabled=${unavailable}
           @click=${this._confirmPublicityToggle}
         >
-          ${this.public ? "Public" : "Private"}
+          ${actionIcon("public")}
+          <span class="action-label">${this.public ? "Public" : "Private"}</span>
         </button>
         <button
           type="button"
@@ -212,7 +319,8 @@ export class WavyWaveHeaderActions extends LitElement {
           ?disabled=${unavailable}
           @click=${this._confirmLockToggle}
         >
-          ${this._lockText(lockState)}
+          ${actionIcon("lock")}
+          <span class="action-label">${this._lockText(lockState)}</span>
         </button>
       </div>
       ${this._addDialogOpen ? this._renderAddParticipantDialog() : ""}
@@ -232,6 +340,7 @@ export class WavyWaveHeaderActions extends LitElement {
             @input=${this._onParticipantDraftInput}
           />
         </label>
+        ${this._renderContactSuggestions()}
         <div class="add-actions">
           <button
             type="button"
@@ -271,10 +380,61 @@ export class WavyWaveHeaderActions extends LitElement {
     );
   }
 
+  _renderContactSuggestions() {
+    const suggestions = this._availableContactSuggestions();
+    if (this._contactsLoading) {
+      return html`<div class="suggestions" aria-live="polite">Loading frequent contacts...</div>`;
+    }
+    if (suggestions.length === 0) {
+      return "";
+    }
+    return html`
+      <div class="suggestions" aria-label="Frequent contacts">
+        <span class="suggestions-label">Frequent contacts</span>
+        ${suggestions.map(
+          (address) => html`
+            <button
+              type="button"
+              class="suggestion"
+              data-contact-suggestion=${address}
+              @click=${() => this._appendSuggestedParticipant(address)}
+            >
+              ${address}
+            </button>
+          `
+        )}
+      </div>
+    `;
+  }
+
+  _availableContactSuggestions() {
+    const current = new Set(this._regularParticipants().map((value) => value.toLowerCase()));
+    const draft = new Set(this._addParticipantAddresses().map((value) => value.toLowerCase()));
+    return uniqueValues(this._contactSuggestions || []).filter((address) => {
+      const normalized = String(address || "").trim().toLowerCase();
+      return (
+        normalized &&
+        !normalized.startsWith("@") &&
+        !current.has(normalized) &&
+        !draft.has(normalized)
+      );
+    });
+  }
+
+  _appendSuggestedParticipant(address) {
+    const values = this._addParticipantAddresses();
+    const normalizedAddress = String(address || "").trim();
+    if (!values.some((value) => value.toLowerCase() === normalizedAddress.toLowerCase())) {
+      values.push(normalizedAddress);
+    }
+    this._participantDraft = uniqueValuesCaseInsensitive(values).join(", ");
+  }
+
   _openAddParticipant(event) {
     event.stopPropagation();
     if (this._unavailable()) return;
     this._addDialogOpen = true;
+    this._loadContactSuggestions();
   }
 
   _closeAddParticipant(event) {
@@ -285,6 +445,32 @@ export class WavyWaveHeaderActions extends LitElement {
 
   _onParticipantDraftInput(event) {
     this._participantDraft = event.target.value;
+  }
+
+  async _loadContactSuggestions() {
+    if (this._contactsLoaded || this._contactsLoading || typeof fetch !== "function") {
+      return;
+    }
+    this._contactsLoading = true;
+    try {
+      const response = await fetch("/contacts?timestamp=0");
+      if (!response || !response.ok) {
+        throw new Error("contacts request failed");
+      }
+      const payload = await response.json();
+      const contacts = Array.isArray(payload && payload.contacts) ? payload.contacts : [];
+      this._contactSuggestions = uniqueValues(
+        contacts
+          .map((entry) => String(entry && entry.participant ? entry.participant : "").trim())
+          .filter(Boolean)
+      );
+      this._contactsLoaded = true;
+    } catch (_err) {
+      this._contactSuggestions = [];
+      this._contactsLoaded = false;
+    } finally {
+      this._contactsLoading = false;
+    }
   }
 
   _submitAddParticipant(event) {

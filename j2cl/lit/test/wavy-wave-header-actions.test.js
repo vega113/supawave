@@ -56,6 +56,10 @@ describe("<wavy-wave-header-actions>", () => {
     expect(actionButton(el, "lock-toggle").getAttribute("aria-label")).to.equal(
       "Lock root blip"
     );
+    expect(actionButton(el, "add-participant").querySelector("svg")).to.exist;
+    expect(actionButton(el, "add-participant").textContent.trim()).to.equal(
+      "Add participant"
+    );
   });
 
   it("disables write buttons when no source wave is selected", async () => {
@@ -87,6 +91,96 @@ describe("<wavy-wave-header-actions>", () => {
     });
     expect(event.bubbles).to.be.true;
     expect(event.composed).to.be.true;
+  });
+
+  it("loads frequent-contact suggestions and appends selected contact to the draft", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      expect(String(url)).to.equal("/contacts?timestamp=0");
+      return {
+        ok: true,
+        async json() {
+          return {
+            contacts: [
+              { participant: "alice@example.com", score: 10 },
+              { participant: "carol@example.com", score: 8 }
+            ]
+          };
+        }
+      };
+    };
+    try {
+      const el = await createActions({ participants: ["alice@example.com"] });
+
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="alice@example.com"]')).to.not
+        .exist;
+      const suggestion = el.renderRoot.querySelector(
+        '[data-contact-suggestion="carol@example.com"]'
+      );
+      expect(suggestion).to.exist;
+      suggestion.click();
+      await el.updateComplete;
+
+      const input = el.renderRoot.querySelector('input[name="participant-addresses"]');
+      expect(input.value).to.equal("carol@example.com");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("retries frequent-contact loading after a transient failure", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        async json() {
+          return { contacts: [{ participant: "retry@example.com" }] };
+        }
+      };
+    };
+    try {
+      const el = await createActions();
+
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="retry@example.com"]')).to.not
+        .exist;
+
+      actionButton(el, "add-participant-cancel").click();
+      await el.updateComplete;
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(calls).to.equal(2);
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="retry@example.com"]')).to
+        .exist;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("deduplicates appended suggestions against differently-cased draft entries", async () => {
+    const el = await createActions({ participants: [] });
+    el._participantDraft = "carol@example.com, CAROL@example.com";
+
+    el._appendSuggestedParticipant("Carol@example.com");
+    await el.updateComplete;
+
+    expect(el._participantDraft).to.equal("carol@example.com");
   });
 
   it("starts a new wave with current participants excluding the shared-domain participant", async () => {

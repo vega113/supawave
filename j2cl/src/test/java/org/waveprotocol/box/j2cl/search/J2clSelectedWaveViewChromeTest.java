@@ -207,6 +207,65 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void renderSelectedWaveParticipantsAsAvatarButtons() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(
+        selectedModel(
+            "example.com/w+participants",
+            Arrays.asList("alice@example.com", "bob@example.com")));
+
+    HTMLElement participants = (HTMLElement) host.querySelector(".sidecar-selected-participants");
+    Assert.assertNotNull(participants);
+    Assert.assertFalse(participants.hidden);
+    Assert.assertEquals("list", participants.getAttribute("role"));
+    Assert.assertFalse(
+        "Participant strip should not expose the old comma-separated label",
+        participants.textContent.contains("Participants:"));
+    elemental2.dom.NodeList<elemental2.dom.Element> avatars =
+        participants.querySelectorAll("[data-selected-participant-avatar]");
+    Assert.assertEquals(2, avatars.length);
+    HTMLElement first = (HTMLElement) avatars.item(0);
+    Assert.assertEquals("alice@example.com", first.getAttribute("data-participant-id"));
+    Assert.assertEquals("Open alice@example.com profile", first.getAttribute("aria-label"));
+    Assert.assertNull("avatar button keeps native button semantics", first.getAttribute("role"));
+    Assert.assertEquals("listitem", first.parentElement.getAttribute("role"));
+  }
+
+  @Test
+  public void renderPublishesParticipantsToProfileOverlay() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    HTMLElement overlay = (HTMLElement) DomGlobal.document.createElement("wavy-profile-overlay");
+    DomGlobal.document.body.appendChild(overlay);
+    try {
+      J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+      view.render(
+          selectedModel(
+              "example.com/w+profile",
+              Arrays.asList("alice@example.com", "bob@example.com")));
+
+      Object participantsObject = Js.asPropertyMap(overlay).get("participants");
+      Assert.assertTrue(JsArray.isArray(participantsObject));
+      JsArray<?> participants = Js.uncheckedCast(participantsObject);
+      Assert.assertEquals(2, participants.length);
+      Assert.assertEquals(
+          "alice@example.com",
+          Js.asPropertyMap(participants.getAt(0)).get("id"));
+      Assert.assertEquals(
+          "alice@example.com",
+          Js.asPropertyMap(participants.getAt(0)).get("displayName"));
+    } finally {
+      if (overlay.parentElement != null) {
+        overlay.parentElement.removeChild(overlay);
+      }
+    }
+  }
+
+  @Test
   public void renderDisablesHeaderActionsWithoutWriteSession() {
     assumeBrowserDom();
     HTMLElement host = createHost();

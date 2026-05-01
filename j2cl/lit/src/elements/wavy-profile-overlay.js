@@ -181,6 +181,7 @@ export class WavyProfileOverlay extends LitElement {
     this.index = 0;
     this.currentUserId = "";
     this.editProfileUrl = "/userprofile/edit";
+    this._fallbackParticipant = null;
     this._onAvatarRequest = this._onAvatarRequest.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -198,6 +199,26 @@ export class WavyProfileOverlay extends LitElement {
     super.disconnectedCallback();
   }
 
+  _activeParticipants() {
+    const participantList = Array.isArray(this.participants) ? this.participants : [];
+    return this._fallbackParticipant ? [this._fallbackParticipant] : participantList;
+  }
+
+  _setFallbackParticipant(participant) {
+    const previous = this._fallbackParticipant;
+    const same =
+      previous === participant ||
+      (previous &&
+        participant &&
+        previous.id === participant.id &&
+        previous.displayName === participant.displayName &&
+        previous.avatarUrl === participant.avatarUrl);
+    this._fallbackParticipant = participant;
+    if (!same) {
+      this.requestUpdate("_fallbackParticipant", previous);
+    }
+  }
+
   willUpdate(changed) {
     if (changed.has("open")) {
       this._syncOpen();
@@ -207,8 +228,8 @@ export class WavyProfileOverlay extends LitElement {
     // participants array shrinks under us. render() already clamps a
     // local idx, but the navigation handlers consume `this.index`
     // directly — keep them in lockstep.
-    if (changed.has("participants") || changed.has("index")) {
-      const list = Array.isArray(this.participants) ? this.participants : [];
+    if (changed.has("participants") || changed.has("index") || changed.has("_fallbackParticipant")) {
+      const list = this._activeParticipants();
       const max = list.length > 0 ? list.length - 1 : 0;
       const raw = Number.isFinite(this.index) ? this.index : 0;
       const clamped = Math.max(0, Math.min(raw, max));
@@ -230,7 +251,7 @@ export class WavyProfileOverlay extends LitElement {
       this.setAttribute("aria-modal", "true");
       // aria-labelledby cannot resolve across the shadow DOM boundary; use
       // aria-label so assistive tech can announce the dialog name.
-      const list = Array.isArray(this.participants) ? this.participants : [];
+      const list = this._activeParticipants();
       const max = list.length > 0 ? list.length - 1 : 0;
       const idx = Math.max(0, Math.min(Number.isFinite(this.index) ? this.index : 0, max));
       const name = (list[idx] && list[idx].displayName) || "Profile";
@@ -297,11 +318,17 @@ export class WavyProfileOverlay extends LitElement {
     if (authorId) {
       const found = list.findIndex((p) => p && p.id === authorId);
       if (found >= 0) {
+        this._setFallbackParticipant(null);
         this.index = found;
       } else {
+        this._setFallbackParticipant({
+          id: String(authorId),
+          displayName: String(authorId)
+        });
         this.index = 0;
       }
     } else {
+      this._setFallbackParticipant(null);
       this.index = 0;
     }
     this.open = true;
@@ -315,8 +342,9 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   open_(index) {
+    this._setFallbackParticipant(null);
     if (typeof index === "number") {
-      const list = Array.isArray(this.participants) ? this.participants : [];
+      const list = this._activeParticipants();
       const max = list.length > 0 ? list.length - 1 : 0;
       this.index = Math.min(Math.max(index, 0), max);
     }
@@ -349,7 +377,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   _next() {
-    const list = Array.isArray(this.participants) ? this.participants : [];
+    const list = this._activeParticipants();
     if (list.length === 0) return;
     if (this.index >= list.length - 1) return;
     this.index = this.index + 1;
@@ -357,7 +385,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   _prev() {
-    const list = Array.isArray(this.participants) ? this.participants : [];
+    const list = this._activeParticipants();
     if (list.length === 0) return;
     if (this.index <= 0) return;
     this.index = this.index - 1;
@@ -365,7 +393,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   _emitChange() {
-    const list = Array.isArray(this.participants) ? this.participants : [];
+    const list = this._activeParticipants();
     const participant = list[this.index] || null;
     this.dispatchEvent(
       new CustomEvent("wavy-profile-participant-changed", {
@@ -444,7 +472,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   render() {
-    const list = Array.isArray(this.participants) ? this.participants : [];
+    const list = this._activeParticipants();
     const max = list.length > 0 ? list.length - 1 : 0;
     const idx = Math.min(Math.max(this.index || 0, 0), max);
     const current = list[idx] || null;

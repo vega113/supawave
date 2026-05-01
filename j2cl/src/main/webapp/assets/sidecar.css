@@ -242,6 +242,37 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   margin: 10px 0 0;
 }
 
+.sidecar-selected-participants[role="list"] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.sidecar-selected-participants [role="listitem"] {
+  display: inline-flex;
+}
+
+.sidecar-selected-participant-avatar {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d7e3ef;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+  color: #075985;
+  cursor: pointer;
+  font: 700 11px / 1 Arial, sans-serif;
+  padding: 0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.sidecar-selected-participant-avatar:hover,
+.sidecar-selected-participant-avatar:focus-visible {
+  border-color: #0077b6;
+  box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.14);
+  outline: none;
+}
+
 .sidecar-selected-content {
   display: grid;
   gap: 0;

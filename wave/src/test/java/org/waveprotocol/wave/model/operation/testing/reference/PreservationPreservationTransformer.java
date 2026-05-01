@@ -234,19 +234,20 @@ final class PreservationPreservationTransformer {
         for (int i = 0; i < update.changeSize(); ++i) {
           updated.put(update.getChangeKey(i), update.getNewValue(i));
         }
-        String[] triplets = new String[this.update.changeSize() * 3];
-        Set<String> keySet = new HashSet<String>();
+        AttributesUpdate newUpdate = new AttributesUpdateImpl();
+        // TODO: This is a little silly. We should do this a better way.
         for (int i = 0; i < this.update.changeSize(); ++i) {
           String key = this.update.getChangeKey(i);
           String newOldValue = updated.containsKey(key) ? updated.get(key)
               : this.update.getOldValue(i);
-          triplets[i * 3] = key;
-          triplets[i * 3 + 1] = newOldValue;
-          triplets[i * 3 + 2] = this.update.getNewValue(i);
-          keySet.add(key);
+          newUpdate = newUpdate.composeWith(new AttributesUpdateImpl(key,
+              newOldValue, this.update.getNewValue(i)));
         }
-        AttributesUpdate newUpdate = new AttributesUpdateImpl(triplets);
         targetDocument.updateAttributes(newUpdate);
+        Set<String> keySet = new HashSet<String>();
+        for (int i = 0; i < this.update.changeSize(); ++i) {
+          keySet.add(this.update.getChangeKey(i));
+        }
         AttributesUpdate transformedAttributes = update.exclude(keySet);
         otherTarget.targetDocument.updateAttributes(transformedAttributes);
       }

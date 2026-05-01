@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-fix-dom-xss-getattribute",
+  "version": "PR #1155",
+  "date": "2026-04-30",
+  "title": "Fix DOM XSS vulnerability in UI builder inline JavaScript",
+  "summary": "Replaced innerHTML assignment with innerText in TagsViewBuilder and ParticipantsViewBuilder.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced innerHTML assignment with innerText in TagsViewBuilder and ParticipantsViewBuilder to fix a potential DOM-based XSS."
+      ]
+    }
+  ]
+}

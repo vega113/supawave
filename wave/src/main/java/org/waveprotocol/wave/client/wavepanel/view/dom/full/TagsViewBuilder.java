@@ -203,17 +203,19 @@ public final class TagsViewBuilder implements UiBuilder {
     String escapedId = escapeJsSingleQuoted(id);
     String more = escapeJsSingleQuoted(messages.more());
     String less = escapeJsSingleQuoted(messages.less());
+    String expandBtn = escapeJsSingleQuoted(css.expandButton());
+    String collapseBtn = escapeJsSingleQuoted(css.collapseButton());
     StringBuilder sb = new StringBuilder();
     sb.append("var p=document.getElementById('").append(escapedId).append("');")
         .append("var x=p.getAttribute('s')=='e';")
         .append("p.style.height=x?'':'auto';")
         .append("p.setAttribute('s',x?'':'e');")
-        .append("lastChild.innerHTML=x?'").append(more)
+        .append("lastChild.innerText=x?'").append(more)
         .append("':'").append(less).append("';")
-        .append("firstChild.className=x?'").append(css.expandButton())
-        .append("':'").append(css.collapseButton()).append("';")
+        .append("firstChild.className=x?'").append(expandBtn)
+        .append("':'").append(collapseBtn).append("';")
         .append("parentNode.nextSibling.style.display=x?'':'none';");
-    String js = sb.toString();
+    String js = escapeHtmlAttribute(sb.toString());
     assert !js.contains("\"");
     return js;
   }

@@ -58,7 +58,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     session.put("address", "alice@example.com");
     session.put("role", "user");
     return HtmlRenderer.renderJ2clRootShellPage(
-        session, "", "commit", 0L, "rel", "/");
+        session, "", "commit", 0L, "rel", "/", "ws.example:443");
   }
 
   private static String renderSignedInPageWithDebugOverlay(boolean overlayOn) {
@@ -72,6 +72,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         0L,
         "rel",
         "/",
+        "ws.example:443",
         J2clSelectedWaveSnapshotRenderer.SnapshotResult.noWave(),
         false,
         null,
@@ -362,7 +363,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
   public void testReadSurfacePreviewPageRenders() {
     String html =
         HtmlRenderer.renderJ2clReadSurfacePreviewPage(
-            "/", "commit", 0L, "rel", "alice@example.com");
+            "/", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
     assertTrue(
         "Read-surface preview must render the wavy-search-rail in the nav slot",
         html.contains("<wavy-search-rail"));
@@ -395,7 +396,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
   public void testReadSurfacePreviewDoesNotShowLegacySearchCardLight() {
     String html =
         HtmlRenderer.renderJ2clReadSurfacePreviewPage(
-            "/", "commit", 0L, "rel", "alice@example.com");
+            "/", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
     // Same no-duplicate contract as the regular root shell.
     assertTrue(
         "Preview route must hide the legacy search card via the same data-marker as the root shell",

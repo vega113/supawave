@@ -482,19 +482,40 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   // app).
   /** @return a JS click handler for toggling expanded and collapsed modes. */
   private String onClickJs() {
-    String js = "" //
-        + "var p=document.getElementById('" + id + "');" //
-        + "var x=p.getAttribute('s')=='e';" //
-        + "var l=this.lastChild;" //
-        + "p.style.height=x?'':'auto';" //
-        + "p.setAttribute('s',x?'':'e');" //
-        + "lastChild.innerHTML=x?'" + messages.more() + "':'" + messages.less() + "';" //
-        + "firstChild.className=x?'" + css.expandButton() + "':'" + css.collapseButton() + "';" //
-        + "parentNode.nextSibling.style.display=x?'':'none';" //
-    ;
-    // The constructed string has no double-quote characters in it, so it can be
-    // double-quoted verbatim.
+    String escapedId = escapeJsSingleQuoted(id);
+    String more = escapeJsSingleQuoted(messages.more());
+    String less = escapeJsSingleQuoted(messages.less());
+    String expandBtn = escapeJsSingleQuoted(css.expandButton());
+    String collapseBtn = escapeJsSingleQuoted(css.collapseButton());
+    StringBuilder sb = new StringBuilder();
+    sb.append("var p=document.getElementById('").append(escapedId).append("');")
+        .append("var x=p.getAttribute('s')=='e';")
+        .append("var l=this.lastChild;")
+        .append("p.style.height=x?'':'auto';")
+        .append("p.setAttribute('s',x?'':'e');")
+        .append("lastChild.innerText=x?'").append(more).append("':'").append(less).append("';")
+        .append("firstChild.className=x?'").append(expandBtn)
+        .append("':'").append(collapseBtn).append("';")
+        .append("parentNode.nextSibling.style.display=x?'':'none';");
+    String js = escapeHtmlAttribute(sb.toString());
     assert !js.contains("\"");
     return js;
+  }
+
+  private static String escapeJsSingleQuoted(String value) {
+    return value
+        .replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n");
+  }
+
+  private static String escapeHtmlAttribute(String value) {
+    return value
+        .replace("&", "&amp;")
+        .replace("'", "&#39;")
+        .replace("\"", "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;");
   }
 }

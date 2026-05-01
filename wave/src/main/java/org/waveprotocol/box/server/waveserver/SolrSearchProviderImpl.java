@@ -37,7 +37,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpStatus;
 import org.waveprotocol.box.stat.Timed;
-import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
 import org.waveprotocol.wave.model.id.WaveletName;
@@ -142,9 +141,6 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     final boolean isUnreadOnlyQuery =
         queryParams.containsKey(TokenQueryType.UNREAD)
             || QueryHelper.hasIsValue(queryParams, "unread");
-    final boolean hasAttachmentQuery = AttachmentSearchFilter.isHasAttachmentQuery(queryParams);
-    final Set<String> fromAuthorValues = FromSearchFilter.normalizeFromValues(queryParams, user);
-    final boolean hasFromQuery = !fromAuthorValues.isEmpty();
     if (queryParams.containsKey(TokenQueryType.MENTIONS)) {
       LOG.warning("Mentions queries are not supported by Solr search.");
       return new SearchResult(query);
@@ -154,9 +150,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     if (numResults > 0) {
 
-      int start = computeSolrStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery);
-      int rows =
-          computeSolrRows(startAt, numResults, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery);
+      int start = isUnreadOnlyQuery ? 0 : startAt;
+      int rows = Math.max(numResults, ROWS);
 
       /*-
        * "fq" stands for Filter Query. see
@@ -190,18 +185,6 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
 
     List<WaveViewData> resultsList = Lists.newArrayList(results.values());
 
-    if (hasAttachmentQuery || hasFromQuery) {
-      expandConversationalWavelets(resultsList, user, isAllQuery);
-    }
-
-    if (hasAttachmentQuery) {
-      AttachmentSearchFilter.filterByHasAttachment(resultsList);
-    }
-
-    if (hasFromQuery) {
-      FromSearchFilter.filterByRootAuthor(resultsList, fromAuthorValues);
-    }
-
     // Solr does not index tags, so perform post-filtering for tag: queries.
     Set<String> tagValues = queryParams.containsKey(TokenQueryType.TAG)
         ? queryParams.get(TokenQueryType.TAG)
@@ -217,11 +200,7 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     }
 
     Collection<WaveViewData> searchResult =
-        computeSearchResult(
-            user,
-            computeInMemoryStart(startAt, isUnreadOnlyQuery, hasAttachmentQuery, hasFromQuery),
-            numResults,
-            resultsList);
+        computeSearchResult(user, startAt, numResults, resultsList);
     LOG.info("Search response to '" + query + "': " + searchResult.size() + " results, user: "
         + user);
 
@@ -256,68 +235,6 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
       }
     }
     return results;
-  }
-
-  private void expandConversationalWavelets(List<WaveViewData> results,
-      final ParticipantId user, final boolean isAllQuery) {
-    Function<ReadableWaveletData, Boolean> matchesFunction =
-        new Function<ReadableWaveletData, Boolean>() {
-
-      @Override
-      public Boolean apply(ReadableWaveletData wavelet) {
-        try {
-          return isWaveletMatchesCriteria(wavelet, user, sharedDomainParticipantId, isAllQuery);
-        } catch (WaveletStateException e) {
-          LOG.warning(
-              "Failed to access wavelet "
-                  + WaveletName.of(wavelet.getWaveId(), wavelet.getWaveletId()), e);
-          return false;
-        }
-      }
-    };
-
-    Map<WaveId, Wave> loadedWaves = waveMap.getWaves();
-    for (WaveViewData wave : results) {
-      Set<WaveletId> visibleWaveletIds = new HashSet<WaveletId>();
-      for (ObservableWaveletData waveletData : wave.getWavelets()) {
-        visibleWaveletIds.add(waveletData.getWaveletId());
-      }
-
-      Set<WaveletId> conversationalWaveletIds = new HashSet<WaveletId>();
-      try {
-        Set<WaveletId> storedWaveletIds = waveMap.lookupWavelets(wave.getWaveId());
-        if (storedWaveletIds != null) {
-          conversationalWaveletIds.addAll(storedWaveletIds);
-        }
-      } catch (WaveletStateException e) {
-        LOG.warning("Failed to look up stored wavelets for " + wave.getWaveId(), e);
-      }
-
-      Wave loadedWave = loadedWaves.get(wave.getWaveId());
-      if (loadedWave != null) {
-        for (WaveletContainer container : loadedWave) {
-          conversationalWaveletIds.add(container.getWaveletName().waveletId);
-        }
-      }
-
-      for (WaveletId waveletId : conversationalWaveletIds) {
-        if (visibleWaveletIds.contains(waveletId) || !IdUtil.isConversationalId(waveletId)) {
-          continue;
-        }
-
-        WaveletName waveletName = WaveletName.of(wave.getWaveId(), waveletId);
-        try {
-          WaveletContainer container = waveMap.getWavelet(waveletName);
-          if (container == null || !container.applyFunction(matchesFunction)) {
-            continue;
-          }
-          wave.addWavelet(container.copyWaveletData());
-          visibleWaveletIds.add(waveletId);
-        } catch (WaveletStateException e) {
-          LOG.warning("Failed to expand wavelet " + waveletName, e);
-        }
-      }
-    }
   }
 
   private void addSearchResultsToCurrentWaveView(
@@ -366,9 +283,8 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
   /**
    * J-UI-2 (#1080): the rail's filter chips emit {@code is:unread},
    * {@code has:attachment}, and {@code from:me}. {@code is:unread} is
-   * handled equivalently to {@code unread:true} via post-filtering, and
-   * {@code has:attachment} and {@code from:*} are post-filtered from
-   * materialized wave metadata.
+   * handled equivalently to {@code unread:true} via post-filtering; the
+   * other chip tokens are URL-only this slice (deferred follow-ups).
    * In all three cases the token must be stripped before the query is
    * forwarded to Solr — Solr's schema does not know these prefixes and
    * a literal {@code is:unread} term in the user-query clause fails the
@@ -389,33 +305,6 @@ public class SolrSearchProviderImpl extends AbstractSearchProviderImpl {
     // The query is an "all" query if there is no 'in:' filter, or if
     // the explicit 'in:all' filter is used.
     return !IN_PATTERN.matcher(query).find() || IN_ALL_PATTERN.matcher(query).find();
-  }
-
-  static int computeSolrStart(
-      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery, boolean hasFromQuery) {
-    return isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery ? 0 : startAt;
-  }
-
-  static int computeInMemoryStart(
-      int startAt, boolean isUnreadOnlyQuery, boolean hasAttachmentQuery, boolean hasFromQuery) {
-    return isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery ? startAt : 0;
-  }
-
-  static int computeSolrRows(
-      int startAt,
-      int numResults,
-      boolean isUnreadOnlyQuery,
-      boolean hasAttachmentQuery,
-      boolean hasFromQuery) {
-    int rows = Math.max(numResults, ROWS);
-    if (!(isUnreadOnlyQuery || hasAttachmentQuery || hasFromQuery)) {
-      return rows;
-    }
-    long requestedWindow = (long) Math.max(0, startAt) + Math.max(0, numResults);
-    if (requestedWindow > Integer.MAX_VALUE) {
-      return Integer.MAX_VALUE;
-    }
-    return Math.max(rows, (int) requestedWindow);
   }
 
   private static String buildUserQuery(String query, ParticipantId sharedDomainParticipantId) {

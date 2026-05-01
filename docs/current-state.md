@@ -1,7 +1,7 @@
 # Apache Wave Current State and Resumption Guide
 
 Status: Canonical
-Updated: 2026-04-30
+Updated: 2026-04-18
 Owner: Project Maintainers
 Review cadence: quarterly
 
@@ -69,8 +69,7 @@ Read these files first when resuming work:
 14. [docs/modernization-plan.md](modernization-plan.md), [docs/jetty-migration.md](jetty-migration.md), [docs/migrate-conversation-renderer-to-apache-wave.md](migrate-conversation-renderer-to-apache-wave.md), and [docs/blocks-adoption-plan.md](blocks-adoption-plan.md)
     - Historical ledgers that still hold useful implementation detail.
 15. [docs/j2cl-gwt3-inventory.md](j2cl-gwt3-inventory.md), [docs/j2cl-gwt3-decision-memo.md](j2cl-gwt3-decision-memo.md), and [docs/j2cl-preparatory-work.md](j2cl-preparatory-work.md)
-    - Refreshed post-Phase-0 J2CL baseline and historical follow-on issue chain.
-      Current parity closeout evidence lives in [docs/superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md](superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md).
+    - Refreshed post-Phase-0 J2CL baseline, no-go-for-now decision context, and current follow-on issue chain.
 16. [docs/epics/README.md](epics/README.md) and [../.beads/README.md](../.beads/README.md)
     - Historical Beads archive references only.
 
@@ -98,15 +97,13 @@ Read these files first when resuming work:
   - `docs/j2cl-gwt3-inventory.md`
   - `docs/j2cl-gwt3-decision-memo.md`
   - `docs/j2cl-preparatory-work.md`
-- The active J2CL/GWT parity implementation chain has completed through the
-  final audit lane:
-  - `#904` remains the historical parent/rollout tracker.
-  - `#1078`, `#1098`, and `#1109` are stale implementation umbrellas covered
-    by the final parity audit.
-  - J2CL remains explicit at `/?view=j2cl-root`; GWT remains available at
-    `/?view=gwt` as the rollback/baseline route.
-  - Production default-root cutover and GWT retirement are separate rollout
-    decisions, not implicit consequences of parity acceptance.
+- The active GitHub issue chain for the next J2CL steps is:
+  - `#904` umbrella tracker
+  - `#900` sidecar build
+  - `#903` pure-logic extraction
+  - `#902` transport replacement
+  - `#898` `GWTTestCase` split
+  - `#901` first UI slice
 
 ### Wiab.pro core work that is already imported
 
@@ -270,8 +267,7 @@ fragments (HTTP fetch mode), and quasi-deletion UI.
   - `docs/j2cl-gwt3-inventory.md`
   - `docs/j2cl-gwt3-decision-memo.md`
   - `docs/j2cl-preparatory-work.md`
-  - historical issue chain `#904` -> `#900` -> `#903` -> `#902` -> `#898` -> `#901`
-  - final parity acceptance audit `docs/superpowers/audits/2026-04-30-j2cl-gwt-final-parity-acceptance.md`
+  - issue chain `#904` -> `#900` -> `#903` -> `#902` -> `#898` -> `#901`
 
 ### 3. Wiab core import completion
 

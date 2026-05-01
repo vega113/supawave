@@ -151,25 +151,6 @@ public class QueryHelperTest extends TestCase {
     assertFalse(QueryHelper.hasIsValue(queryParams, "unread"));
   }
 
-  public void testHasTokenValueReturnsTrueForMatchingHasToken() throws Exception {
-    Map<TokenQueryType, Set<String>> queryParams =
-        QueryHelper.parseQuery("in:inbox has:attachment");
-    assertTrue(QueryHelper.hasTokenValue(queryParams, TokenQueryType.HAS, "attachment"));
-  }
-
-  public void testHasTokenValueIsCaseInsensitive() throws Exception {
-    Map<TokenQueryType, Set<String>> queryParams =
-        QueryHelper.parseQuery("has:ATTACHMENT");
-    assertTrue(QueryHelper.hasTokenValue(queryParams, TokenQueryType.HAS, "attachment"));
-    assertTrue(QueryHelper.hasTokenValue(queryParams, TokenQueryType.HAS, "ATTACHMENT"));
-  }
-
-  public void testHasTokenValueReturnsFalseForUnknownHasValue() throws Exception {
-    Map<TokenQueryType, Set<String>> queryParams =
-        QueryHelper.parseQuery("has:starred");
-    assertFalse(QueryHelper.hasTokenValue(queryParams, TokenQueryType.HAS, "attachment"));
-  }
-
   public void testParseQueryRejectsInvalidUnreadFilterValue() {
     try {
       QueryHelper.parseQuery("unread:maybe");

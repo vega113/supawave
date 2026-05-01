@@ -324,6 +324,252 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void inlineReplyAnchorSegmentsPreserveTextOrderAndSkipInvalidAnchors() {
+    List<J2clReadSurfaceDomRenderer.InlineAnchorTextSegment> segments =
+        J2clReadSurfaceDomRenderer.inlineAnchorTextSegmentsForTest(
+            "Before middle after",
+            Arrays.asList(
+                new J2clInlineReplyAnchor("t+middle", "Before ".length()),
+                new J2clInlineReplyAnchor("", 3),
+                null,
+                new J2clInlineReplyAnchor("t+end", "Before middle ".length())));
+
+    Assert.assertEquals(5, segments.size());
+    Assert.assertEquals("Before ", segments.get(0).getText());
+    Assert.assertEquals("t+middle", segments.get(1).getThreadId());
+    Assert.assertEquals("middle ", segments.get(2).getText());
+    Assert.assertEquals("t+end", segments.get(3).getThreadId());
+    Assert.assertEquals("after", segments.get(4).getText());
+  }
+
+  @Test
+  public void renderPlacesMatchingThreadAtInlineReplyAnchor() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Before after",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", "Before ".length())));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Inline reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+inline",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList()));
+
+    HTMLElement anchor =
+        (HTMLElement)
+            blip(host, "b+root")
+                .querySelector("[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(anchor);
+    HTMLElement thread =
+        (HTMLElement)
+            blip(host, "b+root")
+                .querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
+    Assert.assertEquals(blip(host, "b+root"), thread.parentElement);
+    Assert.assertEquals(
+        "b+reply",
+        thread.querySelector("[data-blip-id]").getAttribute("data-blip-id"));
+    Assert.assertEquals("1", blip(host, "b+root").getAttribute("reply-count"));
+  }
+
+  @Test
+  public void renderFallsBackWhenThreadHasNoMatchingInlineReplyAnchor() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip root = new J2clReadBlip("b+root", "Root");
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Detached reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+missing",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList()));
+
+    HTMLElement fallbackThread =
+        (HTMLElement) host.querySelector(".inline-thread[data-parent-blip-id='b+root']");
+    Assert.assertNotNull(fallbackThread);
+    Assert.assertFalse(fallbackThread.hasAttribute("data-inline-reply-anchor-thread-id"));
+    Assert.assertSame(blip(host, "b+root").nextSibling, fallbackThread);
+  }
+
+  @Test
+  public void renderFallsBackWhenDuplicateInlineReplyAnchorsExistForSameThread() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // Two anchors with the same threadId — malformed; thread must use sibling fallback.
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "A B C",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 5,
+            /* isTask= */ false,
+            Arrays.asList(
+                new J2clInlineReplyAnchor("t+dup", 2),
+                new J2clInlineReplyAnchor("t+dup", 4)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Dup reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+dup",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList()));
+
+    HTMLElement fallbackThread =
+        (HTMLElement) host.querySelector(".inline-thread[data-parent-blip-id='b+root']");
+    Assert.assertNotNull(fallbackThread);
+    Assert.assertFalse(
+        "Duplicate-anchor thread must not be placed inline",
+        fallbackThread.hasAttribute("data-inline-reply-anchor-placement"));
+    Assert.assertSame(
+        "Duplicate-anchor thread must mount as sibling-after-parent",
+        blip(host, "b+root").nextSibling,
+        fallbackThread);
+  }
+
+  @Test
+  public void renderPlacesMultipleAnchoredThreadsInTextOffsetOrder() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "A B C",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false,
+            Arrays.asList(
+                new J2clInlineReplyAnchor("t+first", 2),
+                new J2clInlineReplyAnchor("t+second", 4)));
+    // Arrive in reverse order so naive append would place t+second before t+first.
+    J2clReadBlip replySecond =
+        new J2clReadBlip(
+            "b+second",
+            "Second reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240200000L,
+            "b+root",
+            "t+second",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+    J2clReadBlip replyFirst =
+        new J2clReadBlip(
+            "b+first",
+            "First reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "carol@example.com",
+            "Carol",
+            1714240100000L,
+            "b+root",
+            "t+first",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(root, replySecond, replyFirst), Collections.<String>emptyList()));
+
+    HTMLElement rootBlip = blip(host, "b+root");
+    HTMLElement firstThread =
+        (HTMLElement) rootBlip.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+first']");
+    HTMLElement secondThread =
+        (HTMLElement) rootBlip.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+second']");
+    Assert.assertNotNull(firstThread);
+    Assert.assertNotNull(secondThread);
+    // firstThread (offset 2) must appear before secondThread (offset 4) in DOM order.
+    int firstIdx = -1, secondIdx = -1, idx = 0;
+    Element child = rootBlip.firstElementChild;
+    while (child != null) {
+      if (child == firstThread) {
+        firstIdx = idx;
+      }
+      if (child == secondThread) {
+        secondIdx = idx;
+      }
+      idx++;
+      child = child.nextElementSibling;
+    }
+    Assert.assertTrue("t+first thread must precede t+second in DOM", firstIdx < secondIdx);
+    Assert.assertTrue("both threads must be children of rootBlip", firstIdx >= 0 && secondIdx >= 0);
+  }
+
+  @Test
   public void renderOmitsTaskAttributesWhenOpen() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -1130,6 +1376,182 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderBlipTextRendersInlineAnchorSpansEvenWhenMentionsArePresent() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(3, 9, "alice@example.com", "@Alice"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hi @Alice reply here",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 20,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", 10)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Inline reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+inline",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(
+        "Inline anchor span must be present even when blip has mentions", anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside anchor",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+    HTMLElement thread =
+        (HTMLElement) blipEl.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull("Anchored thread must be mounted on parent blip", thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
+  }
+
+  @Test
+  public void renderBlipTextRendersInlineAnchorAtMentionStartBoundary() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // Mention starts at offset 3; anchor is also at offset 3 (mention-start boundary).
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(3, 9, "alice@example.com", "@Alice"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hi @Alice reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 15,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+boundary", 3)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Boundary reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+boundary",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+boundary']");
+    Assert.assertNotNull(
+        "Anchor at mention-start offset must be rendered even when mention occupies same position",
+        anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside anchor at its start offset",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+  }
+
+  @Test
+  public void renderBlipTextRendersInlineAnchorAtEndOfTextWithMentions() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // "Hello @Al" length=9; mention covers [6,9]; anchor at offset 9 (end of text).
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(6, 9, "alice@example.com", "@Al"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hello @Al",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 9,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+eot", 9)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "End-of-text reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+eot",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+eot']");
+    Assert.assertNotNull(
+        "Anchor at end-of-text offset must be rendered even when all text is consumed by mentions",
+        anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside end-of-text anchor",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+  }
+
+  @Test
   public void openAndDownloadLinksEmitClickTelemetry() {
     assumeBrowserDom();
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();
@@ -1722,6 +2144,69 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals(
         Arrays.asList("b+root", "b+second", "b+nested", "b+third"),
         blipIds(host));
+  }
+
+  @Test
+  public void renderWindowPlacesMatchingThreadAtInlineReplyAnchor() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry root =
+        J2clReadWindowEntry.loadedWithTaskMetadata(
+            "blip:b+root",
+            0L,
+            12L,
+            "b+root",
+            "Before after",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "t+root",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", "Before ".length())));
+    J2clReadWindowEntry reply =
+        J2clReadWindowEntry.loadedWithTaskMetadata(
+            "blip:b+reply",
+            12L,
+            24L,
+            "b+reply",
+            "Inline reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+inline",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false);
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root, reply)));
+
+    HTMLElement anchor =
+        (HTMLElement)
+            blip(host, "b+root")
+                .querySelector("[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(anchor);
+    HTMLElement thread =
+        (HTMLElement)
+            blip(host, "b+root")
+                .querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
+    Assert.assertEquals("reply", blip(host, "b+reply").getAttribute("data-blip-depth"));
   }
 
   @Test

@@ -34,6 +34,42 @@ public final class J2clReadSurfaceDomRenderer {
   private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
   private static final String ATTACHMENT_TELEMETRY_BOUND = "data-attachment-telemetry-bound";
 
+  static final class InlineAnchorTextSegment {
+    private final String text;
+    private final String threadId;
+    private final int textOffset;
+
+    private InlineAnchorTextSegment(String text, String threadId, int textOffset) {
+      this.text = text == null ? "" : text;
+      this.threadId = threadId == null ? "" : threadId;
+      this.textOffset = Math.max(0, textOffset);
+    }
+
+    static InlineAnchorTextSegment text(String text) {
+      return new InlineAnchorTextSegment(text, "", 0);
+    }
+
+    static InlineAnchorTextSegment anchor(String threadId, int textOffset) {
+      return new InlineAnchorTextSegment("", threadId, textOffset);
+    }
+
+    boolean isAnchor() {
+      return !threadId.isEmpty();
+    }
+
+    String getText() {
+      return text;
+    }
+
+    String getThreadId() {
+      return threadId;
+    }
+
+    int getTextOffset() {
+      return textOffset;
+    }
+  }
+
   /**
    * F-4 (#1039 / R-4.4 / subsumes #1056): how long an unread blip must dwell
    * inside the viewport before we treat it as "the user actually read it".
@@ -953,38 +989,9 @@ public final class J2clReadSurfaceDomRenderer {
           threadHost.setAttribute("data-thread-id", "inline-" + parentBlipId);
         }
         threadHost.setAttribute("data-parent-blip-id", parentBlipId);
-        // review-1089 round-2 (Copilot): mount the reply thread as a
-        // *sibling after* the parent <wave-blip> rather than as a
-        // child of its default slot. The wave-blip element places
-        // its default slot inside the .body wrapper, which inherits
-        // styling like the F-3.S2 task-completed strikethrough
-        // (`:host([data-task-completed]) .body { text-decoration:
-        // line-through; color: var(--wavy-text-quiet); }`). Nested
-        // replies are unrelated to the parent's task state and must
-        // not pick up that visual treatment.
-        // review-1089 round-4 (codex P2): anchor after the last thread
-        // host for this parent (if any) so sibling threads stay in
-        // manifest DFS order — otherwise the second thread would be
-        // inserted before the first.
-        HTMLElement anchor = lastThreadHostByParent.get(parentBlipId);
-        if (anchor == null) {
-          anchor = parentBlipHost;
-        }
-        if (anchor.parentNode != null) {
-          if (anchor.nextSibling != null) {
-            anchor.parentNode.insertBefore(threadHost, anchor.nextSibling);
-          } else {
-            anchor.parentNode.appendChild(threadHost);
-          }
-        } else {
-          // The parent is somehow detached (defensive — should not
-          // happen for blips we just appended above). Fall back to
-          // appending under the parent so the content remains
-          // reachable.
-          parentBlipHost.appendChild(threadHost);
-        }
+        mountInlineThreadHost(
+            parentBlipHost, threadHost, parentBlipId, threadId, lastThreadHostByParent);
         threadHostsByThreadKey.put(threadKey, threadHost);
-        lastThreadHostByParent.put(parentBlipId, threadHost);
       }
       threadHost.appendChild(blipElement);
     }
@@ -1104,7 +1111,11 @@ public final class J2clReadSurfaceDomRenderer {
 
     HTMLElement content = (HTMLElement) DomGlobal.document.createElement("div");
     content.className = "blip-content j2cl-read-blip-content";
-    renderBlipText(content, blip.getText(), buildMentionArray(blip.getBlipId()));
+    renderBlipText(
+        content,
+        blip.getText(),
+        buildMentionArray(blip.getBlipId()),
+        blip.getInlineReplyAnchors());
     element.appendChild(content);
 
     if (!blip.getAttachments().isEmpty()) {
@@ -1165,12 +1176,34 @@ public final class J2clReadSurfaceDomRenderer {
 
   private void renderBlipText(
       HTMLElement content, String text, List<J2clMentionRange> mentions) {
+    renderBlipText(
+        content, text, mentions, Collections.<J2clInlineReplyAnchor>emptyList());
+  }
+
+  private void renderBlipText(
+      HTMLElement content,
+      String text,
+      List<J2clMentionRange> mentions,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     String safeText = text == null ? "" : text;
     if (mentions == null || mentions.isEmpty()) {
-      content.textContent = safeText;
+      List<InlineAnchorTextSegment> segments =
+          inlineAnchorTextSegments(safeText, inlineReplyAnchors);
+      if (segments.size() == 1 && !segments.get(0).isAnchor()) {
+        content.textContent = safeText;
+        return;
+      }
+      for (InlineAnchorTextSegment segment : segments) {
+        if (segment.isAnchor()) {
+          content.appendChild(renderInlineReplyAnchor(segment));
+        } else if (!segment.getText().isEmpty()) {
+          content.appendChild(DomGlobal.document.createTextNode(segment.getText()));
+        }
+      }
       return;
     }
 
+    List<J2clInlineReplyAnchor> sortedAnchors = validInlineReplyAnchors(safeText, inlineReplyAnchors);
     int cursor = 0;
     boolean renderedMention = false;
     for (J2clMentionRange mention : mentions) {
@@ -1182,9 +1215,7 @@ public final class J2clReadSurfaceDomRenderer {
       if (start < cursor || end <= start) {
         continue;
       }
-      if (start > cursor) {
-        content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, start)));
-      }
+      appendTextSegmentWithAnchors(content, safeText, cursor, start, sortedAnchors);
       HTMLElement chip = (HTMLElement) DomGlobal.document.createElement("span");
       chip.className = "j2cl-read-mention-chip";
       chip.setAttribute("data-j2cl-read-mention", "true");
@@ -1196,14 +1227,110 @@ public final class J2clReadSurfaceDomRenderer {
       cursor = end;
       renderedMention = true;
     }
-    if (cursor < safeText.length()) {
-      content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor)));
-    }
-    if (!renderedMention) {
-      content.textContent = safeText;
-    } else {
+    appendTextSegmentWithAnchors(content, safeText, cursor, safeText.length(), sortedAnchors);
+    if (renderedMention) {
       content.setAttribute("data-has-rendered-mentions", "true");
     }
+  }
+
+  private static void appendTextSegmentWithAnchors(
+      HTMLElement content,
+      String safeText,
+      int from,
+      int to,
+      List<J2clInlineReplyAnchor> sortedAnchors) {
+    int cursor = from;
+    for (J2clInlineReplyAnchor anchor : sortedAnchors) {
+      int offset = normalizedAnchorOffset(safeText, anchor);
+      if (offset < from || offset > to) {
+        continue;
+      }
+      if (offset > cursor) {
+        content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, offset)));
+      }
+      content.appendChild(
+          renderInlineReplyAnchor(
+              InlineAnchorTextSegment.anchor(anchor.getThreadId(), offset)));
+      cursor = offset;
+    }
+    if (cursor < to) {
+      content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, to)));
+    }
+  }
+
+  static List<InlineAnchorTextSegment> inlineAnchorTextSegmentsForTest(
+      String text, List<J2clInlineReplyAnchor> anchors) {
+    return inlineAnchorTextSegments(text, anchors);
+  }
+
+  private static List<InlineAnchorTextSegment> inlineAnchorTextSegments(
+      String text, List<J2clInlineReplyAnchor> anchors) {
+    String safeText = text == null ? "" : text;
+    List<J2clInlineReplyAnchor> validAnchors = validInlineReplyAnchors(safeText, anchors);
+    if (validAnchors.isEmpty()) {
+      return Collections.singletonList(InlineAnchorTextSegment.text(safeText));
+    }
+    List<InlineAnchorTextSegment> segments = new ArrayList<InlineAnchorTextSegment>();
+    int cursor = 0;
+    for (J2clInlineReplyAnchor anchor : validAnchors) {
+      int offset = normalizedAnchorOffset(safeText, anchor);
+      if (offset > cursor) {
+        segments.add(InlineAnchorTextSegment.text(safeText.substring(cursor, offset)));
+      }
+      segments.add(InlineAnchorTextSegment.anchor(anchor.getThreadId(), offset));
+      cursor = offset;
+    }
+    if (cursor < safeText.length()) {
+      segments.add(InlineAnchorTextSegment.text(safeText.substring(cursor)));
+    }
+    return segments;
+  }
+
+  private static List<J2clInlineReplyAnchor> validInlineReplyAnchors(
+      String safeText, List<J2clInlineReplyAnchor> anchors) {
+    if (anchors == null || anchors.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<J2clInlineReplyAnchor> valid = new ArrayList<J2clInlineReplyAnchor>();
+    for (J2clInlineReplyAnchor anchor : anchors) {
+      if (anchor == null || anchor.getThreadId().isEmpty()) {
+        continue;
+      }
+      valid.add(anchor);
+    }
+    Collections.sort(
+        valid,
+        new Comparator<J2clInlineReplyAnchor>() {
+          @Override
+          public int compare(J2clInlineReplyAnchor left, J2clInlineReplyAnchor right) {
+            int offsetCompare =
+                normalizedAnchorOffset(safeText, left) - normalizedAnchorOffset(safeText, right);
+            if (offsetCompare != 0) {
+              return offsetCompare;
+            }
+            return 0;
+          }
+        });
+    return valid;
+  }
+
+  private static int normalizedAnchorOffset(String safeText, J2clInlineReplyAnchor anchor) {
+    int length = safeText == null ? 0 : safeText.length();
+    if (anchor == null) {
+      return 0;
+    }
+    return Math.max(0, Math.min(length, anchor.getTextOffset()));
+  }
+
+  private static HTMLElement renderInlineReplyAnchor(InlineAnchorTextSegment segment) {
+    HTMLElement marker = (HTMLElement) DomGlobal.document.createElement("span");
+    marker.className = "j2cl-inline-reply-anchor";
+    marker.setAttribute("data-inline-reply-anchor", "true");
+    marker.setAttribute("data-inline-reply-anchor-thread-id", segment.getThreadId());
+    marker.setAttribute(
+        "data-inline-reply-anchor-offset", Integer.toString(segment.getTextOffset()));
+    marker.setAttribute("aria-hidden", "true");
+    return marker;
   }
 
   private static String mentionDisplayText(
@@ -1737,23 +1864,108 @@ public final class J2clReadSurfaceDomRenderer {
       String scopedId = !tid.isEmpty() ? (parentBlipId + "::" + tid) : ("inline-" + parentBlipId);
       threadHost.setAttribute("data-thread-id", scopedId);
       threadHost.setAttribute("data-parent-blip-id", parentBlipId);
-      HTMLElement winAnchor = winLastThreadHostByParent.get(parentBlipId);
-      if (winAnchor == null) {
-        winAnchor = parentHost;
-      }
-      if (winAnchor.parentNode != null) {
-        if (winAnchor.nextSibling != null) {
-          winAnchor.parentNode.insertBefore(threadHost, winAnchor.nextSibling);
-        } else {
-          winAnchor.parentNode.appendChild(threadHost);
-        }
-      } else {
-        parentHost.appendChild(threadHost);
-      }
+      mountInlineThreadHost(
+          parentHost, threadHost, parentBlipId, tid, winLastThreadHostByParent);
       winThreadHostsByKey.put(threadKey, threadHost);
-      winLastThreadHostByParent.put(parentBlipId, threadHost);
     }
     return threadHost;
+  }
+
+  private static void mountInlineThreadHost(
+      HTMLElement parentBlipHost,
+      HTMLElement threadHost,
+      String parentBlipId,
+      String threadId,
+      Map<String, HTMLElement> lastThreadHostByParent) {
+    HTMLElement inlineAnchor = inlineReplyAnchorHost(parentBlipHost, threadId);
+    if (inlineAnchor != null) {
+      threadHost.setAttribute("data-inline-reply-anchor-thread-id", threadId);
+      threadHost.setAttribute("data-inline-reply-anchor-placement", "inline");
+      // Keep the mounted thread outside the default body slot so parent task
+      // strikethrough/quiet-color styling does not decorate unrelated replies.
+      threadHost.setAttribute("slot", "blip-extension");
+      insertAnchoredThreadInOrder(parentBlipHost, threadHost, inlineAnchor);
+      return;
+    }
+
+    threadHost.removeAttribute("data-inline-reply-anchor-thread-id");
+    threadHost.removeAttribute("data-inline-reply-anchor-placement");
+    threadHost.removeAttribute("slot");
+    // review-1089 round-2/4: fallback reply threads stay as siblings
+    // after the parent <wave-blip>, ordered after any previous fallback
+    // thread for the same parent. Anchored threads live in the parent card's
+    // extension slot and intentionally do not advance this fallback point.
+    HTMLElement anchor = lastThreadHostByParent.get(parentBlipId);
+    if (anchor == null) {
+      anchor = parentBlipHost;
+    }
+    if (anchor != null && anchor.parentNode != null) {
+      if (anchor.nextSibling != null) {
+        anchor.parentNode.insertBefore(threadHost, anchor.nextSibling);
+      } else {
+        anchor.parentNode.appendChild(threadHost);
+      }
+    } else if (parentBlipHost != null) {
+      // Defensive fallback for a detached parent; keep reply content reachable.
+      parentBlipHost.appendChild(threadHost);
+    }
+    if (parentBlipId != null && !parentBlipId.isEmpty()) {
+      lastThreadHostByParent.put(parentBlipId, threadHost);
+    }
+  }
+
+  private static void insertAnchoredThreadInOrder(
+      HTMLElement parentBlipHost, HTMLElement threadHost, HTMLElement inlineAnchor) {
+    int offset = anchorOffset(inlineAnchor);
+    Element child = parentBlipHost.firstElementChild;
+    while (child != null) {
+      if ("blip-extension".equals(child.getAttribute("slot"))
+          && child.hasAttribute("data-inline-reply-anchor-thread-id")) {
+        String existingTid = child.getAttribute("data-inline-reply-anchor-thread-id");
+        HTMLElement existingAnchor = inlineReplyAnchorHost(parentBlipHost, existingTid);
+        if (existingAnchor != null && anchorOffset(existingAnchor) > offset) {
+          parentBlipHost.insertBefore(threadHost, child);
+          return;
+        }
+      }
+      child = child.nextElementSibling;
+    }
+    parentBlipHost.appendChild(threadHost);
+  }
+
+  private static int anchorOffset(HTMLElement anchorEl) {
+    String val = anchorEl.getAttribute("data-inline-reply-anchor-offset");
+    if (val == null || val.isEmpty()) {
+      return 0;
+    }
+    try {
+      return Integer.parseInt(val);
+    } catch (NumberFormatException e) {
+      return 0;
+    }
+  }
+
+  private static HTMLElement inlineReplyAnchorHost(HTMLElement parentBlipHost, String threadId) {
+    if (parentBlipHost == null || threadId == null || threadId.isEmpty()) {
+      return null;
+    }
+    HTMLElement content = (HTMLElement) parentBlipHost.querySelector(".j2cl-read-blip-content");
+    if (content == null) {
+      return null;
+    }
+    HTMLElement found = null;
+    Element anchor = content.firstElementChild;
+    while (anchor != null) {
+      if (anchor.hasAttribute("data-inline-reply-anchor-thread-id")
+          && threadId.equals(anchor.getAttribute("data-inline-reply-anchor-thread-id"))) {
+        if (found != null) {
+          return null; // duplicate marker — treat as malformed, use fallback placement
+        }
+        found = (HTMLElement) anchor;
+      }
+      anchor = anchor.nextElementSibling;
+    }
+    return found;
   }
 
   private HTMLElement renderPlaceholder(J2clReadWindowEntry entry) {

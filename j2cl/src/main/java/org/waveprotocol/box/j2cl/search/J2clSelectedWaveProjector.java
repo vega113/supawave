@@ -787,6 +787,7 @@ public final class J2clSelectedWaveProjector {
     boolean hasMention = preserveFallbackBooleans ? fallback.hasMention() : blip.hasMention();
     boolean deleted = preserveFallbackBooleans ? fallback.isDeleted() : blip.isDeleted();
     boolean taskDone = preserveFallbackBooleans ? fallback.isTaskDone() : blip.isTaskDone();
+    boolean isTask = preserveFallbackBooleans ? fallback.isTask() : blip.isTask();
     if (Objects.equals(authorId, blip.getAuthorId())
         && Objects.equals(authorDisplayName, blip.getAuthorDisplayName())
         && lastModified == blip.getLastModifiedTimeMillis()
@@ -796,6 +797,7 @@ public final class J2clSelectedWaveProjector {
         && hasMention == blip.hasMention()
         && deleted == blip.isDeleted()
         && taskDone == blip.isTaskDone()
+        && isTask == blip.isTask()
         && Objects.equals(taskAssignee, blip.getTaskAssignee())
         && taskDueTimestamp == blip.getTaskDueTimestamp()) {
       return blip;
@@ -816,7 +818,7 @@ public final class J2clSelectedWaveProjector {
         taskAssignee,
         taskDueTimestamp,
         blip.getBodyItemCount(),
-        blip.isTask());
+        isTask);
   }
 
   /**

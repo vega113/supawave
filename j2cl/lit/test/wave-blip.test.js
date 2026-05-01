@@ -444,6 +444,7 @@ describe("<wave-blip>", () => {
     `);
     await el.updateComplete;
     const affordance = el.renderRoot.querySelector("wavy-task-affordance");
+    await affordance.updateComplete;
     const toggle = affordance.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
     let captured = null;
     el.addEventListener("wave-blip-task-toggled", (e) => {

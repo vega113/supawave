@@ -33,23 +33,28 @@ function uniqueValues(values) {
   return result;
 }
 
+const ACTION_ICON_PATHS = {
+  addParticipant: svg`<path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+    <path d="M2.5 18a5.5 5.5 0 0 1 11 0"></path>
+    <path d="M17 8v6"></path>
+    <path d="M14 11h6"></path>`,
+  newWave: svg`<path d="M4 5.5h12a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H9l-5 3v-11a3 3 0 0 1 3-3Z"></path>
+    <path d="M11.5 8.5v5"></path>
+    <path d="M9 11h5"></path>`,
+  public: svg`<path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"></path>
+    <path d="M4.5 9h15"></path>
+    <path d="M4.5 15h15"></path>
+    <path d="M12 4a12 12 0 0 1 0 16"></path>
+    <path d="M12 4a12 12 0 0 0 0 16"></path>`,
+  lock: svg`<rect x="5" y="10" width="14" height="10" rx="2"></rect>
+    <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>`
+};
+
 function actionIcon(name) {
-  const paths = {
-    addParticipant: svg`<path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
-      <path d="M2.5 18a5.5 5.5 0 0 1 11 0"></path>
-      <path d="M17 8v6"></path>
-      <path d="M14 11h6"></path>`,
-    newWave: svg`<path d="M4 5.5h12a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H9l-5 3v-11a3 3 0 0 1 3-3Z"></path>
-      <path d="M11.5 8.5v5"></path>
-      <path d="M9 11h5"></path>`,
-    public: svg`<path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"></path>
-      <path d="M4.5 9h15"></path>
-      <path d="M4.5 15h15"></path>
-      <path d="M12 4a12 12 0 0 1 0 16"></path>
-      <path d="M12 4a12 12 0 0 0 0 16"></path>`,
-    lock: svg`<rect x="5" y="10" width="14" height="10" rx="2"></rect>
-      <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>`
-  };
+  if (!(name in ACTION_ICON_PATHS)) {
+    console.warn(`actionIcon: unknown icon "${name}"`);
+    return svg``;
+  }
   return svg`<svg
     aria-hidden="true"
     viewBox="0 0 24 24"
@@ -58,7 +63,7 @@ function actionIcon(name) {
     stroke-width="1.8"
     stroke-linecap="round"
     stroke-linejoin="round"
-  >${paths[name]}</svg>`;
+  >${ACTION_ICON_PATHS[name]}</svg>`;
 }
 
 export class WavyWaveHeaderActions extends LitElement {

@@ -1186,10 +1186,6 @@ public final class J2clReadSurfaceDomRenderer {
       List<J2clMentionRange> mentions,
       List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     String safeText = text == null ? "" : text;
-    // The current mention renderer already owns text-node splitting. Until
-    // mention and inline-reply ranges are merged into one rich-text pass, keep
-    // mention rendering authoritative and let anchored threads fall back to
-    // sibling placement for this uncommon overlap.
     if (mentions == null || mentions.isEmpty()) {
       List<InlineAnchorTextSegment> segments =
           inlineAnchorTextSegments(safeText, inlineReplyAnchors);
@@ -1207,6 +1203,7 @@ public final class J2clReadSurfaceDomRenderer {
       return;
     }
 
+    List<J2clInlineReplyAnchor> sortedAnchors = validInlineReplyAnchors(safeText, inlineReplyAnchors);
     int cursor = 0;
     boolean renderedMention = false;
     for (J2clMentionRange mention : mentions) {
@@ -1219,7 +1216,7 @@ public final class J2clReadSurfaceDomRenderer {
         continue;
       }
       if (start > cursor) {
-        content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, start)));
+        appendTextSegmentWithAnchors(content, safeText, cursor, start, sortedAnchors);
       }
       HTMLElement chip = (HTMLElement) DomGlobal.document.createElement("span");
       chip.className = "j2cl-read-mention-chip";
@@ -1233,12 +1230,35 @@ public final class J2clReadSurfaceDomRenderer {
       renderedMention = true;
     }
     if (cursor < safeText.length()) {
-      content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor)));
+      appendTextSegmentWithAnchors(content, safeText, cursor, safeText.length(), sortedAnchors);
     }
-    if (!renderedMention) {
-      content.textContent = safeText;
-    } else {
+    if (renderedMention) {
       content.setAttribute("data-has-rendered-mentions", "true");
+    }
+  }
+
+  private static void appendTextSegmentWithAnchors(
+      HTMLElement content,
+      String safeText,
+      int from,
+      int to,
+      List<J2clInlineReplyAnchor> sortedAnchors) {
+    int cursor = from;
+    for (J2clInlineReplyAnchor anchor : sortedAnchors) {
+      int offset = normalizedAnchorOffset(safeText, anchor);
+      if (offset < from || offset >= to) {
+        continue;
+      }
+      if (offset > cursor) {
+        content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, offset)));
+      }
+      content.appendChild(
+          renderInlineReplyAnchor(
+              InlineAnchorTextSegment.anchor(anchor.getThreadId(), offset)));
+      cursor = offset;
+    }
+    if (cursor < to) {
+      content.appendChild(DomGlobal.document.createTextNode(safeText.substring(cursor, to)));
     }
   }
 

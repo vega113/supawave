@@ -1320,6 +1320,66 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderBlipTextRendersInlineAnchorSpansEvenWhenMentionsArePresent() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(3, 9, "alice@example.com", "@Alice"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hi @Alice reply here",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 20,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+inline", 10)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Inline reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+inline",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(
+        "Inline anchor span must be present even when blip has mentions", anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside anchor",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+    HTMLElement thread =
+        (HTMLElement) blipEl.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull("Anchored thread must be mounted on parent blip", thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
+  }
+
+  @Test
   public void openAndDownloadLinksEmitClickTelemetry() {
     assumeBrowserDom();
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();

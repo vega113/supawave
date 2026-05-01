@@ -40,7 +40,9 @@ public class J2clRootShellViewTest {
     Assert.assertTrue(statusStrip.contains(separator));
     Assert.assertTrue(statusStrip.contains(liveStatus));
     Assert.assertNull(liveStatus.getAttribute("role"));
-    Assert.assertNull(liveStatus.getAttribute("aria-live"));
+    Assert.assertEquals("polite", liveStatus.getAttribute("aria-live"));
+    Assert.assertEquals("j2cl-status-live-text", liveStatus.className);
+    Assert.assertEquals("j2cl-status-live-separator", separator.className);
     Assert.assertEquals(liveStatus, separator.nextSibling);
     Assert.assertEquals("Selected wave is active.", liveStatus.textContent);
   }
@@ -258,6 +260,21 @@ public class J2clRootShellViewTest {
 
     HTMLElement liveStatus = (HTMLElement) host.querySelector("#j2cl-root-live-status-text");
     Assert.assertEquals("Loading workspace.", liveStatus.textContent);
+  }
+
+  @Test
+  public void publishLiveStatusStampsIconChromeAttributes() {
+    assumeBrowserDom();
+    J2clRootShellView view = createViewWithStatusStrip();
+    HTMLElement statusStrip = statusStrip();
+
+    view.publishLiveStatus(J2clRootLiveSurfaceModel.starting().withSelectedWaveId("example/w+1"));
+
+    Assert.assertEquals("online", statusStrip.getAttribute("data-connection-state"));
+    Assert.assertEquals("saved", statusStrip.getAttribute("data-save-state"));
+    Assert.assertEquals("selected-wave", statusStrip.getAttribute("data-route-state"));
+    Assert.assertEquals(
+        "Selected wave is active.", statusStrip.getAttribute("data-live-status-text"));
   }
 
   @Test

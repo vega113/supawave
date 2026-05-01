@@ -14,6 +14,8 @@ describe("<wavy-wave-controls-toggle>", () => {
     const button = el.renderRoot.querySelector("button");
     expect(button.getAttribute("aria-pressed")).to.equal("false");
     expect(button.getAttribute("aria-label")).to.equal("Hide wave controls");
+    expect(button.querySelector("svg")).to.exist;
+    expect(button.textContent.trim()).to.equal("");
   });
 
   it("click toggles to pressed=true and inner button label flips to Show wave controls", async () => {

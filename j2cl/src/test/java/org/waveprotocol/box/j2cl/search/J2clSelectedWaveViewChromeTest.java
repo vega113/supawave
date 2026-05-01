@@ -556,6 +556,60 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void navRowNextAndPreviousEventsMoveFocusedBlip() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(navigationModel());
+    HTMLElement first = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+1']");
+    HTMLElement second = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+2']");
+    Assert.assertNotNull(first);
+    Assert.assertNotNull(second);
+    first.focus();
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-next-requested");
+
+    Assert.assertEquals(second, DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-previous-requested");
+
+    Assert.assertEquals(first, DomGlobal.document.activeElement);
+  }
+
+  @Test
+  public void navRowRecentEndUnreadAndMentionEventsMoveFocusedBlip() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(navigationModel());
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-recent-requested");
+    Assert.assertEquals(
+        host.querySelector("wave-blip[data-blip-id='b+2']"),
+        DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-end-requested");
+    Assert.assertEquals(
+        host.querySelector("wave-blip[data-blip-id='b+3']"),
+        DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-next-unread-requested");
+    Assert.assertEquals(
+        host.querySelector("wave-blip[data-blip-id='b+2']"),
+        DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-next-mention-requested");
+    Assert.assertEquals(
+        host.querySelector("wave-blip[data-blip-id='b+3']"),
+        DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-prev-mention-requested");
+    Assert.assertEquals(
+        host.querySelector("wave-blip[data-blip-id='b+3']"),
+        DomGlobal.document.activeElement);
+  }
+
+  @Test
   public void selectedWaveRefreshEventInvokesRefreshHandler() {
     assumeBrowserDom();
     HTMLElement host = createHost();
@@ -770,6 +824,53 @@ public class J2clSelectedWaveViewChromeTest {
         true,
         true,
         false);
+  }
+
+  private static J2clSelectedWaveModel navigationModel() {
+    return new J2clSelectedWaveModel(
+        true,
+        false,
+        false,
+        "example.com/w+nav",
+        "Selected wave",
+        "",
+        "1 unread.",
+        "",
+        "",
+        0,
+        Collections.<String>emptyList(),
+        Arrays.<String>asList(),
+        Arrays.asList(
+            readBlip("b+1", "one", 1000L, false, false),
+            readBlip("b+2", "two", 2000L, true, false),
+            readBlip("b+3", "three", 300L, false, true)),
+        null,
+        1,
+        true,
+        true,
+        false);
+  }
+
+  private static J2clReadBlip readBlip(
+      String blipId, String text, long modifiedAt, boolean unread, boolean hasMention) {
+    return new J2clReadBlip(
+        blipId,
+        text,
+        Collections.emptyList(),
+        "vega@example.com",
+        "Vega",
+        modifiedAt,
+        "",
+        "",
+        unread,
+        hasMention);
+  }
+
+  private static void dispatchNavEvent(HTMLElement target, String eventName) {
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    target.dispatchEvent(new elemental2.dom.CustomEvent<Object>(eventName, init));
   }
 
   private static void assumeBrowserDom() {

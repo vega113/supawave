@@ -4,6 +4,11 @@ import { moveBlipFocus, clearBlipFocus } from "../shortcuts/blip-focus.js";
 import { closeTopmostDialog } from "../shortcuts/dialog-stack.js";
 
 export class ShellRoot extends LitElement {
+  static RESIZE_STORAGE_KEY = "j2cl.searchRailWidth";
+  static MIN_RAIL_WIDTH = 360;
+  static MAX_RAIL_WIDTH = 400;
+  static RAIL_STEP = 16;
+
   static styles = css`
     /* V-1 (#1099): the canonical grid for <shell-root> lives in
      * j2cl/lit/src/tokens/shell-tokens.css and targets the host element
@@ -23,6 +28,11 @@ export class ShellRoot extends LitElement {
 
     slot[name="nav"] {
       grid-area: nav;
+      min-height: 0;
+    }
+
+    slot[name="splitter"] {
+      grid-area: splitter;
       min-height: 0;
     }
 
@@ -51,10 +61,24 @@ export class ShellRoot extends LitElement {
   constructor() {
     super();
     this._onWindowKeyDown = this._onWindowKeyDown.bind(this);
+    this._onResizeKeyDown = this._onResizeKeyDown.bind(this);
+    this._onResizePointerDown = this._onResizePointerDown.bind(this);
+    this._onResizePointerMove = this._onResizePointerMove.bind(this);
+    this._onResizePointerUp = this._onResizePointerUp.bind(this);
+    this._onWaveControlsToggled = this._onWaveControlsToggled.bind(this);
+    this._resizeStart = null;
+    this._resizePointerId = null;
+    this._resizePointerTarget = null;
   }
 
   connectedCallback() {
     super.connectedCallback();
+    this._restoreRailWidth();
+    this.addEventListener("keydown", this._onResizeKeyDown);
+    this.addEventListener("pointerdown", this._onResizePointerDown);
+    if (typeof document !== "undefined") {
+      document.addEventListener("wavy-wave-controls-toggled", this._onWaveControlsToggled);
+    }
     // G-PORT-7 (#1116): shell-level keyboard handler. Cloned from the
     // GWT keyboard registry (`KeySignalRouter` + `FocusFrameController.
     // onKeySignal`). The window-level listener captures the document
@@ -71,8 +95,185 @@ export class ShellRoot extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.removeEventListener("keydown", this._onResizeKeyDown);
+    this.removeEventListener("pointerdown", this._onResizePointerDown);
+    this._stopResizeTracking();
+    if (typeof document !== "undefined") {
+      document.removeEventListener("wavy-wave-controls-toggled", this._onWaveControlsToggled);
+    }
     if (typeof window !== "undefined") {
       window.removeEventListener("keydown", this._onWindowKeyDown);
+    }
+  }
+
+  _restoreRailWidth() {
+    const stored = Number(this._readStoredRailWidth());
+    if (!Number.isFinite(stored) || stored <= 0) return;
+    this._setRailWidth(stored);
+  }
+
+  _onResizeKeyDown(evt) {
+    if (!this._isSplitterEvent(evt)) return;
+    const current = this._currentRailWidth();
+    let next = current;
+    if (evt.key === "ArrowLeft") {
+      next = current - ShellRoot.RAIL_STEP;
+    } else if (evt.key === "ArrowRight") {
+      next = current + ShellRoot.RAIL_STEP;
+    } else if (evt.key === "Home") {
+      next = ShellRoot.MIN_RAIL_WIDTH;
+    } else if (evt.key === "End") {
+      next = ShellRoot.MAX_RAIL_WIDTH;
+    } else {
+      return;
+    }
+    evt.preventDefault();
+    evt.stopPropagation();
+    this._setRailWidth(next, evt.target);
+  }
+
+  _onResizePointerDown(evt) {
+    if (!this._isSplitterEvent(evt) || evt.button !== 0) return;
+    evt.preventDefault();
+    this._resizeStart = {
+      x: evt.clientX,
+      width: this._currentRailWidth(),
+      splitter: evt.target
+    };
+    this._resizePointerId = evt.pointerId;
+    this._resizePointerTarget = evt.target;
+    try {
+      evt.target.setPointerCapture?.(evt.pointerId);
+    } catch {
+      // Capture can fail if the pointer is already gone; document listeners still clean up.
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("pointermove", this._onResizePointerMove);
+      document.addEventListener("pointerup", this._onResizePointerUp);
+      document.addEventListener("pointercancel", this._onResizePointerUp);
+    }
+    if (evt.target && evt.target.addEventListener) {
+      evt.target.addEventListener("lostpointercapture", this._onResizePointerUp);
+    }
+  }
+
+  _onResizePointerMove(evt) {
+    if (!this._resizeStart || evt.pointerId !== this._resizePointerId) return;
+    this._setRailWidth(
+      this._resizeStart.width + (evt.clientX - this._resizeStart.x),
+      this._resizeStart.splitter,
+      false
+    );
+  }
+
+  _onResizePointerUp(evt) {
+    if (!this._resizeStart) return;
+    if (evt && evt.pointerId !== this._resizePointerId) return;
+    this._writeStoredRailWidth(String(Math.round(this._currentRailWidth())));
+    if (this._resizePointerTarget && this._resizePointerTarget.releasePointerCapture) {
+      try {
+        this._resizePointerTarget.releasePointerCapture(this._resizePointerId);
+      } catch {
+        // The browser may have already released capture.
+      }
+    }
+    this._stopResizeTracking();
+  }
+
+  _stopResizeTracking() {
+    const target = this._resizePointerTarget;
+    this._resizeStart = null;
+    this._resizePointerId = null;
+    this._resizePointerTarget = null;
+    if (typeof document !== "undefined") {
+      document.removeEventListener("pointermove", this._onResizePointerMove);
+      document.removeEventListener("pointerup", this._onResizePointerUp);
+      document.removeEventListener("pointercancel", this._onResizePointerUp);
+    }
+    if (target && target.removeEventListener) {
+      target.removeEventListener("lostpointercapture", this._onResizePointerUp);
+    }
+  }
+
+  _isSplitterEvent(evt) {
+    const target = evt && evt.target;
+    return !!(
+      target &&
+      target.getAttribute &&
+      target.getAttribute("slot") === "splitter"
+    );
+  }
+
+  _currentRailWidth() {
+    const inline = parseFloat(this.style.getPropertyValue("--j2cl-search-rail-width"));
+    if (Number.isFinite(inline) && inline > 0) return inline;
+    if (typeof window !== "undefined") {
+      const computed = parseFloat(
+        window.getComputedStyle(this).getPropertyValue("--j2cl-search-rail-width")
+      );
+      if (Number.isFinite(computed) && computed > 0) return computed;
+    }
+    return 296;
+  }
+
+  _setRailWidth(width, splitter = null, persist = true) {
+    const next = Math.round(this._clampRailWidth(width));
+    this.style.setProperty("--j2cl-search-rail-width", `${next}px`);
+    if (splitter && splitter.setAttribute) {
+      splitter.setAttribute("aria-valuenow", String(next));
+    } else {
+      this.querySelectorAll('[slot="splitter"]').forEach(el => {
+        el.setAttribute("aria-valuenow", String(next));
+      });
+    }
+    if (persist) {
+      this._writeStoredRailWidth(String(next));
+    }
+  }
+
+  _storage() {
+    try {
+      return typeof window === "undefined" ? null : window.localStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  _readStoredRailWidth() {
+    const storage = this._storage();
+    if (!storage) return "";
+    try {
+      return storage.getItem(ShellRoot.RESIZE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  _writeStoredRailWidth(value) {
+    const storage = this._storage();
+    if (!storage) return;
+    try {
+      storage.setItem(ShellRoot.RESIZE_STORAGE_KEY, value);
+    } catch {
+      // Storage can be blocked or over quota; resizing should remain usable.
+    }
+  }
+
+  _clampRailWidth(width) {
+    const viewportMax =
+      typeof window === "undefined" || !window.innerWidth
+        ? ShellRoot.MAX_RAIL_WIDTH
+        : Math.max(ShellRoot.MIN_RAIL_WIDTH, Math.floor(window.innerWidth * 0.5));
+    const max = Math.min(ShellRoot.MAX_RAIL_WIDTH, viewportMax);
+    return Math.max(ShellRoot.MIN_RAIL_WIDTH, Math.min(max, width));
+  }
+
+  _onWaveControlsToggled(evt) {
+    const pressed = !!(evt.detail && evt.detail.pressed);
+    if (pressed) {
+      this.setAttribute("data-wave-controls-compact", "true");
+    } else {
+      this.removeAttribute("data-wave-controls-compact");
     }
   }
 
@@ -154,6 +355,7 @@ export class ShellRoot extends LitElement {
       <slot name="skip-link"></slot>
       <slot name="header"></slot>
       <slot name="nav"></slot>
+      <slot name="splitter"></slot>
       <slot name="main"></slot>
       <slot name="rail-extension"></slot>
       <slot name="status"></slot>

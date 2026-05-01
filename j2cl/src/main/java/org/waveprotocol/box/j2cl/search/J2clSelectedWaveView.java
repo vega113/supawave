@@ -1,9 +1,12 @@
 package org.waveprotocol.box.j2cl.search;
 
 import elemental2.core.JsArray;
+import elemental2.core.JsDate;
 import elemental2.dom.DomGlobal;
+import elemental2.dom.Element.FocusOptionsType;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
+import elemental2.dom.ScrollIntoViewOptions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -123,6 +126,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       this.waveNavRow = ensureWaveNavRow(existingCard);
       this.awarenessPill = ensureAwarenessPill(existingCard);
       bindChromeEvents(existingCard, effectiveTelemetrySink);
+      bindNavigationEvents(existingCard);
       bindSelectedWaveRefreshListener(existingCard);
       serverFirstActive = true;
       serverFirstWaveId = J2clServerFirstRootShellDom.serverFirstWaveId(host);
@@ -216,6 +220,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     coldCard.appendChild(emptyState);
 
     bindChromeEvents(coldCard, effectiveTelemetrySink);
+    bindNavigationEvents(coldCard);
     bindSelectedWaveRefreshListener(coldCard);
 
     serverFirstActive = false;
@@ -454,6 +459,137 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             }
           });
     }
+  }
+
+  private void bindNavigationEvents(HTMLElement card) {
+    card.addEventListener("wave-nav-recent-requested", evt -> focusMostRecentBlip());
+    card.addEventListener(
+        "wave-nav-next-unread-requested", evt -> focusNextMatchingBlip("unread", 1));
+    card.addEventListener("wave-nav-previous-requested", evt -> focusAdjacentBlip(-1));
+    card.addEventListener("wave-nav-next-requested", evt -> focusAdjacentBlip(1));
+    card.addEventListener("wave-nav-end-requested", evt -> focusLastBlip());
+    card.addEventListener(
+        "wave-nav-prev-mention-requested", evt -> focusNextMatchingBlip("has-mention", -1));
+    card.addEventListener(
+        "wave-nav-next-mention-requested", evt -> focusNextMatchingBlip("has-mention", 1));
+  }
+
+  private void focusMostRecentBlip() {
+    List<HTMLElement> blips = renderedBlips();
+    if (blips.isEmpty()) {
+      return;
+    }
+    HTMLElement newest = blips.get(blips.size() - 1);
+    long newestTime = parseBlipTime(newest.getAttribute("data-blip-time"));
+    for (HTMLElement blip : blips) {
+      long time = parseBlipTime(blip.getAttribute("data-blip-time"));
+      if (time > newestTime) {
+        newest = blip;
+        newestTime = time;
+      }
+    }
+    focusBlip(newest);
+  }
+
+  private static long parseBlipTime(String value) {
+    if (value == null || value.isEmpty()) {
+      return Long.MIN_VALUE;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch (NumberFormatException ignored) {
+      double epochMs = new JsDate(value).getTime();
+      return Double.isNaN(epochMs) ? Long.MIN_VALUE : (long) epochMs;
+    }
+  }
+
+  private void focusLastBlip() {
+    List<HTMLElement> blips = renderedBlips();
+    if (!blips.isEmpty()) {
+      focusBlip(blips.get(blips.size() - 1));
+    }
+  }
+
+  private void focusAdjacentBlip(int direction) {
+    List<HTMLElement> blips = renderedBlips();
+    if (blips.isEmpty()) {
+      return;
+    }
+    int current = focusedBlipIndex(blips);
+    int next = current < 0 ? (direction > 0 ? 0 : blips.size() - 1) : current + direction;
+    if (next < 0) {
+      next = 0;
+    }
+    if (next >= blips.size()) {
+      next = blips.size() - 1;
+    }
+    focusBlip(blips.get(next));
+  }
+
+  private void focusNextMatchingBlip(String attributeName, int direction) {
+    List<HTMLElement> blips = renderedBlips();
+    if (blips.isEmpty()) {
+      return;
+    }
+    int current = focusedBlipIndex(blips);
+    int start = current < 0 ? (direction > 0 ? -1 : blips.size()) : current;
+    for (int offset = 1; offset <= blips.size(); offset++) {
+      int index = positiveModulo(start + (direction * offset), blips.size());
+      HTMLElement candidate = blips.get(index);
+      if (candidate.hasAttribute(attributeName)) {
+        focusBlip(candidate);
+        return;
+      }
+    }
+  }
+
+  private static int positiveModulo(int value, int modulo) {
+    int result = value % modulo;
+    return result < 0 ? result + modulo : result;
+  }
+
+  private int focusedBlipIndex(List<HTMLElement> blips) {
+    elemental2.dom.Element active = DomGlobal.document.activeElement;
+    if (active == null) {
+      return -1;
+    }
+    for (int index = 0; index < blips.size(); index++) {
+      HTMLElement blip = blips.get(index);
+      if (blip == active || blip.contains(active)) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  private void focusBlip(HTMLElement target) {
+    if (target == null) {
+      return;
+    }
+    List<HTMLElement> blips = renderedBlips();
+    for (HTMLElement blip : blips) {
+      blip.setAttribute("tabindex", blip == target ? "0" : "-1");
+    }
+    FocusOptionsType focusOptions = FocusOptionsType.create();
+    focusOptions.setPreventScroll(true);
+    target.focus(focusOptions);
+    ScrollIntoViewOptions scrollOptions = ScrollIntoViewOptions.create();
+    scrollOptions.setBlock("center");
+    scrollOptions.setInline("nearest");
+    target.scrollIntoView(scrollOptions);
+  }
+
+  private List<HTMLElement> renderedBlips() {
+    elemental2.dom.NodeList<elemental2.dom.Element> nodes =
+        contentList.querySelectorAll("wave-blip[data-blip-id], div.blip[data-blip-id]");
+    List<HTMLElement> blips = new ArrayList<HTMLElement>();
+    for (int index = 0; index < nodes.length; index++) {
+      HTMLElement blip = (HTMLElement) nodes.item(index);
+      if (blip != null) {
+        blips.add(blip);
+      }
+    }
+    return blips;
   }
 
   static void configureContentList(HTMLElement contentList) {

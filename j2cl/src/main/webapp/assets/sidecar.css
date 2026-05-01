@@ -14,6 +14,23 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
   display: none !important;
 }
 
+.j2cl-status-live-text {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.j2cl-status-live-separator {
+  display: none !important;
+}
+
 .sidecar-shell {
   min-height: 100vh;
   display: flex;
@@ -22,7 +39,7 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .sidecar-root {
-  width: min(100%, 960px);
+  width: 100%;
 }
 
 .sidecar-card {
@@ -129,7 +146,7 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 
 .sidecar-split-layout {
   display: grid;
-  gap: 20px;
+  gap: 0;
   grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
   align-items: start;
 }
@@ -162,6 +179,11 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
   border-radius: 4px;
   box-shadow: none;
   padding: 12px;
+}
+
+shell-root[data-wave-controls-compact="true"] wavy-wave-header-actions,
+shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
+  display: none;
 }
 
 /* V-1 (#1099): on the server-first workflow the wave panel sits inside

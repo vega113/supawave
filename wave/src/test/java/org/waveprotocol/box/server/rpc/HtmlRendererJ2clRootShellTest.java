@@ -35,6 +35,8 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("<shell-root"));
     assertTrue(html.contains("<shell-header slot=\"header\" signed-in"));
     assertTrue(html.contains("<shell-nav-rail slot=\"nav\""));
+    assertTrue(html.contains("<button slot=\"splitter\" class=\"j2cl-shell-splitter\""));
+    assertTrue(html.contains("role=\"separator\" aria-orientation=\"vertical\""));
     assertTrue(html.contains("<shell-main-region slot=\"main\""));
     assertTrue(html.contains("<shell-status-strip slot=\"status\""));
     assertTrue(html.contains("<shell-skip-link slot=\"skip-link\""));
@@ -167,7 +169,9 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         session, "", "commit", 0L, "rel", "/wave/inbox", "ws.example:443");
 
     assertTrue("Signed-out status strip must wrap return-target text in the syncable span",
-        html.contains("<span id=\"j2cl-root-return-target-text\">Return target: "));
+        html.contains(
+            "<span id=\"j2cl-root-return-target-text\" class=\"j2cl-status-live-text\">"
+                + "Return target: "));
   }
 
   public void testSignedOutPageAlsoIncludesReturnTargetBootstrap() {

@@ -75,6 +75,29 @@ public final class J2clRootLiveSurfaceModel {
     return statusText;
   }
 
+  public String getRouteState() {
+    if (selectedWaveId != null) {
+      return "selected-wave";
+    }
+    if (!query.isEmpty()) {
+      return "search";
+    }
+    if (routeUrl.isEmpty()) {
+      return "loading";
+    }
+    return "ready";
+  }
+
+  public String getConnectionState() {
+    String status = statusText.toLowerCase();
+    return status.contains("offline") || status.contains("disconnected") ? "offline" : "online";
+  }
+
+  public String getSaveState() {
+    String status = statusText.toLowerCase();
+    return status.contains("saving") || status.contains("unsaved") ? "saving" : "saved";
+  }
+
   private static String routeStatus(String routeUrl, String query) {
     String normalizedQuery = nullToEmpty(query);
     if (!normalizedQuery.isEmpty()) {

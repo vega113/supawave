@@ -182,6 +182,17 @@ describe("<wave-blip>", () => {
     expect(ev.detail.waveId).to.equal("w7");
   });
 
+  it("uses singular grammar for a one-reply chevron aria-label", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b7a" data-wave-id="w7" author-name="A" reply-count="1">
+        body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
+    expect(chevron.getAttribute("aria-label")).to.equal("Drill into 1 reply under this blip");
+  });
+
   it("avatar click emits wave-blip-profile-requested with author id", async () => {
     const el = await fixture(html`
       <wave-blip

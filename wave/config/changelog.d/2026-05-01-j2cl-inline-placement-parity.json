@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-inline-placement-parity",
+  "version": "Issue #1167",
+  "date": "2026-05-01",
+  "title": "J2CL inline reply placement parity",
+  "summary": "J2CL now places reply threads at inline reply anchors when anchor metadata is available.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Render inline reply anchor mount points in plain-text blips and attach matching child threads at those anchors instead of always below the whole blip.",
+        "Keep malformed or unanchored reply threads visible through the existing sibling fallback placement."
+      ]
+    }
+  ]
+}

@@ -234,15 +234,10 @@ public final class J2clReadBlipContent {
     List<J2clInlineReplyAnchor> inlineReplyAnchors = new ArrayList<J2clInlineReplyAnchor>();
     StringBuilder tagBuf = new StringBuilder();
     boolean insideTag = false;
-    // Track entity boundaries to compute decoded length without re-scanning stripped each time.
-    // entityStart is the index in stripped where the current '&' was appended, or -1.
-    int entityStart = -1;
-    // Extra raw chars contributed by entities (each &xxx; has raw_len-1 overcount vs 1 decoded).
-    int entityOvercount = 0;
+    int decodedVisibleLength = 0;
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
-      if (c == '<') {
-        entityStart = -1;
+      if (c == '<' && !insideTag) {
         insideTag = true;
         tagBuf.setLength(0);
       } else if (c == '>' && insideTag) {
@@ -251,26 +246,32 @@ public final class J2clReadBlipContent {
         String tagContent = tagBuf.toString();
         if (isLineTag(tagContent)) {
           appendLineSeparator(stripped);
+          decodedVisibleLength = decodeEntities(stripped.toString()).length();
         } else if (isInlineReplyAnchorTag(tagContent)) {
           String threadId = attributeValue("<" + tagContent + ">", "id");
           if (!threadId.isEmpty()) {
             inlineReplyAnchors.add(
                 new J2clInlineReplyAnchor(
-                    decodeEntities(threadId), stripped.length() - entityOvercount));
+                    decodeEntities(threadId), decodedVisibleLength));
           }
         }
         tagBuf.setLength(0);
       } else if (insideTag) {
         tagBuf.append(c);
+      } else if (c == '&') {
+        String decodedEntity = decodedEntityAt(value, i);
+        if (!decodedEntity.isEmpty()) {
+          int entityEnd = value.indexOf(';', i);
+          stripped.append(value, i, entityEnd + 1);
+          decodedVisibleLength += decodedEntity.length();
+          i = entityEnd;
+        } else {
+          stripped.append(c);
+          decodedVisibleLength++;
+        }
       } else {
         stripped.append(c);
-        if (c == '&') {
-          entityStart = stripped.length() - 1;
-        } else if (c == ';' && entityStart >= 0) {
-          // Completed entity: raw length is (current_pos - entityStart), decoded length is 1.
-          entityOvercount += stripped.length() - 1 - entityStart;
-          entityStart = -1;
-        }
+        decodedVisibleLength++;
       }
     }
     return new StripResult(stripped.toString(), inlineReplyAnchors);
@@ -291,6 +292,30 @@ public final class J2clReadBlipContent {
         && (normalized.length() == 5
             || normalized.charAt(5) == '/'
             || Character.isWhitespace(normalized.charAt(5)));
+  }
+
+  private static String decodedEntityAt(String value, int ampersandIndex) {
+    int entityEnd = value.indexOf(';', ampersandIndex);
+    if (entityEnd < 0) {
+      return "";
+    }
+    String entity = value.substring(ampersandIndex, entityEnd + 1);
+    if ("&quot;".equals(entity)) {
+      return "\"";
+    }
+    if ("&apos;".equals(entity)) {
+      return "'";
+    }
+    if ("&lt;".equals(entity)) {
+      return "<";
+    }
+    if ("&gt;".equals(entity)) {
+      return ">";
+    }
+    if ("&amp;".equals(entity)) {
+      return "&";
+    }
+    return "";
   }
 
   private static final class StripResult {

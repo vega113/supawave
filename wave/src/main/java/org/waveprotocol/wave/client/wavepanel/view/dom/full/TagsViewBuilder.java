@@ -203,6 +203,8 @@ public final class TagsViewBuilder implements UiBuilder {
     String escapedId = escapeJsSingleQuoted(id);
     String more = escapeJsSingleQuoted(messages.more());
     String less = escapeJsSingleQuoted(messages.less());
+    String expandButton = escapeJsSingleQuoted(css.expandButton());
+    String collapseButton = escapeJsSingleQuoted(css.collapseButton());
     StringBuilder sb = new StringBuilder();
     sb.append("var p=document.getElementById('").append(escapedId).append("');")
         .append("var x=p.getAttribute('s')=='e';")
@@ -210,8 +212,8 @@ public final class TagsViewBuilder implements UiBuilder {
         .append("p.setAttribute('s',x?'':'e');")
         .append("lastChild.innerText=x?'").append(more)
         .append("':'").append(less).append("';")
-        .append("firstChild.className=x?'").append(css.expandButton())
-        .append("':'").append(css.collapseButton()).append("';")
+        .append("firstChild.className=x?'").append(expandButton)
+        .append("':'").append(collapseButton).append("';")
         .append("parentNode.nextSibling.style.display=x?'':'none';");
     String js = escapeHtmlAttribute(sb.toString());
     assert !js.contains("\"");

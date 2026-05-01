@@ -1,6 +1,8 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
 import "../src/elements/wavy-search-rail.js";
 
+const waitForMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("<wavy-search-rail>", () => {
   it("registers the F-2.S3 search-rail element", () => {
     expect(customElements.get("wavy-search-rail")).to.exist;
@@ -79,12 +81,626 @@ describe("<wavy-search-rail>", () => {
   });
 
   it("Manage saved searches click emits wavy-manage-saved-searches-requested (B.4)", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("[]", {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      const manage = el.renderRoot.querySelector(".manage-saved");
+      setTimeout(() => manage.click(), 0);
+      const evt = await oneEvent(el, "wavy-manage-saved-searches-requested");
+      expect(evt).to.exist;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("Manage saved searches opens a dialog populated from /searches", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      expect(url).to.equal("/searches");
+      return new Response(
+        JSON.stringify([{ name: "Mine", query: "creator:me", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const dialog = el.renderRoot.querySelector('[role="dialog"]');
+      expect(dialog, "saved-search dialog opens").to.exist;
+      expect(dialog.textContent).to.contain("Manage saved searches");
+      expect(dialog.querySelector('input[aria-label="Saved search name"]').value).to.equal("Mine");
+      expect(dialog.querySelector('input[aria-label="Saved search query"]').value).to.equal("creator:me");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("surfaces malformed saved-search rows from /searches instead of dropping them", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify([{ name: "", query: "tag:needs-name", pinned: true }]),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const dialog = el.renderRoot.querySelector('[role="dialog"]');
+      expect(dialog).to.exist;
+      expect(dialog.querySelector(".saved-error").textContent).to.contain(
+        "need both a name and a query"
+      );
+      expect(dialog.querySelector('input[aria-label="Saved search name"]').value).to.equal("");
+      expect(dialog.querySelector('input[aria-label="Saved search query"]').value).to.equal("tag:needs-name");
+      expect(dialog.querySelector(".saved-row .saved-button").getAttribute("aria-label")).to.equal(
+        "Apply tag:needs-name"
+      );
+      expect(
+        Array.from(dialog.querySelectorAll(".saved-row .saved-button"))
+          .at(-1)
+          .getAttribute("aria-label")
+      ).to.equal("Remove tag:needs-name");
+      expect(el.renderRoot.querySelector(".custom-search")).to.be.null;
+      el.renderRoot.querySelector('button[aria-label="Close saved searches"]').click();
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await el.updateComplete;
+      const reopened = el.renderRoot.querySelector('[role="dialog"]');
+      expect(reopened.querySelector(".saved-error").textContent).to.contain(
+        "need both a name and a query"
+      );
+      expect(reopened.querySelector('input[aria-label="Saved search query"]').value).to.equal("tag:needs-name");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("renders pinned saved searches as quick-access buttons that apply queries", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const manage = el.renderRoot.querySelector(".manage-saved");
-    setTimeout(() => manage.click(), 0);
-    const evt = await oneEvent(el, "wavy-manage-saved-searches-requested");
-    expect(evt).to.exist;
+    el.savedSearches = [
+      { name: "Bugs", query: "tag:bug", pinned: true },
+      { name: "Hidden", query: "tag:hidden", pinned: false }
+    ];
+    await el.updateComplete;
+    const buttons = Array.from(el.renderRoot.querySelectorAll(".custom-search"));
+    expect(buttons.map((button) => button.dataset.savedSearchName)).to.deep.equal(["Bugs"]);
+    expect(buttons[0].getAttribute("aria-label")).to.equal("Apply saved search Bugs (tag:bug)");
+    setTimeout(() => buttons[0].click(), 0);
+    const evt = await oneEvent(el, "wavy-saved-search-selected");
+    expect(evt.detail.folderId).to.equal("");
+    expect(evt.detail.kind).to.equal("custom");
+    expect(evt.detail.label).to.equal("Bugs");
+    expect(evt.detail.query).to.equal("tag:bug");
+    expect(evt.detail.savedSearchName).to.equal("Bugs");
+  });
+
+  it("keeps focus on pinned saved search buttons and suppresses same-query apply", async () => {
+    const el = await fixture(html`<wavy-search-rail query="tag:bug"></wavy-search-rail>`);
+    await el.updateComplete;
+    el.savedSearches = [{ name: "Bugs", query: "tag:bug", pinned: true }];
+    await el.updateComplete;
+    let selectedCount = 0;
+    el.addEventListener("wavy-saved-search-selected", () => {
+      selectedCount += 1;
+    });
+    const button = el.renderRoot.querySelector(".custom-search");
+    button.click();
+    await waitForMicrotasks();
+    await el.updateComplete;
+    expect(selectedCount).to.equal(0);
+    expect(el.renderRoot.activeElement).to.equal(button);
+  });
+
+  it("autoloads pinned saved searches when requested by SSR", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify([{ name: "Auto", query: "tag:auto", pinned: true }]),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    const el = await fixture(html`<wavy-search-rail autoload-saved-searches></wavy-search-rail>`);
+    try {
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const button = el.renderRoot.querySelector(".custom-search");
+      expect(button, "autoloaded pinned saved search renders").to.exist;
+      expect(button.dataset.savedSearchName).to.equal("Auto");
+      expect(button.dataset.query).to.equal("tag:auto");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not autoload saved searches without the SSR opt-in attribute", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response("[]", {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    };
+    try {
+      await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await waitForMicrotasks();
+      expect(calls).to.equal(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("treats unauthorized saved-search autoload as an empty list", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response("", { status: 401 });
+    };
+    const el = await fixture(html`<wavy-search-rail autoload-saved-searches></wavy-search-rail>`);
+    try {
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.savedSearches).to.deep.equal([]);
+      expect(el.savedSearchesError).to.equal("");
+      expect(el._savedSearchesLoaded).to.equal(false);
+      await el._loadSavedSearches();
+      expect(calls).to.equal(2);
+      expect(el.renderRoot.querySelector(".custom-search")).to.be.null;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("shows a sign-in message when saved-search management is unauthorized", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("", { status: 401 });
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const dialog = el.renderRoot.querySelector('[role="dialog"]');
+      expect(dialog).to.exist;
+      expect(dialog.querySelector(".saved-error").textContent).to.equal(
+        "Sign in to manage saved searches."
+      );
+      expect(dialog.querySelector(".saved-empty")).to.be.null;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not wipe a cached saved-search list after a later unauthorized reload", async () => {
+    const originalFetch = globalThis.fetch;
+    const responses = [
+      new Response(
+        JSON.stringify([{ name: "Cached", query: "tag:cached", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      ),
+      new Response("", { status: 401 })
+    ];
+    globalThis.fetch = async () => responses.shift();
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el._loadSavedSearches();
+      expect(el.savedSearches[0].name).to.equal("Cached");
+      el.savedSearchesOpen = true;
+      await el._loadSavedSearches(true);
+      expect(el.savedSearches[0].name).to.equal("Cached");
+      expect(el.savedSearchesError).to.equal("Sign in to refresh saved searches.");
+      expect(el._savedSearchesLoaded).to.equal(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("keeps malformed saved-search warnings after an unauthorized forced reload", async () => {
+    const originalFetch = globalThis.fetch;
+    const responses = [
+      new Response(
+        JSON.stringify([{ name: "", query: "tag:needs-name", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      ),
+      new Response("", { status: 401 })
+    ];
+    globalThis.fetch = async () => responses.shift();
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el._loadSavedSearches();
+      expect(el.savedSearchesError).to.contain("need both a name and a query");
+      await el._loadSavedSearches(true);
+      expect(el.savedSearchesError).to.contain("need both a name and a query");
+      expect(el.savedSearchDrafts[0].query).to.equal("tag:needs-name");
+      expect(el._savedSearchesLoaded).to.equal(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("surfaces a friendly saved-search load failure message", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("", { status: 500 });
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".saved-error").textContent).to.equal(
+        "Unable to load saved searches."
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("saves an added current search through /searches", async () => {
+    const originalFetch = globalThis.fetch;
+    const posts = [];
+    globalThis.fetch = async (url, options = {}) => {
+      if (!options.method || options.method === "GET") {
+        return new Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      posts.push({ url, options });
+      return new Response("", { status: 200 });
+    };
+    const el = await fixture(html`<wavy-search-rail query="tag:work"></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      const manage = el.renderRoot.querySelector(".manage-saved");
+      manage.click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      await waitForMicrotasks();
+      await el.updateComplete;
+      el.renderRoot.querySelector(".saved-footer .saved-button").click();
+      await el.updateComplete;
+      el.renderRoot.querySelector(".saved-button.primary").click();
+      await waitForMicrotasks();
+      expect(posts.length).to.equal(1);
+      expect(posts[0].url).to.equal("/searches");
+      expect(posts[0].options.method).to.equal("POST");
+      expect(JSON.parse(posts[0].options.body)).to.deep.equal([
+        { name: "Saved search 1", query: "tag:work", pinned: true }
+      ]);
+      await el.updateComplete;
+      await waitForMicrotasks();
+      expect(el.renderRoot.activeElement).to.equal(manage);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("applying a dirty saved-search draft does not persist it implicitly", async () => {
+    const originalFetch = globalThis.fetch;
+    const posts = [];
+    globalThis.fetch = async (url, options = {}) => {
+      if (options.method === "POST") {
+        posts.push({ url, options });
+        return new Response("", { status: 200 });
+      }
+      return new Response(
+        JSON.stringify([{ name: "Draft", query: "tag:old", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      const manage = el.renderRoot.querySelector(".manage-saved");
+      manage.click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const queryInput = el.renderRoot.querySelector('input[aria-label="Saved search query"]');
+      queryInput.value = "tag:new";
+      queryInput.dispatchEvent(new Event("input", { bubbles: true }));
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".saved-hint").textContent).to.contain(
+        "discards unsaved edits"
+      );
+      expect(el.renderRoot.querySelector(".saved-hint").getAttribute("role")).to.equal("status");
+      setTimeout(() => el.renderRoot.querySelector(".saved-row .saved-button").click(), 0);
+      const evt = await oneEvent(el, "wavy-saved-search-selected");
+      expect(evt.detail.query).to.equal("tag:new");
+      expect(posts.length).to.equal(0);
+      await el.updateComplete;
+      await waitForMicrotasks();
+      expect(el.renderRoot.activeElement).to.equal(manage);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("shows validation instead of dropping invalid saved-search rows", async () => {
+    const originalFetch = globalThis.fetch;
+    let postCount = 0;
+    globalThis.fetch = async (_url, options = {}) => {
+      if (options.method === "POST") {
+        postCount += 1;
+        return new Response("", { status: 200 });
+      }
+      return new Response(
+        JSON.stringify([{ name: "Broken", query: "tag:work", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const nameInput = el.renderRoot.querySelector('input[aria-label="Saved search name"]');
+      nameInput.value = "";
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      el.renderRoot.querySelector(".saved-button.primary").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(postCount).to.equal(0);
+      expect(el.renderRoot.querySelector(".saved-error").textContent).to.contain(
+        "needs both a name and a query"
+      );
+      expect(el.renderRoot.querySelector(".saved-error").getAttribute("role")).to.equal("alert");
+      expect(el.renderRoot.querySelector('[role="dialog"]')).to.exist;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("dedupes concurrent saved-search loads", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    let resolveFetch;
+    const responseReady = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    globalThis.fetch = async () => {
+      calls += 1;
+      await responseReady;
+      return new Response("[]", {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      const first = el._loadSavedSearches();
+      const second = el._loadSavedSearches();
+      expect(calls).to.equal(1);
+      resolveFetch();
+      await Promise.all([first, second]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("shares saved-search load failures across concurrent callers without rejecting", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      return new Response("", { status: 500 });
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      const first = el._loadSavedSearches();
+      const second = el._loadSavedSearches();
+      await Promise.all([first, second]);
+      expect(calls).to.equal(1);
+      expect(el.savedSearchesError).to.equal("Unable to load saved searches.");
+      expect(el.savedSearchesLoading).to.equal(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("keeps a forced saved-search reload in flight when an older load finishes", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    let resolveFirst;
+    let resolveSecond;
+    const firstReady = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondReady = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    globalThis.fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        await firstReady;
+        return new Response(
+          JSON.stringify([{ name: "Old", query: "tag:old", pinned: true }]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      await secondReady;
+      return new Response(
+        JSON.stringify([{ name: "Fresh", query: "tag:fresh", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      const first = el._loadSavedSearches();
+      const second = el._loadSavedSearches(true);
+      expect(calls).to.equal(2);
+      resolveFirst();
+      await first;
+      expect(el.savedSearchesLoading).to.equal(true);
+      const third = el._loadSavedSearches();
+      expect(calls).to.equal(2);
+      resolveSecond();
+      await Promise.all([second, third]);
+      expect(el.savedSearches[0].name).to.equal("Fresh");
+      expect(el.savedSearchesLoading).to.equal(false);
+      expect(el._savedSearchesLoadPromise).to.equal(null);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("does not let an older saved-search load overwrite a newer forced reload", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    let resolveFirst;
+    let resolveSecond;
+    const firstReady = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondReady = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    globalThis.fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        await firstReady;
+        return new Response(
+          JSON.stringify([{ name: "Old", query: "tag:old", pinned: true }]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      await secondReady;
+      return new Response(
+        JSON.stringify([{ name: "Fresh", query: "tag:fresh", pinned: true }]),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      const first = el._loadSavedSearches();
+      const second = el._loadSavedSearches(true);
+      resolveSecond();
+      await second;
+      expect(el.savedSearches[0].name).to.equal("Fresh");
+      expect(el.savedSearchesLoading).to.equal(false);
+      resolveFirst();
+      await first;
+      expect(el.savedSearches[0].name).to.equal("Fresh");
+      expect(calls).to.equal(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("disables adding saved searches until the dialog load settles", async () => {
+    const originalFetch = globalThis.fetch;
+    let resolveFetch;
+    const responseReady = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    globalThis.fetch = async () => {
+      await responseReady;
+      return new Response("[]", {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    };
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await el.updateComplete;
+      const add = el.renderRoot.querySelector(".saved-footer .saved-button");
+      expect(add.disabled).to.equal(true);
+      resolveFetch();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".saved-footer .saved-button").disabled).to.equal(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("clears stale saved-search errors on cached reopen", async () => {
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    await el.updateComplete;
+    el.savedSearches = [{ name: "Cached", query: "tag:cached", pinned: true }];
+    el.savedSearchesError = "Previous failure";
+    el._savedSearchesLoaded = true;
+    await el._loadSavedSearches();
+    expect(el.savedSearchesError).to.equal("");
+    expect(el.savedSearchDrafts[0].name).to.equal("Cached");
+  });
+
+  it("does not overwrite dirty drafts on cached saved-search reload", async () => {
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    await el.updateComplete;
+    el.savedSearches = [{ name: "Cached", query: "tag:cached", pinned: true }];
+    el.savedSearchDrafts = [{ name: "Dirty", query: "tag:dirty", pinned: true }];
+    el.savedSearchesDirty = true;
+    el._savedSearchesLoaded = true;
+    await el._loadSavedSearches();
+    expect(el.savedSearchDrafts[0].name).to.equal("Dirty");
+  });
+
+  it("opening saved-search management closes the sort menu", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("[]", {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
+      el.renderRoot.querySelector(".manage-saved").click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+      expect(el.renderRoot.querySelector('[role="dialog"]')).to.exist;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("close button restores focus and discards dirty saved-search drafts", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(
+      JSON.stringify([{ name: "Close me", query: "tag:close", pinned: true }]),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    try {
+      await el.updateComplete;
+      const manage = el.renderRoot.querySelector(".manage-saved");
+      manage.click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      await waitForMicrotasks();
+      await el.updateComplete;
+      const nameInput = el.renderRoot.querySelector('input[aria-label="Saved search name"]');
+      nameInput.value = "Unsaved";
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      await el.updateComplete;
+      el.renderRoot.querySelector('button[aria-label="Close saved searches"]').click();
+      await el.updateComplete;
+      await waitForMicrotasks();
+      expect(el.renderRoot.activeElement).to.equal(manage);
+      expect(el.savedSearchesDirty).to.equal(false);
+      expect(el.savedSearchDrafts[0].name).to.equal("Close me");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("Refresh click emits wavy-search-refresh-requested (B.11)", async () => {
@@ -461,16 +1077,161 @@ describe("<wavy-search-rail>", () => {
       const filter = el.renderRoot.querySelector('[data-digest-action="filter"]');
       expect(refresh.getAttribute("aria-label")).to.equal("Refresh search results");
       expect(sort.getAttribute("aria-label")).to.equal("Sort waves");
+      expect(sort.getAttribute("aria-haspopup")).to.equal("menu");
+      expect(sort.getAttribute("aria-controls")).to.equal("wavy-search-sort-menu");
       expect(filter.getAttribute("aria-label")).to.equal("Filter waves");
     });
 
-    it("Sort button click emits wavy-search-sort-requested", async () => {
+    it("Sort button opens options and applying one submits an orderby query", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:datedesc"></wavy-search-rail>`);
+      await el.updateComplete;
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      sort.click();
+      await el.updateComplete;
+      const createdOldest = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
+      expect(createdOldest, "created oldest sort option mounts").to.exist;
+      setTimeout(() => createdOldest.click(), 0);
+      const evt = await oneEvent(el, "wavy-search-submit");
+      expect(evt.detail.query).to.equal("in:inbox orderby:createdasc");
+      await el.updateComplete;
+      await waitForMicrotasks();
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+      expect(el.renderRoot.activeElement).to.equal(sort);
+    });
+
+    it("applying the default sort writes an explicit orderby token", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:dateasc"></wavy-search-rail>`);
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
+      await el.updateComplete;
+      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
+      expect(newestActivity.getAttribute("aria-checked")).to.equal("false");
+      expect(newestActivity.hasAttribute("aria-current")).to.equal(false);
+      setTimeout(() => newestActivity.click(), 0);
+      const evt = await oneEvent(el, "wavy-search-submit");
+      expect(evt.detail.query).to.equal("in:inbox orderby:datedesc");
+    });
+
+    it("default sort option shows aria-checked=true when query has no orderby token", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
+      await el.updateComplete;
+      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
+      const oldest = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
+      expect(newestActivity.getAttribute("aria-checked")).to.equal("true");
+      expect(oldest.getAttribute("aria-checked")).to.equal("false");
+    });
+
+    it("choosing the implicit default sort with no orderby closes without re-submitting", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
+      await el.updateComplete;
+      let submitCount = 0;
+      let sortRequestedCount = 0;
+      el.addEventListener("wavy-search-submit", () => {
+        submitCount += 1;
+      });
+      el.addEventListener("wavy-search-sort-requested", () => {
+        sortRequestedCount += 1;
+      });
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      sort.click();
+      await el.updateComplete;
+      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
+      newestActivity.click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.query).to.equal("in:inbox");
+      expect(submitCount).to.equal(0);
+      expect(sortRequestedCount).to.equal(0);
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+      expect(el.renderRoot.activeElement).to.equal(sort);
+    });
+
+    it("focuses the explicitly checked sort option when reopening the menu", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:createdasc"></wavy-search-rail>`);
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
+      await el.updateComplete;
+      await waitForMicrotasks();
+      const selected = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
+      const unchecked = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
+      expect(selected.getAttribute("aria-checked")).to.equal("true");
+      expect(unchecked.getAttribute("aria-checked")).to.equal("false");
+      expect(el.renderRoot.activeElement).to.equal(selected);
+    });
+
+    it("choosing the current sort closes the menu without re-submitting", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:datedesc"></wavy-search-rail>`);
+      await el.updateComplete;
+      let submitCount = 0;
+      let sortRequestedCount = 0;
+      el.addEventListener("wavy-search-submit", () => {
+        submitCount += 1;
+      });
+      el.addEventListener("wavy-search-sort-requested", () => {
+        sortRequestedCount += 1;
+      });
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      sort.click();
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]').click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(submitCount).to.equal(0);
+      expect(sortRequestedCount).to.equal(0);
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+      expect(el.renderRoot.activeElement).to.equal(sort);
+    });
+
+    it("Escape and outside click close the sort menu", async () => {
       const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
       await el.updateComplete;
       const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      setTimeout(() => sort.click(), 0);
-      const evt = await oneEvent(el, "wavy-search-sort-requested");
-      expect(evt).to.exist;
+      sort.click();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+
+      sort.click();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
+      document.body.click();
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+    });
+
+    it("focus leaving the sort menu closes it", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      sort.click();
+      await el.updateComplete;
+      const menu = el.renderRoot.querySelector(".sort-menu");
+      const filter = el.renderRoot.querySelector('[data-digest-action="filter"]');
+      menu.dispatchEvent(new FocusEvent("focusout", {
+        bubbles: true,
+        composed: true,
+        relatedTarget: filter
+      }));
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+    });
+
+    it("Arrow keys move through sort options", async () => {
+      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+      await el.updateComplete;
+      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
+      await el.updateComplete;
+      const menu = el.renderRoot.querySelector(".sort-menu");
+      const options = Array.from(menu.querySelectorAll(".sort-option"));
+      options[0].focus();
+      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      expect(el.renderRoot.activeElement).to.equal(options[1]);
+      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+      expect(el.renderRoot.activeElement).to.equal(options[options.length - 1]);
     });
 
     it("Filter button click toggles the chip strip open and emits an event", async () => {

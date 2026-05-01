@@ -200,6 +200,20 @@ public final class J2clSearchRailParityTest {
     assertTrue(
         "Rail defaults to data-active-folder=inbox",
         html.contains("data-active-folder=\"inbox\""));
+    assertTrue(
+        "J2CL rail opts in to saved-search autoload for pinned custom searches",
+        html.contains("autoload-saved-searches"));
+  }
+
+  @Test
+  public void readSurfacePreviewRailDoesNotAutoloadSavedSearches() throws Exception {
+    String html = renderReadSurfacePreviewShell();
+    assertTrue(
+        "Read-surface preview keeps the search rail mounted for visual parity",
+        html.contains("<wavy-search-rail "));
+    assertFalse(
+        "Read-surface preview is a static fixture and must not fetch /searches",
+        html.contains("autoload-saved-searches"));
   }
 
   /**
@@ -597,6 +611,13 @@ public final class J2clSearchRailParityTest {
     return invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise());
   }
 
+  private static String renderReadSurfacePreviewShell() throws Exception {
+    WaveletProvider provider = providerForWave(buildWaveletData(6));
+    J2clSelectedWaveSnapshotRenderer renderer = new J2clSelectedWaveSnapshotRenderer(provider);
+    WaveClientServlet servlet = createServlet(VIEWER, renderer);
+    return invokeServlet(servlet, "j2cl-root", WAVE_ID.serialise(), "read-surface-preview");
+  }
+
   private static WaveClientServlet createServletWithRailCardsFlag(
       ParticipantId user, J2clSelectedWaveSnapshotRenderer snapshotRenderer) throws Exception {
     Config config = ConfigFactory.parseString(
@@ -797,12 +818,18 @@ public final class J2clSearchRailParityTest {
 
   private static String invokeServlet(WaveClientServlet servlet, String view, String waveId)
       throws Exception {
+    return invokeServlet(servlet, view, waveId, null);
+  }
+
+  private static String invokeServlet(
+      WaveClientServlet servlet, String view, String waveId, String query) throws Exception {
     HttpServletRequest request = mock(HttpServletRequest.class);
     HttpServletResponse response = mock(HttpServletResponse.class);
     StringWriter body = new StringWriter();
     when(request.getParameter("view")).thenReturn(view);
     when(request.getParameterValues("view")).thenReturn(new String[]{view});
     when(request.getParameter("wave")).thenReturn(waveId);
+    when(request.getParameter("q")).thenReturn(query);
     when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));
     when(response.getWriter()).thenReturn(new PrintWriter(body));

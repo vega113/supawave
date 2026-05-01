@@ -1112,15 +1112,40 @@ describe("<wavy-search-rail>", () => {
       expect(evt.detail.query).to.equal("in:inbox orderby:datedesc");
     });
 
-    it("choosing the default sort with no orderby writes an explicit token", async () => {
+    it("default sort option shows aria-checked=true when query has no orderby token", async () => {
       const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
       await el.updateComplete;
       el.renderRoot.querySelector('[data-digest-action="sort"]').click();
       await el.updateComplete;
       const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
-      setTimeout(() => newestActivity.click(), 0);
-      const evt = await oneEvent(el, "wavy-search-submit");
-      expect(evt.detail.query).to.equal("in:inbox orderby:datedesc");
+      const oldest = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
+      expect(newestActivity.getAttribute("aria-checked")).to.equal("true");
+      expect(oldest.getAttribute("aria-checked")).to.equal("false");
+    });
+
+    it("choosing the implicit default sort with no orderby closes without re-submitting", async () => {
+      const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
+      await el.updateComplete;
+      let submitCount = 0;
+      let sortRequestedCount = 0;
+      el.addEventListener("wavy-search-submit", () => {
+        submitCount += 1;
+      });
+      el.addEventListener("wavy-search-sort-requested", () => {
+        sortRequestedCount += 1;
+      });
+      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
+      sort.click();
+      await el.updateComplete;
+      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
+      newestActivity.click();
+      await waitForMicrotasks();
+      await el.updateComplete;
+      expect(el.query).to.equal("in:inbox");
+      expect(submitCount).to.equal(0);
+      expect(sortRequestedCount).to.equal(0);
+      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
+      expect(el.renderRoot.activeElement).to.equal(sort);
     });
 
     it("focuses the explicitly checked sort option when reopening the menu", async () => {

@@ -781,7 +781,8 @@ export class WavySearchRail extends LitElement {
 
   _applySort(sort) {
     const explicitSort = this._explicitSortToken().toLowerCase();
-    if (explicitSort && explicitSort === sort.token.toLowerCase()) {
+    const sortToken = sort.token.toLowerCase();
+    if ((explicitSort && explicitSort === sortToken) || (!explicitSort && sort.default)) {
       this._setSortOpen(false);
       this._focusSortTrigger();
       return;
@@ -1080,6 +1081,10 @@ export class WavySearchRail extends LitElement {
 
   render() {
     const explicitSort = this._explicitSortToken().toLowerCase();
+    const defaultSort = (
+      WavySearchRail.SORTS.find((sort) => sort.default) || WavySearchRail.SORTS[0]
+    ).token.toLowerCase();
+    const effectiveSort = explicitSort || defaultSort;
     const pinnedSearches = this.savedSearches.filter((item) => item.pinned);
     return html`
       <div class="search">
@@ -1146,12 +1151,12 @@ export class WavySearchRail extends LitElement {
                     type="button"
                     class="sort-option"
                     role="menuitemradio"
-                    aria-checked=${explicitSort === sort.token.toLowerCase() ? "true" : "false"}
+                    aria-checked=${effectiveSort === sort.token.toLowerCase() ? "true" : "false"}
                     data-sort-token=${sort.token}
                     @click=${() => this._applySort(sort)}
                   >
                     <span>${sort.label}</span>
-                    ${explicitSort === sort.token.toLowerCase() ? html`<span aria-hidden="true">✓</span>` : null}
+                    ${effectiveSort === sort.token.toLowerCase() ? html`<span aria-hidden="true">✓</span>` : null}
                   </button>
                 `)}
               </div>`

@@ -1380,6 +1380,122 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderBlipTextRendersInlineAnchorAtMentionStartBoundary() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // Mention starts at offset 3; anchor is also at offset 3 (mention-start boundary).
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(3, 9, "alice@example.com", "@Alice"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hi @Alice reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 15,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+boundary", 3)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Boundary reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+boundary",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+boundary']");
+    Assert.assertNotNull(
+        "Anchor at mention-start offset must be rendered even when mention occupies same position",
+        anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside anchor at its start offset",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+  }
+
+  @Test
+  public void renderBlipTextRendersInlineAnchorAtEndOfTextWithMentions() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // "Hello @Al" length=9; mention covers [6,9]; anchor at offset 9 (end of text).
+    renderer.setMentionBinder(
+        blipId ->
+            "b+root".equals(blipId)
+                ? Arrays.asList(new J2clMentionRange(6, 9, "alice@example.com", "@Al"))
+                : Collections.<J2clMentionRange>emptyList());
+
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "Hello @Al",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 9,
+            /* isTask= */ false,
+            Arrays.asList(new J2clInlineReplyAnchor("t+eot", 9)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "End-of-text reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+eot",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList());
+
+    HTMLElement blipEl = blip(host, "b+root");
+    HTMLElement anchor =
+        (HTMLElement) blipEl.querySelector("[data-inline-reply-anchor-thread-id='t+eot']");
+    Assert.assertNotNull(
+        "Anchor at end-of-text offset must be rendered even when all text is consumed by mentions",
+        anchor);
+    Assert.assertNotNull(
+        "Mention chip must still render alongside end-of-text anchor",
+        blipEl.querySelector("[data-j2cl-read-mention='true']"));
+  }
+
+  @Test
   public void openAndDownloadLinksEmitClickTelemetry() {
     assumeBrowserDom();
     RecordingTelemetrySink telemetry = new RecordingTelemetrySink();

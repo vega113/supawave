@@ -1215,9 +1215,7 @@ public final class J2clReadSurfaceDomRenderer {
       if (start < cursor || end <= start) {
         continue;
       }
-      if (start > cursor) {
-        appendTextSegmentWithAnchors(content, safeText, cursor, start, sortedAnchors);
-      }
+      appendTextSegmentWithAnchors(content, safeText, cursor, start, sortedAnchors);
       HTMLElement chip = (HTMLElement) DomGlobal.document.createElement("span");
       chip.className = "j2cl-read-mention-chip";
       chip.setAttribute("data-j2cl-read-mention", "true");
@@ -1229,9 +1227,7 @@ public final class J2clReadSurfaceDomRenderer {
       cursor = end;
       renderedMention = true;
     }
-    if (cursor < safeText.length()) {
-      appendTextSegmentWithAnchors(content, safeText, cursor, safeText.length(), sortedAnchors);
-    }
+    appendTextSegmentWithAnchors(content, safeText, cursor, safeText.length(), sortedAnchors);
     if (renderedMention) {
       content.setAttribute("data-has-rendered-mentions", "true");
     }
@@ -1246,7 +1242,7 @@ public final class J2clReadSurfaceDomRenderer {
     int cursor = from;
     for (J2clInlineReplyAnchor anchor : sortedAnchors) {
       int offset = normalizedAnchorOffset(safeText, anchor);
-      if (offset < from || offset >= to) {
+      if (offset < from || offset > to) {
         continue;
       }
       if (offset > cursor) {

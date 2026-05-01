@@ -105,9 +105,11 @@ public final class J2clAttachmentRenderModel {
     // matching GWT's AttachmentDisplayLayout.SourceKind.ATTACHMENT path. Small previews and
     // non-image attachments prefer the thumbnail URL with a fallback to the attachment URL,
     // matching GWT's SourceKind.THUMBNAIL path.
-    String sourceUrl = inlineImage
-        ? safeUrl(metadata.getAttachmentUrl())
-        : firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
+    String sourceUrl =
+        inlineImage
+            ? safeUrl(metadata.getAttachmentUrl())
+            : firstNonEmpty(
+                safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
 
     return new J2clAttachmentRenderModel(
         normalizedAttachmentId,

@@ -161,12 +161,12 @@ public class J2clAttachmentRenderModelTest {
   }
 
   @Test
-  public void unsafeThumbnailFallsBackToSafeAttachmentPreview() {
+  public void unsafeSmallThumbnailFallsBackToSafeAttachmentPreview() {
     J2clAttachmentRenderModel model =
         J2clAttachmentRenderModel.fromMetadata(
             "example.com/att+fallback",
             "Fallback",
-            "medium",
+            "small",
             metadata(
                 "example.com/att+fallback",
                 "fallback.png",
@@ -176,7 +176,8 @@ public class J2clAttachmentRenderModelTest {
                 new J2clAttachmentMetadata.ImageMetadata(640, 480),
                 false));
 
-    Assert.assertTrue(model.isInlineImage());
+    Assert.assertFalse(model.isInlineImage());
+    Assert.assertEquals("small", model.getDisplaySize());
     Assert.assertEquals("/attachment/example.com/att+fallback", model.getSourceUrl());
     Assert.assertEquals("/attachment/example.com/att+fallback", model.getOpenUrl());
   }

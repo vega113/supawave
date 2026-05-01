@@ -1,10 +1,10 @@
-# J2CL Attachment Thumbnail Parity Implementation Plan
+# J2CL Attachment Display-Size Parity Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make J2CL read-surface attachments respect GWT-compatible thumbnail and small/medium/large display-size bounds.
+**Goal:** Make J2CL read-surface attachments respect GWT-compatible source selection and small/medium/large display-size bounds.
 
-**Architecture:** The Java read renderer already emits `data-display-size` and attachment classes, and `J2clAttachmentRenderModel` already chooses thumbnail URLs for small/card attachments. The missing parity layer is CSS and explicit renderer hooks that cap preview images the same way GWT `Thumbnail.css` caps `.display-size-small|medium|large .itimg`: 120x80, 300x200, 600x400.
+**Architecture:** The Java read renderer already emits `data-display-size` and attachment classes. GWT `AttachmentDisplayLayout.decide()` uses attachment URLs for medium/large inline images and thumbnail URLs for small tiles or non-image attachment cards. The missing parity layer is CSS and explicit renderer hooks that cap preview images the same way GWT `Thumbnail.css` caps `.display-size-small|medium|large .itimg`: 120x80, 300x200, 600x400.
 
 **Tech Stack:** J2CL Java renderer tests, Lit/static CSS in `j2cl/src/main/webapp/assets/sidecar.css`, SBT verification, changelog fragments.
 
@@ -20,7 +20,7 @@
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRendererTest.java`
   - Adds/extends DOM tests for image preview source and display-size attributes.
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModelTest.java`
-  - Updates model expectation so medium/large inline images use thumbnails as the preview source and keep the full attachment URL only for open/download.
+  - Updates model expectation so medium/large inline images use attachment URLs as the preview source while small/card attachments use thumbnails with safe attachment fallback.
 - Create: `wave/config/changelog.d/2026-05-01-j2cl-attachment-thumbnail-parity.json`
   - New user-facing changelog fragment. Do not hand-edit `wave/config/changelog.json`; assemble/validate via scripts.
 
@@ -30,14 +30,14 @@
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModelTest.java`
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRendererTest.java`
 
-- [ ] **Step 1: Change the model test to expect thumbnail previews for medium images**
+- [ ] **Step 1: Change the model test to expect GWT-compatible medium image sources**
 
-In `mediumImageUsesOriginalAttachmentUrl`, change the test name to `mediumImageUsesThumbnailPreviewAndAttachmentOpenUrl` and assert:
+In `mediumImageUsesOriginalAttachmentUrl`, change the test name to `mediumInlineImageUsesAttachmentUrlForBothPreviewAndOpen` and assert:
 
 ```java
 Assert.assertTrue(model.isInlineImage());
 Assert.assertEquals("medium", model.getDisplaySize());
-Assert.assertEquals("/thumbnail/example.com/att+hero", model.getSourceUrl());
+Assert.assertEquals("/attachment/example.com/att+hero", model.getSourceUrl());
 Assert.assertEquals("/attachment/example.com/att+hero", model.getOpenUrl());
 Assert.assertEquals("/attachment/example.com/att+hero", model.getDownloadUrl());
 ```
@@ -47,17 +47,17 @@ Assert.assertEquals("/attachment/example.com/att+hero", model.getDownloadUrl());
 In `renderWindowEntriesIncludeKeyboardReachableAttachmentControls`, after `Assert.assertNotNull(tile.querySelector("img"));`, bind `HTMLElement preview = (HTMLElement) tile.querySelector("img");` and assert:
 
 ```java
-Assert.assertEquals("/thumbnail/example.com/att+hero", preview.getAttribute("src"));
+Assert.assertEquals("/attachment/example.com/att+hero", preview.getAttribute("src"));
 Assert.assertEquals("medium", preview.getAttribute("data-display-size"));
 ```
 
 - [ ] **Step 3: Add a large image renderer test**
 
-Add a test named `largeImagePreviewUsesThumbnailAndDataDisplaySize`:
+Add a test named `largeInlineImageUsesAttachmentUrlAndDataDisplaySize`:
 
 ```java
 @Test
-public void largeImagePreviewUsesThumbnailAndDataDisplaySize() {
+public void largeInlineImageUsesAttachmentUrlAndDataDisplaySize() {
   assumeBrowserDom();
   HTMLDivElement host = createHost();
   J2clAttachmentRenderModel attachment =
@@ -85,7 +85,7 @@ public void largeImagePreviewUsesThumbnailAndDataDisplaySize() {
       (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+large']");
   HTMLElement preview = (HTMLElement) tile.querySelector(".j2cl-read-attachment-preview");
   Assert.assertEquals("large", tile.getAttribute("data-display-size"));
-  Assert.assertEquals("/thumbnail/example.com/att+large", preview.getAttribute("src"));
+  Assert.assertEquals("/attachment/example.com/att+large", preview.getAttribute("src"));
   Assert.assertEquals("large", preview.getAttribute("data-display-size"));
 }
 ```
@@ -98,21 +98,23 @@ Run:
 sbt --batch 'testOnly org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModelTest' 'testOnly org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRendererTest'
 ```
 
-Expected: fail because medium/large previews still use `/attachment/...` and preview images do not carry the selected display-size metadata.
+Expected: fail because preview images do not carry the selected display-size metadata and CSS does not yet enforce GWT-compatible bounds.
 
-## Task 2: Implement Thumbnail Preview Selection And Cap Metadata
+## Task 2: Implement GWT Source Selection And Cap Metadata
 
 **Files:**
 - Modify: `j2cl/src/main/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModel.java`
 - Modify: `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
 
-- [ ] **Step 1: Keep full URL for open/download, thumbnail URL for preview**
+- [ ] **Step 1: Match GWT preview source selection**
 
-In `J2clAttachmentRenderModel.fromMetadata`, replace inline-image source selection with thumbnail-first preview selection:
+In `J2clAttachmentRenderModel.fromMetadata`, use attachment URLs for medium/large inline images, and thumbnail-first fallback for small/card attachments:
 
 ```java
 String sourceUrl =
-    firstNonEmpty(metadata.getThumbnailUrl(), metadata.getAttachmentUrl());
+    inlineImage
+        ? safeUrl(metadata.getAttachmentUrl())
+        : firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
 ```
 
 Keep `openUrl` and `downloadUrl` as `metadata.getAttachmentUrl()`.
@@ -201,13 +203,13 @@ Create:
   "releaseId": "2026-05-01-j2cl-attachment-thumbnail-parity",
   "version": "Issue #1166",
   "date": "2026-05-01",
-  "title": "J2CL attachment thumbnail parity",
-  "summary": "Aligns J2CL attachment previews with GWT thumbnail and display-size behavior.",
+  "title": "J2CL attachment display-size parity",
+  "summary": "Aligns J2CL attachment previews with GWT source selection and display-size behavior.",
   "sections": [
     {
       "type": "fix",
       "items": [
-        "Uses thumbnail previews for J2CL read-surface image attachments while keeping full-size attachment URLs for open and download actions.",
+        "Uses GWT-compatible preview sources: attachment URLs for medium and large inline images, and thumbnail URLs for small tiles and attachment cards.",
         "Caps J2CL small, medium, and large attachment previews to GWT-compatible dimensions so oversized images do not break the wave panel."
       ]
     }
@@ -241,11 +243,11 @@ Browser verify against `/?view=j2cl-root` by injecting/rendering a J2CL attachme
 - small preview maxes at 120x80
 - medium preview maxes at 300x200
 - large preview maxes at 600x400 and never exceeds panel width
-- preview `src` uses `/thumbnail/`, open/download links keep `/attachment/`
+- preview `src` matches GWT source selection: `/attachment/` for medium/large inline images, `/thumbnail/` for small/card previews when available
 
 ## Self-Review
 
-- Spec coverage: The plan covers thumbnail source selection, display-size bounds, oversized image containment, tests, changelog, and browser/manual evidence.
+- Spec coverage: The plan covers GWT-compatible source selection, display-size bounds, oversized image containment, tests, changelog, and browser/manual evidence.
 - Scope control: The plan does not touch upload flow, metadata fetch authorization, attachment storage, or #1167 thread behavior.
 - Placeholder scan: No TBD/TODO placeholders remain. Browser verification has concrete acceptance bullets because the exact local wave may vary.
 - Type consistency: Java tests and renderer code use existing classes and helper names already present in the codebase.

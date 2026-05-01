@@ -45,7 +45,7 @@ describe("<shell-root>", () => {
   it("keyboard resizing updates and persists the search rail width", async () => {
     window.localStorage.removeItem("j2cl.searchRailWidth");
     const el = await fixture(html`
-      <shell-root style="--j2cl-search-rail-width: 296px">
+      <shell-root style="--j2cl-search-rail-width: 376px">
         <button slot="splitter" id="search-splitter">resize</button>
       </shell-root>
     `);
@@ -55,8 +55,8 @@ describe("<shell-root>", () => {
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
     );
 
-    expect(el.style.getPropertyValue("--j2cl-search-rail-width")).to.equal("312px");
-    expect(window.localStorage.getItem("j2cl.searchRailWidth")).to.equal("312");
+    expect(el.style.getPropertyValue("--j2cl-search-rail-width")).to.equal("392px");
+    expect(window.localStorage.getItem("j2cl.searchRailWidth")).to.equal("392");
   });
 
   it("document wave-controls toggle switches compact mode on the shell", async () => {

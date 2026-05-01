@@ -121,6 +121,7 @@ export class ShellStatusStrip extends LitElement {
       <aside role="status" aria-live="polite">
         <span
           class="chip"
+          role="img"
           data-status-chip="connection"
           data-state=${this.connectionState}
           aria-label=${this._connectionLabel()}
@@ -128,6 +129,7 @@ export class ShellStatusStrip extends LitElement {
         ></span>
         <span
           class="chip"
+          role="img"
           data-status-chip="saved"
           data-state=${this.saveState}
           aria-label=${this._saveLabel()}
@@ -135,6 +137,7 @@ export class ShellStatusStrip extends LitElement {
         ></span>
         <span
           class="chip"
+          role="img"
           data-status-chip="route"
           data-state=${this.routeState}
           aria-label=${this._routeLabel()}

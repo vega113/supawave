@@ -5,8 +5,8 @@ import { closeTopmostDialog } from "../shortcuts/dialog-stack.js";
 
 export class ShellRoot extends LitElement {
   static RESIZE_STORAGE_KEY = "j2cl.searchRailWidth";
-  static MIN_RAIL_WIDTH = 260;
-  static MAX_RAIL_WIDTH = 420;
+  static MIN_RAIL_WIDTH = 360;
+  static MAX_RAIL_WIDTH = 400;
   static RAIL_STEP = 16;
 
   static styles = css`
@@ -149,11 +149,18 @@ export class ShellRoot extends LitElement {
     if (!this._resizeStart) return;
     this._setRailWidth(
       this._resizeStart.width + (evt.clientX - this._resizeStart.x),
-      this._resizeStart.splitter
+      this._resizeStart.splitter,
+      false
     );
   }
 
   _onResizePointerUp() {
+    if (this._resizeStart && typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(
+        ShellRoot.RESIZE_STORAGE_KEY,
+        String(Math.round(this._currentRailWidth()))
+      );
+    }
     this._stopResizeTracking();
   }
 
@@ -186,13 +193,17 @@ export class ShellRoot extends LitElement {
     return 296;
   }
 
-  _setRailWidth(width, splitter = null) {
+  _setRailWidth(width, splitter = null, persist = true) {
     const next = Math.round(this._clampRailWidth(width));
     this.style.setProperty("--j2cl-search-rail-width", `${next}px`);
     if (splitter && splitter.setAttribute) {
       splitter.setAttribute("aria-valuenow", String(next));
+    } else {
+      this.querySelectorAll('[slot="splitter"]').forEach(el => {
+        el.setAttribute("aria-valuenow", String(next));
+      });
     }
-    if (typeof window !== "undefined" && window.localStorage) {
+    if (persist && typeof window !== "undefined" && window.localStorage) {
       window.localStorage.setItem(ShellRoot.RESIZE_STORAGE_KEY, String(next));
     }
   }

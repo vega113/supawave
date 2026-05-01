@@ -432,6 +432,88 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderPlacesMultipleAnchoredThreadsInTextOffsetOrder() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "A B C",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 12,
+            /* isTask= */ false,
+            Arrays.asList(
+                new J2clInlineReplyAnchor("t+first", 2),
+                new J2clInlineReplyAnchor("t+second", 4)));
+    // Arrive in reverse order so naive append would place t+second before t+first.
+    J2clReadBlip replySecond =
+        new J2clReadBlip(
+            "b+second",
+            "Second reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240200000L,
+            "b+root",
+            "t+second",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+    J2clReadBlip replyFirst =
+        new J2clReadBlip(
+            "b+first",
+            "First reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "carol@example.com",
+            "Carol",
+            1714240100000L,
+            "b+root",
+            "t+first",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(root, replySecond, replyFirst), Collections.<String>emptyList()));
+
+    HTMLElement rootBlip = blip(host, "b+root");
+    HTMLElement firstThread =
+        (HTMLElement) rootBlip.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+first']");
+    HTMLElement secondThread =
+        (HTMLElement) rootBlip.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+second']");
+    Assert.assertNotNull(firstThread);
+    Assert.assertNotNull(secondThread);
+    // firstThread (offset 2) must appear before secondThread (offset 4) in DOM order.
+    int firstIdx = -1, secondIdx = -1, idx = 0;
+    Element child = rootBlip.firstElementChild;
+    while (child != null) {
+      if (child == firstThread) {
+        firstIdx = idx;
+      }
+      if (child == secondThread) {
+        secondIdx = idx;
+      }
+      idx++;
+      child = child.nextElementSibling;
+    }
+    Assert.assertTrue("t+first thread must precede t+second in DOM", firstIdx < secondIdx);
+    Assert.assertTrue("both threads must be children of rootBlip", firstIdx >= 0 && secondIdx >= 0);
+  }
+
+  @Test
   public void renderOmitsTaskAttributesWhenOpen() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

@@ -1868,7 +1868,7 @@ public final class J2clReadSurfaceDomRenderer {
       // Keep the mounted thread outside the default body slot so parent task
       // strikethrough/quiet-color styling does not decorate unrelated replies.
       threadHost.setAttribute("slot", "blip-extension");
-      parentBlipHost.appendChild(threadHost);
+      insertAnchoredThreadInOrder(parentBlipHost, threadHost, inlineAnchor);
       return;
     }
 
@@ -1895,6 +1895,37 @@ public final class J2clReadSurfaceDomRenderer {
     }
     if (parentBlipId != null && !parentBlipId.isEmpty()) {
       lastThreadHostByParent.put(parentBlipId, threadHost);
+    }
+  }
+
+  private static void insertAnchoredThreadInOrder(
+      HTMLElement parentBlipHost, HTMLElement threadHost, HTMLElement inlineAnchor) {
+    int offset = anchorOffset(inlineAnchor);
+    Element child = parentBlipHost.firstElementChild;
+    while (child != null) {
+      if ("blip-extension".equals(child.getAttribute("slot"))
+          && child.hasAttribute("data-inline-reply-anchor-thread-id")) {
+        String existingTid = child.getAttribute("data-inline-reply-anchor-thread-id");
+        HTMLElement existingAnchor = inlineReplyAnchorHost(parentBlipHost, existingTid);
+        if (existingAnchor != null && anchorOffset(existingAnchor) > offset) {
+          parentBlipHost.insertBefore(threadHost, child);
+          return;
+        }
+      }
+      child = child.nextElementSibling;
+    }
+    parentBlipHost.appendChild(threadHost);
+  }
+
+  private static int anchorOffset(HTMLElement anchorEl) {
+    String val = anchorEl.getAttribute("data-inline-reply-anchor-offset");
+    if (val == null || val.isEmpty()) {
+      return 0;
+    }
+    try {
+      return Integer.parseInt(val);
+    } catch (NumberFormatException e) {
+      return 0;
     }
   }
 

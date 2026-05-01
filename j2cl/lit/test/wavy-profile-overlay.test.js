@@ -68,6 +68,27 @@ describe("<wavy-profile-overlay>", () => {
     expect(el.index).to.equal(0);
   });
 
+  it("opening with an unknown authorId renders a meaningful participant badge", async () => {
+    const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+    el.participants = PARTICIPANTS;
+    await el.updateComplete;
+    document.dispatchEvent(
+      new CustomEvent("wave-blip-profile-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { authorId: "ghost@example.com" }
+      })
+    );
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector(".name").textContent.trim()).to.equal(
+      "ghost@example.com"
+    );
+    expect(el.renderRoot.querySelector(".pid").textContent.trim()).to.equal(
+      "ghost@example.com"
+    );
+  });
+
   it("opening fires wavy-profile-overlay-opened with the trigger authorId", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = PARTICIPANTS;
@@ -277,7 +298,7 @@ describe("<wavy-profile-overlay>", () => {
     expect(prev.hasAttribute("disabled")).to.equal(true);
     expect(next.hasAttribute("disabled")).to.equal(true);
     const name = el.renderRoot.querySelector(".name");
-    expect(name.textContent.trim()).to.equal("Unknown participant");
+    expect(name.textContent.trim()).to.equal("ghost@example.com");
   });
 
   it("renders <img> avatar when participant has avatarUrl, otherwise initials", async () => {

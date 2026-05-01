@@ -181,6 +181,7 @@ export class WavyProfileOverlay extends LitElement {
     this.index = 0;
     this.currentUserId = "";
     this.editProfileUrl = "/userprofile/edit";
+    this._fallbackParticipant = null;
     this._onAvatarRequest = this._onAvatarRequest.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -297,11 +298,17 @@ export class WavyProfileOverlay extends LitElement {
     if (authorId) {
       const found = list.findIndex((p) => p && p.id === authorId);
       if (found >= 0) {
+        this._fallbackParticipant = null;
         this.index = found;
       } else {
+        this._fallbackParticipant = {
+          id: String(authorId),
+          displayName: String(authorId)
+        };
         this.index = 0;
       }
     } else {
+      this._fallbackParticipant = null;
       this.index = 0;
     }
     this.open = true;
@@ -315,6 +322,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   open_(index) {
+    this._fallbackParticipant = null;
     if (typeof index === "number") {
       const list = Array.isArray(this.participants) ? this.participants : [];
       const max = list.length > 0 ? list.length - 1 : 0;
@@ -444,7 +452,11 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   render() {
-    const list = Array.isArray(this.participants) ? this.participants : [];
+    const participantList = Array.isArray(this.participants) ? this.participants : [];
+    const list =
+      this._fallbackParticipant
+          ? [this._fallbackParticipant]
+          : participantList;
     const max = list.length > 0 ? list.length - 1 : 0;
     const idx = Math.min(Math.max(this.index || 0, 0), max);
     const current = list[idx] || null;

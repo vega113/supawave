@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-01-j2cl-participant-parity",
+  "version": "Issue #1164",
+  "date": "2026-05-01",
+  "title": "J2CL participant parity",
+  "summary": "Improves J2CL participant avatars, profile popup content, and add-participant suggestions toward GWT parity.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Renders selected-wave participants as avatar buttons instead of raw text.",
+        "Populates the participant profile overlay with selected-wave participants so profile cards show real participant identifiers.",
+        "Adds icon-style wave header actions and frequent-contact suggestions for adding participants."
+      ]
+    }
+  ]
+}

@@ -2,6 +2,8 @@ package org.waveprotocol.box.j2cl.search;
 
 import elemental2.core.JsArray;
 import elemental2.core.JsDate;
+import elemental2.dom.CustomEvent;
+import elemental2.dom.CustomEventInit;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Element.FocusOptionsType;
 import elemental2.dom.HTMLDivElement;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import jsinterop.annotations.JsFunction;
 import jsinterop.base.Js;
+import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
@@ -687,11 +690,8 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     status.textContent = model.getStatusText();
     status.hidden = !model.isError() && !isDebugOverlayOn();
     detail.textContent = model.getDetailText();
-    participantSummary.textContent =
-        model.getParticipantIds().isEmpty()
-            ? ""
-            : "Participants: " + String.join(", ", model.getParticipantIds());
-    participantSummary.hidden = model.getParticipantIds().isEmpty();
+    renderParticipantStrip(model.getParticipantIds());
+    publishProfileOverlayParticipants(model.getParticipantIds());
     snippet.textContent = model.getSnippetText();
     snippet.hidden = model.getSnippetText().isEmpty();
 
@@ -761,6 +761,98 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     setProperty(waveHeaderActions, "public", false);
     setProperty(waveHeaderActions, "lockState", "");
     setProperty(waveHeaderActions, "disabled", true);
+  }
+
+  private void renderParticipantStrip(List<String> participantIds) {
+    participantSummary.textContent = "";
+    participantSummary.setAttribute("role", "list");
+    if (participantIds == null || participantIds.isEmpty()) {
+      participantSummary.hidden = true;
+      return;
+    }
+    participantSummary.hidden = false;
+    for (String participantId : participantIds) {
+      String address = participantId == null ? "" : participantId.trim();
+      if (address.isEmpty()) {
+        continue;
+      }
+      HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
+      button.className = "sidecar-selected-participant-avatar";
+      button.setAttribute("type", "button");
+      button.setAttribute("role", "listitem");
+      button.setAttribute("data-selected-participant-avatar", "true");
+      button.setAttribute("data-participant-id", address);
+      button.setAttribute("aria-label", "Open " + address + " profile");
+      button.setAttribute("title", address);
+      button.textContent = participantInitials(address);
+      button.addEventListener("click", event -> dispatchParticipantProfileRequest(address));
+      participantSummary.appendChild(button);
+    }
+    participantSummary.hidden = participantSummary.childElementCount == 0;
+  }
+
+  private void publishProfileOverlayParticipants(List<String> participantIds) {
+    HTMLElement overlay = (HTMLElement) DomGlobal.document.querySelector("wavy-profile-overlay");
+    if (overlay == null) {
+      return;
+    }
+    Js.asPropertyMap(overlay).set("participants", buildParticipantProfileArray(participantIds));
+  }
+
+  private static JsArray<Object> buildParticipantProfileArray(List<String> participantIds) {
+    JsArray<Object> participants = JsArray.of();
+    if (participantIds == null) {
+      return participants;
+    }
+    for (String participantId : participantIds) {
+      String address = participantId == null ? "" : participantId.trim();
+      if (address.isEmpty()) {
+        continue;
+      }
+      JsPropertyMap<Object> participant = JsPropertyMap.of();
+      participant.set("id", address);
+      participant.set("displayName", address);
+      participant.set("avatarToken", participantInitials(address));
+      participants.push(participant);
+    }
+    return participants;
+  }
+
+  private void dispatchParticipantProfileRequest(String participantId) {
+    JsPropertyMap<Object> detail = JsPropertyMap.of();
+    detail.set("authorId", participantId);
+    CustomEventInit<Object> init = CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    init.setDetail(Js.cast(detail));
+    participantSummary.dispatchEvent(new CustomEvent<Object>("wave-blip-profile-requested", init));
+  }
+
+  private static String participantInitials(String participantId) {
+    String value = participantId == null ? "" : participantId.trim();
+    if (value.isEmpty()) {
+      return "?";
+    }
+    String local = value;
+    int at = local.indexOf('@');
+    if (at > 0) {
+      local = local.substring(0, at);
+    }
+    String[] parts = local.split("[^A-Za-z0-9]+");
+    StringBuilder initials = new StringBuilder(2);
+    for (String part : parts) {
+      if (part == null || part.isEmpty()) {
+        continue;
+      }
+      initials.append(Character.toUpperCase(part.charAt(0)));
+      if (initials.length() == 2) {
+        break;
+      }
+    }
+    if (initials.length() == 0) {
+      initials.append(Character.toUpperCase(value.charAt(0)));
+    }
+    return initials.toString();
   }
 
   private void publishWaveHeaderActions(J2clSelectedWaveModel model, String waveId) {

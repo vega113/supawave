@@ -56,6 +56,10 @@ describe("<wavy-wave-header-actions>", () => {
     expect(actionButton(el, "lock-toggle").getAttribute("aria-label")).to.equal(
       "Lock root blip"
     );
+    expect(actionButton(el, "add-participant").querySelector("svg")).to.exist;
+    expect(actionButton(el, "add-participant").textContent.trim()).to.equal(
+      "Add participant"
+    );
   });
 
   it("disables write buttons when no source wave is selected", async () => {
@@ -87,6 +91,46 @@ describe("<wavy-wave-header-actions>", () => {
     });
     expect(event.bubbles).to.be.true;
     expect(event.composed).to.be.true;
+  });
+
+  it("loads frequent-contact suggestions and appends selected contact to the draft", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      expect(String(url)).to.equal("/contacts?timestamp=0");
+      return {
+        ok: true,
+        async json() {
+          return {
+            contacts: [
+              { participant: "alice@example.com", score: 10 },
+              { participant: "carol@example.com", score: 8 }
+            ]
+          };
+        }
+      };
+    };
+    try {
+      const el = await createActions({ participants: ["alice@example.com"] });
+
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="alice@example.com"]')).to.not
+        .exist;
+      const suggestion = el.renderRoot.querySelector(
+        '[data-contact-suggestion="carol@example.com"]'
+      );
+      expect(suggestion).to.exist;
+      suggestion.click();
+      await el.updateComplete;
+
+      const input = el.renderRoot.querySelector('input[name="participant-addresses"]');
+      expect(input.value).to.equal("carol@example.com");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("starts a new wave with current participants excluding the shared-domain participant", async () => {

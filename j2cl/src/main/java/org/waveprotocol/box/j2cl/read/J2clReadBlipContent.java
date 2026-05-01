@@ -234,9 +234,15 @@ public final class J2clReadBlipContent {
     List<J2clInlineReplyAnchor> inlineReplyAnchors = new ArrayList<J2clInlineReplyAnchor>();
     StringBuilder tagBuf = new StringBuilder();
     boolean insideTag = false;
+    // Track entity boundaries to compute decoded length without re-scanning stripped each time.
+    // entityStart is the index in stripped where the current '&' was appended, or -1.
+    int entityStart = -1;
+    // Extra raw chars contributed by entities (each &xxx; has raw_len-1 overcount vs 1 decoded).
+    int entityOvercount = 0;
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
       if (c == '<') {
+        entityStart = -1;
         insideTag = true;
         tagBuf.setLength(0);
       } else if (c == '>' && insideTag) {
@@ -250,7 +256,7 @@ public final class J2clReadBlipContent {
           if (!threadId.isEmpty()) {
             inlineReplyAnchors.add(
                 new J2clInlineReplyAnchor(
-                    decodeEntities(threadId), decodedVisibleLength(stripped)));
+                    decodeEntities(threadId), stripped.length() - entityOvercount));
           }
         }
         tagBuf.setLength(0);
@@ -258,6 +264,13 @@ public final class J2clReadBlipContent {
         tagBuf.append(c);
       } else {
         stripped.append(c);
+        if (c == '&') {
+          entityStart = stripped.length() - 1;
+        } else if (c == ';' && entityStart >= 0) {
+          // Completed entity: raw length is (current_pos - entityStart), decoded length is 1.
+          entityOvercount += stripped.length() - 1 - entityStart;
+          entityStart = -1;
+        }
       }
     }
     return new StripResult(stripped.toString(), inlineReplyAnchors);
@@ -278,10 +291,6 @@ public final class J2clReadBlipContent {
         && (normalized.length() == 5
             || normalized.charAt(5) == '/'
             || Character.isWhitespace(normalized.charAt(5)));
-  }
-
-  private static int decodedVisibleLength(StringBuilder stripped) {
-    return decodeEntities(stripped.toString()).length();
   }
 
   private static final class StripResult {

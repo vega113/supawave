@@ -1138,8 +1138,8 @@ public final class J2clReadSurfaceDomRenderer {
       element.removeAttribute("data-inline-reply-anchors");
       return;
     }
-    element.setAttribute("data-inline-reply-anchor-count", String.valueOf(anchors.size()));
     StringBuilder serialized = new StringBuilder();
+    int validAnchorCount = 0;
     for (J2clInlineReplyAnchor anchor : anchors) {
       if (anchor == null || anchor.getThreadId().isEmpty()) {
         continue;
@@ -1148,10 +1148,13 @@ public final class J2clReadSurfaceDomRenderer {
         serialized.append(",");
       }
       serialized.append(anchor.getThreadId()).append("@").append(anchor.getTextOffset());
+      validAnchorCount++;
     }
-    if (serialized.length() > 0) {
+    if (validAnchorCount > 0) {
+      element.setAttribute("data-inline-reply-anchor-count", String.valueOf(validAnchorCount));
       element.setAttribute("data-inline-reply-anchors", serialized.toString());
     } else {
+      element.removeAttribute("data-inline-reply-anchor-count");
       element.removeAttribute("data-inline-reply-anchors");
     }
   }

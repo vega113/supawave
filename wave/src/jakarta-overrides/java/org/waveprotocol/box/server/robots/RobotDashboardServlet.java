@@ -824,7 +824,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Section 2: Registration Management Token (short-lived)
     sb.append("<div style=\"margin-bottom:28px\">");
     sb.append("<div class=\"sec-title\">Registration Management Token</div>");
-    sb.append("<div class=\"sec-desc\">Generate a <strong>short-lived token (1 hour)</strong> to manage robots on your behalf. Give this to an LLM (Google AI Studio, ChatGPT, Claude) along with the AI prompt so it can automatically register, configure, and deploy robots for you via the Registration API.</div>");
+    sb.append("<div class=\"sec-desc\">Generate a <strong>short-lived token</strong> to manage robots on your behalf. Give this to an LLM (Google AI Studio, ChatGPT, Claude) along with the AI prompt so it can automatically register, configure, and deploy robots for you via the Registration API.</div>");
     sb.append("<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px\">");
     sb.append("<div>");
     sb.append("<label class=\"fl\" style=\"margin-bottom:6px\">Token Lifetime</label>");
@@ -1264,7 +1264,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'- Build BOTH active + data mode for the most capable robot\\n'");
     sb.append("+'- Prefer expiry=3600 for robot JWTs; 0 preserves legacy no-expiry behavior\\n'");
     sb.append("+'- Refresh the token after any HTTP 401\\n'");
-    sb.append("+'- Management tokens expire in 1 hour (registration only)\\n'");
+    sb.append("+'- Management tokens expire per selected lifetime (registration only)\\n'");
     sb.append("+'- Callback URL must be set before requesting any robot tokens\\n'");
     sb.append("+'- Use rpcServerUrl from the event bundle when it is present\\n'");
     sb.append("+'- Read robotAddress from the bundle and treat missing threads as {}\\n'");

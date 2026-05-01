@@ -844,8 +844,6 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLElement preview = (HTMLElement) tile.querySelector("img");
     Assert.assertNotNull(preview);
     Assert.assertEquals("/thumbnail/example.com/att+hero", preview.getAttribute("src"));
-    Assert.assertEquals("300", preview.getAttribute("width"));
-    Assert.assertEquals("200", preview.getAttribute("height"));
     Assert.assertEquals("medium", preview.getAttribute("data-display-size"));
 
     HTMLElement open =
@@ -872,7 +870,7 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
-  public void largeImagePreviewCarriesGwtCompatibleBounds() {
+  public void largeImagePreviewUsesThumbnailAndDataDisplaySize() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
     J2clAttachmentRenderModel attachment =
@@ -901,8 +899,6 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLElement preview = (HTMLElement) tile.querySelector(".j2cl-read-attachment-preview");
     Assert.assertEquals("large", tile.getAttribute("data-display-size"));
     Assert.assertEquals("/thumbnail/example.com/att+large", preview.getAttribute("src"));
-    Assert.assertEquals("600", preview.getAttribute("width"));
-    Assert.assertEquals("400", preview.getAttribute("height"));
     Assert.assertEquals("large", preview.getAttribute("data-display-size"));
   }
 

@@ -1524,8 +1524,6 @@ public final class J2clReadSurfaceDomRenderer {
       preview.className = "j2cl-read-attachment-preview";
       preview.setAttribute("src", model.getSourceUrl());
       preview.setAttribute("data-display-size", displaySize);
-      preview.setAttribute("width", String.valueOf(attachmentPreviewWidth(displaySize)));
-      preview.setAttribute("height", String.valueOf(attachmentPreviewHeight(displaySize)));
       preview.setAttribute("referrerpolicy", "no-referrer");
       if (model.isInlineImage()) {
         preview.setAttribute("alt", model.getCaption());
@@ -1582,26 +1580,6 @@ public final class J2clReadSurfaceDomRenderer {
       attachment.appendChild(actions);
     }
     return attachment;
-  }
-
-  private static int attachmentPreviewWidth(String displaySize) {
-    if ("large".equals(displaySize)) {
-      return 600;
-    }
-    if ("medium".equals(displaySize)) {
-      return 300;
-    }
-    return 120;
-  }
-
-  private static int attachmentPreviewHeight(String displaySize) {
-    if ("large".equals(displaySize)) {
-      return 400;
-    }
-    if ("medium".equals(displaySize)) {
-      return 200;
-    }
-    return 80;
   }
 
   private HTMLElement renderAttachmentLink(

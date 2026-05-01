@@ -10,7 +10,7 @@
 
 ---
 
-### File Map
+## File Map
 
 - Modify: `j2cl/src/main/webapp/assets/sidecar.css`
   - Adds read-surface attachment layout and size caps for `.j2cl-read-attachment-preview` under `[data-display-size="small|medium|large"]`.
@@ -24,7 +24,7 @@
 - Create: `wave/config/changelog.d/2026-05-01-j2cl-attachment-thumbnail-parity.json`
   - New user-facing changelog fragment. Do not hand-edit `wave/config/changelog.json`; assemble/validate via scripts.
 
-### Task 1: Red Tests For Preview URL And Size Bounds
+## Task 1: Red Tests For Preview URL And Size Bounds
 
 **Files:**
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModelTest.java`
@@ -104,7 +104,7 @@ sbt --batch 'testOnly org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderM
 
 Expected: fail because medium/large previews still use `/attachment/...` and preview images do not carry cap attributes.
 
-### Task 2: Implement Thumbnail Preview Selection And Cap Metadata
+## Task 2: Implement Thumbnail Preview Selection And Cap Metadata
 
 **Files:**
 - Modify: `j2cl/src/main/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModel.java`
@@ -162,7 +162,7 @@ preview.setAttribute("height", String.valueOf(attachmentPreviewHeight(displaySiz
 
 Run the same focused tests from Task 1. Expected: pass.
 
-### Task 3: Add J2CL Attachment CSS Size Rules
+## Task 3: Add J2CL Attachment CSS Size Rules
 
 **Files:**
 - Modify: `j2cl/src/main/webapp/assets/sidecar.css`
@@ -219,7 +219,7 @@ Add:
 
 If no CSS test harness exists, rely on browser verification and `git diff --check`; do not invent a fragile parser.
 
-### Task 4: Changelog And Verification
+## Task 4: Changelog And Verification
 
 **Files:**
 - Create: `wave/config/changelog.d/2026-05-01-j2cl-attachment-thumbnail-parity.json`
@@ -275,7 +275,7 @@ Browser verify against `/?view=j2cl-root` by injecting/rendering a J2CL attachme
 - large preview maxes at 600x400 and never exceeds panel width
 - preview `src` uses `/thumbnail/`, open/download links keep `/attachment/`
 
-### Self-Review
+## Self-Review
 
 - Spec coverage: The plan covers thumbnail source selection, display-size bounds, oversized image containment, tests, changelog, and browser/manual evidence.
 - Scope control: The plan does not touch upload flow, metadata fetch authorization, attachment storage, or #1167 thread behavior.

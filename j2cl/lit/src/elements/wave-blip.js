@@ -317,6 +317,7 @@ export class WaveBlip extends LitElement {
     this.taskAssignee = "";
     this.taskDueDate = "";
     this.bodySize = 0;
+    this._taskPresent = false;
     this.blipDepth = "";
     this.threadCollapsed = false;
     this.dataBlipAuthor = "";
@@ -350,6 +351,16 @@ export class WaveBlip extends LitElement {
     }
     if (changedProperties.has("focused")) {
       this.dataBlipFocused = this.focused ? "true" : null;
+    }
+    // Once any task attribute arrives the affordance must stay mounted even
+    // if taskCompleted is later cleared by an optimistic reopen toggle.
+    if (
+      !this._taskPresent &&
+      (this.taskCompleted ||
+        String(this.taskAssignee || "").trim() ||
+        String(this.taskDueDate || "").trim())
+    ) {
+      this._taskPresent = true;
     }
     super.willUpdate(changedProperties);
   }
@@ -449,11 +460,7 @@ export class WaveBlip extends LitElement {
   }
 
   _hasTaskAffordance() {
-    return Boolean(
-      this.taskCompleted ||
-        String(this.taskAssignee || "").trim() ||
-        String(this.taskDueDate || "").trim()
-    );
+    return this._taskPresent;
   }
 
   _onAvatarClick(event) {
@@ -551,6 +558,8 @@ export class WaveBlip extends LitElement {
     // taskCompleted property so the strikethrough CSS updates immediately
     // without waiting for the model to round-trip through the server.
     this.taskCompleted = event.detail.completed;
+    // Keep presence flag set — reopening a task must not hide the affordance.
+    this._taskPresent = true;
   }
 
   _buildPermalink() {

@@ -407,6 +407,17 @@ describe("<wave-blip>", () => {
     expect(el.hasAttribute("data-task-completed")).to.equal(false);
   });
 
+  it("keeps task affordance mounted after an optimistic reopen toggle", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b21b" data-wave-id="w21b" data-task-completed></wave-blip>
+    `);
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
+    el.taskCompleted = false;
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
+  });
+
   it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
     const el = await fixture(html`
       <wave-blip

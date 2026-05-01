@@ -824,7 +824,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     // Section 2: Registration Management Token (short-lived)
     sb.append("<div style=\"margin-bottom:28px\">");
     sb.append("<div class=\"sec-title\">Registration Management Token</div>");
-    sb.append("<div class=\"sec-desc\">Generate a <strong>short-lived token</strong> to manage robots on your behalf. Give this to an LLM (Google AI Studio, ChatGPT, Claude) along with the AI prompt so it can automatically register, configure, and deploy robots for you via the Registration API.</div>");
+    sb.append("<div class=\"sec-desc\">Generate a <strong>short-lived token (expires per selected token lifetime)</strong> to manage robots on your behalf. Give this to an LLM (Google AI Studio, ChatGPT, Claude) along with the AI prompt so it can automatically register, configure, and deploy robots for you via the Registration API.</div>");
     sb.append("<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px\">");
     sb.append("<div>");
     sb.append("<label class=\"fl\" style=\"margin-bottom:6px\">Token Lifetime</label>");
@@ -877,7 +877,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"centered\">");
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--p)\" stroke-width=\"2\" stroke-linecap=\"round\" style=\"vertical-align:-3px;margin-right:6px\"><path d=\"M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z\"/></svg>Build a Robot with AI</div>");
-    sb.append("<div class=\"sec-desc\">The prompt includes a live management token (expires per selected lifetime) so your LLM can register robots immediately.</div>");
+    sb.append("<div class=\"sec-desc\">The prompt includes a live management token (1h) so your LLM can register robots immediately.</div>");
     // Action bar: Generate / Copy / status
     sb.append("<div style=\"display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap\">");
     sb.append("<button class=\"btn-p\" id=\"gen-prompt-btn\" onclick=\"generatePrompt()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4\"/></svg> Generate Prompt with Token</button>");
@@ -891,7 +891,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\">Getting Started</div>");
     sb.append("<ol class=\"steps\">");
-    sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (short-lived token)</li>");
+    sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (expires per selected token lifetime)</li>");
     sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude, etc.)</li>");
     sb.append("<li>The LLM writes a robot, deploys it, and registers it via the Management API using your token</li>");
     sb.append("<li>The robot receives a <strong>consumer secret</strong> at registration and uses <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 4px;border-radius:2px\">client_credentials</code> to mint its own short-lived Data API and Active API JWTs</li>");
@@ -1175,7 +1175,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'== Three APIs ==\\n'");
     sb.append("+'1. Registration Management API (REST) at /api/robots\\n'");
     sb.append("+'   - Register, configure, pause, delete robots\\n'");
-    sb.append("+'   - Uses the Management Token below (short-lived token)\\n'");
+    sb.append("+'   - Uses the Management Token below (expires per selected token lifetime)\\n'");
     sb.append("+'2. Data API (JSON-RPC) at /robot/dataapi/rpc\\n'");
     sb.append("+'   - On-demand: search, create waves, post messages, fetch content\\n'");
     sb.append("+'   - Token: grant_type=client_credentials (default, DATA_API_ACCESS)\\n'");
@@ -1264,7 +1264,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'- Build BOTH active + data mode for the most capable robot\\n'");
     sb.append("+'- Prefer expiry=3600 for robot JWTs; 0 preserves legacy no-expiry behavior\\n'");
     sb.append("+'- Refresh the token after any HTTP 401\\n'");
-    sb.append("+'- Management tokens expire per selected lifetime (registration only)\\n'");
+    sb.append("+'- Management tokens expire in 1 hour (registration only)\\n'");
     sb.append("+'- Callback URL must be set before requesting any robot tokens\\n'");
     sb.append("+'- Use rpcServerUrl from the event bundle when it is present\\n'");
     sb.append("+'- Read robotAddress from the bundle and treat missing threads as {}\\n'");
@@ -1277,19 +1277,16 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function generatePrompt(){");
     sb.append("var btn=document.getElementById('gen-prompt-btn');");
     sb.append("btn.disabled=true;btn.textContent='Generating...';");
-    sb.append("var expSel=document.getElementById('tok-expiry-sel');");
-    sb.append("var secs=expSel?expSel.value:'3600';");
     sb.append("fetch(CTX+'/robot/dataapi/token',{method:'POST',credentials:'same-origin',");
-    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry='+secs})");
+    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
     sb.append(".then(function(r){if(!r.ok)throw new Error('Token request failed (HTTP '+r.status+')');return r.json();})");
     sb.append(".then(function(d){if(!d.access_token)throw new Error('No token returned');");
     sb.append("var prompt=buildPromptText(d.access_token);");
     sb.append("var el=document.getElementById('ai-prompt');el.textContent=prompt;el.style.display='';");
     sb.append("document.getElementById('copy-prompt-btn').style.display='';");
     sb.append("_promptGeneratedAt=Date.now();updatePromptStatus();");
-    sb.append("var mins=Math.round(parseInt(secs)/60);");
     sb.append("btn.disabled=false;btn.innerHTML='<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><polyline points=\"23 4 23 10 17 10\"/><path d=\"M20.49 15a9 9 0 1 1-2.12-9.36L23 10\"/></svg> Regenerate with New Token';");
-    sb.append("toast('Prompt generated with live token ('+mins+'m)','info');");
+    sb.append("toast('Prompt generated with live token (1h)','info');");
     sb.append("}).catch(function(e){btn.disabled=false;btn.textContent='Generate Prompt with Token';toast(e.message||'Failed to generate','err');});}");
 
     // Update "generated X ago" status

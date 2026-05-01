@@ -33,6 +33,29 @@ public class J2clAttachmentRenderModelTest {
   }
 
   @Test
+  public void mediumInlineImageFallsBackToThumbnailWhenAttachmentUrlMissing() {
+    J2clAttachmentRenderModel model =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            metadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(model.isInlineImage());
+    Assert.assertEquals("medium", model.getDisplaySize());
+    Assert.assertEquals("/thumbnail/example.com/att+hero", model.getSourceUrl());
+    Assert.assertEquals("", model.getOpenUrl());
+    Assert.assertFalse(model.canOpen());
+  }
+
+  @Test
   public void nonImageStaysCardBasedAndUsesThumbnailSource() {
     J2clAttachmentRenderModel model =
         J2clAttachmentRenderModel.fromMetadata(

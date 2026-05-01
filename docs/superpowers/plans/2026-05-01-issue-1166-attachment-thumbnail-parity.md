@@ -4,7 +4,7 @@
 
 **Goal:** Make J2CL read-surface attachments respect GWT-compatible source selection and small/medium/large display-size bounds.
 
-**Architecture:** The Java read renderer already emits `data-display-size` and attachment classes. GWT `AttachmentDisplayLayout.decide()` uses attachment URLs for medium/large inline images and thumbnail URLs for small tiles or non-image attachment cards. The missing parity layer is CSS and explicit renderer hooks that cap preview images the same way GWT `Thumbnail.css` caps `.display-size-small|medium|large .itimg`: 120x80, 300x200, 600x400.
+**Architecture:** The Java read renderer already emits `data-display-size` and attachment classes. GWT `AttachmentDisplayLayout.decide()` uses attachment URLs for medium/large inline images and thumbnail URLs for small tiles or non-image attachment cards. J2CL follows that source priority while preserving safe fallback to the alternate URL when metadata is incomplete. The missing parity layer is CSS and explicit renderer hooks that cap preview images the same way GWT `Thumbnail.css` caps `.display-size-small|medium|large .itimg`: 120x80, 300x200, 600x400.
 
 **Tech Stack:** J2CL Java renderer tests, Lit/static CSS in `j2cl/src/main/webapp/assets/sidecar.css`, SBT verification, changelog fragments.
 
@@ -20,7 +20,7 @@
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRendererTest.java`
   - Adds/extends DOM tests for image preview source and display-size attributes.
 - Modify: `j2cl/src/test/java/org/waveprotocol/box/j2cl/attachment/J2clAttachmentRenderModelTest.java`
-  - Updates model expectation so medium/large inline images use attachment URLs as the preview source while small/card attachments use thumbnails with safe attachment fallback.
+  - Updates model expectation so medium/large inline images prefer attachment URLs with thumbnail fallback, while small/card attachments prefer thumbnails with safe attachment fallback.
 - Create: `wave/config/changelog.d/2026-05-01-j2cl-attachment-thumbnail-parity.json`
   - New user-facing changelog fragment. Do not hand-edit `wave/config/changelog.json`; assemble/validate via scripts.
 
@@ -108,12 +108,12 @@ Expected: fail because preview images do not carry the selected display-size met
 
 - [ ] **Step 1: Match GWT preview source selection**
 
-In `J2clAttachmentRenderModel.fromMetadata`, use attachment URLs for medium/large inline images, and thumbnail-first fallback for small/card attachments:
+In `J2clAttachmentRenderModel.fromMetadata`, use attachment-first fallback for medium/large inline images, and thumbnail-first fallback for small/card attachments:
 
 ```java
 String sourceUrl =
     inlineImage
-        ? safeUrl(metadata.getAttachmentUrl())
+        ? firstNonEmpty(safeUrl(metadata.getAttachmentUrl()), safeUrl(metadata.getThumbnailUrl()))
         : firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
 ```
 
@@ -243,7 +243,7 @@ Browser verify against `/?view=j2cl-root` by injecting/rendering a J2CL attachme
 - small preview maxes at 120x80
 - medium preview maxes at 300x200
 - large preview maxes at 600x400 and never exceeds panel width
-- preview `src` matches GWT source selection: `/attachment/` for medium/large inline images, `/thumbnail/` for small/card previews when available
+- preview `src` matches GWT source priority: `/attachment/` for medium/large inline images with safe thumbnail fallback, `/thumbnail/` for small/card previews with safe attachment fallback
 
 ## Self-Review
 

@@ -101,8 +101,13 @@ public final class J2clAttachmentRenderModel {
                 || DISPLAY_LARGE.equals(normalizedDisplaySize));
     String effectiveDisplaySize =
         image && !hasImageDimensions ? DISPLAY_SMALL : normalizedDisplaySize;
-    String sourceUrl =
-        firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
+    // Inline images (medium/large with known dimensions) use the full attachment URL directly,
+    // matching GWT's AttachmentDisplayLayout.SourceKind.ATTACHMENT path. Small previews and
+    // non-image attachments prefer the thumbnail URL with a fallback to the attachment URL,
+    // matching GWT's SourceKind.THUMBNAIL path.
+    String sourceUrl = inlineImage
+        ? safeUrl(metadata.getAttachmentUrl())
+        : firstNonEmpty(safeUrl(metadata.getThumbnailUrl()), safeUrl(metadata.getAttachmentUrl()));
 
     return new J2clAttachmentRenderModel(
         normalizedAttachmentId,

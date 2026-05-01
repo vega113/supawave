@@ -451,7 +451,7 @@ export class WavyWaveHeaderActions extends LitElement {
       this._contactsLoaded = true;
     } catch (_err) {
       this._contactSuggestions = [];
-      this._contactsLoaded = true;
+      this._contactsLoaded = false;
     } finally {
       this._contactsLoading = false;
     }

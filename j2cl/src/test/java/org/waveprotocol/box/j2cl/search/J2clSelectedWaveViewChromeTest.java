@@ -230,6 +230,8 @@ public class J2clSelectedWaveViewChromeTest {
     HTMLElement first = (HTMLElement) avatars.item(0);
     Assert.assertEquals("alice@example.com", first.getAttribute("data-participant-id"));
     Assert.assertEquals("Open alice@example.com profile", first.getAttribute("aria-label"));
+    Assert.assertNull("avatar button keeps native button semantics", first.getAttribute("role"));
+    Assert.assertEquals("listitem", first.parentElement.getAttribute("role"));
   }
 
   @Test

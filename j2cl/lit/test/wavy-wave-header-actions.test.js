@@ -133,6 +133,46 @@ describe("<wavy-wave-header-actions>", () => {
     }
   });
 
+  it("retries frequent-contact loading after a transient failure", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls += 1;
+      if (calls === 1) {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        async json() {
+          return { contacts: [{ participant: "retry@example.com" }] };
+        }
+      };
+    };
+    try {
+      const el = await createActions();
+
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="retry@example.com"]')).to.not
+        .exist;
+
+      actionButton(el, "add-participant-cancel").click();
+      await el.updateComplete;
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(calls).to.equal(2);
+      expect(el.renderRoot.querySelector('[data-contact-suggestion="retry@example.com"]')).to
+        .exist;
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("starts a new wave with current participants excluding the shared-domain participant", async () => {
     const el = await createActions({
       participants: ["@example.com", "alice@example.com", "bob@example.com"]

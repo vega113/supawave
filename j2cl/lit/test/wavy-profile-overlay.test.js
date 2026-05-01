@@ -89,6 +89,33 @@ describe("<wavy-profile-overlay>", () => {
     );
   });
 
+  it("unknown author fallback owns navigation state while displayed", async () => {
+    const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+    el.participants = PARTICIPANTS;
+    await el.updateComplete;
+    document.dispatchEvent(
+      new CustomEvent("wave-blip-profile-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { authorId: "ghost@example.com" }
+      })
+    );
+    await el.updateComplete;
+
+    let changed = false;
+    el.addEventListener("wavy-profile-participant-changed", () => {
+      changed = true;
+    });
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    await el.updateComplete;
+
+    expect(changed).to.equal(false);
+    expect(el.getAttribute("aria-label")).to.equal("ghost@example.com");
+    expect(el.renderRoot.querySelector(".name").textContent.trim()).to.equal(
+      "ghost@example.com"
+    );
+  });
+
   it("opening fires wavy-profile-overlay-opened with the trigger authorId", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = PARTICIPANTS;

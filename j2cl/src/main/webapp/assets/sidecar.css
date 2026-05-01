@@ -249,6 +249,10 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   min-height: 30px;
 }
 
+.sidecar-selected-participants [role="listitem"] {
+  display: inline-flex;
+}
+
 .sidecar-selected-participant-avatar {
   width: 28px;
   height: 28px;

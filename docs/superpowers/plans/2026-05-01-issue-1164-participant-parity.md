@@ -40,7 +40,7 @@
   - Parse `contacts[].participant`, dedupe, and exclude current wave participants/shared-domain pseudo participants.
   - Show suggestion chips that append to the draft or directly include the address for submit.
   - Gracefully fall back to no suggestions if fetch fails.
-- [ ] Add a changelog fragment for user-facing participant chrome behavior.
+- [ ] Add a new changelog fragment for user-facing participant chrome behavior under `wave/config/changelog.d/`; do not hand-edit `wave/config/changelog.json`.
 
 ## Verification
 

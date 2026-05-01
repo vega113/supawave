@@ -776,17 +776,19 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       if (address.isEmpty()) {
         continue;
       }
+      HTMLElement item = (HTMLElement) DomGlobal.document.createElement("span");
+      item.setAttribute("role", "listitem");
       HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
       button.className = "sidecar-selected-participant-avatar";
       button.setAttribute("type", "button");
-      button.setAttribute("role", "listitem");
       button.setAttribute("data-selected-participant-avatar", "true");
       button.setAttribute("data-participant-id", address);
       button.setAttribute("aria-label", "Open " + address + " profile");
       button.setAttribute("title", address);
       button.textContent = participantInitials(address);
       button.addEventListener("click", event -> dispatchParticipantProfileRequest(address));
-      participantSummary.appendChild(button);
+      item.appendChild(button);
+      participantSummary.appendChild(item);
     }
     participantSummary.hidden = participantSummary.childElementCount == 0;
   }

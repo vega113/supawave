@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-04-30-security-fix-json-eval",
+  "version": "PR #1153",
+  "date": "2026-04-30",
+  "title": "Fix JSON parsing code injection vulnerability in JavascriptJsonSerializer",
+  "summary": "Replaced insecure eval() with JsonUtils.safeEval() for JSON parsing.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaced the vulnerable JSNI eval() inside JavascriptJsonSerializer.java with GWT's built-in secure com.google.gwt.core.client.JsonUtils.safeEval(json)."
+      ]
+    }
+  ]
+}

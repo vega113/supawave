@@ -3928,7 +3928,12 @@ public class J2clComposeSurfaceControllerTest {
             waveId -> { },
             telemetry);
     controller.start();
-    openWaveForReply(controller);
+    // user@example.com is the creator so canTogglePublicity passes; the
+    // gateway error response then triggers the failure-submit path.
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1", "chan-1", 44L, "ABCD", "b+root",
+            Arrays.asList("user@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
 

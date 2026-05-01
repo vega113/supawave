@@ -40,6 +40,8 @@ public final class J2clReadWindowEntry {
   private final int bodyItemCount;
   /** See {@link J2clReadBlip#isTask()}: true when a task/done annotation is present. */
   private final boolean isTask;
+  /** Issue #1167: inline reply anchors parsed from raw Wave document markup. */
+  private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
 
   private J2clReadWindowEntry(
       String segment,
@@ -89,6 +91,50 @@ public final class J2clReadWindowEntry {
       long taskDueTimestamp,
       int bodyItemCount,
       boolean isTask) {
+    this(
+        segment,
+        fromVersion,
+        toVersion,
+        blipId,
+        text,
+        attachments,
+        loaded,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp,
+        bodyItemCount,
+        isTask,
+        Collections.<J2clInlineReplyAnchor>emptyList());
+  }
+
+  private J2clReadWindowEntry(
+      String segment,
+      long fromVersion,
+      long toVersion,
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      boolean loaded,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     this.segment = segment == null ? "" : segment;
     this.fromVersion = fromVersion;
     this.toVersion = toVersion;
@@ -111,6 +157,11 @@ public final class J2clReadWindowEntry {
     this.taskDueTimestamp = taskDueTimestamp;
     this.bodyItemCount = Math.max(0, bodyItemCount);
     this.isTask = isTask;
+    this.inlineReplyAnchors =
+        inlineReplyAnchors == null
+            ? Collections.<J2clInlineReplyAnchor>emptyList()
+            : Collections.unmodifiableList(
+                new ArrayList<J2clInlineReplyAnchor>(inlineReplyAnchors));
   }
 
   public static J2clReadWindowEntry loaded(
@@ -280,6 +331,48 @@ public final class J2clReadWindowEntry {
       long taskDueTimestamp,
       int bodyItemCount,
       boolean isTask) {
+    return loadedWithTaskMetadata(
+        segment,
+        fromVersion,
+        toVersion,
+        blipId,
+        text,
+        attachments,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp,
+        bodyItemCount,
+        isTask,
+        Collections.<J2clInlineReplyAnchor>emptyList());
+  }
+
+  public static J2clReadWindowEntry loadedWithTaskMetadata(
+      String segment,
+      long fromVersion,
+      long toVersion,
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     return new J2clReadWindowEntry(
         segment,
         fromVersion,
@@ -299,7 +392,8 @@ public final class J2clReadWindowEntry {
         taskAssignee,
         taskDueTimestamp,
         bodyItemCount,
-        isTask);
+        isTask,
+        inlineReplyAnchors);
   }
 
   public static J2clReadWindowEntry placeholder(
@@ -349,7 +443,8 @@ public final class J2clReadWindowEntry {
         taskAssignee,
         taskDueTimestamp,
         bodyItemCount,
-        isTask);
+        isTask,
+        inlineReplyAnchors);
   }
 
   /**
@@ -379,7 +474,8 @@ public final class J2clReadWindowEntry {
         taskAssignee,
         taskDueTimestamp,
         bodyItemCount,
-        true);
+        true,
+        inlineReplyAnchors);
   }
 
   public String getSegment() {
@@ -461,5 +557,9 @@ public final class J2clReadWindowEntry {
 
   public int getBodyItemCount() {
     return bodyItemCount;
+  }
+
+  public List<J2clInlineReplyAnchor> getInlineReplyAnchors() {
+    return inlineReplyAnchors;
   }
 }

@@ -165,6 +165,30 @@ public class J2clReadBlipContentTest {
   }
 
   @Test
+  public void preservesInlineReplyAnchorMetadataWithoutVisibleReplyId() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><line/>Before <reply id=\"t+inline\"></reply> after</body>");
+
+    Assert.assertEquals("Before  after", parsed.getText());
+    Assert.assertEquals(1, parsed.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+inline", parsed.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("Before ".length(), parsed.getInlineReplyAnchors().get(0).getTextOffset());
+  }
+
+  @Test
+  public void inlineReplyAnchorOffsetUsesDecodedVisibleText() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body><line/>A &amp; B <reply id=\"t+entity\"></reply> after</body>");
+
+    Assert.assertEquals("A & B  after", parsed.getText());
+    Assert.assertEquals(1, parsed.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+entity", parsed.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("A & B ".length(), parsed.getInlineReplyAnchors().get(0).getTextOffset());
+  }
+
+  @Test
   public void parsesTaskAnnotationsFromRawFragmentSnapshot() {
     J2clReadBlipContent parsed =
         J2clReadBlipContent.parseRawSnapshot(

@@ -38,6 +38,10 @@ public final class J2clRootShellController {
       return;
     }
     started = true;
+    if (isReadSurfacePreviewHost(host)) {
+      startReadSurfacePreviewMode();
+      return;
+    }
     J2clRootShellView shellView = new J2clRootShellView(host);
     J2clSearchGateway gateway = new J2clSearchGateway();
     J2clClientTelemetry.Sink telemetrySink = J2clClientTelemetry.browserStatsSink();
@@ -241,6 +245,28 @@ public final class J2clRootShellController {
   static J2clToolbarSurfaceController.EditState editStateForWriteSession(
       J2clSidecarWriteSession writeSession) {
     return new J2clToolbarSurfaceController.EditState(writeSession != null);
+  }
+
+  static boolean isReadSurfacePreviewHost(boolean hostMarked, boolean bodyMarked) {
+    return hostMarked || bodyMarked;
+  }
+
+  private boolean isReadSurfacePreviewHost(HTMLElement candidate) {
+    boolean hostMarked =
+        candidate != null
+            && "true".equals(candidate.getAttribute("data-j2cl-read-surface-preview"));
+    HTMLElement body = (HTMLElement) elemental2.dom.DomGlobal.document.body;
+    boolean bodyMarked =
+        body != null && "true".equals(body.getAttribute("data-j2cl-read-surface-preview"));
+    return isReadSurfacePreviewHost(hostMarked, bodyMarked);
+  }
+
+  private void startReadSurfacePreviewMode() {
+    J2clRootShellView shellView = new J2clRootShellView(host);
+    J2clSearchPanelView searchView =
+        new J2clSearchPanelView(
+            shellView.getWorkflowHost(), J2clSearchPanelView.ShellPresentation.ROOT_SHELL);
+    new J2clSelectedWaveView(searchView.getSelectedWaveHost(), J2clClientTelemetry.browserStatsSink());
   }
 
   static List<String> participantsFromEvent(Event event) {

@@ -86,6 +86,7 @@ public final class J2clReadBlip {
    * and keep the task affordance mounted across full DOM rebuilds.
    */
   private final boolean isTask;
+  private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
 
   public J2clReadBlip(String blipId, String text) {
     this(blipId, text, Collections.<J2clAttachmentRenderModel>emptyList());
@@ -240,6 +241,44 @@ public final class J2clReadBlip {
       long taskDueTimestamp,
       int bodyItemCount,
       boolean isTask) {
+    this(
+        blipId,
+        text,
+        attachments,
+        authorId,
+        authorDisplayName,
+        lastModifiedTimeMillis,
+        parentBlipId,
+        threadId,
+        unread,
+        hasMention,
+        deleted,
+        taskDone,
+        taskAssignee,
+        taskDueTimestamp,
+        bodyItemCount,
+        isTask,
+        Collections.<J2clInlineReplyAnchor>emptyList());
+  }
+
+  public J2clReadBlip(
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean deleted,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     this.blipId = blipId == null ? "" : blipId;
     this.text = text == null ? "" : text;
     this.attachments =
@@ -259,6 +298,11 @@ public final class J2clReadBlip {
     this.taskDueTimestamp = taskDueTimestamp;
     this.bodyItemCount = Math.max(0, bodyItemCount);
     this.isTask = isTask;
+    this.inlineReplyAnchors =
+        inlineReplyAnchors == null
+            ? Collections.<J2clInlineReplyAnchor>emptyList()
+            : Collections.unmodifiableList(
+                new ArrayList<J2clInlineReplyAnchor>(inlineReplyAnchors));
   }
 
   /** Builder-style copy that flips the unread flag without re-typing the rest. */
@@ -282,7 +326,8 @@ public final class J2clReadBlip {
         taskAssignee,
         taskDueTimestamp,
         bodyItemCount,
-        isTask);
+        isTask,
+        inlineReplyAnchors);
   }
 
   /**
@@ -311,7 +356,8 @@ public final class J2clReadBlip {
         taskAssignee,
         taskDueTimestamp,
         bodyItemCount,
-        true);
+        true,
+        inlineReplyAnchors);
   }
 
   public String getBlipId() {
@@ -399,5 +445,9 @@ public final class J2clReadBlip {
 
   public int getBodyItemCount() {
     return bodyItemCount;
+  }
+
+  public List<J2clInlineReplyAnchor> getInlineReplyAnchors() {
+    return inlineReplyAnchors;
   }
 }

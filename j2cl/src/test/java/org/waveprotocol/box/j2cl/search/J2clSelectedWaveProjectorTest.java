@@ -225,6 +225,45 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void viewportFragmentsProjectInlineReplyAnchorsToReadBlips() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Collections.<SidecarSelectedWaveDocument>emptyList(),
+                new SidecarSelectedWaveFragments(
+                    9L,
+                    0L,
+                    9L,
+                    Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+                    Arrays.asList(
+                        new SidecarSelectedWaveFragment(
+                            "blip:b+root",
+                            "<body><line/>Before <reply id=\"t+inline\"></reply> after</body>",
+                            0,
+                            0)))),
+            null,
+            0);
+
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("Before  after", blip.getText());
+    Assert.assertEquals(1, blip.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+inline", blip.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("Before ".length(), blip.getInlineReplyAnchors().get(0).getTextOffset());
+    Assert.assertEquals(
+        1,
+        projected.getViewportState().getReadWindowEntries().get(0).getInlineReplyAnchors().size());
+  }
+
+  @Test
   public void projectExtractsAttachmentModelsFromImageElementsInFragments() {
     J2clSelectedWaveModel projected =
         J2clSelectedWaveProjector.project(

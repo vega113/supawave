@@ -624,7 +624,8 @@ public final class J2clSelectedWaveProjector {
               /* taskAssignee= */ documentTaskAssignee(doc),
               /* taskDueTimestamp= */ documentTaskDueTimestamp(doc),
               /* bodyItemCount= */ doc.getBodyItemCount(),
-              /* isTask= */ documentHasTask(doc)));
+              /* isTask= */ documentHasTask(doc),
+              blip.getInlineReplyAnchors()));
     }
     return enriched;
   }
@@ -679,7 +680,8 @@ public final class J2clSelectedWaveProjector {
                 blip.getTaskAssignee(),
                 blip.getTaskDueTimestamp(),
                 blip.getBodyItemCount(),
-                blip.isTask()));
+                blip.isTask(),
+                blip.getInlineReplyAnchors()));
       } else {
         patched.add(blip);
       }
@@ -818,7 +820,8 @@ public final class J2clSelectedWaveProjector {
         taskAssignee,
         taskDueTimestamp,
         blip.getBodyItemCount(),
-        isTask);
+        isTask,
+        blip.getInlineReplyAnchors());
   }
 
   /**
@@ -908,7 +911,8 @@ public final class J2clSelectedWaveProjector {
               existing.getTaskAssignee(),
               existing.getTaskDueTimestamp(),
               existing.getBodyItemCount(),
-              existing.isTask()));
+              existing.isTask(),
+              existing.getInlineReplyAnchors()));
     }
     // Append any blip that the manifest didn't reference so we don't
     // silently drop content from non-conversational data documents.
@@ -989,7 +993,8 @@ public final class J2clSelectedWaveProjector {
               blip.getTaskAssignee(),
               blip.getTaskDueTimestamp(),
               blip.getBodyItemCount(),
-              blip.isTask());
+              blip.isTask(),
+              blip.getInlineReplyAnchors());
       enriched.add(next);
       changed = true;
     }

@@ -564,7 +564,8 @@ public final class J2clSelectedWaveProjector {
               /* taskDone= */ documentTaskDone(document),
               /* taskAssignee= */ documentTaskAssignee(document),
               /* taskDueTimestamp= */ documentTaskDueTimestamp(document),
-              /* bodyItemCount= */ document.getBodyItemCount()));
+              /* bodyItemCount= */ document.getBodyItemCount(),
+              /* isTask= */ documentHasTask(document)));
     }
     return blips;
   }
@@ -622,7 +623,8 @@ public final class J2clSelectedWaveProjector {
               /* taskDone= */ documentTaskDone(doc),
               /* taskAssignee= */ documentTaskAssignee(doc),
               /* taskDueTimestamp= */ documentTaskDueTimestamp(doc),
-              /* bodyItemCount= */ doc.getBodyItemCount()));
+              /* bodyItemCount= */ doc.getBodyItemCount(),
+              /* isTask= */ documentHasTask(doc)));
     }
     return enriched;
   }
@@ -676,7 +678,8 @@ public final class J2clSelectedWaveProjector {
                 blip.isTaskDone(),
                 blip.getTaskAssignee(),
                 blip.getTaskDueTimestamp(),
-                blip.getBodyItemCount()));
+                blip.getBodyItemCount(),
+                blip.isTask()));
       } else {
         patched.add(blip);
       }
@@ -784,6 +787,7 @@ public final class J2clSelectedWaveProjector {
     boolean hasMention = preserveFallbackBooleans ? fallback.hasMention() : blip.hasMention();
     boolean deleted = preserveFallbackBooleans ? fallback.isDeleted() : blip.isDeleted();
     boolean taskDone = preserveFallbackBooleans ? fallback.isTaskDone() : blip.isTaskDone();
+    boolean isTask = preserveFallbackBooleans ? fallback.isTask() : blip.isTask();
     if (Objects.equals(authorId, blip.getAuthorId())
         && Objects.equals(authorDisplayName, blip.getAuthorDisplayName())
         && lastModified == blip.getLastModifiedTimeMillis()
@@ -793,6 +797,7 @@ public final class J2clSelectedWaveProjector {
         && hasMention == blip.hasMention()
         && deleted == blip.isDeleted()
         && taskDone == blip.isTaskDone()
+        && isTask == blip.isTask()
         && Objects.equals(taskAssignee, blip.getTaskAssignee())
         && taskDueTimestamp == blip.getTaskDueTimestamp()) {
       return blip;
@@ -812,7 +817,8 @@ public final class J2clSelectedWaveProjector {
         taskDone,
         taskAssignee,
         taskDueTimestamp,
-        blip.getBodyItemCount());
+        blip.getBodyItemCount(),
+        isTask);
   }
 
   /**
@@ -901,7 +907,8 @@ public final class J2clSelectedWaveProjector {
               existing.isTaskDone(),
               existing.getTaskAssignee(),
               existing.getTaskDueTimestamp(),
-              existing.getBodyItemCount()));
+              existing.getBodyItemCount(),
+              existing.isTask()));
     }
     // Append any blip that the manifest didn't reference so we don't
     // silently drop content from non-conversational data documents.
@@ -981,7 +988,8 @@ public final class J2clSelectedWaveProjector {
               blip.isTaskDone(),
               blip.getTaskAssignee(),
               blip.getTaskDueTimestamp(),
-              blip.getBodyItemCount());
+              blip.getBodyItemCount(),
+              blip.isTask());
       enriched.add(next);
       changed = true;
     }
@@ -1059,6 +1067,24 @@ public final class J2clSelectedWaveProjector {
       done = "true".equals(range.getValue());
     }
     return done;
+  }
+
+  /**
+   * True when a {@code task/done} annotation range is present on the document,
+   * regardless of its value. Differentiates a reopened task blip
+   * (task/done=false, annotation present) from a non-task blip (annotation
+   * absent), so the renderer can keep the task affordance mounted after reopen.
+   */
+  static boolean documentHasTask(SidecarSelectedWaveDocument document) {
+    if (document == null || document.getAnnotationRanges() == null) {
+      return false;
+    }
+    for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
+      if (range != null && "task/done".equals(range.getKey())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

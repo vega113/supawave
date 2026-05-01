@@ -1084,7 +1084,8 @@ public final class J2clReadSurfaceDomRenderer {
         blip.isTaskDone(),
         blip.getTaskAssignee(),
         blip.getTaskDueTimestamp(),
-        blip.getBodyItemCount());
+        blip.getBodyItemCount(),
+        blip.isTask());
 
     // The renderer doesn't know the parent wave id (it lives one layer up
     // in J2clSelectedWaveView). The view sets `data-wave-id` on the host
@@ -1241,7 +1242,8 @@ public final class J2clReadSurfaceDomRenderer {
       boolean modelTaskDone,
       String taskAssignee,
       long taskDueTimestamp,
-      int bodyItemCount) {
+      int bodyItemCount,
+      boolean isTask) {
     if (element == null) {
       return;
     }
@@ -1264,6 +1266,15 @@ public final class J2clReadSurfaceDomRenderer {
         // Apply the optimistic value over the (still-stale) model.
         taskDone = optimistic.done;
       }
+    }
+    // data-task-present survives a full DOM rebuild (renderWindow clears host.innerHTML).
+    // Without it a reopened task blip with no assignee/due-date would lose the affordance
+    // because all three task attributes are absent and _taskPresent stays false on the
+    // freshly-created <wave-blip> element.
+    if (isTask || taskDone) {
+      element.setAttribute("data-task-present", "");
+    } else {
+      element.removeAttribute("data-task-present");
     }
     if (taskDone) {
       element.setAttribute("data-task-completed", "");

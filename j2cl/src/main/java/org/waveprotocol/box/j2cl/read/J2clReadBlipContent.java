@@ -19,6 +19,7 @@ public final class J2clReadBlipContent {
 
   private final String text;
   private final List<J2clAttachmentRenderModel> attachments;
+  private final boolean hasTask;
   private final boolean taskDone;
   private final String taskAssignee;
   private final long taskDueTimestamp;
@@ -27,6 +28,7 @@ public final class J2clReadBlipContent {
   private J2clReadBlipContent(
       String text,
       List<J2clAttachmentRenderModel> attachments,
+      boolean hasTask,
       boolean taskDone,
       String taskAssignee,
       long taskDueTimestamp,
@@ -36,6 +38,7 @@ public final class J2clReadBlipContent {
         attachments == null
             ? Collections.<J2clAttachmentRenderModel>emptyList()
             : Collections.unmodifiableList(new ArrayList<J2clAttachmentRenderModel>(attachments));
+    this.hasTask = hasTask;
     this.taskDone = taskDone;
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
@@ -89,6 +92,7 @@ public final class J2clReadBlipContent {
     return new J2clReadBlipContent(
         decodeEntities(stripTags(visibleText.toString())),
         attachments,
+        annotations.hasTask,
         annotations.taskDone,
         annotations.taskAssignee,
         annotations.taskDueTimestamp,
@@ -101,6 +105,10 @@ public final class J2clReadBlipContent {
 
   public List<J2clAttachmentRenderModel> getAttachments() {
     return attachments;
+  }
+
+  public boolean isTask() {
+    return hasTask;
   }
 
   public boolean isTaskDone() {
@@ -293,6 +301,7 @@ public final class J2clReadBlipContent {
   private static void applyAnnotationValue(
       String key, String value, AnnotationSnapshot snapshot) {
     if (TASK_DONE_ANNOTATION.equals(key)) {
+      snapshot.hasTask = true;
       snapshot.taskDone = "true".equals(value);
     } else if (TASK_ASSIGNEE_ANNOTATION.equals(key)) {
       snapshot.taskAssignee = value == null ? "" : value.trim();
@@ -357,6 +366,7 @@ public final class J2clReadBlipContent {
   }
 
   private static final class AnnotationSnapshot {
+    private boolean hasTask;
     private boolean taskDone;
     private String taskAssignee = "";
     private long taskDueTimestamp = J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;

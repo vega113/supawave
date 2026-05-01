@@ -132,8 +132,8 @@ export class WavyTaskAffordance extends LitElement {
     this.participants = [];
     this._announceText = "";
     this._popoverOpen = false;
-    this.labelToggleOpen = "Task";
-    this.labelToggleDone = "✓ Done";
+    this.labelToggleOpen = "☐";
+    this.labelToggleDone = "☑";
     this.labelAriaCheck = "Mark task complete";
     this.labelAriaUncheck = "Mark task open";
     this.labelDetails = "Edit task details";

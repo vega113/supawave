@@ -110,6 +110,9 @@ export class WaveBlip extends LitElement {
     taskCompleted: { type: Boolean, attribute: "data-task-completed", reflect: true },
     taskAssignee: { type: String, attribute: "data-task-assignee", reflect: true },
     taskDueDate: { type: String, attribute: "data-task-due-date", reflect: true },
+    // Renderer sets this whenever a task/done annotation exists (regardless of value).
+    // Survives full DOM rebuilds so reopened tasks keep the affordance mounted.
+    taskPresent: { type: Boolean, attribute: "data-task-present", reflect: false },
     bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true }
   };
 
@@ -255,17 +258,6 @@ export class WaveBlip extends LitElement {
     :host([has-mention]) {
       position: relative;
     }
-    /* F-3.S2 (#1038, R-5.4 step 4): completed tasks fade the body via
-     * the F-0 quiet text token and apply a strikethrough so the blip
-     * card visually communicates the closed state without re-painting
-     * the wavy envelope. The strikethrough lives on the body wrapper
-     * inside the host so the metadata header (author + timestamp)
-     * stays legible. */
-    :host([data-task-completed]) .body {
-      color: #767676;
-      text-decoration: line-through;
-      text-decoration-color: #767676;
-    }
     .body {
       margin-left: 3.35em;
       min-height: 1.5em;
@@ -327,7 +319,9 @@ export class WaveBlip extends LitElement {
     this.taskCompleted = false;
     this.taskAssignee = "";
     this.taskDueDate = "";
+    this.taskPresent = false;
     this.bodySize = 0;
+    this._taskPresent = false;
     this.blipDepth = "";
     this.threadCollapsed = false;
     this.dataBlipAuthor = "";
@@ -361,6 +355,19 @@ export class WaveBlip extends LitElement {
     }
     if (changedProperties.has("focused")) {
       this.dataBlipFocused = this.focused ? "true" : null;
+    }
+    // Once any task signal arrives the affordance stays mounted even after a full
+    // DOM rebuild (renderWindow clears host.innerHTML). taskPresent (data-task-present)
+    // is the renderer-backed sticky signal that survives rebuild for reopened tasks
+    // with no assignee/due-date (where all three mutable task attributes are absent).
+    if (
+      !this._taskPresent &&
+      (this.taskPresent ||
+        this.taskCompleted ||
+        String(this.taskAssignee || "").trim() ||
+        String(this.taskDueDate || "").trim())
+    ) {
+      this._taskPresent = true;
     }
     super.willUpdate(changedProperties);
   }
@@ -459,6 +466,10 @@ export class WaveBlip extends LitElement {
     return this.focused || this.getAttribute("tabindex") === "0";
   }
 
+  _hasTaskAffordance() {
+    return this._taskPresent;
+  }
+
   _onAvatarClick(event) {
     event.stopPropagation();
     this.dispatchEvent(
@@ -554,6 +565,8 @@ export class WaveBlip extends LitElement {
     // taskCompleted property so the strikethrough CSS updates immediately
     // without waiting for the model to round-trip through the server.
     this.taskCompleted = event.detail.completed;
+    // Keep presence flag set — reopening a task must not hide the affordance.
+    this._taskPresent = true;
   }
 
   _buildPermalink() {
@@ -644,19 +657,21 @@ export class WaveBlip extends LitElement {
             @wave-blip-toolbar-link=${this._onLinkClick}
             @wave-blip-toolbar-delete=${this._onDeleteClick}
           ></wave-blip-toolbar>
-          <span class="task-affordance-slot" data-task-affordance-slot>
-            <wavy-task-affordance
-              data-blip-id=${this.blipId}
-              data-wave-id=${this.waveId}
-              ?data-task-completed=${this.taskCompleted}
-              data-task-assignee=${this.taskAssignee || ""}
-              data-task-due-date=${this.taskDueDate || ""}
-              data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
-              .bodySize=${this.bodySize || 0}
-              .participants=${this._participants}
-              @wave-blip-task-toggled=${this._onTaskToggled}
-            ></wavy-task-affordance>
-          </span>
+          ${this._hasTaskAffordance()
+            ? html`<span class="task-affordance-slot" data-task-affordance-slot>
+                <wavy-task-affordance
+                  data-blip-id=${this.blipId}
+                  data-wave-id=${this.waveId}
+                  ?data-task-completed=${this.taskCompleted}
+                  data-task-assignee=${this.taskAssignee || ""}
+                  data-task-due-date=${this.taskDueDate || ""}
+                  data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
+                  .bodySize=${this.bodySize || 0}
+                  .participants=${this._participants}
+                  @wave-blip-task-toggled=${this._onTaskToggled}
+                ></wavy-task-affordance>
+              </span>`
+            : ""}
           </span>
         </div>
         <div class="body">

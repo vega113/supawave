@@ -173,6 +173,7 @@ public class J2clReadBlipContentTest {
                 + "<?a \"task/done\" \"task/assignee\" \"task/dueTs\"?></body>");
 
     Assert.assertEquals("Review launch", parsed.getText());
+    Assert.assertTrue(parsed.isTask());
     Assert.assertTrue(parsed.isTaskDone());
     Assert.assertEquals("alice@local.net", parsed.getTaskAssignee());
     Assert.assertEquals(1777593600000L, parsed.getTaskDueTimestamp());
@@ -185,6 +186,7 @@ public class J2clReadBlipContentTest {
             "<body><?a \"task/done\"=\"false\"?>Review launch"
                 + "<?a \"task/done\"?></body>");
 
+    Assert.assertTrue("task/done=false annotation → isTask must be true", parsed.isTask());
     Assert.assertFalse(parsed.isTaskDone());
   }
 

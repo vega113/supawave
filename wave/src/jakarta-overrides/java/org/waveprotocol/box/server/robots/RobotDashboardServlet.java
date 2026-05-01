@@ -877,7 +877,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"centered\">");
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"var(--p)\" stroke-width=\"2\" stroke-linecap=\"round\" style=\"vertical-align:-3px;margin-right:6px\"><path d=\"M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z\"/></svg>Build a Robot with AI</div>");
-    sb.append("<div class=\"sec-desc\">The prompt includes a live management token (1h) so your LLM can register robots immediately.</div>");
+    sb.append("<div class=\"sec-desc\">The prompt includes a live management token (expires per selected lifetime) so your LLM can register robots immediately.</div>");
     // Action bar: Generate / Copy / status
     sb.append("<div style=\"display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap\">");
     sb.append("<button class=\"btn-p\" id=\"gen-prompt-btn\" onclick=\"generatePrompt()\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4\"/></svg> Generate Prompt with Token</button>");

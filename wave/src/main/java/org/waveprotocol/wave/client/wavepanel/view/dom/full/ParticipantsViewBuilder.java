@@ -495,15 +495,9 @@ public final class ParticipantsViewBuilder implements UiBuilder {
         .append("firstChild.className=x?'").append(css.expandButton())
         .append("':'").append(css.collapseButton()).append("';")
         .append("parentNode.nextSibling.style.display=x?'':'none';");
-    return escapeHtmlAttribute(sb.toString());
-  }
-
-  private static String escapeHtmlAttribute(String value) {
-    return value
-        .replace("&", "&amp;")
-        .replace("\"", "&quot;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;");
+    String js = sb.toString();
+    assert !js.contains("\"");
+    return js;
   }
 
   private static String escapeJsSingleQuoted(String value) {

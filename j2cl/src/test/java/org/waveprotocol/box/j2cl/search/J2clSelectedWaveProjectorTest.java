@@ -289,7 +289,7 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertTrue(attachment.canOpen());
     Assert.assertTrue(attachment.canDownload());
     Assert.assertEquals("/attachments/hero.png", attachment.getOpenUrl());
-    Assert.assertEquals("/attachments/hero.png", attachment.getSourceUrl());
+    Assert.assertEquals("/thumbnails/hero.png", attachment.getSourceUrl());
     Assert.assertEquals(
         attachment, state.getReadWindowEntries().get(0).getAttachments().get(0));
   }

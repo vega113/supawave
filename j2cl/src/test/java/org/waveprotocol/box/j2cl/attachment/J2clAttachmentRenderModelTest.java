@@ -7,7 +7,7 @@ import org.junit.Test;
 @J2clTestInput(J2clAttachmentRenderModelTest.class)
 public class J2clAttachmentRenderModelTest {
   @Test
-  public void mediumImageUsesOriginalAttachmentUrl() {
+  public void mediumImageUsesThumbnailPreviewAndAttachmentOpenUrl() {
     J2clAttachmentRenderModel model =
         J2clAttachmentRenderModel.fromMetadata(
             "example.com/att+hero",
@@ -24,8 +24,9 @@ public class J2clAttachmentRenderModelTest {
 
     Assert.assertTrue(model.isInlineImage());
     Assert.assertEquals("medium", model.getDisplaySize());
-    Assert.assertEquals("/attachment/example.com/att+hero", model.getSourceUrl());
+    Assert.assertEquals("/thumbnail/example.com/att+hero", model.getSourceUrl());
     Assert.assertEquals("/attachment/example.com/att+hero", model.getOpenUrl());
+    Assert.assertEquals("/attachment/example.com/att+hero", model.getDownloadUrl());
     Assert.assertEquals("hero.png", model.getDownloadFileName());
     Assert.assertEquals("Open attachment hero.png (image/png)", model.getOpenLabel());
     Assert.assertEquals("Download attachment hero.png (image/png)", model.getDownloadLabel());
@@ -188,7 +189,7 @@ public class J2clAttachmentRenderModelTest {
                 new J2clAttachmentMetadata.ImageMetadata(320, 200),
                 false));
 
-    Assert.assertEquals("https://cdn.example.test/https.png", accepted.getSourceUrl());
+    Assert.assertEquals("https://cdn.example.test/https-thumb.png", accepted.getSourceUrl());
     Assert.assertTrue(accepted.isInlineImage());
     Assert.assertEquals("", rejected.getOpenUrl());
     Assert.assertFalse(rejected.canOpen());

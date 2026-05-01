@@ -1175,7 +1175,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'== Three APIs ==\\n'");
     sb.append("+'1. Registration Management API (REST) at /api/robots\\n'");
     sb.append("+'   - Register, configure, pause, delete robots\\n'");
-    sb.append("+'   - Uses the Management Token below (expires in 1 hour)\\n'");
+    sb.append("+'   - Uses the Management Token below (expires per selected token lifetime)\\n'");
     sb.append("+'2. Data API (JSON-RPC) at /robot/dataapi/rpc\\n'");
     sb.append("+'   - On-demand: search, create waves, post messages, fetch content\\n'");
     sb.append("+'   - Token: grant_type=client_credentials (default, DATA_API_ACCESS)\\n'");

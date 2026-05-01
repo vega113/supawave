@@ -432,6 +432,62 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderFallsBackWhenDuplicateInlineReplyAnchorsExistForSameThread() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    // Two anchors with the same threadId — malformed; thread must use sibling fallback.
+    J2clReadBlip root =
+        new J2clReadBlip(
+            "b+root",
+            "A B C",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "Alice",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ 0L,
+            /* bodyItemCount= */ 5,
+            /* isTask= */ false,
+            Arrays.asList(
+                new J2clInlineReplyAnchor("t+dup", 2),
+                new J2clInlineReplyAnchor("t+dup", 4)));
+    J2clReadBlip reply =
+        new J2clReadBlip(
+            "b+reply",
+            "Dup reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "bob@example.com",
+            "Bob",
+            1714240100000L,
+            "b+root",
+            "t+dup",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* deleted= */ false);
+
+    Assert.assertTrue(
+        renderer.render(Arrays.asList(root, reply), Collections.<String>emptyList()));
+
+    HTMLElement fallbackThread =
+        (HTMLElement) host.querySelector(".inline-thread[data-parent-blip-id='b+root']");
+    Assert.assertNotNull(fallbackThread);
+    Assert.assertFalse(
+        "Duplicate-anchor thread must not be placed inline",
+        fallbackThread.hasAttribute("data-inline-reply-anchor-placement"));
+    Assert.assertSame(
+        "Duplicate-anchor thread must mount as sibling-after-parent",
+        blip(host, "b+root").nextSibling,
+        fallbackThread);
+  }
+
+  @Test
   public void renderPlacesMultipleAnchoredThreadsInTextOffsetOrder() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

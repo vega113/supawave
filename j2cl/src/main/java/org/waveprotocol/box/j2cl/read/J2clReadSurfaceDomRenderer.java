@@ -1953,15 +1953,19 @@ public final class J2clReadSurfaceDomRenderer {
     if (content == null) {
       return null;
     }
+    HTMLElement found = null;
     Element anchor = content.firstElementChild;
     while (anchor != null) {
       if (anchor.hasAttribute("data-inline-reply-anchor-thread-id")
           && threadId.equals(anchor.getAttribute("data-inline-reply-anchor-thread-id"))) {
-        return (HTMLElement) anchor;
+        if (found != null) {
+          return null; // duplicate marker — treat as malformed, use fallback placement
+        }
+        found = (HTMLElement) anchor;
       }
       anchor = anchor.nextElementSibling;
     }
-    return null;
+    return found;
   }
 
   private HTMLElement renderPlaceholder(J2clReadWindowEntry entry) {

@@ -1146,7 +1146,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function copyField(id,msg,val){var v=val||(id?document.getElementById(id).value:'');copyText(v,msg);}");
     sb.append("function copyPrompt(){var el=document.getElementById('ai-prompt');if(!el||!el.textContent.trim()){toast('Generate the prompt first','err');return;}copyText(el.textContent,'Prompt copied');}");
 
-    // Prompt template (placeholders filled from BASE and DOMAIN at runtime)
+    // Prompt template uses placeholders filled from runtime values such as BASE and DOMAIN.
 
     sb.append("var BASE='").append(HtmlRenderer.escapeHtml(baseUrl)).append("';");
     sb.append("var DOMAIN='").append(safeDomain).append("';");

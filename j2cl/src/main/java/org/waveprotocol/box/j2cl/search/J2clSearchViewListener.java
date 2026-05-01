@@ -28,7 +28,9 @@ public interface J2clSearchViewListener {
    * keyboard focus to the new folder. The default forwards to
    * {@code onQuerySubmitted} so older listeners keep compiling.
    *
-   * @param folderId stable identifier from the rail (e.g. {@code "mentions"})
+   * @param folderId stable built-in identifier from the rail (for example
+   *     {@code "mentions"}); custom saved searches pass an empty folder id and
+   *     rely on {@code label}/{@code query}.
    * @param label    user-visible label for screen-reader announcement
    * @param query    canonical query token for the folder (e.g. {@code "mentions:me"})
    */

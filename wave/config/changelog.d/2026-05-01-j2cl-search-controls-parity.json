@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-search-controls-parity",
+  "version": "Issue #1162",
+  "date": "2026-05-01",
+  "title": "J2CL search controls and saved searches parity",
+  "summary": "Makes the J2CL search rail controls functional for saved-search management and wave sorting while preserving the existing GWT route.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds a J2CL Manage saved searches dialog backed by the existing /searches endpoint, including pinned saved-search shortcuts in the search rail.",
+        "Replaces the placeholder J2CL sort affordance with a keyboard-accessible sort menu that writes supported orderby tokens and submits the updated query."
+      ]
+    }
+  ]
+}

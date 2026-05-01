@@ -3610,7 +3610,7 @@ public final class HtmlRenderer {
       // <shell-nav-rail> wrapper is preserved so future slices can
       // co-mount additional nav-area elements alongside the rail.
       sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-      appendWavySearchRail(sb, safeInitialQuery, railCardsEnabled);
+      appendWavySearchRail(sb, safeInitialQuery, railCardsEnabled, true);
       sb.append("  </shell-nav-rail>\n");
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
@@ -3870,7 +3870,7 @@ public final class HtmlRenderer {
         sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, "en");
     sb.append("  </shell-header>\n");
     sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
-    appendWavySearchRail(sb, safeInitialQuery, false);
+    appendWavySearchRail(sb, safeInitialQuery, false, false);
     sb.append("  </shell-nav-rail>\n");
     appendWavySearchHelpModal(sb);
     sb.append("  <shell-main-region slot=\"main\">\n");
@@ -4325,13 +4325,19 @@ public final class HtmlRenderer {
    * light DOM covers B.1–B.12.
    */
   private static void appendWavySearchRail(
-      StringBuilder sb, String safeInitialQuery, boolean railCardsEnabled) {
+      StringBuilder sb,
+      String safeInitialQuery,
+      boolean railCardsEnabled,
+      boolean autoloadSavedSearches) {
     // Derive the active folder from the initial query so the SSR folder highlight
     // matches the query pre-upgrade (mirrors WavySearchRail._deriveActiveFolder).
     String activeFolder = deriveActiveFolder(safeInitialQuery);
     sb.append("    <wavy-search-rail query=\"").append(safeInitialQuery)
         .append("\" data-active-folder=\"").append(activeFolder)
         .append("\" result-count=\"\"");
+    if (autoloadSavedSearches) {
+      sb.append(" autoload-saved-searches");
+    }
     if (railCardsEnabled) {
       // J-UI-1 (#1079): when the flag is on the J2CL search panel projects
       // <wavy-search-rail-card> instances into this rail's `cards` slot
@@ -4357,12 +4363,12 @@ public final class HtmlRenderer {
     // so the parity test resolves it on both views with one selector.
     sb.append("      <div class=\"action-row\" role=\"group\" aria-label=\"Search actions\" data-digest-action-row>\n");
     sb.append("        <button type=\"button\" data-digest-action=\"refresh\" aria-label=\"Refresh search results\" title=\"Refresh search results\">↻</button>\n");
-    sb.append("        <button type=\"button\" data-digest-action=\"sort\" aria-label=\"Sort waves\" title=\"Sort waves\">⇅</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"sort\" aria-label=\"Sort waves\" title=\"Sort waves\" aria-haspopup=\"menu\">⇅</button>\n");
     sb.append("        <button type=\"button\" data-digest-action=\"filter\" aria-label=\"Filter waves\" title=\"Filter waves\" aria-pressed=\"false\" aria-expanded=\"false\" aria-controls=\"wavy-search-filter-strip\">▽</button>\n");
     sb.append("      </div>\n");
     sb.append("      <div class=\"actions\">\n");
     sb.append("        <button type=\"button\" class=\"new-wave\" data-shortcut=\"Shift+Cmd+O\" aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\">New Wave</button>\n");
-    sb.append("        <button type=\"button\" class=\"manage-saved\">Manage saved searches</button>\n");
+    sb.append("        <button type=\"button\" class=\"manage-saved\" aria-haspopup=\"dialog\">Manage saved searches</button>\n");
     sb.append("      </div>\n");
     sb.append("      <div class=\"folders-header\">\n");
     sb.append("        <h2 id=\"folders-title\">Saved searches</h2>\n");

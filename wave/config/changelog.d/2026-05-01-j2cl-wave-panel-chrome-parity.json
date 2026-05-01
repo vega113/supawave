@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-01-j2cl-wave-panel-chrome-parity",
+  "version": "Issue #1163",
+  "date": "2026-05-01",
+  "title": "J2CL wave panel chrome parity",
+  "summary": "Improves the J2CL selected-wave layout, resize affordance, compact status chrome, and wave navigation controls toward GWT parity.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Adds a keyboard and pointer resize splitter between the J2CL search rail and selected wave panel.",
+        "Replaces visible raw live-status prose with compact accessible status chips for connection, saved state, and selected-wave route state.",
+        "Wires selected-wave navigation controls to focus and scroll across rendered blips, unread blips, mentions, and recent activity."
+      ]
+    }
+  ]
+}

@@ -3612,6 +3612,10 @@ public final class HtmlRenderer {
       sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
       appendWavySearchRail(sb, safeInitialQuery, railCardsEnabled, true);
       sb.append("  </shell-nav-rail>\n");
+      sb.append("  <button slot=\"splitter\" class=\"j2cl-shell-splitter\" type=\"button\"")
+          .append(" role=\"separator\" aria-orientation=\"vertical\"")
+          .append(" aria-label=\"Resize search results panel\"")
+          .append(" aria-valuemin=\"260\" aria-valuemax=\"420\" aria-valuenow=\"296\"></button>\n");
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
       // bubbles); a connectedCallback-installed listener on this
@@ -3648,7 +3652,7 @@ public final class HtmlRenderer {
           .append("\" data-active-folder=\"")
           .append(safeRailFolder)
           .append("\" data-j2cl-rail-extension=\"true\" hidden></wavy-rail-panel>\n");
-      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
+      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\" class=\"j2cl-status-live-text\">Return target: ")
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
       sb.append("</shell-root>\n");
@@ -3718,7 +3722,7 @@ public final class HtmlRenderer {
       appendRootShellWorkflowMarkup(sb, resolvedSnapshotResult, false);
       sb.append("    </section>\n");
       sb.append("  </shell-main-region>\n");
-      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\">Return target: ")
+      sb.append("  <shell-status-strip slot=\"status\"><span id=\"j2cl-root-return-target-text\" class=\"j2cl-status-live-text\">Return target: ")
           .append(safeResolvedReturnTarget)
           .append("</span></shell-status-strip>\n");
       sb.append("</shell-root-signed-out>\n");
@@ -4895,7 +4899,7 @@ public final class HtmlRenderer {
     sb.append("  var brand=document.getElementById('j2cl-root-brand-link');\n");
     sb.append("  if(brand){brand.href=target;}\n");
     sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
-    sb.append("  if(targetText){targetText.textContent='Return target: ' + target;}\n");
+    sb.append("  if(targetText){targetText.className='j2cl-status-live-text';targetText.textContent='Return target: ' + target;}\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signout]').forEach(function(anchor){anchor.href='/auth/signout?r=' + encoded;});\n");
     sb.append("}\n");

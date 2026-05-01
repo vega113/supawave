@@ -72,6 +72,11 @@ export class WavyWaveControlsToggle extends LitElement {
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
       outline: none;
     }
+    svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
   `;
 
   constructor() {
@@ -99,7 +104,6 @@ export class WavyWaveControlsToggle extends LitElement {
     // (Enter / Space). The host carries no role/tabindex so AT does
     // not announce a nested-button antipattern; the toggle's
     // pressed/label state lives on the inner button.
-    const glyph = this.pressed ? "▸" : "▾";
     const label = this.pressed ? "Show wave controls" : "Hide wave controls";
     return html`
       <button
@@ -108,8 +112,26 @@ export class WavyWaveControlsToggle extends LitElement {
         aria-label=${label}
         @click=${this._onClick}
       >
-        <span aria-hidden="true">${glyph}</span>
+        ${this.pressed ? this._showIcon() : this._hideIcon()}
       </button>
+    `;
+  }
+
+  _hideIcon() {
+    return html`
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M9 5v4M15 10v4M11 15v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+    `;
+  }
+
+  _showIcon() {
+    return html`
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 7h12M6 12h12M6 17h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M9 9l3-3 3 3M9 15l3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
     `;
   }
 }

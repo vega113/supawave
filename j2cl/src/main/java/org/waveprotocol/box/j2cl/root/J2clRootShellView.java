@@ -69,6 +69,7 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     HTMLElement returnTargetLabel =
         firstElementOwnedByRootShell(shell, "#j2cl-root-return-target-text");
     if (returnTargetLabel != null) {
+      returnTargetLabel.className = "j2cl-status-live-text";
       returnTargetLabel.textContent = "Return target: " + returnTarget;
     }
   }
@@ -78,6 +79,14 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     HTMLElement statusElement = ensureLiveStatusElement();
     if (statusElement != null) {
       String statusText = model == null ? "" : model.getStatusText();
+      HTMLElement statusStrip = findStatusStrip(findRootShell());
+      if (statusStrip != null) {
+        statusStrip.setAttribute("data-connection-state", "online");
+        statusStrip.setAttribute("data-save-state", "saved");
+        statusStrip.setAttribute(
+            "data-route-state", model == null ? "ready" : model.getRouteState());
+        statusStrip.setAttribute("data-live-status-text", statusText);
+      }
       String desiredSeparatorDisplay = statusText.isEmpty() ? "none" : "";
       if (statusText.equals(lastPublishedLiveStatusText)
           && (liveStatusSeparator == null
@@ -117,6 +126,7 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     if (liveStatusSeparator == null) {
       liveStatusSeparator = (HTMLElement) DomGlobal.document.createElement("span");
       liveStatusSeparator.id = LIVE_STATUS_SEPARATOR_ID;
+      liveStatusSeparator.className = "j2cl-status-live-separator";
       liveStatusSeparator.setAttribute("aria-hidden", "true");
       liveStatusSeparator.textContent = " | ";
       if (liveStatus != null && liveStatus.parentElement == statusStrip) {
@@ -132,6 +142,9 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       statusStrip.appendChild(liveStatus);
       lastPublishedLiveStatusText = null;
     }
+    liveStatusSeparator.className = "j2cl-status-live-separator";
+    liveStatus.className = "j2cl-status-live-text";
+    liveStatus.setAttribute("aria-live", "polite");
     return liveStatus;
   }
 

@@ -50,7 +50,11 @@ shell-root {
    * width and the wave-panel gutter can be tuned in one place. The
    * fallbacks preserve V-1's 260-296 px rail when wavy-tokens.css has
    * not been loaded (e.g. signed-out branch / SSR-only smoke). */
-  grid-template-columns: minmax(var(--wavy-rail-width-min, 260px), var(--wavy-rail-width-max, 296px)) 1fr;
+  --j2cl-search-rail-width: var(--wavy-rail-width-max, 296px);
+  grid-template-columns:
+    minmax(var(--wavy-rail-width-min, 260px), var(--j2cl-search-rail-width))
+    6px
+    minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto auto;
   /* V-1 (#1099): the rail-extension row leaves the left column empty
    * (".") so the nav rail does not span into row 4. When the slotted
@@ -58,11 +62,11 @@ shell-root {
    * and there is no blank strip under the wave panel even if the nav
    * rail has tall content (long digest list on a short viewport). */
   grid-template-areas:
-    "skip skip"
-    "header header"
-    "nav main"
-    ".   rail-extension"
-    "status status";
+    "skip skip skip"
+    "header header header"
+    "nav splitter main"
+    ".   .        rail-extension"
+    "status status status";
 }
 
 shell-root-signed-out {
@@ -88,9 +92,31 @@ shell-root > [slot="nav"] {
   grid-area: nav;
 }
 
+shell-root > [slot="splitter"] {
+  grid-area: splitter;
+}
+
 shell-root > [slot="main"],
 shell-root-signed-out > [slot="main"] {
   grid-area: main;
+}
+
+.j2cl-shell-splitter {
+  align-self: stretch;
+  width: 6px;
+  min-width: 6px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #d7e3ef;
+  border-right: 1px solid #d7e3ef;
+  background: linear-gradient(90deg, #f8fafc, #eaf2f9, #f8fafc);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.j2cl-shell-splitter:focus-visible {
+  outline: 2px solid var(--shell-color-accent-focus, #0077b6);
+  outline-offset: -2px;
 }
 
 shell-root > [slot="status"],
@@ -304,6 +330,11 @@ shell-status-strip {
       "main"
       "rail-extension"
       "status";
+  }
+
+  shell-root > [slot="splitter"],
+  .j2cl-shell-splitter {
+    display: none;
   }
 
   shell-header {

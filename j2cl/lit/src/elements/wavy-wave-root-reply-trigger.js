@@ -1,8 +1,8 @@
 import { LitElement, css, html } from "lit";
 
 /**
- * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5) bottom-of-wave
- * "Click here to reply" affordance (J.1 from the GWT inventory).
+ * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5) compact
+ * bottom-of-wave reply affordance (J.1 from the GWT inventory).
  *
  * Mounted at the bottom of the read surface. Clicking dispatches a
  * `wave-root-reply-requested` CustomEvent with `{detail: {waveId}}`.
@@ -22,22 +22,24 @@ export class WavyWaveRootReplyTrigger extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
-      padding: var(--wavy-spacing-3, 12px) 0;
+      display: inline-flex;
+      padding: var(--wavy-spacing-1, 4px) 0;
     }
     :host([hidden]) {
       display: none;
     }
     button {
-      width: 100%;
-      padding: var(--wavy-spacing-3, 12px);
-      border-radius: var(--wavy-radius-card, 12px);
-      border: 1px dashed var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
-      background: transparent;
-      color: var(--wavy-text-quiet, rgba(232, 240, 255, 0.42));
-      font: var(--wavy-type-body, 0.9375rem / 1.55 sans-serif);
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: var(--wavy-radius-pill, 999px);
+      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.24));
+      background: var(--wavy-surface-raised, rgba(255, 255, 255, 0.92));
+      color: var(--wavy-signal-cyan, #0077b6);
+      font: var(--wavy-type-label, 0.875rem / 1 sans-serif);
+      font-weight: 700;
       cursor: pointer;
-      text-align: left;
+      text-align: center;
     }
     button:hover {
       border-color: var(--wavy-signal-cyan, #22d3ee);
@@ -73,10 +75,10 @@ export class WavyWaveRootReplyTrigger extends LitElement {
       <button
         type="button"
         data-wave-root-reply-trigger
-        aria-label="Click here to reply to the wave"
+        aria-label="Reply to the wave"
         @click=${this._onClick}
       >
-        Click here to reply
+        +
       </button>
     `;
   }

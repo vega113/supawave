@@ -526,6 +526,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         event -> setProperty(formatToolbar, "selectionDescriptor", eventDetail(event)));
 
     HTMLElement mountPoint = locateInlineMountPoint(key);
+    HTMLElement scrollAnchor =
+        key.isEmpty() ? null : nearestScrollableAncestor(mountPoint != null ? mountPoint : replyElement);
+    double scrollTopBeforeMount = scrollAnchor == null ? 0 : scrollAnchor.scrollTop;
     if (mountPoint != null) {
       mountPoint.appendChild(composer);
     } else {
@@ -538,6 +541,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // Project current model state onto the new composer.
     mirrorComposerStateFromReplyElement(composer);
     composer.dispatchEvent(new Event("composer-focus-request"));
+    if (scrollAnchor != null) {
+      scrollAnchor.scrollTop = scrollTopBeforeMount;
+    }
   }
 
   private void closeInlineComposer(String blipId) {
@@ -561,6 +567,18 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     }
     return (HTMLElement)
         DomGlobal.document.querySelector("wave-blip[data-blip-id=\"" + blipId + "\"]");
+  }
+
+  private static HTMLElement nearestScrollableAncestor(HTMLElement element) {
+    HTMLElement current = element;
+    while (current != null && current != DomGlobal.document.body) {
+      if (current.scrollHeight > current.clientHeight) {
+        return current;
+      }
+      current =
+          current.parentElement instanceof HTMLElement ? (HTMLElement) current.parentElement : null;
+    }
+    return null;
   }
 
   private void mirrorComposerState(HTMLElement composer, J2clComposeSurfaceModel model) {

@@ -245,8 +245,7 @@ public final class J2clReadBlipContent {
         // <line/> and <line> are DocOp structural separators: Hello<line/>World -> Hello\nWorld.
         String tagContent = tagBuf.toString();
         if (isLineTag(tagContent)) {
-          appendLineSeparator(stripped);
-          decodedVisibleLength = decodeEntities(stripped.toString()).length();
+          decodedVisibleLength = appendLineSeparator(stripped, decodedVisibleLength);
         } else if (isInlineReplyAnchorTag(tagContent)) {
           String threadId = attributeValue("<" + tagContent + ">", "id");
           if (!threadId.isEmpty()) {
@@ -331,16 +330,19 @@ public final class J2clReadBlipContent {
     }
   }
 
-  private static void appendLineSeparator(StringBuilder stripped) {
+  private static int appendLineSeparator(StringBuilder stripped, int decodedVisibleLength) {
     // Normalize horizontal whitespace at paragraph boundaries before emitting one line break.
     while (stripped.length() > 0
         && Character.isWhitespace(stripped.charAt(stripped.length() - 1))
         && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.deleteCharAt(stripped.length() - 1);
+      decodedVisibleLength = Math.max(0, decodedVisibleLength - 1);
     }
     if (stripped.length() > 0 && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.append('\n');
+      decodedVisibleLength++;
     }
+    return decodedVisibleLength;
   }
 
   private static AnnotationSnapshot parseAnnotationSnapshot(String raw) {

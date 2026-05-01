@@ -189,6 +189,19 @@ public class J2clReadBlipContentTest {
   }
 
   @Test
+  public void inlineReplyAnchorOffsetAfterLineUsesDecodedVisibleText() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body>A &amp; B   <line/>C <reply id=\"t+after-line\"></reply></body>");
+
+    Assert.assertEquals("A & B\nC ", parsed.getText());
+    Assert.assertEquals(1, parsed.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+after-line", parsed.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals(
+        "A & B\nC ".length(), parsed.getInlineReplyAnchors().get(0).getTextOffset());
+  }
+
+  @Test
   public void parsesTaskAnnotationsFromRawFragmentSnapshot() {
     J2clReadBlipContent parsed =
         J2clReadBlipContent.parseRawSnapshot(

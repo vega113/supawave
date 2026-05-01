@@ -501,6 +501,7 @@ public final class ParticipantsViewBuilder implements UiBuilder {
   private static String escapeHtmlAttribute(String value) {
     return value
         .replace("&", "&amp;")
+        .replace("'", "&#39;")
         .replace("\"", "&quot;")
         .replace("<", "&lt;")
         .replace(">", "&gt;");

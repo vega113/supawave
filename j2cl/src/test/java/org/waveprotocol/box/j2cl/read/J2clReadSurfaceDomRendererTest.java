@@ -390,8 +390,11 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertNotNull(anchor);
     HTMLElement thread =
         (HTMLElement)
-            anchor.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+            blip(host, "b+root")
+                .querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
     Assert.assertNotNull(thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
+    Assert.assertEquals(blip(host, "b+root"), thread.parentElement);
     Assert.assertEquals(
         "b+reply",
         thread.querySelector("[data-blip-id]").getAttribute("data-blip-id"));
@@ -1883,8 +1886,12 @@ public class J2clReadSurfaceDomRendererTest {
             blip(host, "b+root")
                 .querySelector("[data-inline-reply-anchor-thread-id='t+inline']");
     Assert.assertNotNull(anchor);
-    Assert.assertNotNull(
-        anchor.querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']"));
+    HTMLElement thread =
+        (HTMLElement)
+            blip(host, "b+root")
+                .querySelector(".inline-thread[data-inline-reply-anchor-thread-id='t+inline']");
+    Assert.assertNotNull(thread);
+    Assert.assertEquals("blip-extension", thread.getAttribute("slot"));
     Assert.assertEquals("reply", blip(host, "b+reply").getAttribute("data-blip-depth"));
   }
 

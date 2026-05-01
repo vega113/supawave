@@ -235,7 +235,7 @@ marker.className = "j2cl-inline-reply-anchor";
 marker.setAttribute("data-inline-reply-anchor", "true");
 marker.setAttribute("data-inline-reply-anchor-thread-id", anchor.getThreadId());
 marker.setAttribute("data-inline-reply-anchor-offset", Integer.toString(offset));
-marker.setAttribute("aria-label", "Inline replies");
+marker.setAttribute("aria-hidden", "true");
 ```
 
 For this slice, if both mentions and anchors exist in the same blip, keep mention rendering unchanged and let thread placement fall back. That avoids corrupting mention chips; a later richer text renderer can merge both range streams.
@@ -262,14 +262,15 @@ Add a helper that finds the anchor placeholder inside a parent `<wave-blip>`:
 
 If no safe CSS escaping helper exists, avoid selector interpolation by iterating `querySelectorAll("[data-inline-reply-anchor-thread-id]")` and comparing attributes directly.
 
-- [ ] **Step 2: Add helper `appendThreadHostAfterAnchorOrParent`**
+- [ ] **Step 2: Add helper `mountInlineThreadHost`**
 
-Add a helper that mounts the new thread under the anchor placeholder when available, otherwise uses the existing sibling-after-parent insertion logic. When mounting at an anchor, set:
+Add a helper that uses the anchor placeholder as the lookup point, then mounts the new thread in the parent `<wave-blip>` extension slot so task-completed body styling does not decorate reply content. When no anchor is available, use the existing sibling-after-parent insertion logic. When mounting at an anchor, set:
 
 ```java
 threadHost.setAttribute("data-inline-reply-anchor-thread-id", tid);
 threadHost.setAttribute("data-inline-reply-anchor-placement", "inline");
-anchorHost.appendChild(threadHost);
+threadHost.setAttribute("slot", "blip-extension");
+parentBlipHost.appendChild(threadHost);
 ```
 
 - [ ] **Step 3: Update flat `appendBlipsAsTree` placement**
@@ -283,7 +284,7 @@ In the window-render path, use the same helper with `parentHost` and `threadId` 
 ## Task 4: Changelog And Verification
 
 **Files:**
-- Create: `wave/config/changelog.d/20260501-j2cl-inline-placement-parity.json`
+- Create: `wave/config/changelog.d/2026-05-01-j2cl-inline-placement-parity.json`
 - Modify: `wave/config/changelog.json` by running the assembler only.
 
 - [ ] **Step 1: Add a user-facing changelog fragment**

@@ -1313,7 +1313,7 @@ public final class J2clReadSurfaceDomRenderer {
     marker.setAttribute("data-inline-reply-anchor-thread-id", segment.getThreadId());
     marker.setAttribute(
         "data-inline-reply-anchor-offset", Integer.toString(segment.getTextOffset()));
-    marker.setAttribute("aria-label", "Inline replies");
+    marker.setAttribute("aria-hidden", "true");
     return marker;
   }
 
@@ -1865,16 +1865,20 @@ public final class J2clReadSurfaceDomRenderer {
     if (inlineAnchor != null) {
       threadHost.setAttribute("data-inline-reply-anchor-thread-id", threadId);
       threadHost.setAttribute("data-inline-reply-anchor-placement", "inline");
-      inlineAnchor.appendChild(threadHost);
+      // Keep the mounted thread outside the default body slot so parent task
+      // strikethrough/quiet-color styling does not decorate unrelated replies.
+      threadHost.setAttribute("slot", "blip-extension");
+      parentBlipHost.appendChild(threadHost);
       return;
     }
 
     threadHost.removeAttribute("data-inline-reply-anchor-thread-id");
     threadHost.removeAttribute("data-inline-reply-anchor-placement");
+    threadHost.removeAttribute("slot");
     // review-1089 round-2/4: fallback reply threads stay as siblings
     // after the parent <wave-blip>, ordered after any previous fallback
-    // thread for the same parent. Anchored threads live inside their text
-    // marker and intentionally do not advance this fallback insertion point.
+    // thread for the same parent. Anchored threads live in the parent card's
+    // extension slot and intentionally do not advance this fallback point.
     HTMLElement anchor = lastThreadHostByParent.get(parentBlipId);
     if (anchor == null) {
       anchor = parentBlipHost;

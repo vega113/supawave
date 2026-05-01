@@ -457,7 +457,7 @@ public final class J2clComposeSurfaceController {
   }
 
   private interface WaveHeaderActionRequestBuilder {
-    SidecarSubmitRequest create(String address, J2clSidecarWriteSession session);
+    SidecarSubmitRequest create(SidecarSessionBootstrap bootstrap, J2clSidecarWriteSession session);
   }
 
   public static final class AttachmentFileSelection {
@@ -1503,20 +1503,20 @@ public final class J2clComposeSurfaceController {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.participants_added",
-        (address, session) ->
-            deltaFactory.createAddParticipantRequest(address, session, participantsToAdd));
+        (bootstrap, session) ->
+            deltaFactory.createAddParticipantRequest(bootstrap.getAddress(), session, participantsToAdd));
   }
 
   public void onPublicityToggleRequested(final String expectedWaveId, final boolean makePublic) {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.publicity_toggled",
-        (address, session) -> {
-          if (!canTogglePublicity(address, session, makePublic)) {
+        (bootstrap, session) -> {
+          if (!canTogglePublicity(bootstrap.getAddress(), bootstrap.isAdmin(), session, makePublic)) {
             throw new IllegalStateException("Publicity toggle not allowed for this user/session.");
           }
           return deltaFactory.createPublicityToggleRequest(
-              address, session, sharedDomainParticipantForSession(session), makePublic);
+              bootstrap.getAddress(), session, sharedDomainParticipantForSession(session), makePublic);
         });
   }
 
@@ -1527,7 +1527,7 @@ public final class J2clComposeSurfaceController {
     submitWaveHeaderAction(
         expectedWaveId,
         "compose.lock_toggled",
-        (address, session) -> deltaFactory.createLockStateRequest(address, session, current, next));
+        (bootstrap, session) -> deltaFactory.createLockStateRequest(bootstrap.getAddress(), session, current, next));
   }
 
   private void submitWaveHeaderAction(
@@ -1564,7 +1564,7 @@ public final class J2clComposeSurfaceController {
           notifyCurrentUserAddress(bootstrap.getAddress());
           SidecarSubmitRequest request;
           try {
-            request = requestBuilder.create(bootstrap.getAddress(), submitSession);
+            request = requestBuilder.create(bootstrap, submitSession);
           } catch (RuntimeException e) {
             recordWaveHeaderActionTelemetry(telemetryEventName, "failure-build");
             return;
@@ -1586,7 +1586,7 @@ public final class J2clComposeSurfaceController {
 
 
   private static boolean canTogglePublicity(
-      String address, J2clSidecarWriteSession session, boolean makePublic) {
+      String address, boolean isAdmin, J2clSidecarWriteSession session, boolean makePublic) {
     if (session == null) {
       return false;
     }
@@ -1595,8 +1595,11 @@ public final class J2clComposeSurfaceController {
       return false;
     }
     String normalizedAddress = normalizeParticipantAddress(address);
+    if (normalizedAddress.isEmpty()) {
+      return false;
+    }
     String creator = normalizeParticipantAddress(participants.get(0));
-    if (normalizedAddress.isEmpty() || creator.isEmpty() || !normalizedAddress.equals(creator)) {
+    if (!isAdmin && (creator.isEmpty() || !normalizedAddress.equals(creator))) {
       return false;
     }
     if (makePublic && isDirectMessageParticipants(participants)) {

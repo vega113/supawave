@@ -3751,7 +3751,11 @@ public class J2clComposeSurfaceControllerTest {
             waveId -> { },
             waveId -> { });
     controller.start();
-    openWaveForReply(controller);
+    // creator must be the bootstrap user so canTogglePublicity passes
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession(
+            "example.com/w+1", "chan-1", 44L, "ABCD", "b+root",
+            Arrays.asList("user@example.com")));
 
     controller.onPublicityToggleRequested("example.com/w+1", true);
     assertContains(gateway.lastSubmitRequest.getDeltaJson(), "{\"1\":\"@example.com\"}");

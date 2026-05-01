@@ -14,19 +14,26 @@ public final class SidecarSessionBootstrap {
   // through from the bootstrap JSON's session.features array. Empty list
   // when the field is absent or signed-out.
   private final List<String> enabledFeatures;
+  private final boolean admin;
 
   public SidecarSessionBootstrap(String address, String websocketAddress) {
-    this(address, websocketAddress, Collections.<String>emptyList());
+    this(address, websocketAddress, Collections.<String>emptyList(), false);
   }
 
   public SidecarSessionBootstrap(
       String address, String websocketAddress, List<String> enabledFeatures) {
+    this(address, websocketAddress, enabledFeatures, false);
+  }
+
+  public SidecarSessionBootstrap(
+      String address, String websocketAddress, List<String> enabledFeatures, boolean admin) {
     this.address = address;
     this.websocketAddress = websocketAddress;
     this.enabledFeatures =
         enabledFeatures == null
             ? Collections.<String>emptyList()
             : Collections.unmodifiableList(new ArrayList<String>(enabledFeatures));
+    this.admin = admin;
   }
 
   public String getAddress() {
@@ -50,6 +57,11 @@ public final class SidecarSessionBootstrap {
   /** Convenience: returns true when {@code flag} is in {@link #getEnabledFeatures}. */
   public boolean isFeatureEnabled(String flag) {
     return enabledFeatures.contains(flag);
+  }
+
+  /** Returns true when the signed-in user has server-admin or owner privileges. */
+  public boolean isAdmin() {
+    return admin;
   }
 
   public static boolean usesCompatibleCookieHost(String pageHostname, String websocketAddress) {
@@ -136,7 +148,17 @@ public final class SidecarSessionBootstrap {
     if (socketAddress.isEmpty() || "null".equals(socketAddress)) {
       throw new IllegalArgumentException("Bootstrap JSON did not include a socket address");
     }
-    return new SidecarSessionBootstrap(address, socketAddress, extractFeatures(session));
+    boolean isAdmin = extractIsAdmin(session);
+    return new SidecarSessionBootstrap(address, socketAddress, extractFeatures(session), isAdmin);
+  }
+
+  private static boolean extractIsAdmin(Map<String, Object> session) {
+    Object roleValue = session.get("role");
+    if (!(roleValue instanceof String)) {
+      return false;
+    }
+    String role = (String) roleValue;
+    return "admin".equals(role) || "owner".equals(role);
   }
 
   /**

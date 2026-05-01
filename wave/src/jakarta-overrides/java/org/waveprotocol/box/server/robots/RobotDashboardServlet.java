@@ -1277,16 +1277,19 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("function generatePrompt(){");
     sb.append("var btn=document.getElementById('gen-prompt-btn');");
     sb.append("btn.disabled=true;btn.textContent='Generating...';");
+    sb.append("var expSel=document.getElementById('tok-expiry-sel');");
+    sb.append("var secs=expSel?expSel.value:'3600';");
     sb.append("fetch(CTX+'/robot/dataapi/token',{method:'POST',credentials:'same-origin',");
-    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry=3600'})");
+    sb.append("headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'expiry='+secs})");
     sb.append(".then(function(r){if(!r.ok)throw new Error('Token request failed (HTTP '+r.status+')');return r.json();})");
     sb.append(".then(function(d){if(!d.access_token)throw new Error('No token returned');");
     sb.append("var prompt=buildPromptText(d.access_token);");
     sb.append("var el=document.getElementById('ai-prompt');el.textContent=prompt;el.style.display='';");
     sb.append("document.getElementById('copy-prompt-btn').style.display='';");
     sb.append("_promptGeneratedAt=Date.now();updatePromptStatus();");
+    sb.append("var mins=Math.round(parseInt(secs)/60);");
     sb.append("btn.disabled=false;btn.innerHTML='<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><polyline points=\"23 4 23 10 17 10\"/><path d=\"M20.49 15a9 9 0 1 1-2.12-9.36L23 10\"/></svg> Regenerate with New Token';");
-    sb.append("toast('Prompt generated with live token (1h)','info');");
+    sb.append("toast('Prompt generated with live token ('+mins+'m)','info');");
     sb.append("}).catch(function(e){btn.disabled=false;btn.textContent='Generate Prompt with Token';toast(e.message||'Failed to generate','err');});}");
 
     // Update "generated X ago" status

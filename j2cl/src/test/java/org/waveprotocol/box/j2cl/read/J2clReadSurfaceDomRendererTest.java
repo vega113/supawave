@@ -70,6 +70,7 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals(
         "Collapse inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
+    Assert.assertEquals("−", toggle.textContent);
 
     HTMLElement inlineThread =
         (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
@@ -86,6 +87,7 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", inlineThread.getAttribute("data-j2cl-thread-collapsed"));
     Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
+    Assert.assertEquals("+", toggle.textContent);
   }
 
   @Test

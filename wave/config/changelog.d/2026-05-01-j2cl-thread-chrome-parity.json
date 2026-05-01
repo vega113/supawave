@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-thread-chrome-parity",
+  "version": "Issue #1167",
+  "date": "2026-05-01",
+  "title": "J2CL thread chrome parity",
+  "summary": "Compacts J2CL thread affordances so inline replies no longer consume extra blip-body space.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Moves reply-thread drill-in from the body-level diamond chip to the compact blip-header chevron.",
+        "Replaces full-width inline-thread collapse rows with small accessible icon controls."
+      ]
+    }
+  ]
+}

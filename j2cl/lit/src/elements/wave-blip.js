@@ -16,8 +16,8 @@ import "./wavy-task-affordance.js";
  * - F-2 needs to layer on top: a header with the author display name
  *   + relative timestamp + full ISO datetime tooltip (F.1 / F.2 / F.3),
  *   a per-blip toolbar with Reply / Edit / Link / overflow that reveals
- *   on focus or hover (F.4 / F.5 / F.6 / F.7), an inline-reply chip when
- *   the blip has children (F.10 + R-3.7 G.1 drill-in), and a `has-mention`
+ *   on focus or hover (F.4 / F.5 / F.6 / F.7), a compact thread affordance
+ *   when the blip has children (F.10 + R-3.7 G.1 drill-in), and a `has-mention`
  *   reflection so the wave-nav-row can navigate by @-mentions (E.6 / E.7).
  *
  * Plugin slot contract (R-3.1 step 8 + plugin-slot reservation):
@@ -54,7 +54,7 @@ import "./wavy-task-affordance.js";
  * - `wave-blip-profile-requested` — `{detail: {blipId, authorId}}`.
  *   Emitted from the avatar click for the L.1 profile overlay.
  * - `wave-blip-drill-in-requested` — `{detail: {blipId, waveId}}`.
- *   Emitted from the inline-reply chip click for the R-3.7 G.1 drill-in.
+ *   Emitted from the compact thread chevron for the R-3.7 G.1 drill-in.
  */
 export class WaveBlip extends LitElement {
   static properties = {
@@ -149,9 +149,15 @@ export class WaveBlip extends LitElement {
     .thread-chevron {
       flex: 0 0 auto;
       width: 16px;
+      height: 20px;
       text-align: center;
       font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
       color: #718096;
+      background: transparent;
+      border: 0;
+      border-radius: var(--wavy-radius-sm, 4px);
+      cursor: pointer;
+      padding: 0;
       user-select: none;
     }
     :host([focused]) .thread-chevron {
@@ -167,6 +173,10 @@ export class WaveBlip extends LitElement {
      * with children, so the glyph is purely a visual cue here. */
     .thread-chevron[hidden] {
       display: none;
+    }
+    .thread-chevron:focus-visible {
+      outline: none;
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
     .avatar {
       flex: 0 0 auto;
@@ -227,21 +237,6 @@ export class WaveBlip extends LitElement {
      * through descendants even when descendants set text-decoration
      * none, so visual isolation must come from DOM placement rather
      * than from a defensive rule. */
-    .inline-reply-chip {
-      display: inline-block;
-      margin-top: 6px;
-      padding: 6px 10px;
-      border-radius: 8px;
-      border: 1.5px dashed #e2e8f0;
-      background: #f0f4f8;
-      color: #718096;
-      font: italic 13px / 1.35 Arial, sans-serif;
-      cursor: pointer;
-    }
-    .inline-reply-chip:focus-visible {
-      outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
-    }
     /* When the wrapper carries the has-mention attr, paint a cyan
      * accent rail down the left so the mention navigation (E.6 / E.7)
      * has a visual cue without reusing the unread-dot geometry. */
@@ -549,7 +544,7 @@ export class WaveBlip extends LitElement {
     );
   }
 
-  _onChipClick(event) {
+  _onThreadChevronClick(event) {
     event.stopPropagation();
     this.dispatchEvent(
       new CustomEvent("wave-blip-drill-in-requested", {
@@ -591,29 +586,20 @@ export class WaveBlip extends LitElement {
 
   render() {
     const tooltip = this.postedAtIso || this.postedAt;
-    const chip =
-      this.replyCount > 0
-        ? html`<button
-            type="button"
-            class="inline-reply-chip"
-            data-inline-reply-chip="true"
-            aria-label=${`Drill into ${this.replyCount} replies under this blip`}
-            @click=${this._onChipClick}
-          >
-            △ ${this.replyCount}
-          </button>`
-        : null;
     const isRoot = this.blipDepth === "root";
     const timestampSuffix = isRoot && this.postedAt ? " · root" : "";
     const palette = this._palette();
     const hasReplies = this.replyCount > 0;
     const visuallyFocused = this._visuallyFocused();
     const chevron = hasReplies
-      ? html`<span
+      ? html`<button
+          type="button"
           class="thread-chevron"
           data-thread-chevron="true"
-          aria-hidden="true"
-        >${this._chevronGlyph()}</span>`
+          aria-label=${`Drill into ${this.replyCount} replies under this blip`}
+          aria-expanded=${String(!this.threadCollapsed)}
+          @click=${this._onThreadChevronClick}
+        >${this._chevronGlyph()}</button>`
       : html`<span class="thread-chevron" hidden></span>`;
 
     return html`
@@ -676,7 +662,6 @@ export class WaveBlip extends LitElement {
         </div>
         <div class="body">
           <slot></slot>
-          ${chip}
         </div>
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>

@@ -1814,6 +1814,8 @@ public final class J2clReadSurfaceDomRenderer {
             "aria-label",
             (thread.classList.contains("j2cl-read-thread-collapsed") ? "Expand " : "Collapse ")
                 + label);
+        existingButton.textContent =
+            thread.classList.contains("j2cl-read-thread-collapsed") ? "+" : "\u2212";
       }
       return;
     }
@@ -1824,7 +1826,7 @@ public final class J2clReadSurfaceDomRenderer {
     button.setAttribute("aria-controls", thread.getAttribute("id"));
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-label", "Collapse " + label);
-    button.textContent = "Collapse thread";
+    button.textContent = "\u2212";
     button.addEventListener("click", event -> toggleThread(thread, button));
     thread.insertBefore(button, thread.firstChild);
   }
@@ -1873,13 +1875,13 @@ public final class J2clReadSurfaceDomRenderer {
       thread.setAttribute("data-j2cl-thread-collapsed", "true");
       button.setAttribute("aria-expanded", "false");
       button.setAttribute("aria-label", "Expand " + threadLabel(thread));
-      button.textContent = "Expand thread";
+      button.textContent = "+";
     } else {
       thread.classList.remove("j2cl-read-thread-collapsed");
       thread.removeAttribute("data-j2cl-thread-collapsed");
       button.setAttribute("aria-expanded", "true");
       button.setAttribute("aria-label", "Collapse " + threadLabel(thread));
-      button.textContent = "Collapse thread";
+      button.textContent = "\u2212";
     }
     // V-4 (#1102): mirror collapse state onto the parent wave-blip so
     // the chevron glyph (triangle-down/right) reflects the actual

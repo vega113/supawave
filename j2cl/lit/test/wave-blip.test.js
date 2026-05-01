@@ -149,7 +149,7 @@ describe("<wave-blip>", () => {
     expect(ev.composed).to.be.true;
   });
 
-  it("renders the inline-reply chip only when reply-count > 0", async () => {
+  it("does not render a body-level inline-reply chip when reply-count > 0", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b6" data-wave-id="w6" author-name="A">x</wave-blip>
     `);
@@ -158,12 +158,10 @@ describe("<wave-blip>", () => {
 
     el.replyCount = 4;
     await el.updateComplete;
-    const chip = el.renderRoot.querySelector("[data-inline-reply-chip='true']");
-    expect(chip).to.exist;
-    expect(chip.textContent.trim()).to.contain("4");
+    expect(el.renderRoot.querySelector("[data-inline-reply-chip='true']")).to.not.exist;
   });
 
-  it("inline-reply chip click emits wave-blip-drill-in-requested with blip context", async () => {
+  it("compact thread chevron click emits wave-blip-drill-in-requested with blip context", async () => {
     const el = await fixture(html`
       <wave-blip
         data-blip-id="b7"
@@ -175,8 +173,10 @@ describe("<wave-blip>", () => {
       </wave-blip>
     `);
     await el.updateComplete;
-    const chip = el.renderRoot.querySelector("[data-inline-reply-chip='true']");
-    setTimeout(() => chip.click(), 0);
+    const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
+    expect(chevron).to.exist;
+    expect(chevron.getAttribute("aria-label")).to.equal("Drill into 2 replies under this blip");
+    setTimeout(() => chevron.click(), 0);
     const ev = await oneEvent(el, "wave-blip-drill-in-requested");
     expect(ev.detail.blipId).to.equal("b7");
     expect(ev.detail.waveId).to.equal("w7");

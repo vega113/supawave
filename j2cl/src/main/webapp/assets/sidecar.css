@@ -311,16 +311,20 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
 
 .j2cl-read-thread-toggle {
   align-self: start;
-  background: #f0f4f8;
-  border: 1px dashed #e2e8f0;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
   color: #718096;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.86rem;
+  font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
+  font-size: 0.78rem;
   font-weight: 700;
-  margin: 0 0 10px;
-  padding: 6px 12px;
+  height: 20px;
+  justify-self: start;
+  line-height: 1;
+  margin: -2px 0 2px 1.15em;
+  padding: 0;
+  width: 20px;
 }
 
 .j2cl-read-thread-toggle:hover,

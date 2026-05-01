@@ -13,13 +13,14 @@ function ensureWavyTokensLoaded() {
 before(() => ensureWavyTokensLoaded());
 
 describe("<wavy-wave-root-reply-trigger>", () => {
-  it("renders the J.1 click-to-reply button", async () => {
+  it("renders the J.1 compact reply button", async () => {
     const el = await fixture(html`
       <wavy-wave-root-reply-trigger wave-id="w1"></wavy-wave-root-reply-trigger>
     `);
     const button = el.renderRoot.querySelector("[data-wave-root-reply-trigger]");
     expect(button).to.exist;
-    expect(button.textContent.trim()).to.match(/Click here to reply/);
+    expect(button.textContent.trim()).to.equal("+");
+    expect(button.getAttribute("aria-label")).to.equal("Reply to the wave");
   });
 
   it("emits wave-root-reply-requested with the wave id on click", async () => {

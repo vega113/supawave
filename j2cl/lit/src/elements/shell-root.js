@@ -67,6 +67,8 @@ export class ShellRoot extends LitElement {
     this._onResizePointerUp = this._onResizePointerUp.bind(this);
     this._onWaveControlsToggled = this._onWaveControlsToggled.bind(this);
     this._resizeStart = null;
+    this._resizePointerId = null;
+    this._resizePointerTarget = null;
   }
 
   connectedCallback() {
@@ -105,8 +107,7 @@ export class ShellRoot extends LitElement {
   }
 
   _restoreRailWidth() {
-    if (typeof window === "undefined" || !window.localStorage) return;
-    const stored = Number(window.localStorage.getItem(ShellRoot.RESIZE_STORAGE_KEY));
+    const stored = Number(this._readStoredRailWidth());
     if (!Number.isFinite(stored) || stored <= 0) return;
     this._setRailWidth(stored);
   }
@@ -139,14 +140,25 @@ export class ShellRoot extends LitElement {
       width: this._currentRailWidth(),
       splitter: evt.target
     };
+    this._resizePointerId = evt.pointerId;
+    this._resizePointerTarget = evt.target;
+    try {
+      evt.target.setPointerCapture?.(evt.pointerId);
+    } catch {
+      // Capture can fail if the pointer is already gone; document listeners still clean up.
+    }
     if (typeof document !== "undefined") {
       document.addEventListener("pointermove", this._onResizePointerMove);
-      document.addEventListener("pointerup", this._onResizePointerUp, { once: true });
+      document.addEventListener("pointerup", this._onResizePointerUp);
+      document.addEventListener("pointercancel", this._onResizePointerUp);
+    }
+    if (evt.target && evt.target.addEventListener) {
+      evt.target.addEventListener("lostpointercapture", this._onResizePointerUp);
     }
   }
 
   _onResizePointerMove(evt) {
-    if (!this._resizeStart) return;
+    if (!this._resizeStart || evt.pointerId !== this._resizePointerId) return;
     this._setRailWidth(
       this._resizeStart.width + (evt.clientX - this._resizeStart.x),
       this._resizeStart.splitter,
@@ -154,21 +166,32 @@ export class ShellRoot extends LitElement {
     );
   }
 
-  _onResizePointerUp() {
-    if (this._resizeStart && typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(
-        ShellRoot.RESIZE_STORAGE_KEY,
-        String(Math.round(this._currentRailWidth()))
-      );
+  _onResizePointerUp(evt) {
+    if (!this._resizeStart) return;
+    if (evt && evt.pointerId !== this._resizePointerId) return;
+    this._writeStoredRailWidth(String(Math.round(this._currentRailWidth())));
+    if (this._resizePointerTarget && this._resizePointerTarget.releasePointerCapture) {
+      try {
+        this._resizePointerTarget.releasePointerCapture(this._resizePointerId);
+      } catch {
+        // The browser may have already released capture.
+      }
     }
     this._stopResizeTracking();
   }
 
   _stopResizeTracking() {
+    const target = this._resizePointerTarget;
     this._resizeStart = null;
+    this._resizePointerId = null;
+    this._resizePointerTarget = null;
     if (typeof document !== "undefined") {
       document.removeEventListener("pointermove", this._onResizePointerMove);
       document.removeEventListener("pointerup", this._onResizePointerUp);
+      document.removeEventListener("pointercancel", this._onResizePointerUp);
+    }
+    if (target && target.removeEventListener) {
+      target.removeEventListener("lostpointercapture", this._onResizePointerUp);
     }
   }
 
@@ -203,8 +226,36 @@ export class ShellRoot extends LitElement {
         el.setAttribute("aria-valuenow", String(next));
       });
     }
-    if (persist && typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(ShellRoot.RESIZE_STORAGE_KEY, String(next));
+    if (persist) {
+      this._writeStoredRailWidth(String(next));
+    }
+  }
+
+  _storage() {
+    try {
+      return typeof window === "undefined" ? null : window.localStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  _readStoredRailWidth() {
+    const storage = this._storage();
+    if (!storage) return "";
+    try {
+      return storage.getItem(ShellRoot.RESIZE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  _writeStoredRailWidth(value) {
+    const storage = this._storage();
+    if (!storage) return;
+    try {
+      storage.setItem(ShellRoot.RESIZE_STORAGE_KEY, value);
+    } catch {
+      // Storage can be blocked or over quota; resizing should remain usable.
     }
   }
 

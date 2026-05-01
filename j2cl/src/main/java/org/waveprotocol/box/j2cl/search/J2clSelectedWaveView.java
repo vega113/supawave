@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.search;
 
 import elemental2.core.JsArray;
+import elemental2.core.JsDate;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Element.FocusOptionsType;
 import elemental2.dom.HTMLDivElement;
@@ -497,7 +498,8 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     try {
       return Long.parseLong(value);
     } catch (NumberFormatException ignored) {
-      return Long.MIN_VALUE;
+      double epochMs = new JsDate(value).getTime();
+      return Double.isNaN(epochMs) ? Long.MIN_VALUE : (long) epochMs;
     }
   }
 

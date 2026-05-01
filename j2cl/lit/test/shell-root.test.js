@@ -59,6 +59,78 @@ describe("<shell-root>", () => {
     expect(window.localStorage.getItem("j2cl.searchRailWidth")).to.equal("392");
   });
 
+  it("keeps resizing usable when localStorage is blocked", async () => {
+    const originalGetItem = Storage.prototype.getItem;
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.getItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    Storage.prototype.setItem = () => {
+      throw new DOMException("blocked", "SecurityError");
+    };
+    try {
+      const el = await fixture(html`
+        <shell-root style="--j2cl-search-rail-width: 376px">
+          <button slot="splitter" id="search-splitter">resize</button>
+        </shell-root>
+      `);
+      const splitter = el.querySelector("#search-splitter");
+
+      splitter.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+      );
+
+      expect(el.style.getPropertyValue("--j2cl-search-rail-width")).to.equal("392px");
+    } finally {
+      Storage.prototype.getItem = originalGetItem;
+      Storage.prototype.setItem = originalSetItem;
+    }
+  });
+
+  it("cleans resize tracking when pointer capture is canceled", async () => {
+    window.localStorage.removeItem("j2cl.searchRailWidth");
+    const el = await fixture(html`
+      <shell-root style="--j2cl-search-rail-width: 376px">
+        <button slot="splitter" id="search-splitter">resize</button>
+      </shell-root>
+    `);
+    const splitter = el.querySelector("#search-splitter");
+    let capturedPointer = null;
+    let releasedPointer = null;
+    splitter.setPointerCapture = (pointerId) => {
+      capturedPointer = pointerId;
+    };
+    splitter.releasePointerCapture = (pointerId) => {
+      releasedPointer = pointerId;
+    };
+
+    splitter.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        clientX: 100,
+        pointerId: 7
+      })
+    );
+    document.dispatchEvent(
+      new PointerEvent("pointercancel", {
+        bubbles: true,
+        pointerId: 7
+      })
+    );
+    document.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: true,
+        clientX: 180,
+        pointerId: 7
+      })
+    );
+
+    expect(capturedPointer).to.equal(7);
+    expect(releasedPointer).to.equal(7);
+    expect(el.style.getPropertyValue("--j2cl-search-rail-width")).to.equal("376px");
+  });
+
   it("document wave-controls toggle switches compact mode on the shell", async () => {
     const el = await fixture(html`<shell-root></shell-root>`);
 

@@ -204,6 +204,21 @@ export class WavyProfileOverlay extends LitElement {
     return this._fallbackParticipant ? [this._fallbackParticipant] : participantList;
   }
 
+  _setFallbackParticipant(participant) {
+    const previous = this._fallbackParticipant;
+    const same =
+      previous === participant ||
+      (previous &&
+        participant &&
+        previous.id === participant.id &&
+        previous.displayName === participant.displayName &&
+        previous.avatarUrl === participant.avatarUrl);
+    this._fallbackParticipant = participant;
+    if (!same) {
+      this.requestUpdate("_fallbackParticipant", previous);
+    }
+  }
+
   willUpdate(changed) {
     if (changed.has("open")) {
       this._syncOpen();
@@ -213,7 +228,7 @@ export class WavyProfileOverlay extends LitElement {
     // participants array shrinks under us. render() already clamps a
     // local idx, but the navigation handlers consume `this.index`
     // directly — keep them in lockstep.
-    if (changed.has("participants") || changed.has("index")) {
+    if (changed.has("participants") || changed.has("index") || changed.has("_fallbackParticipant")) {
       const list = this._activeParticipants();
       const max = list.length > 0 ? list.length - 1 : 0;
       const raw = Number.isFinite(this.index) ? this.index : 0;
@@ -303,17 +318,17 @@ export class WavyProfileOverlay extends LitElement {
     if (authorId) {
       const found = list.findIndex((p) => p && p.id === authorId);
       if (found >= 0) {
-        this._fallbackParticipant = null;
+        this._setFallbackParticipant(null);
         this.index = found;
       } else {
-        this._fallbackParticipant = {
+        this._setFallbackParticipant({
           id: String(authorId),
           displayName: String(authorId)
-        };
+        });
         this.index = 0;
       }
     } else {
-      this._fallbackParticipant = null;
+      this._setFallbackParticipant(null);
       this.index = 0;
     }
     this.open = true;
@@ -327,7 +342,7 @@ export class WavyProfileOverlay extends LitElement {
   }
 
   open_(index) {
-    this._fallbackParticipant = null;
+    this._setFallbackParticipant(null);
     if (typeof index === "number") {
       const list = this._activeParticipants();
       const max = list.length > 0 ? list.length - 1 : 0;

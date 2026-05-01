@@ -116,6 +116,38 @@ describe("<wavy-profile-overlay>", () => {
     );
   });
 
+  it("updates an already-open unknown author fallback when another unknown profile is requested", async () => {
+    const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+    el.participants = PARTICIPANTS;
+    await el.updateComplete;
+    document.dispatchEvent(
+      new CustomEvent("wave-blip-profile-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { authorId: "ghost-one@example.com" }
+      })
+    );
+    await el.updateComplete;
+
+    document.dispatchEvent(
+      new CustomEvent("wave-blip-profile-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { authorId: "ghost-two@example.com" }
+      })
+    );
+    await el.updateComplete;
+
+    expect(el.index).to.equal(0);
+    expect(el.getAttribute("aria-label")).to.equal("ghost-two@example.com");
+    expect(el.renderRoot.querySelector(".name").textContent.trim()).to.equal(
+      "ghost-two@example.com"
+    );
+    expect(el.renderRoot.querySelector(".pid").textContent.trim()).to.equal(
+      "ghost-two@example.com"
+    );
+  });
+
   it("opening fires wavy-profile-overlay-opened with the trigger authorId", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = PARTICIPANTS;

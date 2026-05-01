@@ -3615,7 +3615,7 @@ public final class HtmlRenderer {
       sb.append("  <button slot=\"splitter\" class=\"j2cl-shell-splitter\" type=\"button\"")
           .append(" role=\"separator\" aria-orientation=\"vertical\"")
           .append(" aria-label=\"Resize search results panel\"")
-          .append(" aria-valuemin=\"260\" aria-valuemax=\"420\" aria-valuenow=\"296\"></button>\n");
+          .append(" aria-valuemin=\"360\" aria-valuemax=\"400\" aria-valuenow=\"400\"></button>\n");
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
       // bubbles); a connectedCallback-installed listener on this

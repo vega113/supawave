@@ -585,7 +585,7 @@ public class J2clSelectedWaveViewChromeTest {
 
     dispatchNavEvent(view.getCardElement(), "wave-nav-recent-requested");
     Assert.assertEquals(
-        host.querySelector("wave-blip[data-blip-id='b+3']"),
+        host.querySelector("wave-blip[data-blip-id='b+2']"),
         DomGlobal.document.activeElement);
 
     dispatchNavEvent(view.getCardElement(), "wave-nav-end-requested");
@@ -843,7 +843,7 @@ public class J2clSelectedWaveViewChromeTest {
         Arrays.asList(
             readBlip("b+1", "one", 1000L, false, false),
             readBlip("b+2", "two", 2000L, true, false),
-            readBlip("b+3", "three", 3000L, false, true)),
+            readBlip("b+3", "three", 300L, false, true)),
         null,
         1,
         true,

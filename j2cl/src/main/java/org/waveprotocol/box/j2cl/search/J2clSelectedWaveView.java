@@ -479,16 +479,26 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       return;
     }
     HTMLElement newest = blips.get(blips.size() - 1);
-    String newestTime = newest.getAttribute("data-blip-time");
+    long newestTime = parseBlipTime(newest.getAttribute("data-blip-time"));
     for (HTMLElement blip : blips) {
-      String time = blip.getAttribute("data-blip-time");
-      if (time != null && !time.isEmpty()
-          && (newestTime == null || newestTime.isEmpty() || time.compareTo(newestTime) > 0)) {
+      long time = parseBlipTime(blip.getAttribute("data-blip-time"));
+      if (time > newestTime) {
         newest = blip;
         newestTime = time;
       }
     }
     focusBlip(newest);
+  }
+
+  private static long parseBlipTime(String value) {
+    if (value == null || value.isEmpty()) {
+      return Long.MIN_VALUE;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch (NumberFormatException ignored) {
+      return Long.MIN_VALUE;
+    }
   }
 
   private void focusLastBlip() {

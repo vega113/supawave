@@ -48,11 +48,11 @@ shell-root-signed-out {
 shell-root {
   /* V-5 (#1103): density tokens flow from wavy-tokens.css so the rail
    * width and the wave-panel gutter can be tuned in one place. The
-   * fallbacks preserve V-1's 260-296 px rail when wavy-tokens.css has
-   * not been loaded (e.g. signed-out branch / SSR-only smoke). */
-  --j2cl-search-rail-width: var(--wavy-rail-width-max, 296px);
+   * fallbacks mirror wavy-tokens.css so SSR-only smoke and Lit runtime
+   * clamp to the same range. */
+  --j2cl-search-rail-width: var(--wavy-rail-width-max, 400px);
   grid-template-columns:
-    minmax(var(--wavy-rail-width-min, 260px), var(--j2cl-search-rail-width))
+    minmax(var(--wavy-rail-width-min, 360px), var(--j2cl-search-rail-width))
     6px
     minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto auto;

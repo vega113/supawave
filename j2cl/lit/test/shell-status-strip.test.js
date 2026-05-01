@@ -35,4 +35,14 @@ describe("<shell-status-strip>", () => {
     ]);
     expect(el.renderRoot.querySelector("slot").classList.contains("status-live-text")).to.be.true;
   });
+
+  it("styles the saving chip as a transitional warning state", async () => {
+    const el = await fixture(html`
+      <shell-status-strip data-save-state="saving"></shell-status-strip>
+    `);
+    const chip = el.renderRoot.querySelector('[data-status-chip="saved"]');
+
+    expect(chip.getAttribute("aria-label")).to.equal("Saving changes");
+    expect(getComputedStyle(chip).backgroundColor).to.equal("rgb(255, 247, 230)");
+  });
 });

@@ -38,6 +38,7 @@ export class ShellStatusStrip extends LitElement {
     }
 
     .chip[data-state="offline"],
+    .chip[data-state="saving"],
     .chip[data-state="unsaved"],
     .chip[data-state="loading"] {
       color: #8f5e00;

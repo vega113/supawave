@@ -173,6 +173,37 @@ describe("<wavy-wave-header-actions>", () => {
     }
   });
 
+  it("does not append a duplicate suggestion when draft already contains the email with different casing", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      async json() {
+        return { contacts: [{ participant: "Carol@example.com", score: 8 }] };
+      }
+    });
+    try {
+      const el = await createActions({ participants: [] });
+      el._participantDraft = "carol@example.com";
+
+      actionButton(el, "add-participant").click();
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      const suggestion = el.renderRoot.querySelector(
+        '[data-contact-suggestion="Carol@example.com"]'
+      );
+      expect(suggestion).to.exist;
+      suggestion.click();
+      await el.updateComplete;
+
+      const input = el.renderRoot.querySelector('input[name="participant-addresses"]');
+      expect(input.value).to.equal("carol@example.com");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("starts a new wave with current participants excluding the shared-domain participant", async () => {
     const el = await createActions({
       participants: ["@example.com", "alice@example.com", "bob@example.com"]

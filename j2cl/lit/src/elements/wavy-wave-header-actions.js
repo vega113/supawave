@@ -410,7 +410,10 @@ export class WavyWaveHeaderActions extends LitElement {
 
   _appendSuggestedParticipant(address) {
     const values = this._addParticipantAddresses();
-    values.push(address);
+    const normalizedAddress = String(address || "").trim();
+    if (!values.some((value) => value.toLowerCase() === normalizedAddress.toLowerCase())) {
+      values.push(normalizedAddress);
+    }
     this._participantDraft = uniqueValues(values).join(", ");
   }
 

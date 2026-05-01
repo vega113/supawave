@@ -110,6 +110,9 @@ export class WaveBlip extends LitElement {
     taskCompleted: { type: Boolean, attribute: "data-task-completed", reflect: true },
     taskAssignee: { type: String, attribute: "data-task-assignee", reflect: true },
     taskDueDate: { type: String, attribute: "data-task-due-date", reflect: true },
+    // Renderer sets this whenever a task/done annotation exists (regardless of value).
+    // Survives full DOM rebuilds so reopened tasks keep the affordance mounted.
+    taskPresent: { type: Boolean, attribute: "data-task-present", reflect: false },
     bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true }
   };
 
@@ -316,6 +319,7 @@ export class WaveBlip extends LitElement {
     this.taskCompleted = false;
     this.taskAssignee = "";
     this.taskDueDate = "";
+    this.taskPresent = false;
     this.bodySize = 0;
     this._taskPresent = false;
     this.blipDepth = "";
@@ -352,11 +356,14 @@ export class WaveBlip extends LitElement {
     if (changedProperties.has("focused")) {
       this.dataBlipFocused = this.focused ? "true" : null;
     }
-    // Once any task attribute arrives the affordance must stay mounted even
-    // if taskCompleted is later cleared by an optimistic reopen toggle.
+    // Once any task signal arrives the affordance stays mounted even after a full
+    // DOM rebuild (renderWindow clears host.innerHTML). taskPresent (data-task-present)
+    // is the renderer-backed sticky signal that survives rebuild for reopened tasks
+    // with no assignee/due-date (where all three mutable task attributes are absent).
     if (
       !this._taskPresent &&
-      (this.taskCompleted ||
+      (this.taskPresent ||
+        this.taskCompleted ||
         String(this.taskAssignee || "").trim() ||
         String(this.taskDueDate || "").trim())
     ) {

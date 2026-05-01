@@ -418,6 +418,21 @@ describe("<wave-blip>", () => {
     expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
   });
 
+  it("keeps task affordance mounted after DOM rebuild via data-task-present (reopened task)", async () => {
+    // Simulate the renderWindow DOM-rebuild path: the renderer emits data-task-present
+    // so a reopened task with no assignee/due-date keeps its affordance visible even
+    // though _taskPresent is lost when the old <wave-blip> node was destroyed.
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b21c"
+        data-wave-id="w21c"
+        data-task-present
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
+  });
+
   it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
     const el = await fixture(html`
       <wave-blip

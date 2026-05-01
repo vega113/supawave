@@ -351,10 +351,55 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLElement element = blip(host, "b+done");
     Assert.assertNotNull(element);
     Assert.assertTrue(element.hasAttribute("data-task-completed"));
+    Assert.assertTrue(
+        "data-task-present must be set when isTask=true (task blip)",
+        element.hasAttribute("data-task-present"));
     Assert.assertEquals(
         "bob@example.com", element.getAttribute("data-task-assignee"));
     Assert.assertEquals(
         "2024-05-01", element.getAttribute("data-task-due-date"));
+  }
+
+  @Test
+  public void renderWindowSetsDataTaskPresentForReopenedTaskWithNoMetadata() {
+    // Regression: after a full DOM rebuild (renderWindow clears host.innerHTML),
+    // a reopened task blip with taskDone=false AND no assignee/due-date must still
+    // carry data-task-present so the Lit _taskPresent field can be set to true on
+    // the freshly created <wave-blip> element, keeping the affordance mounted.
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry reopened =
+        J2clReadWindowEntry.loadedWithTaskMetadata(
+            "blip:b+reopened",
+            0L,
+            12L,
+            "b+reopened",
+            "Follow up",
+            java.util.Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+            /* bodyItemCount= */ 5,
+            /* isTask= */ true);
+
+    Assert.assertTrue(renderer.renderWindow(java.util.Arrays.asList(reopened)));
+
+    HTMLElement element = blip(host, "b+reopened");
+    Assert.assertNotNull(element);
+    Assert.assertFalse(
+        "reopened task must not have data-task-completed",
+        element.hasAttribute("data-task-completed"));
+    Assert.assertTrue(
+        "reopened task must carry data-task-present so Lit can keep affordance mounted",
+        element.hasAttribute("data-task-present"));
   }
 
   @Test

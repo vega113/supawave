@@ -38,6 +38,8 @@ public final class J2clReadWindowEntry {
   private final long taskDueTimestamp;
   /** Issue #1129: see {@link J2clReadBlip#getBodyItemCount()}. */
   private final int bodyItemCount;
+  /** See {@link J2clReadBlip#isTask()}: true when a task/done annotation is present. */
+  private final boolean isTask;
 
   private J2clReadWindowEntry(
       String segment,
@@ -58,6 +60,35 @@ public final class J2clReadWindowEntry {
       String taskAssignee,
       long taskDueTimestamp,
       int bodyItemCount) {
+    this(
+        segment, fromVersion, toVersion, blipId, text, attachments, loaded,
+        authorId, authorDisplayName, lastModifiedTimeMillis, parentBlipId, threadId,
+        unread, hasMention, taskDone, taskAssignee, taskDueTimestamp, bodyItemCount,
+        /* isTask= */ taskDone
+            || (taskAssignee != null && !taskAssignee.trim().isEmpty())
+            || (taskDueTimestamp != J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP));
+  }
+
+  private J2clReadWindowEntry(
+      String segment,
+      long fromVersion,
+      long toVersion,
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      boolean loaded,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask) {
     this.segment = segment == null ? "" : segment;
     this.fromVersion = fromVersion;
     this.toVersion = toVersion;
@@ -79,6 +110,7 @@ public final class J2clReadWindowEntry {
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
     this.bodyItemCount = Math.max(0, bodyItemCount);
+    this.isTask = isTask;
   }
 
   public static J2clReadWindowEntry loaded(
@@ -220,6 +252,34 @@ public final class J2clReadWindowEntry {
       String taskAssignee,
       long taskDueTimestamp,
       int bodyItemCount) {
+    return loadedWithTaskMetadata(
+        segment, fromVersion, toVersion, blipId, text, attachments,
+        authorId, authorDisplayName, lastModifiedTimeMillis, parentBlipId, threadId,
+        unread, hasMention, taskDone, taskAssignee, taskDueTimestamp, bodyItemCount,
+        /* isTask= */ taskDone
+            || (taskAssignee != null && !taskAssignee.trim().isEmpty())
+            || (taskDueTimestamp != J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP));
+  }
+
+  public static J2clReadWindowEntry loadedWithTaskMetadata(
+      String segment,
+      long fromVersion,
+      long toVersion,
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask) {
     return new J2clReadWindowEntry(
         segment,
         fromVersion,
@@ -238,7 +298,8 @@ public final class J2clReadWindowEntry {
         taskDone,
         taskAssignee,
         taskDueTimestamp,
-        bodyItemCount);
+        bodyItemCount,
+        isTask);
   }
 
   public static J2clReadWindowEntry placeholder(
@@ -287,7 +348,8 @@ public final class J2clReadWindowEntry {
         taskDone,
         taskAssignee,
         taskDueTimestamp,
-        bodyItemCount);
+        bodyItemCount,
+        isTask);
   }
 
   /**
@@ -316,7 +378,8 @@ public final class J2clReadWindowEntry {
         nextTaskDone,
         taskAssignee,
         taskDueTimestamp,
-        bodyItemCount);
+        bodyItemCount,
+        true);
   }
 
   public String getSegment() {
@@ -374,6 +437,11 @@ public final class J2clReadWindowEntry {
 
   public boolean hasMention() {
     return hasMention;
+  }
+
+  /** See {@link J2clReadBlip#isTask()}: true when a task/done annotation is present. */
+  public boolean isTask() {
+    return isTask;
   }
 
   /** J-UI-6 (#1084, R-5.4): see {@link J2clReadBlip#isTaskDone()}. */

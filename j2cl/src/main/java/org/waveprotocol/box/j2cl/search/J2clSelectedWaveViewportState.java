@@ -399,7 +399,8 @@ public final class J2clSelectedWaveViewportState {
                 /* taskDone= */ content.isTaskDone(),
                 /* taskAssignee= */ content.getTaskAssignee(),
                 /* taskDueTimestamp= */ content.getTaskDueTimestamp(),
-                entry.getBodyItemCount()));
+                entry.getBodyItemCount(),
+                /* isTask= */ content.isTask()));
       } else {
         readBlips.add(
             new J2clReadBlip(
@@ -450,7 +451,8 @@ public final class J2clSelectedWaveViewportState {
                   /* taskDone= */ content.isTaskDone(),
                   /* taskAssignee= */ content.getTaskAssignee(),
                   /* taskDueTimestamp= */ content.getTaskDueTimestamp(),
-                  entry.getBodyItemCount()));
+                  entry.getBodyItemCount(),
+                  /* isTask= */ content.isTask()));
         } else {
           windowEntries.add(
               J2clReadWindowEntry.loadedWithTaskMetadata(

@@ -78,6 +78,14 @@ public final class J2clReadBlip {
    * need this to retain across the body before closing the annotation.
    */
   private final int bodyItemCount;
+  /**
+   * True when a {@code task/done} annotation is present on this blip
+   * (regardless of its value). Differentiates a reopened task blip
+   * (taskDone=false, annotation present) from a non-task blip (annotation
+   * absent). Required so the renderer can emit {@code data-task-present}
+   * and keep the task affordance mounted across full DOM rebuilds.
+   */
+  private final boolean isTask;
 
   public J2clReadBlip(String blipId, String text) {
     this(blipId, text, Collections.<J2clAttachmentRenderModel>emptyList());
@@ -206,6 +214,32 @@ public final class J2clReadBlip {
       String taskAssignee,
       long taskDueTimestamp,
       int bodyItemCount) {
+    this(
+        blipId, text, attachments, authorId, authorDisplayName, lastModifiedTimeMillis,
+        parentBlipId, threadId, unread, hasMention, deleted, taskDone, taskAssignee,
+        taskDueTimestamp, bodyItemCount,
+        /* isTask= */ taskDone
+            || (taskAssignee != null && !taskAssignee.trim().isEmpty())
+            || (taskDueTimestamp != J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP));
+  }
+
+  public J2clReadBlip(
+      String blipId,
+      String text,
+      List<J2clAttachmentRenderModel> attachments,
+      String authorId,
+      String authorDisplayName,
+      long lastModifiedTimeMillis,
+      String parentBlipId,
+      String threadId,
+      boolean unread,
+      boolean hasMention,
+      boolean deleted,
+      boolean taskDone,
+      String taskAssignee,
+      long taskDueTimestamp,
+      int bodyItemCount,
+      boolean isTask) {
     this.blipId = blipId == null ? "" : blipId;
     this.text = text == null ? "" : text;
     this.attachments =
@@ -224,6 +258,7 @@ public final class J2clReadBlip {
     this.taskAssignee = taskAssignee == null ? "" : taskAssignee;
     this.taskDueTimestamp = taskDueTimestamp;
     this.bodyItemCount = Math.max(0, bodyItemCount);
+    this.isTask = isTask;
   }
 
   /** Builder-style copy that flips the unread flag without re-typing the rest. */
@@ -246,7 +281,8 @@ public final class J2clReadBlip {
         taskDone,
         taskAssignee,
         taskDueTimestamp,
-        bodyItemCount);
+        bodyItemCount,
+        isTask);
   }
 
   /**
@@ -274,7 +310,8 @@ public final class J2clReadBlip {
         nextTaskDone,
         taskAssignee,
         taskDueTimestamp,
-        bodyItemCount);
+        bodyItemCount,
+        true);
   }
 
   public String getBlipId() {
@@ -327,6 +364,11 @@ public final class J2clReadBlip {
    */
   public boolean isDeleted() {
     return deleted;
+  }
+
+  /** True when a {@code task/done} annotation is present (regardless of value). */
+  public boolean isTask() {
+    return isTask;
   }
 
   /**

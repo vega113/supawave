@@ -1520,8 +1520,10 @@ public final class J2clReadSurfaceDomRenderer {
 
     if (!model.getSourceUrl().isEmpty()) {
       HTMLElement preview = (HTMLElement) DomGlobal.document.createElement("img");
+      String displaySize = model.getDisplaySize();
       preview.className = "j2cl-read-attachment-preview";
       preview.setAttribute("src", model.getSourceUrl());
+      preview.setAttribute("data-display-size", displaySize);
       preview.setAttribute("referrerpolicy", "no-referrer");
       if (model.isInlineImage()) {
         preview.setAttribute("alt", model.getCaption());

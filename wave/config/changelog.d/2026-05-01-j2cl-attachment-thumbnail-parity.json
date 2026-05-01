@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-01-j2cl-attachment-thumbnail-parity",
+  "version": "Issue #1166",
+  "date": "2026-05-01",
+  "title": "J2CL attachment display-size parity",
+  "summary": "Aligns J2CL attachment previews with GWT source selection and display-size behavior.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Uses GWT-compatible preview source priority: attachment URLs for medium and large inline images with thumbnail fallback, and thumbnail URLs for small tiles and attachment cards with attachment fallback.",
+        "Caps J2CL small, medium, and large attachment previews to GWT-compatible dimensions so oversized images do not break the wave panel."
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import org.junit.Test;
 @J2clTestInput(J2clAttachmentRenderModelTest.class)
 public class J2clAttachmentRenderModelTest {
   @Test
-  public void mediumImageUsesOriginalAttachmentUrl() {
+  public void mediumInlineImageUsesAttachmentUrlForBothPreviewAndOpen() {
     J2clAttachmentRenderModel model =
         J2clAttachmentRenderModel.fromMetadata(
             "example.com/att+hero",
@@ -26,9 +26,33 @@ public class J2clAttachmentRenderModelTest {
     Assert.assertEquals("medium", model.getDisplaySize());
     Assert.assertEquals("/attachment/example.com/att+hero", model.getSourceUrl());
     Assert.assertEquals("/attachment/example.com/att+hero", model.getOpenUrl());
+    Assert.assertEquals("/attachment/example.com/att+hero", model.getDownloadUrl());
     Assert.assertEquals("hero.png", model.getDownloadFileName());
     Assert.assertEquals("Open attachment hero.png (image/png)", model.getOpenLabel());
     Assert.assertEquals("Download attachment hero.png (image/png)", model.getDownloadLabel());
+  }
+
+  @Test
+  public void mediumInlineImageFallsBackToThumbnailWhenAttachmentUrlMissing() {
+    J2clAttachmentRenderModel model =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            metadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(model.isInlineImage());
+    Assert.assertEquals("medium", model.getDisplaySize());
+    Assert.assertEquals("/thumbnail/example.com/att+hero", model.getSourceUrl());
+    Assert.assertEquals("", model.getOpenUrl());
+    Assert.assertFalse(model.canOpen());
   }
 
   @Test
@@ -157,6 +181,28 @@ public class J2clAttachmentRenderModelTest {
     Assert.assertEquals("", model.getOpenUrl());
     Assert.assertEquals("small", model.getDisplaySize());
     Assert.assertFalse(model.isInlineImage());
+  }
+
+  @Test
+  public void unsafeSmallThumbnailFallsBackToSafeAttachmentPreview() {
+    J2clAttachmentRenderModel model =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+fallback",
+            "Fallback",
+            "small",
+            metadata(
+                "example.com/att+fallback",
+                "fallback.png",
+                "image/png",
+                "/attachment/example.com/att+fallback",
+                "http://cdn.example.test/fallback-thumb.png",
+                new J2clAttachmentMetadata.ImageMetadata(640, 480),
+                false));
+
+    Assert.assertFalse(model.isInlineImage());
+    Assert.assertEquals("small", model.getDisplaySize());
+    Assert.assertEquals("/attachment/example.com/att+fallback", model.getSourceUrl());
+    Assert.assertEquals("/attachment/example.com/att+fallback", model.getOpenUrl());
   }
 
   @Test

@@ -368,6 +368,48 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   word-break: normal;
 }
 
+.j2cl-read-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0 3.35em;
+  max-width: calc(100% - 3.35em);
+}
+
+.j2cl-read-attachment {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.j2cl-read-attachment-inline-image,
+.j2cl-read-attachment-card {
+  display: inline-grid;
+  gap: 4px;
+}
+
+.j2cl-read-attachment-preview {
+  display: block;
+  height: auto;
+  max-height: var(--j2cl-attachment-max-height, 80px);
+  max-width: min(100%, var(--j2cl-attachment-max-width, 120px));
+  object-fit: contain;
+}
+
+.j2cl-read-attachment[data-display-size="small"] {
+  --j2cl-attachment-max-height: 80px;
+  --j2cl-attachment-max-width: 120px;
+}
+
+.j2cl-read-attachment[data-display-size="medium"] {
+  --j2cl-attachment-max-height: 200px;
+  --j2cl-attachment-max-width: 300px;
+}
+
+.j2cl-read-attachment[data-display-size="large"] {
+  --j2cl-attachment-max-height: 400px;
+  --j2cl-attachment-max-width: 600px;
+}
+
 .j2cl-read-mention-chip {
   background: #e8f0fe;
   border-radius: 3px;

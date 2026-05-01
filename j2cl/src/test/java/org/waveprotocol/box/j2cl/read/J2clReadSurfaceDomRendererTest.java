@@ -841,7 +841,10 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertNotNull(tile);
     Assert.assertEquals("example.com/att+hero", tile.getAttribute("data-attachment-id"));
     Assert.assertEquals("medium", tile.getAttribute("data-display-size"));
-    Assert.assertNotNull(tile.querySelector("img"));
+    HTMLElement preview = (HTMLElement) tile.querySelector("img");
+    Assert.assertNotNull(preview);
+    Assert.assertEquals("/attachment/example.com/att+hero", preview.getAttribute("src"));
+    Assert.assertEquals("medium", preview.getAttribute("data-display-size"));
 
     HTMLElement open =
         (HTMLElement) tile.querySelector("[data-j2cl-attachment-open='true']");
@@ -864,6 +867,39 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("Open attachment hero.png (image/png)", open.getAttribute("aria-label"));
     Assert.assertEquals(
         "Download attachment hero.png (image/png)", download.getAttribute("aria-label"));
+  }
+
+  @Test
+  public void largeInlineImageUsesAttachmentUrlAndDataDisplaySize() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clAttachmentRenderModel attachment =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+large",
+            "Large diagram",
+            "large",
+            attachmentMetadata(
+                "example.com/att+large",
+                "large.png",
+                "image/png",
+                "/attachment/example.com/att+large",
+                "/thumbnail/example.com/att+large",
+                new J2clAttachmentMetadata.ImageMetadata(2400, 1600),
+                false));
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .render(
+                Arrays.asList(
+                    new J2clReadBlip("b+root", "Root text", Arrays.asList(attachment))),
+                Collections.<String>emptyList()));
+
+    HTMLElement tile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+large']");
+    HTMLElement preview = (HTMLElement) tile.querySelector(".j2cl-read-attachment-preview");
+    Assert.assertEquals("large", tile.getAttribute("data-display-size"));
+    Assert.assertEquals("/attachment/example.com/att+large", preview.getAttribute("src"));
+    Assert.assertEquals("large", preview.getAttribute("data-display-size"));
   }
 
   @Test

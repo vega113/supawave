@@ -891,7 +891,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("<div class=\"card-section\">");
     sb.append("<div class=\"sec-title\">Getting Started</div>");
     sb.append("<ol class=\"steps\">");
-    sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (expires in 1 hour)</li>");
+    sb.append("<li>Generate a <strong>Management Token</strong> on the \"API &amp; Tokens\" tab (short-lived; expiry set at generation time)</li>");
     sb.append("<li>Copy the AI prompt above and paste into your LLM (Google AI Studio, ChatGPT, Claude, etc.)</li>");
     sb.append("<li>The LLM writes a robot, deploys it, and registers it via the Management API using your token</li>");
     sb.append("<li>The robot receives a <strong>consumer secret</strong> at registration and uses <code style=\"font-family:var(--mono);font-size:11px;background:var(--sf);padding:1px 4px;border-radius:2px\">client_credentials</code> to mint its own short-lived Data API and Active API JWTs</li>");
@@ -1175,7 +1175,7 @@ public final class RobotDashboardServlet extends HttpServlet {
     sb.append("+'== Three APIs ==\\n'");
     sb.append("+'1. Registration Management API (REST) at /api/robots\\n'");
     sb.append("+'   - Register, configure, pause, delete robots\\n'");
-    sb.append("+'   - Uses the Management Token below (expires in 1 hour)\\n'");
+    sb.append("+'   - Uses the Management Token below (expires per selected token lifetime)\\n'");
     sb.append("+'2. Data API (JSON-RPC) at /robot/dataapi/rpc\\n'");
     sb.append("+'   - On-demand: search, create waves, post messages, fetch content\\n'");
     sb.append("+'   - Token: grant_type=client_credentials (default, DATA_API_ACCESS)\\n'");

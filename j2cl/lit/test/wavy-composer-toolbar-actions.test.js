@@ -1,5 +1,6 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
 import "../src/elements/wavy-composer.js";
+import "../src/elements/wavy-format-toolbar.js";
 import "../src/elements/wavy-link-modal.js";
 
 // J-UI-5 (#1083) — selection-driven toolbar action handlers.
@@ -592,6 +593,48 @@ describe("wavy-composer toolbar action handlers", () => {
 });
 
 describe("wavy-composer reply-submit components payload", () => {
+  it("preserves a real slotted Bold toolbar click in the submit payload", async () => {
+    const el = await fixture(html`
+      <wavy-composer available>
+        <wavy-format-toolbar slot="toolbar"></wavy-format-toolbar>
+      </wavy-composer>
+    `);
+    const body = bodyOf(el);
+    body.textContent = "hello world";
+    selectTextRange(el, body.firstChild, "hello ".length, "hello world".length);
+
+    const toolbar = el.querySelector("wavy-format-toolbar");
+    toolbar.selectionDescriptor = {
+      collapsed: false,
+      activeAnnotations: [],
+      boundingRect: { left: 0, top: 24, width: 60, height: 18 }
+    };
+    await toolbar.updateComplete;
+    toolbar.renderRoot
+      .querySelector('toolbar-button[data-toolbar-action="bold"]')
+      .renderRoot.querySelector("button")
+      .click();
+
+    expect(body.querySelector("strong"), "Bold click must wrap the selected word").to.exist;
+    expect(body.querySelector("strong").textContent).to.equal("world");
+
+    const submitPromise = oneEvent(el, "reply-submit");
+    el._submit();
+    const evt = await submitPromise;
+
+    expect(evt.detail.value).to.equal("hello world");
+    expect(evt.detail.components).to.deep.equal([
+      { type: "text", text: "hello " },
+      {
+        type: "annotated",
+        text: "world",
+        annotationKey: "fontWeight",
+        annotationValue: "bold",
+        annotations: [{ key: "fontWeight", value: "bold" }]
+      }
+    ]);
+  });
+
   it("emits components array with annotated bold run", async () => {
     const el = await fixture(html`<wavy-composer available></wavy-composer>`);
     const body = bodyOf(el);

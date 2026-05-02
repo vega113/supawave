@@ -874,6 +874,14 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
                 "\\.j2cl-compose-create-form\\s*\\{[^}]*\\bmax-width\\s*:\\s*680px\\s*;")
             .matcher(css)
             .find());
+    assertTrue(
+        "composer-submit-affordance inside a grid compose form must not stretch "
+            + "to full row width; it needs justify-self: start to stay compact",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-compose-form\\s+composer-submit-affordance\\s*\\{"
+                    + "[^}]*\\bjustify-self\\s*:\\s*start\\s*;")
+            .matcher(css)
+            .find());
 
     String shellSource = readSourceFile("j2cl/lit/src/elements/composer-shell.js");
     assertTrue(

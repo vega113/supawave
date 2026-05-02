@@ -505,6 +505,10 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   max-width: 680px;
 }
 
+.sidecar-compose-form composer-submit-affordance {
+  justify-self: start;
+}
+
 .sidecar-compose-input {
   width: 100%;
   border: 1px solid #c8d5e6;

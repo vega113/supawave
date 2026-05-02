@@ -4,7 +4,6 @@ import json
 import os
 import unittest
 from unittest import mock
-from urllib.error import HTTPError, URLError
 
 from scripts.deployment import send_resend_email
 
@@ -38,10 +37,9 @@ class SendResendEmailTest(unittest.TestCase):
     self.assertEqual("<h2>Deploy succeeded</h2>", payload["html"])
 
   def test_send_resend_email_returns_message_id_response(self):
-    response = mock.MagicMock()
-    response.__enter__.return_value.read.return_value = b'{"id":"email_123"}'
+    response = mock.MagicMock(returncode=0, stdout='{"id":"email_123"}', stderr="")
 
-    with mock.patch("urllib.request.urlopen", return_value=response) as urlopen:
+    with mock.patch("subprocess.run", return_value=response) as run:
       result = send_resend_email.send_resend_email(
           api_key="test-key",
           api_url="https://api.resend.com/emails",
@@ -52,11 +50,16 @@ class SendResendEmailTest(unittest.TestCase):
       )
 
     self.assertEqual({"id": "email_123"}, result)
-    request = urlopen.call_args.args[0]
-    self.assertEqual("Bearer test-key", request.headers["Authorization"])
+    command = run.call_args.args[0]
+    self.assertEqual("curl", command[0])
+    # API key must not appear in argv — it is passed via stdin config instead.
+    self.assertNotIn("test-key", " ".join(command))
+    stdin_input = run.call_args.kwargs.get("input", "")
+    self.assertIn("Authorization: Bearer", stdin_input)
+    self.assertIn("test-key", stdin_input)
 
   def test_send_resend_email_rejects_non_resend_url_before_request(self):
-    with mock.patch("urllib.request.urlopen") as urlopen:
+    with mock.patch("subprocess.run") as run:
       with self.assertRaisesRegex(RuntimeError, "Unsupported Resend API URL"):
         send_resend_email.send_resend_email(
             api_key="test-key",
@@ -67,18 +70,16 @@ class SendResendEmailTest(unittest.TestCase):
             html="<p>body</p>",
         )
 
-    urlopen.assert_not_called()
+    run.assert_not_called()
 
   def test_send_resend_email_reports_http_body_on_failure(self):
-    error = HTTPError(
-        "https://api.resend.com/emails",
-        403,
-        "Forbidden",
-        hdrs=None,
-        fp=mock.MagicMock(read=mock.MagicMock(return_value=b'{"message":"domain not verified"}')),
+    response = mock.MagicMock(
+        returncode=22,
+        stdout='{"message":"domain not verified"}',
+        stderr="curl: (22) The requested URL returned error: 403",
     )
 
-    with mock.patch("urllib.request.urlopen", side_effect=error):
+    with mock.patch("subprocess.run", return_value=response):
       with self.assertRaisesRegex(RuntimeError, "domain not verified"):
         send_resend_email.send_resend_email(
             api_key="test-key",
@@ -89,8 +90,39 @@ class SendResendEmailTest(unittest.TestCase):
             html="<p>body</p>",
         )
 
+  def test_send_resend_email_includes_stderr_in_http_failure(self):
+    response = mock.MagicMock(
+        returncode=22,
+        stdout='{"message":"domain not verified"}',
+        stderr="curl: (22) The requested URL returned error: 403",
+    )
+
+    with mock.patch("subprocess.run", return_value=response):
+      with self.assertRaisesRegex(RuntimeError, r"domain not verified.*curl: \(22\)"):
+        send_resend_email.send_resend_email(
+            api_key="test-key",
+            api_url="https://api.resend.com/emails",
+            sender="noreply@supawave.ai",
+            recipients=["ops@example.com"],
+            subject="subject",
+            html="<p>body</p>",
+        )
+
+  def test_send_resend_email_raises_when_curl_missing(self):
+    with mock.patch("subprocess.run", side_effect=FileNotFoundError("No such file: curl")):
+      with self.assertRaisesRegex(RuntimeError, "curl is not available"):
+        send_resend_email.send_resend_email(
+            api_key="test-key",
+            api_url="https://api.resend.com/emails",
+            sender="noreply@supawave.ai",
+            recipients=["ops@example.com"],
+            subject="subject",
+            html="<p>body</p>",
+        )
+
   def test_send_resend_email_reports_network_failure(self):
-    with mock.patch("urllib.request.urlopen", side_effect=URLError("timeout")):
+    response = mock.MagicMock(returncode=28, stdout="", stderr="curl: (28) timeout")
+    with mock.patch("subprocess.run", return_value=response):
       with self.assertRaisesRegex(RuntimeError, "timeout"):
         send_resend_email.send_resend_email(
             api_key="test-key",
@@ -122,15 +154,14 @@ class SendResendEmailTest(unittest.TestCase):
     self.assertIn("No deploy notification recipients configured", stdout.getvalue())
 
   def test_main_logs_accepted_response_without_id(self):
-    response = mock.MagicMock()
-    response.__enter__.return_value.read.return_value = b'{"status":"queued"}'
+    response = mock.MagicMock(returncode=0, stdout='{"status":"queued"}', stderr="")
     env = {
         "RESEND_API_KEY": "test-key",
         "NOTIFICATION_RECIPIENTS": "ops@example.com",
     }
 
     with mock.patch.dict(os.environ, env, clear=True):
-      with mock.patch("urllib.request.urlopen", return_value=response):
+      with mock.patch("subprocess.run", return_value=response):
         with mock.patch("sys.argv", ["send_resend_email.py", "--subject", "subject", "--html", "<p>body</p>"]):
           stdout = io.StringIO()
           with contextlib.redirect_stdout(stdout):

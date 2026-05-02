@@ -586,18 +586,9 @@ export class WavyComposer extends LitElement {
     super.connectedCallback();
     this.addEventListener("composer-focus-request", this._handleFocusRequest);
     document.addEventListener("selectionchange", this._handleSelectionChange);
-    // V-2 (#1100): default debugOverlay from the body class set by
-    // HtmlRenderer when j2cl-debug-overlay is on. Body-class is page-
-    // load-stable, so a single read at connect is sufficient. Skip if
-    // already set programmatically (true) so a pre-connect assignment
-    // isn't clobbered when the attribute is absent.
-    if (!this.hasAttribute("debug-overlay") && this.debugOverlay === false) {
-      this.debugOverlay = !!(
-        typeof document !== "undefined" &&
-        document.body &&
-        document.body.classList.contains("j2cl-debug-overlay-on")
-      );
-    }
+    // Do not inherit the page-level debug flag into user-facing composers.
+    // Raw reply target IDs are only visible when this element explicitly
+    // carries [debug-overlay].
     // F-3.S2 (#1038, R-5.4 step 6): listen for the H.20 Insert-task
     // action emitted by the floating wavy format toolbar mounted in
     // the toolbar slot. The action is composer-local (per-composer,

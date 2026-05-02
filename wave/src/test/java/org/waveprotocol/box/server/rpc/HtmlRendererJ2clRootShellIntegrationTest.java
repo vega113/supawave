@@ -543,6 +543,28 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         callCount);
   }
 
+  public void testRootShellDoesNotTreatWriteSessionAsVisibleEditToolbar() {
+    // A writable wave is not the same thing as an active editor. The root shell
+    // already mounts the icon-only floating <wavy-format-toolbar> inside the
+    // inline composer; feeding write-session presence into the legacy top
+    // toolbar paints the old Bold/Italic/... text-button wall on every writable
+    // selected wave.
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/root/"
+                + "J2clRootShellController.java");
+    assertFalse(
+        "J2clRootShellController must not make the legacy top toolbar editable "
+            + "just because a write session exists",
+        source.contains(
+            "toolbarController.onEditStateChanged(editStateForWriteSession(writeSession));"));
+    assertTrue(
+        "editStateForWriteSession must keep the legacy top toolbar non-editing "
+            + "while the inline composer owns edit chrome, but restore it for "
+            + "the legacy-composer fallback",
+        source.contains("writeSession != null && !inlineRichComposerEnabled"));
+  }
+
   public void testComposerInlineReplyCollapsesUntilAvailable() {
     // Gap 3 partner: <composer-inline-reply> rendered "Reply target: ..."
     // + an empty Send-reply textarea on every selected wave even when
@@ -557,6 +579,18 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
                 ":host\\(:not\\(\\[available\\]\\)\\)\\s*\\{\\s*display\\s*:\\s*none\\s*;\\s*\\}")
             .matcher(source)
             .find());
+  }
+
+  public void testInlineComposerScrollPreservationFallsBackToDocumentScroller() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/compose/"
+                + "J2clComposeSurfaceView.java");
+    assertTrue(
+        "Inline reply composer mounting must preserve document/body scroll too; "
+            + "otherwise focusing a newly mounted composer can jump to the bottom "
+            + "when no nested panel is independently scrollable",
+        source.contains("DomGlobal.document.scrollingElement"));
   }
 
   public void testWavyComposerCollapsesUntilAvailable() {
@@ -687,6 +721,31 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     assertTrue(
         "Preview-fixture detail must carry data-j2cl-debug-only (V-2 #1100)",
         html.contains("class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\""));
+  }
+
+  public void testSelectedWaveStatusAndDetailStayHiddenOutsideErrors() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/search/"
+                + "J2clSelectedWaveView.java");
+    assertFalse(
+        "Selected-wave status must not become visible just because the page "
+            + "debug flag is enabled; raw live-update text is not product UI",
+        source.contains("status.hidden = !model.isError() && !isDebugOverlayOn();"));
+    assertTrue(
+        "Selected-wave status must stay hidden unless it carries an actual error",
+        source.contains("status.hidden = !model.isError();"));
+    assertTrue(
+        "Selected-wave detail must stay hidden unless it carries an actual error",
+        source.contains("detail.hidden = !model.isError();"));
+    assertFalse(
+        "Selected-wave detail visibility must not depend on the page debug flag; "
+            + "only real error states may expose diagnostics",
+        source.contains("detail.hidden = !model.isError() && !isDebugOverlayOn();"));
+    assertEquals(
+        "Both live and preserved render paths must gate detail visibility on errors",
+        2,
+        countOccurrences(source, "detail.hidden = !model.isError();"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

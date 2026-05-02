@@ -176,6 +176,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     detail = (HTMLElement) DomGlobal.document.createElement("p");
     detail.className = "sidecar-selected-detail";
     markDebugOnly(detail);
+    detail.hidden = true;
     coldCard.appendChild(detail);
 
     // F-2 slice 5 (#1055, R-3.7 G.6): awareness pill — hidden by default
@@ -688,8 +689,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             ? "sidecar-selected-status sidecar-selected-status-error"
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
-    status.hidden = !model.isError() && !isDebugOverlayOn();
+    status.hidden = !model.isError();
     detail.textContent = model.getDetailText();
+    detail.hidden = !model.isError();
     renderParticipantStrip(model.getParticipantIds());
     publishProfileOverlayParticipants(model.getParticipantIds());
     snippet.textContent = model.getSnippetText();
@@ -1134,8 +1136,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             ? "sidecar-selected-status sidecar-selected-status-error"
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
-    status.hidden = !model.isError() && !isDebugOverlayOn();
+    status.hidden = !model.isError();
     detail.textContent = model.getDetailText();
+    detail.hidden = !model.isError();
     if (model.isError()) {
       // Error is a terminal state: clear aria-busy so AT doesn't treat the
       // region as permanently loading. clearServerFirstMarkers() isn't called

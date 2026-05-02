@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-02-j2cl-wave-debug-reply-toolbar-parity",
+  "version": "Issue #1161",
+  "date": "2026-05-02",
+  "title": "J2CL wave chrome parity cleanup",
+  "summary": "Removes developer-only J2CL wave chrome from the user-facing wave panel and keeps inline replies anchored in place.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Hides raw live-update, channel, snapshot, and reply-target identifiers from the normal selected-wave and composer UI.",
+        "Stops writable waves from showing the legacy text-button formatting toolbar outside an active inline composer.",
+        "Preserves document scroll when opening an inline reply composer so the wave does not jump to the bottom."
+      ]
+    }
+  ]
+}

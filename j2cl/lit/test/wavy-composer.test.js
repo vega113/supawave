@@ -91,6 +91,24 @@ describe("<wavy-composer>", () => {
     expect(replyParagraphs[0].textContent).to.include("Root blip");
   });
 
+  it("does not inherit the page debug overlay into the visible reply target line", async () => {
+    document.body.classList.add("j2cl-debug-overlay-on");
+    try {
+      const el = await fixture(html`
+        <wavy-composer available reply-target-blip-id="b42" target-label="b+raw"></wavy-composer>
+      `);
+      await el.updateComplete;
+      const targetText = Array.from(el.renderRoot.querySelectorAll("p.target"))
+        .map((p) => p.textContent)
+        .join("\n");
+      expect(el.debugOverlay).to.equal(false);
+      expect(targetText).to.not.include("Reply target:");
+      expect(targetText).to.not.include("b+raw");
+    } finally {
+      document.body.classList.remove("j2cl-debug-overlay-on");
+    }
+  });
+
   it("reflects reply-target-blip-id as a data attribute on the inner wavy-compose-card", async () => {
     const el = await fixture(html`
       <wavy-composer available reply-target-blip-id="b42" target-label="Yuri"></wavy-composer>

@@ -587,7 +587,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       current =
           current.parentElement instanceof HTMLElement ? (HTMLElement) current.parentElement : null;
     }
-    return null;
+    return DomGlobal.document.scrollingElement instanceof HTMLElement
+        ? (HTMLElement) DomGlobal.document.scrollingElement
+        : null;
   }
 
   private void mirrorComposerState(HTMLElement composer, J2clComposeSurfaceModel model) {
@@ -830,7 +832,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
    * the shell element is missing entirely (sidecar / parity-test
    * surfaces that do not paint a `<shell-root>`).
    */
-  private static boolean readInlineRichComposerFlag() {
+  static boolean readInlineRichComposerFlag() {
     Object shell =
         DomGlobal.document.querySelector(
             "shell-root[data-j2cl-inline-rich-composer=\"true\"]");

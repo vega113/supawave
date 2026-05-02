@@ -4722,7 +4722,11 @@ public final class HtmlRenderer {
     sb.append("              <p class=\"sidecar-selected-status\" hidden>")
         .append(escapeHtml(status))
         .append("</p>\n");
-    sb.append("              <p class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\">")
+    sb.append("              <p class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\"");
+    if (effectiveResult.getMode() == J2clSelectedWaveSnapshotRenderer.Mode.SNAPSHOT) {
+      sb.append(" hidden");
+    }
+    sb.append(">")
         .append(escapeHtml(detail))
         .append("</p>\n");
     // F-2 slice 5 (#1055, R-3.7 G.6): live-update awareness pill.

@@ -559,12 +559,10 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         source.contains(
             "toolbarController.onEditStateChanged(editStateForWriteSession(writeSession));"));
     assertTrue(
-        "editStateForWriteSession must keep the legacy top toolbar non-editing; "
-            + "the inline composer owns edit chrome",
-        java.util.regex.Pattern.compile(
-                "return\\s+new\\s+J2clToolbarSurfaceController\\.EditState\\(\\s*false\\s*\\)")
-            .matcher(source)
-            .find());
+        "editStateForWriteSession must keep the legacy top toolbar non-editing "
+            + "while the inline composer owns edit chrome, but restore it for "
+            + "the legacy-composer fallback",
+        source.contains("writeSession != null && !inlineRichComposerEnabled"));
   }
 
   public void testComposerInlineReplyCollapsesUntilAvailable() {
@@ -738,9 +736,16 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Selected-wave status must stay hidden unless it carries an actual error",
         source.contains("status.hidden = !model.isError();"));
     assertTrue(
-        "Selected-wave detail must be hidden outside errors and debug-overlay; "
-            + "channel/snapshot IDs must not paint in the wave header",
+        "Selected-wave detail must stay hidden unless it carries an actual error",
+        source.contains("detail.hidden = !model.isError();"));
+    assertFalse(
+        "Selected-wave detail visibility must not depend on the page debug flag; "
+            + "only real error states may expose diagnostics",
         source.contains("detail.hidden = !model.isError() && !isDebugOverlayOn();"));
+    assertEquals(
+        "Both live and preserved render paths must gate detail visibility on errors",
+        2,
+        countOccurrences(source, "detail.hidden = !model.isError();"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

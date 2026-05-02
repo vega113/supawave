@@ -12,7 +12,7 @@ import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceModel;
 @J2clTestInput(J2clRootShellControllerTest.class)
 public class J2clRootShellControllerTest {
   @Test
-  public void editStateForWriteSessionAlwaysDisablesLegacyToolbar() {
+  public void editStateForWriteSessionKeepsLegacyToolbarInactiveWhenRichComposerIsOn() {
     FakeToolbarView view = new FakeToolbarView();
     J2clToolbarSurfaceController toolbarController =
         new J2clToolbarSurfaceController(view, action -> {});
@@ -28,6 +28,22 @@ public class J2clRootShellControllerTest {
             new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root")));
 
     Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+  }
+
+  @Test
+  public void editStateForWriteSessionRestoresLegacyToolbarWhenRichComposerIsOff() {
+    FakeToolbarView view = new FakeToolbarView();
+    J2clToolbarSurfaceController toolbarController =
+        new J2clToolbarSurfaceController(view, action -> {});
+
+    toolbarController.setViewActionsEnabled(false);
+    toolbarController.start();
+    toolbarController.onEditStateChanged(
+        J2clRootShellController.editStateForWriteSession(
+            new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"),
+            false));
+
+    Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.BOLD));
   }
 
   @Test

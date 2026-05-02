@@ -14,8 +14,9 @@ export class ComposerInlineReply extends LitElement {
     commandStatus: { type: String, attribute: "command-status" },
     commandError: { type: String, attribute: "command-error" },
     // V-2 (#1100): when off (default), the "Reply target: <id>" line
-    // does not render. connectedCallback() reads it from the body class
-    // set by HtmlRenderer (SSR); tests set the attribute directly.
+    // does not render. This intentionally avoids page-level debug
+    // inheritance and only respects this element's [debug-overlay]
+    // attribute/property; tests may set the attribute directly.
     debugOverlay: { type: Boolean, attribute: "debug-overlay", reflect: true }
   };
 

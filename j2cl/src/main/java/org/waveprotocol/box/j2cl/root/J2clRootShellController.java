@@ -76,6 +76,7 @@ public final class J2clRootShellController {
         createChildHost(selectedWaveComposeHost, "j2cl-root-toolbar-host");
     HTMLElement selectedReplyHost =
         createChildHost(selectedWaveComposeHost, "j2cl-root-reply-host");
+    boolean inlineRichComposerEnabled = isInlineRichComposerEnabled(host);
     String rootShellSessionSeed = buildRootShellSessionSeed();
     final J2clSearchPanelController[] searchControllerRef = new J2clSearchPanelController[1];
     // J-UI-3 (#1081, R-5.1): on a successful create, prepend an optimistic
@@ -150,7 +151,7 @@ public final class J2clRootShellController {
                   selectedWaveId, writeSession, participantIds);
               toolbarController.onWriteSessionChanged(writeSession);
               toolbarController.onEditStateChanged(
-                  new J2clToolbarSurfaceController.EditState(false));
+                  editStateForWriteSession(writeSession, inlineRichComposerEnabled));
             },
             telemetrySink);
     selectedWaveControllerRef[0] = selectedWaveController;
@@ -247,7 +248,17 @@ public final class J2clRootShellController {
 
   static J2clToolbarSurfaceController.EditState editStateForWriteSession(
       J2clSidecarWriteSession writeSession) {
-    return new J2clToolbarSurfaceController.EditState(false);
+    return editStateForWriteSession(writeSession, true);
+  }
+
+  static J2clToolbarSurfaceController.EditState editStateForWriteSession(
+      J2clSidecarWriteSession writeSession, boolean inlineRichComposerEnabled) {
+    return new J2clToolbarSurfaceController.EditState(
+        writeSession != null && !inlineRichComposerEnabled);
+  }
+
+  static boolean isInlineRichComposerEnabled(HTMLElement host) {
+    return host != null && "true".equals(host.getAttribute("data-j2cl-inline-rich-composer"));
   }
 
   static boolean isReadSurfacePreviewHost(boolean hostMarked, boolean bodyMarked) {

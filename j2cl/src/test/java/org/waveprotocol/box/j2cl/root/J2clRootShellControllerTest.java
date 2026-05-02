@@ -58,11 +58,19 @@ public class J2clRootShellControllerTest {
 
     toolbarController.setViewActionsEnabled(false);
     toolbarController.start();
+
+    // Rich composer ON — legacy toolbar stays inactive.
+    toolbarController.onEditStateChanged(
+        J2clRootShellController.editStateForWriteSession(
+            new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"),
+            true));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+
+    // Rich composer turned OFF — legacy toolbar is restored.
     toolbarController.onEditStateChanged(
         J2clRootShellController.editStateForWriteSession(
             new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"),
             false));
-
     Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.BOLD));
   }
 

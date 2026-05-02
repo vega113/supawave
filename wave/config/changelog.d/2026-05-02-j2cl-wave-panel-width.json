@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-02-j2cl-wave-panel-width",
+  "version": "Issue #1161",
+  "date": "2026-05-02",
+  "title": "J2CL wave panel width parity",
+  "summary": "Makes the J2CL selected-wave panel fill the available shell width like the GWT wave panel.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stretches the selected-wave host and card to the full main column so wide screens no longer show a narrow J2CL wave panel with unused whitespace."
+      ]
+    }
+  ]
+}

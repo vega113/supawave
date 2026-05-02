@@ -680,6 +680,12 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             .matcher(css)
             .find());
     assertTrue(
+        "The selected-wave host must include padding in its full-width box calculation",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-selected-host\\s*\\{[^}]*\\bbox-sizing\\s*:\\s*border-box\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
         "The selected-wave card must not shrink-wrap the read surface on wide screens",
         java.util.regex.Pattern.compile(
                 "\\.sidecar-selected-card\\s*\\{[^}]*\\bwidth\\s*:\\s*100%\\s*;")

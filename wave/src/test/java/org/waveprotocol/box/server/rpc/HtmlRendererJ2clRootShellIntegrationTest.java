@@ -262,6 +262,11 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Root-shell New Wave must use a dedicated visible create child host so "
             + "J2clComposeSurfaceView does not clear the reply/toolbar hosts.",
         source.contains(
+            "createSiblingHostBefore(selectedWaveComposeHost, \"j2cl-root-create-host\")"));
+    assertFalse(
+        "Root-shell New Wave must not create the dedicated create host inside "
+            + "sidecar-selected-compose because that breaks the :empty collapse sentinel.",
+        source.contains(
             "createChildHost(selectedWaveComposeHost, \"j2cl-root-create-host\")"));
     assertFalse(
         "Root-shell New Wave must not bind createHost to searchView.getComposeHost(), "
@@ -764,5 +769,13 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     assertTrue(
         "J2CL New Wave focus must reveal the create host before focusing title/body.",
         source.contains("createHost.hidden = false"));
+    assertTrue(
+        "J2CL New Wave button path must reveal before checking title-input disabled state.",
+        source.indexOf("revealCreateSurface();", source.indexOf("public void focusCreateSurface()"))
+            < source.indexOf("if (!createTitleInput.disabled)", source.indexOf("public void focusCreateSurface()")));
+    assertTrue(
+        "J2CL New Wave shortcut path must reveal before checking body-input disabled state.",
+        source.indexOf("revealCreateSurface();", source.indexOf("public void focusCreateComposer()"))
+            < source.indexOf("if (!createInput.disabled)", source.indexOf("public void focusCreateComposer()")));
   }
 }

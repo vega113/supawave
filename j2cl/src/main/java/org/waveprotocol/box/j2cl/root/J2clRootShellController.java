@@ -71,7 +71,7 @@ public final class J2clRootShellController {
     selectedWaveViewRef[0] = selectedWaveView;
     HTMLElement selectedWaveComposeHost = selectedWaveView.getComposeHost();
     HTMLElement selectedCreateHost =
-        createChildHost(selectedWaveComposeHost, "j2cl-root-create-host");
+        createSiblingHostBefore(selectedWaveComposeHost, "j2cl-root-create-host");
     HTMLElement selectedToolbarHost =
         createChildHost(selectedWaveComposeHost, "j2cl-root-toolbar-host");
     HTMLElement selectedReplyHost =
@@ -472,6 +472,16 @@ public final class J2clRootShellController {
     HTMLElement child = (HTMLElement) elemental2.dom.DomGlobal.document.createElement("div");
     child.className = className;
     parent.appendChild(child);
+    return child;
+  }
+
+  private static HTMLElement createSiblingHostBefore(HTMLElement reference, String className) {
+    HTMLElement child = (HTMLElement) elemental2.dom.DomGlobal.document.createElement("div");
+    child.className = className;
+    if (reference.parentNode == null) {
+      throw new IllegalStateException("Reference host must be attached before creating sibling host.");
+    }
+    reference.parentNode.insertBefore(child, reference);
     return child;
   }
 

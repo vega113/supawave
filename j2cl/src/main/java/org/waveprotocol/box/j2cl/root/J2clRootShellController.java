@@ -258,7 +258,14 @@ public final class J2clRootShellController {
   }
 
   static boolean isInlineRichComposerEnabled(HTMLElement host) {
-    return host != null && "true".equals(host.getAttribute("data-j2cl-inline-rich-composer"));
+    if (host == null) {
+      return false;
+    }
+    // data-j2cl-inline-rich-composer is emitted on <shell-root>, not on the
+    // #j2cl-root-shell-workflow section where the controller is mounted.
+    elemental2.dom.Element shellRoot = host.closest("shell-root");
+    elemental2.dom.Element target = shellRoot != null ? shellRoot : host;
+    return "true".equals(target.getAttribute("data-j2cl-inline-rich-composer"));
   }
 
   static boolean isReadSurfacePreviewHost(boolean hostMarked, boolean bodyMarked) {

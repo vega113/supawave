@@ -4945,7 +4945,7 @@ public final class HtmlRenderer {
       sb.append("    var status=workflow.querySelector('.sidecar-selected-status');\n");
       sb.append("    var detail=workflow.querySelector('.sidecar-selected-detail');\n");
       sb.append("    if(status){status.className='sidecar-selected-status sidecar-selected-status-error';status.textContent='Selected wave live upgrade failed.';status.hidden=false;}\n");
-      sb.append("    if(detail){detail.textContent='The J2CL root-shell bundle failed to load. Refresh to retry.';}\n");
+      sb.append("    if(detail){detail.hidden=false;detail.textContent='The J2CL root-shell bundle failed to load. Refresh to retry.';}\n");
       sb.append("    if(window.__j2clRootShellStat){window.__j2clRootShellStat('shell_swap','bundle-load-error',0,!!placeholder.getAttribute('data-j2cl-server-first-selected-wave'));}\n");
       sb.append("    return;\n");
       sb.append("  }\n");

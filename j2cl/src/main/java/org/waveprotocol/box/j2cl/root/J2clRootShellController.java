@@ -70,6 +70,8 @@ public final class J2clRootShellController {
         new J2clSelectedWaveView(searchView.getSelectedWaveHost(), telemetrySink);
     selectedWaveViewRef[0] = selectedWaveView;
     HTMLElement selectedWaveComposeHost = selectedWaveView.getComposeHost();
+    HTMLElement selectedCreateHost =
+        createChildHost(selectedWaveComposeHost, "j2cl-root-create-host");
     HTMLElement selectedToolbarHost =
         createChildHost(selectedWaveComposeHost, "j2cl-root-toolbar-host");
     HTMLElement selectedReplyHost =
@@ -99,7 +101,7 @@ public final class J2clRootShellController {
     J2clComposeSurfaceController composeController =
         new J2clComposeSurfaceController(
             gateway,
-            new J2clComposeSurfaceView(searchView.getComposeHost(), selectedReplyHost),
+            new J2clComposeSurfaceView(selectedCreateHost, selectedReplyHost),
             J2clComposeSurfaceController.richContentDeltaFactory(rootShellSessionSeed),
             J2clComposeSurfaceController.attachmentControllerFactory(rootShellSessionSeed, telemetrySink),
             createSuccessHandler,

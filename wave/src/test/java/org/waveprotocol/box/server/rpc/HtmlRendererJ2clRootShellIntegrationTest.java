@@ -248,6 +248,28 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             "<div class=\"sidecar-selected-compose\" data-j2cl-compose-host=\"true\"></div>"));
   }
 
+  public void testRootShellCreateSurfaceMountsInVisibleSelectedWaveHost() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/root/"
+                + "J2clRootShellController.java");
+    assertTrue(
+        "Root-shell New Wave must mount the create surface in the visible "
+            + "selected-wave compose host, not the hidden legacy search card.",
+        source.contains(
+            "new J2clComposeSurfaceView(selectedCreateHost, selectedReplyHost)"));
+    assertTrue(
+        "Root-shell New Wave must use a dedicated visible create child host so "
+            + "J2clComposeSurfaceView does not clear the reply/toolbar hosts.",
+        source.contains(
+            "createChildHost(selectedWaveComposeHost, \"j2cl-root-create-host\")"));
+    assertFalse(
+        "Root-shell New Wave must not bind createHost to searchView.getComposeHost(), "
+            + "because the root shell hides the legacy search card.",
+        source.contains(
+            "new J2clComposeSurfaceView(searchView.getComposeHost(), selectedReplyHost)"));
+  }
+
   // ---------------------------------------------------------------------
   // F-2 slice 6 (#1058, Part A) — visible-rail regression lock.
   //
@@ -728,5 +750,19 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "J2clComposeSurfaceView must mount the new <wavy-composer> "
             + "element for inline composer surfaces (R-5.1 step 1)",
         source.contains("createElement(\"wavy-composer\")"));
+  }
+
+  public void testJ2clCreateSurfaceStaysHiddenUntilNewWaveRequested() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/compose/"
+                + "J2clComposeSurfaceView.java");
+    assertTrue(
+        "J2CL create host must start hidden so the New Wave composer does not "
+            + "occupy the selected-wave panel before the user asks for it.",
+        source.contains("createHost.hidden = true"));
+    assertTrue(
+        "J2CL New Wave focus must reveal the create host before focusing title/body.",
+        source.contains("createHost.hidden = false"));
   }
 }

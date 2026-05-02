@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-02-j2cl-new-wave-visible-composer",
+  "version": "Issue #1161",
+  "date": "2026-05-02",
+  "title": "J2CL New Wave composer parity",
+  "summary": "Mounts the J2CL root New Wave composer in the visible wave panel instead of the hidden legacy search card.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The root-shell New Wave button and shortcut now focus a visible create composer under the selected-wave panel."
+      ]
+    }
+  ]
+}

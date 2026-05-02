@@ -51,6 +51,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   // the create form. Single-line input with Enter-to-submit semantics so a
   // user who types just a title can ship the wave without reaching for the
   // mouse.
+  private final HTMLElement createHost;
   private final HTMLInputElement createTitleInput;
   private final HTMLTextAreaElement createInput;
   private final HTMLElement createSubmit;
@@ -84,7 +85,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   static final String BLIP_DELETE_REQUEST_PREFIX = "wavy-blip-delete:";
 
   public J2clComposeSurfaceView(HTMLElement createHost, HTMLElement replyHost) {
+    this.createHost = createHost;
     createHost.innerHTML = "";
+    createHost.hidden = true;
     replyHost.innerHTML = "";
 
     HTMLElement shell = (HTMLElement) DomGlobal.document.createElement("composer-shell");
@@ -434,6 +437,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // the title input; if the input is disabled (signed out / submitting)
     // skip silently rather than throwing.
     if (!createTitleInput.disabled) {
+      revealCreateSurface();
       createTitleInput.focus();
     }
   }
@@ -443,9 +447,14 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // #1076: the keyboard shortcut drops the user straight into the body
     // composer and scrolls it into view without changing the button/title path.
     if (!createInput.disabled) {
+      revealCreateSurface();
       createInput.scrollIntoView();
       createInput.focus();
     }
+  }
+
+  private void revealCreateSurface() {
+    createHost.hidden = false;
   }
 
   /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */

@@ -103,5 +103,24 @@ esac
     remote_idx = workflow.index("name: Upload bundle")
     self.assertLess(validate_idx, remote_idx)
 
+  def test_deploy_workflow_records_notification_failures(self):
+    workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+
+    self.assertIn("id: notify_success", workflow)
+    self.assertIn("id: notify_failure", workflow)
+    self.assertIn("failure() && steps.deploy.outcome != 'success'", workflow)
+    self.assertIn("name: Close deploy-notification-failure issues on notification success", workflow)
+    self.assertIn("name: Create GitHub issue on deploy notification failure", workflow)
+    self.assertIn("continue-on-error: true", workflow)
+    self.assertIn("deploy-notification-failure", workflow)
+    self.assertIn("Check the notification step log for the Resend HTTP error", workflow)
+
+  def test_build_workflow_runs_deploy_notification_tests(self):
+    workflow = (REPO_ROOT / ".github" / "workflows" / "build.yml").read_text(
+        encoding="utf-8"
+    )
+
+    self.assertIn("python3 -m unittest scripts.tests.test_send_resend_email -v", workflow)
+
 if __name__ == "__main__":
   unittest.main()

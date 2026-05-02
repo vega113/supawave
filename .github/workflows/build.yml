@@ -60,6 +60,7 @@ jobs:
           bash scripts/ci-validate-deploy-healthcheck.sh
           python3 -m unittest scripts.tests.test_doc_guardrails -v
           python3 -m unittest scripts.tests.test_deploy_sanity_gate -v
+          python3 -m unittest scripts.tests.test_send_resend_email -v
           python3 -m unittest scripts.tests.test_deploy_overlap_safety -v
           python3 -m unittest scripts.tests.test_repair_corrupted_waves -v
           WAVE_IMAGE_BLUE=ghcr.io/example/wave:test \

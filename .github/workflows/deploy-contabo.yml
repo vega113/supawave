@@ -456,84 +456,131 @@ jobs:
           echo "$CHANGELOG_HTML" > /tmp/changelog_html.txt
 
       - name: Notify deploy success
+        id: notify_success
         if: always() && steps.deploy.outcome == 'success' && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
           NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS || 'vega113@gmail.com' }}
         run: |
+          set -euo pipefail
           CHANGELOG_HTML=$(cat /tmp/changelog_html.txt 2>/dev/null || true)
           EMAIL_SUBJECT="SupaWave deployed: ${RELEASE_ID:0:8}"
           EMAIL_HTML="<h2>Deploy succeeded</h2><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Branch</td><td><code>${GITHUB_REF_NAME}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Run</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View run</a></td></tr></table>${CHANGELOG_HTML}"
-          recipients_json=$(python3 - <<'PY'
-          import json
-          import os
-          import sys
-
-          raw = os.getenv("NOTIFICATION_RECIPIENTS", "").strip()
-          if not raw:
-              print("")
-              sys.exit(0)
-
-          if raw.startswith("["):
-              try:
-                  recipients = [item.strip() for item in json.loads(raw) if isinstance(item, str) and item.strip()]
-                  print(json.dumps(recipients))
-                  sys.exit(0)
-              except Exception:
-                  pass
-
-          recipients = [item.strip() for item in raw.split(",") if item.strip()]
-          print(json.dumps(recipients))
-          PY
-          )
-          if [ -z "$recipients_json" ] || [ "$recipients_json" = "[]" ]; then
-            echo "No deploy notification recipients configured; skipping email notification."
-            exit 0
-          fi
-          PAYLOAD=$(WAVE_EMAIL_FROM_VALUE="${WAVE_EMAIL_FROM:-noreply@supawave.ai}" RECIPIENTS_JSON="$recipients_json" EMAIL_SUBJECT="$EMAIL_SUBJECT" EMAIL_HTML="$EMAIL_HTML" python3 -c 'import json, os; print(json.dumps({"from": os.environ["WAVE_EMAIL_FROM_VALUE"], "to": json.loads(os.environ["RECIPIENTS_JSON"]), "subject": os.environ["EMAIL_SUBJECT"], "html": os.environ["EMAIL_HTML"]}))')
-          RESPONSE=$(curl -s --fail-with-body -X POST https://api.resend.com/emails \
-            -H "Authorization: Bearer $RESEND_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
+          python3 scripts/deployment/send_resend_email.py \
+            --label "Deploy success" \
+            --subject "$EMAIL_SUBJECT" \
+            --html "$EMAIL_HTML"
 
       - name: Notify deploy failure
-        if: always() && failure() && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        id: notify_failure
+        if: always() && failure() && steps.deploy.outcome != 'success' && !cancelled() && (github.event_name == 'push' || github.event.inputs.action == 'deploy')
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           WAVE_EMAIL_FROM: ${{ secrets.WAVE_EMAIL_FROM }}
           NOTIFICATION_RECIPIENTS: ${{ vars.NOTIFICATION_RECIPIENTS || secrets.ON_CALL_EMAILS || 'vega113@gmail.com' }}
         run: |
+          set -euo pipefail
           EMAIL_SUBJECT="SupaWave deploy FAILED: ${RELEASE_ID:0:8}"
           EMAIL_HTML="<h2>Deploy failed</h2><p>The production deploy failed and the previous version is still running.</p><table><tr><td>Commit</td><td><code>${RELEASE_ID:0:8}</code></td></tr><tr><td>Branch</td><td><code>${GITHUB_REF_NAME}</code></td></tr><tr><td>Image</td><td><code>$IMAGE_REF</code></td></tr><tr><td>Host</td><td>$CANONICAL_HOST</td></tr><tr><td>Logs</td><td><a href='https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID'>View full logs</a></td></tr></table><p><strong>Next steps:</strong> Check the deploy logs linked above. Previous version is auto-preserved.</p>"
-          recipients_json=$(python3 - <<'PY'
-          import json
-          import os
-          import sys
+          python3 scripts/deployment/send_resend_email.py \
+            --label "Deploy failure" \
+            --subject "$EMAIL_SUBJECT" \
+            --html "$EMAIL_HTML"
 
-          raw = os.getenv("NOTIFICATION_RECIPIENTS", "").strip()
-          if not raw:
-              print("")
-              sys.exit(0)
+      - name: Close deploy-notification-failure issues on notification success
+        if: >-
+          always() &&
+          (steps.notify_success.outcome == 'success' || steps.notify_failure.outcome == 'success') &&
+          (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'deploy-notification-failure',
+              state: 'open'
+            });
+            for (const issue of issues.filter(i => !i.pull_request)) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Resolved by successful deploy notification delivery for ${context.sha.substring(0, 8)} in [run ${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+            }
 
-          if raw.startswith("["):
-              try:
-                  recipients = [item.strip() for item in json.loads(raw) if isinstance(item, str) and item.strip()]
-                  print(json.dumps(recipients))
-                  sys.exit(0)
-              except Exception:
-                  pass
+      - name: Create GitHub issue on deploy notification failure
+        continue-on-error: true
+        if: >-
+          always() &&
+          (steps.notify_success.outcome == 'failure' || steps.notify_failure.outcome == 'failure') &&
+          (github.event_name == 'push' || github.event.inputs.action == 'deploy')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'deploy-notification-failure';
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label
+              });
+            } catch (e) {
+              if (e.status !== 404) {
+                throw e;
+              }
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+                color: 'f97316',
+                description: 'Automated: deploy notification email failed'
+              });
+            }
 
-          recipients = [item.strip() for item in raw.split(",") if item.strip()]
-          print(json.dumps(recipients))
-          PY
-          )
-          if [ -z "$recipients_json" ] || [ "$recipients_json" = "[]" ]; then
-            echo "No deploy notification recipients configured; skipping email notification."
-            exit 0
-          fi
-          PAYLOAD=$(WAVE_EMAIL_FROM_VALUE="${WAVE_EMAIL_FROM:-noreply@supawave.ai}" RECIPIENTS_JSON="$recipients_json" EMAIL_SUBJECT="$EMAIL_SUBJECT" EMAIL_HTML="$EMAIL_HTML" python3 -c 'import json, os; print(json.dumps({"from": os.environ["WAVE_EMAIL_FROM_VALUE"], "to": json.loads(os.environ["RECIPIENTS_JSON"]), "subject": os.environ["EMAIL_SUBJECT"], "html": os.environ["EMAIL_HTML"]}))')
-          RESPONSE=$(curl -s --fail-with-body -X POST https://api.resend.com/emails \
-            -H "Authorization: Bearer $RESEND_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD") || echo "Email notification failed (non-blocking): $RESPONSE"
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `Deploy notification email failed for commit \`${context.sha.substring(0, 8)}\`.`,
+              ``,
+              `**Run:** [${context.runId}](${runUrl})`,
+              `**Branch:** \`${context.ref}\``,
+              `**Success notification outcome:** \`${{ steps.notify_success.outcome }}\``,
+              `**Failure notification outcome:** \`${{ steps.notify_failure.outcome }}\``,
+              ``,
+              `Check the notification step log for the Resend HTTP error or delivery response.`
+            ].join('\n');
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: label,
+              state: 'open'
+            });
+            const existingIssue = existing.find(issue => !issue.pull_request);
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body
+              });
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Deploy notification email failed: ${context.sha.substring(0, 8)}`,
+              body,
+              labels: [label, 'agent-task']
+            });

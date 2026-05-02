@@ -217,8 +217,16 @@ export async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
     try {
       await firstBlip.scrollIntoViewIfNeeded({ timeout: 5_000 });
       await firstBlip.hover({ timeout: 5_000 });
+      // Scope through the outer card before piercing into the toolbar.
+      // The seeded welcome wave contains nested inline reply blips inside
+      // the first root blip; a broad descendant toolbar selector matches
+      // every nested reply action and fails Playwright strict mode before
+      // the mention flow can exercise the UI.
       await firstBlip
+        .locator("wavy-blip-card")
+        .first()
         .locator("wave-blip-toolbar")
+        .first()
         .locator("button[data-toolbar-action='reply']")
         .click({ timeout: 10_000 });
       break;

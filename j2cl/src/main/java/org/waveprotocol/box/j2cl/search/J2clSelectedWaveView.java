@@ -691,7 +691,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     status.textContent = model.getStatusText();
     status.hidden = !model.isError();
     detail.textContent = model.getDetailText();
-    detail.hidden = true;
+    detail.hidden = !model.isError() && !isDebugOverlayOn();
     renderParticipantStrip(model.getParticipantIds());
     publishProfileOverlayParticipants(model.getParticipantIds());
     snippet.textContent = model.getSnippetText();
@@ -1138,7 +1138,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     status.textContent = model.getStatusText();
     status.hidden = !model.isError();
     detail.textContent = model.getDetailText();
-    detail.hidden = true;
+    detail.hidden = !model.isError() && !isDebugOverlayOn();
     if (model.isError()) {
       // Error is a terminal state: clear aria-busy so AT doesn't treat the
       // region as permanently loading. clearServerFirstMarkers() isn't called

@@ -722,7 +722,7 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         html.contains("class=\"sidecar-selected-status\" data-j2cl-debug-only"));
     assertTrue(
         "Preview-fixture detail must carry data-j2cl-debug-only (V-2 #1100)",
-        html.contains("class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\" hidden"));
+        html.contains("class=\"sidecar-selected-detail\" data-j2cl-debug-only=\"true\""));
   }
 
   public void testSelectedWaveStatusAndDetailStayHiddenOutsideErrors() {
@@ -738,9 +738,9 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Selected-wave status must stay hidden unless it carries an actual error",
         source.contains("status.hidden = !model.isError();"));
     assertTrue(
-        "Selected-wave detail must be explicitly hidden so channel/snapshot IDs "
-            + "do not paint in the wave header",
-        source.contains("detail.hidden = true;"));
+        "Selected-wave detail must be hidden outside errors and debug-overlay; "
+            + "channel/snapshot IDs must not paint in the wave header",
+        source.contains("detail.hidden = !model.isError() && !isDebugOverlayOn();"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

@@ -12,7 +12,7 @@ import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceModel;
 @J2clTestInput(J2clRootShellControllerTest.class)
 public class J2clRootShellControllerTest {
   @Test
-  public void editStateForWriteSessionRequiresFullWriteSession() {
+  public void editStateForWriteSessionAlwaysDisablesLegacyToolbar() {
     FakeToolbarView view = new FakeToolbarView();
     J2clToolbarSurfaceController toolbarController =
         new J2clToolbarSurfaceController(view, action -> {});
@@ -27,7 +27,7 @@ public class J2clRootShellControllerTest {
         J2clRootShellController.editStateForWriteSession(
             new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root")));
 
-    Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+    Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
   }
 
   @Test

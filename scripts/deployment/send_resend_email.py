@@ -59,6 +59,7 @@ def send_resend_email(
     result = subprocess.run(
         [
             "curl",
+            "-q",
             "-sS",
             "--fail-with-body",
             "--max-time",

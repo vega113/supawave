@@ -587,7 +587,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       current =
           current.parentElement instanceof HTMLElement ? (HTMLElement) current.parentElement : null;
     }
-    return null;
+    return DomGlobal.document.scrollingElement instanceof HTMLElement
+        ? (HTMLElement) DomGlobal.document.scrollingElement
+        : null;
   }
 
   private void mirrorComposerState(HTMLElement composer, J2clComposeSurfaceModel model) {

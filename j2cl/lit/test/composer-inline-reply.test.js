@@ -45,6 +45,21 @@ describe("<composer-inline-reply>", () => {
     expect(el.renderRoot.textContent).to.include("Root blip");
   });
 
+  it("does not inherit the page debug overlay into the visible reply target line", async () => {
+    document.body.classList.add("j2cl-debug-overlay-on");
+    try {
+      const el = await fixture(html`
+        <composer-inline-reply available target-label="b+raw"></composer-inline-reply>
+      `);
+      await el.updateComplete;
+      expect(el.debugOverlay).to.equal(false);
+      expect(el.renderRoot.textContent).to.not.include("Reply target:");
+      expect(el.renderRoot.textContent).to.not.include("b+raw");
+    } finally {
+      document.body.classList.remove("j2cl-debug-overlay-on");
+    }
+  });
+
   it("emits draft-change and reply-submit events when available", async () => {
     const el = await fixture(html`
       <composer-inline-reply available target-label="Root blip"></composer-inline-reply>

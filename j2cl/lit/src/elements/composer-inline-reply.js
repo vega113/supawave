@@ -75,17 +75,9 @@ export class ComposerInlineReply extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener("composer-focus-request", this._handleFocusRequest);
-    // V-2 (#1100): default the debug-overlay property from the body
-    // class set by HtmlRenderer. Page-load value is stable, so a
-    // single read here is sufficient. Skip if already set programmatically
-    // (property would be true) so a pre-connect assignment isn't clobbered.
-    if (!this.hasAttribute("debug-overlay") && this.debugOverlay === false) {
-      this.debugOverlay = !!(
-        typeof document !== "undefined" &&
-        document.body &&
-        document.body.classList.contains("j2cl-debug-overlay-on")
-      );
-    }
+    // Do not inherit the page-level debug flag into the reply surface.
+    // Raw target labels are only visible when this element explicitly
+    // carries [debug-overlay].
   }
 
   disconnectedCallback() {

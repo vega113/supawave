@@ -149,7 +149,8 @@ public final class J2clRootShellController {
               composeController.onSelectedWaveComposeContextChanged(
                   selectedWaveId, writeSession, participantIds);
               toolbarController.onWriteSessionChanged(writeSession);
-              toolbarController.onEditStateChanged(editStateForWriteSession(writeSession));
+              toolbarController.onEditStateChanged(
+                  new J2clToolbarSurfaceController.EditState(false));
             },
             telemetrySink);
     selectedWaveControllerRef[0] = selectedWaveController;
@@ -246,7 +247,7 @@ public final class J2clRootShellController {
 
   static J2clToolbarSurfaceController.EditState editStateForWriteSession(
       J2clSidecarWriteSession writeSession) {
-    return new J2clToolbarSurfaceController.EditState(writeSession != null);
+    return new J2clToolbarSurfaceController.EditState(false);
   }
 
   static boolean isReadSurfacePreviewHost(boolean hostMarked, boolean bodyMarked) {

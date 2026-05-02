@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-02-j2cl-inline-reply-parity-gate",
+  "version": "PR #1182",
+  "date": "2026-05-02",
+  "title": "J2CL inline reply parity gate stabilization",
+  "summary": "Stabilizes the J2CL inline reply parity coverage so nested reply toolbars no longer mask the compose behavior under test.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Scopes the J2CL inline reply parity test to the outer blip toolbar and adds coverage for slotted Bold toolbar submits."
+      ]
+    }
+  ]
+}

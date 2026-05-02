@@ -870,12 +870,25 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Root-shell create form needs a bounded card width matching the "
             + "legacy GWT compose column rather than stretching controls "
             + "across the entire wave panel",
-        css.contains(".j2cl-compose-create-form") && css.contains("max-width"));
+        java.util.regex.Pattern.compile(
+                "\\.j2cl-compose-create-form\\s*\\{[^}]*\\bmax-width\\s*:\\s*680px\\s*;")
+            .matcher(css)
+            .find());
 
     String shellSource = readSourceFile("j2cl/lit/src/elements/composer-shell.js");
     assertTrue(
         "The create shell should use the same compact, low-radius card "
             + "language as the GWT compose block rather than a large rounded panel",
-        shellSource.contains("border-radius: 4px") && shellSource.contains("font-size: 1.05rem"));
+        java.util.regex.Pattern.compile(
+                "\\.shell\\s*\\{[^}]*\\bborder-radius\\s*:\\s*4px\\s*;")
+            .matcher(shellSource)
+            .find());
+    assertTrue(
+        "Composer-shell headings should use the same compact font size as "
+            + "the GWT compose block rather than large decorative headings",
+        java.util.regex.Pattern.compile(
+                "h2[^{]*\\{[^}]*\\bfont-size\\s*:\\s*1\\.05rem\\s*;")
+            .matcher(shellSource)
+            .find());
   }
 }

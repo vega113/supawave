@@ -6,9 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
-import urllib.error
-import urllib.request
 from urllib.parse import urlparse
 
 
@@ -53,23 +52,31 @@ def send_resend_email(
   parsed = urlparse(api_url)
   if parsed.scheme != "https" or parsed.netloc != "api.resend.com":
     raise RuntimeError(f"Unsupported Resend API URL: {api_url}")
-  request = urllib.request.Request(
-      api_url,
-      data=build_payload(sender, recipients, subject, html),
-      headers={
-          "Authorization": f"Bearer {api_key}",
-          "Content-Type": "application/json",
-      },
-      method="POST",
+  result = subprocess.run(
+      [
+          "curl",
+          "-sS",
+          "--fail-with-body",
+          "--max-time",
+          "20",
+          "-X",
+          "POST",
+          api_url,
+          "-H",
+          f"Authorization: Bearer {api_key}",
+          "-H",
+          "Content-Type: application/json",
+          "-d",
+          build_payload(sender, recipients, subject, html).decode("utf-8"),
+      ],
+      capture_output=True,
+      text=True,
+      check=False,
   )
-  try:
-    with urllib.request.urlopen(request, timeout=20) as response:
-      body = response.read().decode("utf-8", errors="replace")
-  except urllib.error.HTTPError as exc:
-    body = exc.read().decode("utf-8", errors="replace")
-    raise RuntimeError(f"Resend API returned HTTP {exc.code}: {body}") from exc
-  except urllib.error.URLError as exc:
-    raise RuntimeError(f"Resend API request failed: {exc.reason}") from exc
+  body = result.stdout
+  if result.returncode != 0:
+    error_detail = body.strip() or result.stderr.strip() or f"curl exited {result.returncode}"
+    raise RuntimeError(f"Resend API request failed: {error_detail}")
 
   try:
     parsed = json.loads(body)

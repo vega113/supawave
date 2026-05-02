@@ -501,6 +501,28 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   margin-top: 14px;
 }
 
+.j2cl-compose-create-form {
+  max-width: 680px;
+}
+
+.sidecar-compose-input {
+  width: 100%;
+  border: 1px solid #c8d5e6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1a202c;
+  font: inherit;
+  line-height: 1.4;
+  padding: 9px 10px;
+  box-sizing: border-box;
+}
+
+.sidecar-compose-input:focus {
+  outline: none;
+  border-color: #0077b6;
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.10);
+}
+
 .sidecar-compose-textarea {
   width: 100%;
   min-height: 112px;

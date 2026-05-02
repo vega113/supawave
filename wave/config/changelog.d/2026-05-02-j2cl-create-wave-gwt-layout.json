@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-02-j2cl-create-wave-gwt-layout",
+  "version": "Issue #1161",
+  "date": "2026-05-02",
+  "title": "J2CL New Wave composer layout parity",
+  "summary": "Makes the J2CL root-shell New Wave composer match the stacked GWT compose-card layout.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Stacks the New Wave title, body, and Create wave controls vertically instead of letting them paint as one inline row.",
+        "Removes the implementation-facing default helper text from the create composer so the card stays focused on title, body, and submit controls."
+      ]
+    }
+  ]
+}

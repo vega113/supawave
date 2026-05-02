@@ -832,7 +832,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
    * the shell element is missing entirely (sidecar / parity-test
    * surfaces that do not paint a `<shell-root>`).
    */
-  private static boolean readInlineRichComposerFlag() {
+  static boolean readInlineRichComposerFlag() {
     Object shell =
         DomGlobal.document.querySelector(
             "shell-root[data-j2cl-inline-rich-composer=\"true\"]");

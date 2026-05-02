@@ -12,21 +12,41 @@ import org.waveprotocol.box.j2cl.toolbar.J2clToolbarSurfaceModel;
 @J2clTestInput(J2clRootShellControllerTest.class)
 public class J2clRootShellControllerTest {
   @Test
-  public void editStateForWriteSessionKeepsLegacyToolbarInactiveWhenRichComposerIsOn() {
+  public void editStateForWriteSession_inlineRichOff_followsWriteSession() {
     FakeToolbarView view = new FakeToolbarView();
     J2clToolbarSurfaceController toolbarController =
         new J2clToolbarSurfaceController(view, action -> {});
 
     toolbarController.setViewActionsEnabled(false);
     toolbarController.start();
-    toolbarController.onEditStateChanged(J2clRootShellController.editStateForWriteSession(null));
 
+    // No write session — legacy toolbar stays inactive.
+    toolbarController.onEditStateChanged(
+        J2clRootShellController.editStateForWriteSession(null, false));
     Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
 
+    // Write session present and inline-rich-composer disabled — legacy toolbar becomes active.
     toolbarController.onEditStateChanged(
         J2clRootShellController.editStateForWriteSession(
-            new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root")));
+            new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"),
+            false));
+    Assert.assertTrue(view.model.hasAction(J2clDailyToolbarAction.BOLD));
+  }
 
+  @Test
+  public void editStateForWriteSession_inlineRichOn_alwaysDisablesLegacyToolbar() {
+    FakeToolbarView view = new FakeToolbarView();
+    J2clToolbarSurfaceController toolbarController =
+        new J2clToolbarSurfaceController(view, action -> {});
+
+    toolbarController.setViewActionsEnabled(false);
+    toolbarController.start();
+
+    // Even with a write session, legacy toolbar stays off when inline-rich-composer is active.
+    toolbarController.onEditStateChanged(
+        J2clRootShellController.editStateForWriteSession(
+            new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"),
+            true));
     Assert.assertFalse(view.model.hasAction(J2clDailyToolbarAction.BOLD));
   }
 

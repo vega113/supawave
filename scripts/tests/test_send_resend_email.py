@@ -21,17 +21,17 @@ class SendResendEmailTest(unittest.TestCase):
         send_resend_email.parse_recipients("ops@example.com, dev@example.com,"),
     )
 
-  def test_build_payload_uses_branded_sender_and_html(self):
+  def test_build_payload_uses_sender_and_html(self):
     payload = json.loads(
         send_resend_email.build_payload(
-            "SupaWave Deploy <noreply@supawave.ai>",
+            "noreply@supawave.ai",
             ["ops@example.com"],
             "SupaWave deployed: abc123",
             "<h2>Deploy succeeded</h2>",
         )
     )
 
-    self.assertEqual("SupaWave Deploy <noreply@supawave.ai>", payload["from"])
+    self.assertEqual("noreply@supawave.ai", payload["from"])
     self.assertEqual(["ops@example.com"], payload["to"])
     self.assertEqual("SupaWave deployed: abc123", payload["subject"])
     self.assertEqual("<h2>Deploy succeeded</h2>", payload["html"])
@@ -43,7 +43,7 @@ class SendResendEmailTest(unittest.TestCase):
       result = send_resend_email.send_resend_email(
           api_key="test-key",
           api_url="https://api.resend.com/emails",
-          sender="SupaWave Deploy <noreply@supawave.ai>",
+          sender="noreply@supawave.ai",
           recipients=["ops@example.com"],
           subject="subject",
           html="<p>body</p>",
@@ -64,7 +64,7 @@ class SendResendEmailTest(unittest.TestCase):
         send_resend_email.send_resend_email(
             api_key="test-key",
             api_url="https://example.com/emails",
-            sender="SupaWave Deploy <noreply@supawave.ai>",
+            sender="noreply@supawave.ai",
             recipients=["ops@example.com"],
             subject="subject",
             html="<p>body</p>",

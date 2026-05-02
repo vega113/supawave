@@ -11,7 +11,7 @@ import sys
 from urllib.parse import urlparse
 
 
-DEFAULT_FROM = "SupaWave Deploy <noreply@supawave.ai>"
+DEFAULT_FROM = "noreply@supawave.ai"
 DEFAULT_API_URL = "https://api.resend.com/emails"
 
 

@@ -52,7 +52,11 @@ class SendResendEmailTest(unittest.TestCase):
     self.assertEqual({"id": "email_123"}, result)
     command = run.call_args.args[0]
     self.assertEqual("curl", command[0])
-    self.assertIn("Authorization: Bearer test-key", command)
+    # API key must not appear in argv — it is passed via stdin config instead.
+    self.assertNotIn("test-key", " ".join(command))
+    stdin_input = run.call_args.kwargs.get("input", "")
+    self.assertIn("Authorization: Bearer", stdin_input)
+    self.assertIn("test-key", stdin_input)
 
   def test_send_resend_email_rejects_non_resend_url_before_request(self):
     with mock.patch("subprocess.run") as run:
@@ -77,6 +81,36 @@ class SendResendEmailTest(unittest.TestCase):
 
     with mock.patch("subprocess.run", return_value=response):
       with self.assertRaisesRegex(RuntimeError, "domain not verified"):
+        send_resend_email.send_resend_email(
+            api_key="test-key",
+            api_url="https://api.resend.com/emails",
+            sender="noreply@supawave.ai",
+            recipients=["ops@example.com"],
+            subject="subject",
+            html="<p>body</p>",
+        )
+
+  def test_send_resend_email_includes_stderr_in_http_failure(self):
+    response = mock.MagicMock(
+        returncode=22,
+        stdout='{"message":"domain not verified"}',
+        stderr="curl: (22) The requested URL returned error: 403",
+    )
+
+    with mock.patch("subprocess.run", return_value=response):
+      with self.assertRaisesRegex(RuntimeError, r"domain not verified.*curl: \(22\)"):
+        send_resend_email.send_resend_email(
+            api_key="test-key",
+            api_url="https://api.resend.com/emails",
+            sender="noreply@supawave.ai",
+            recipients=["ops@example.com"],
+            subject="subject",
+            html="<p>body</p>",
+        )
+
+  def test_send_resend_email_raises_when_curl_missing(self):
+    with mock.patch("subprocess.run", side_effect=FileNotFoundError("No such file: curl")):
+      with self.assertRaisesRegex(RuntimeError, "curl is not available"):
         send_resend_email.send_resend_email(
             api_key="test-key",
             api_url="https://api.resend.com/emails",

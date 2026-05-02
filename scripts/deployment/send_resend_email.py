@@ -52,30 +52,38 @@ def send_resend_email(
   parsed = urlparse(api_url)
   if parsed.scheme != "https" or parsed.netloc != "api.resend.com":
     raise RuntimeError(f"Unsupported Resend API URL: {api_url}")
-  result = subprocess.run(
-      [
-          "curl",
-          "-sS",
-          "--fail-with-body",
-          "--max-time",
-          "20",
-          "-X",
-          "POST",
-          api_url,
-          "-H",
-          f"Authorization: Bearer {api_key}",
-          "-H",
-          "Content-Type: application/json",
-          "-d",
-          build_payload(sender, recipients, subject, html).decode("utf-8"),
-      ],
-      capture_output=True,
-      text=True,
-      check=False,
-  )
+  # Pass the Authorization header via stdin config to keep the API key out of
+  # the process argv (visible via ps/proc on shared runners).
+  curl_config = f'header = "Authorization: Bearer {api_key}"\n'
+  try:
+    result = subprocess.run(
+        [
+            "curl",
+            "-sS",
+            "--fail-with-body",
+            "--max-time",
+            "20",
+            "--config",
+            "-",
+            "-X",
+            "POST",
+            api_url,
+            "-H",
+            "Content-Type: application/json",
+            "-d",
+            build_payload(sender, recipients, subject, html).decode("utf-8"),
+        ],
+        input=curl_config,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+  except (FileNotFoundError, OSError) as exc:
+    raise RuntimeError(f"curl is not available: {exc}") from exc
   body = result.stdout
   if result.returncode != 0:
-    error_detail = body.strip() or result.stderr.strip() or f"curl exited {result.returncode}"
+    parts = [p for p in (body.strip(), result.stderr.strip()) if p]
+    error_detail = " | ".join(parts) if parts else f"curl exited {result.returncode}"
     raise RuntimeError(f"Resend API request failed: {error_detail}")
 
   try:

@@ -671,6 +671,28 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             && css.contains("display: none"));
   }
 
+  public void testServerFirstSelectedWaveWrappersFillMainColumn() {
+    String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
+    assertTrue(
+        "The server-first selected-wave host must stretch to the full shell main column",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-selected-host\\s*\\{[^}]*\\bwidth\\s*:\\s*100%\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "The selected-wave card must not shrink-wrap the read surface on wide screens",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-selected-card\\s*\\{[^}]*\\bwidth\\s*:\\s*100%\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "The selected-wave card must include padding in its full-width box calculation",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-selected-card\\s*\\{[^}]*\\bbox-sizing\\s*:\\s*border-box\\s*;")
+            .matcher(css)
+            .find());
+  }
+
   public void testJ2clComposeSurfaceViewListensForBlipReplyEvents() {
     // F-3.S1 (#1038, R-5.1 step 1): the Java compose view must subscribe
     // to F-2's <wave-blip> Reply / Edit CustomEvents and mount an inline

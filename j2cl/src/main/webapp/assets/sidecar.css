@@ -170,15 +170,19 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .sidecar-selected-host {
+  box-sizing: border-box;
   min-width: 0;
+  width: 100%;
 }
 
 .sidecar-selected-card {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #e2e8f0;
   border-radius: 4px;
+  box-sizing: border-box;
   box-shadow: none;
   padding: 12px;
+  width: 100%;
 }
 
 shell-root[data-wave-controls-compact="true"] wavy-wave-header-actions,

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-02-j2cl-keyboard-mention-parity",
+  "version": "Issue #1161",
+  "date": "2026-05-02",
+  "title": "J2CL keyboard and mention parity",
+  "summary": "Fixes repeated J2CL blip keyboard navigation and keeps the mention parity harness on the root blip toolbar.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Keeps repeated j/k shortcut ownership at the shell level so focus advances across viewport-windowed blips like GWT.",
+        "Scopes mention-reply parity clicks to the root blip toolbar so nested inline reply buttons no longer mask production @mention chooser checks."
+      ]
+    }
+  ]
+}

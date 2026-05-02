@@ -179,12 +179,14 @@ export function setFocusedBlip(target, root = document) {
   if (typeof target.scrollIntoView === "function") {
     target.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
-  // Move browser active element so renderer keydown handlers that
-  // reseed focus from event.currentTarget start from the right blip.
-  if (typeof target.focus === "function") {
-    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
-    target.focus({ preventScroll: true });
-  }
+  // Keep DOM focus where the shell-level keyboard handler received it.
+  // Moving browser focus onto the <wave-blip> host makes the next
+  // repeated j/k keydown target the custom element itself; in the
+  // viewport-windowed read surface that event can be consumed at the
+  // current blip boundary before the renderer has grown the next window.
+  // GWT's focus frame is visual state rather than native DOM focus, so
+  // the parity behavior is to reflect focus via attributes/classes and
+  // leave keyboard ownership with the shell.
   target.dispatchEvent(
     new CustomEvent(FOCUS_CHANGED_EVENT, {
       bubbles: true,

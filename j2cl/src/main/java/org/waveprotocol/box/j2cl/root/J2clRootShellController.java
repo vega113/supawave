@@ -246,6 +246,13 @@ public final class J2clRootShellController {
     liveSurfaceController.start();
   }
 
+  /**
+   * Transitional overload: defaults to inline-rich-composer mode (inlineRichComposerEnabled=true).
+   *
+   * @deprecated Prefer {@link #editStateForWriteSession(J2clSidecarWriteSession, boolean)} and
+   *     pass the resolved flag value explicitly.
+   */
+  @Deprecated
   static J2clToolbarSurfaceController.EditState editStateForWriteSession(
       J2clSidecarWriteSession writeSession) {
     return editStateForWriteSession(writeSession, true);

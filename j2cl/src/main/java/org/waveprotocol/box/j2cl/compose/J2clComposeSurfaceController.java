@@ -568,7 +568,7 @@ public final class J2clComposeSurfaceController {
     void onCurrentUserAddress(String address);
   }
   private boolean createSubmitting;
-  private String createStatusText = "Create a self-owned wave inside the root shell.";
+  private String createStatusText = "";
   private String createErrorText = "";
   private J2clSidecarWriteSession writeSession;
   private String lastSelectedWaveId;

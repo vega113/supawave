@@ -12,16 +12,17 @@ export class ComposerShell extends LitElement {
 
     .shell {
       display: grid;
-      gap: 14px;
-      padding: 14px;
-      border: 1px solid var(--shell-color-divider-subtle, #e5edf5);
-      border-radius: 16px;
+      gap: 12px;
+      padding: 8px;
+      border: 1px solid var(--shell-color-divider-subtle, #e2e8f0);
+      border-radius: 4px;
       background: var(--shell-color-surface-shell, #fff);
     }
 
     h2,
     h3 {
       margin: 0 0 8px;
+      font-size: 1.05rem;
     }
   `;
 

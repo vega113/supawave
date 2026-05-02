@@ -95,7 +95,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
     HTMLFormElement createForm = (HTMLFormElement) DomGlobal.document.createElement("form");
     createForm.setAttribute("slot", "create");
-    createForm.className = "j2cl-compose-create-form";
+    createForm.className = "j2cl-compose-create-form sidecar-compose-form";
     shell.appendChild(createForm);
 
     // J-UI-3 (#1081, R-5.1): single-line title input above the body textarea.
@@ -103,6 +103,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // we declare the body textarea first so the title-input's Enter handler
     // can reference it without tripping definite-assignment.
     createInput = (HTMLTextAreaElement) DomGlobal.document.createElement("textarea");
+    createInput.className = "j2cl-compose-create-body sidecar-compose-textarea";
     createInput.setAttribute("aria-label", "New wave content");
     createInput.setAttribute("placeholder", "Start a new wave");
     createInput.rows = 4;
@@ -116,7 +117,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
     createTitleInput = (HTMLInputElement) DomGlobal.document.createElement("input");
     createTitleInput.type = "text";
-    createTitleInput.className = "j2cl-compose-create-title";
+    createTitleInput.className = "j2cl-compose-create-title sidecar-compose-input";
     createTitleInput.setAttribute("aria-label", "New wave title");
     createTitleInput.setAttribute("placeholder", "Title");
     createTitleInput.setAttribute("autocomplete", "off");

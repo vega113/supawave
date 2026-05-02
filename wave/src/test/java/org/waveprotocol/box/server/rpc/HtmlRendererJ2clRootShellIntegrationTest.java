@@ -837,4 +837,66 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         source.indexOf("revealCreateSurface();", source.indexOf("public void focusCreateComposer()"))
             < source.indexOf("if (!createInput.disabled)", source.indexOf("public void focusCreateComposer()")));
   }
+
+  public void testRootShellCreateWaveUsesGwtLikeStackedComposeLayout() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/compose/"
+                + "J2clComposeSurfaceView.java");
+    assertTrue(
+        "Root-shell create form must reuse the sidecar compose grid so "
+            + "title, body, and Create wave button stack like GWT instead "
+            + "of painting as one inline row",
+        source.contains("j2cl-compose-create-form sidecar-compose-form"));
+    assertTrue(
+        "New-wave title input must carry the shared compose-input class "
+            + "so it has GWT-like width, spacing, and focus chrome",
+        source.contains("j2cl-compose-create-title sidecar-compose-input"));
+    assertTrue(
+        "New-wave body textarea must carry the shared compose-textarea "
+            + "class so it fills the compose card instead of sitting inline",
+        source.contains("j2cl-compose-create-body sidecar-compose-textarea"));
+    assertFalse(
+        "Root-shell create wave should not show implementation copy like "
+            + "'self-owned wave inside the root shell' in the compose card; "
+            + "GWT keeps the create surface focused on the title/body/button.",
+        readSourceFile(
+                "j2cl/src/main/java/org/waveprotocol/box/j2cl/compose/"
+                    + "J2clComposeSurfaceController.java")
+            .contains("Create a self-owned wave inside the root shell."));
+
+    String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
+    assertTrue(
+        "Root-shell create form needs a bounded card width matching the "
+            + "legacy GWT compose column rather than stretching controls "
+            + "across the entire wave panel",
+        java.util.regex.Pattern.compile(
+                "\\.j2cl-compose-create-form\\s*\\{[^}]*\\bmax-width\\s*:\\s*680px\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "composer-submit-affordance inside a grid compose form must not stretch "
+            + "to full row width; it needs justify-self: start to stay compact",
+        java.util.regex.Pattern.compile(
+                "\\.sidecar-compose-form\\s+composer-submit-affordance\\s*\\{"
+                    + "[^}]*\\bjustify-self\\s*:\\s*start\\s*;")
+            .matcher(css)
+            .find());
+
+    String shellSource = readSourceFile("j2cl/lit/src/elements/composer-shell.js");
+    assertTrue(
+        "The create shell should use the same compact, low-radius card "
+            + "language as the GWT compose block rather than a large rounded panel",
+        java.util.regex.Pattern.compile(
+                "\\.shell\\s*\\{[^}]*\\bborder-radius\\s*:\\s*4px\\s*;")
+            .matcher(shellSource)
+            .find());
+    assertTrue(
+        "Composer-shell headings should use the same compact font size as "
+            + "the GWT compose block rather than large decorative headings",
+        java.util.regex.Pattern.compile(
+                "h2[^{]*\\{[^}]*\\bfont-size\\s*:\\s*1\\.05rem\\s*;")
+            .matcher(shellSource)
+            .find());
+  }
 }

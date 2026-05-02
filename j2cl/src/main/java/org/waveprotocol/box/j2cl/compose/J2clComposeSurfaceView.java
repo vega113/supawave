@@ -436,8 +436,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // J-UI-3 (#1081, R-5.1): the rail's New Wave button drops the user into
     // the title input; if the input is disabled (signed out / submitting)
     // skip silently rather than throwing.
+    revealCreateSurface();
     if (!createTitleInput.disabled) {
-      revealCreateSurface();
       createTitleInput.focus();
     }
   }
@@ -446,8 +446,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   public void focusCreateComposer() {
     // #1076: the keyboard shortcut drops the user straight into the body
     // composer and scrolls it into view without changing the button/title path.
+    revealCreateSurface();
     if (!createInput.disabled) {
-      revealCreateSurface();
       createInput.scrollIntoView();
       createInput.focus();
     }

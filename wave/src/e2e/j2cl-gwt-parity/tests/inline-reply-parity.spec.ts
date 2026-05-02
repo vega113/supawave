@@ -56,9 +56,15 @@ async function clickReplyOnFirstBlipJ2cl(page: Page) {
   await firstBlip.scrollIntoViewIfNeeded();
   await firstBlip.hover();
   // The Reply button lives inside <wave-blip-toolbar>'s shadow root;
-  // Playwright pierces shadow DOM automatically.
+  // Playwright pierces shadow DOM automatically. Scope through the
+  // outer card first: a root blip can contain inline child wave-blip
+  // elements, and a broad descendant toolbar selector matches every
+  // nested reply button in strict mode before the compose path runs.
   await firstBlip
+    .locator("wavy-blip-card")
+    .first()
     .locator("wave-blip-toolbar")
+    .first()
     .locator("button[data-toolbar-action='reply']")
     .click({ timeout: 10_000 });
   const inlineComposer = firstBlip.locator(

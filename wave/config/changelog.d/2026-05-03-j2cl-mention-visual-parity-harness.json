@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-03-j2cl-mention-visual-parity-harness",
+  "version": "Issue #1161",
+  "date": "2026-05-03",
+  "title": "J2CL mention visual parity coverage",
+  "summary": "Stabilizes the J2CL/GWT mention-popover visual parity gate on deterministic authored wave content.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Moves the mention-popover visual parity check off the seeded Welcome wave so inline reply hydration no longer hides the composer during audit runs."
+      ]
+    }
+  ]
+}

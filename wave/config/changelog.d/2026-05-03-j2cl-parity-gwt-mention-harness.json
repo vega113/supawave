@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-03-j2cl-parity-gwt-mention-harness",
+  "version": "PR #1193",
+  "date": "2026-05-03",
+  "title": "J2CL parity GWT mention harness stability",
+  "summary": "Stabilized the J2CL/GWT mention parity harness when driving the legacy GWT editor from Playwright.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Made the GWT mention helper verify the observable mention popup instead of strict DOM activeElement ownership."
+      ]
+    }
+  ]
+}

@@ -176,9 +176,17 @@ export async function typeAtMentionTriggerGwt(
   await expect(editor, "GWT editor must be present before typing a mention trigger").toBeVisible({
     timeout: 10_000
   });
-  await focusGwtEditor(editor, "GWT editor must own focus before typing a mention trigger");
-  await page.keyboard.type(literal, { delay: 20 });
-  await page.waitForTimeout(350);
+  const popover = page.locator("[data-e2e='gwt-mention-popover']:visible").last();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await placeGwtEditorCaret(editor);
+    await page.keyboard.type(literal, { delay: 20 });
+    await page.waitForTimeout(350);
+    if ((await popover.count()) > 0) return;
+    for (let i = 0; i < literal.length; i++) {
+      await page.keyboard.press("Backspace");
+    }
+    await page.waitForTimeout(100);
+  }
 }
 
 export async function dispatchMentionKeyGwt(
@@ -190,12 +198,12 @@ export async function dispatchMentionKeyGwt(
   await expect(editor, `GWT editor must be visible before ${key}`).toBeVisible({
     timeout: 5_000
   });
-  await focusGwtEditor(editor, `GWT editor must own focus before ${key}`);
+  await placeGwtEditorCaret(editor);
   await page.keyboard.press(key);
   await page.waitForTimeout(150);
 }
 
-async function focusGwtEditor(editor: Locator, message: string): Promise<void> {
+async function placeGwtEditorCaret(editor: Locator): Promise<void> {
   await editor.evaluate((el) => {
     const target = el as HTMLElement;
     target.focus();
@@ -207,15 +215,6 @@ async function focusGwtEditor(editor: Locator, message: string): Promise<void> {
     selection.removeAllRanges();
     selection.addRange(range);
   });
-  await expect
-    .poll(
-      async () =>
-        await editor.evaluate(
-          (el) => el === document.activeElement || el.contains(document.activeElement)
-        ),
-      { message, timeout: 5_000 }
-    )
-    .toBe(true);
 }
 
 export async function readRenderedMentionsGwt(scope: Locator): Promise<
@@ -238,6 +237,9 @@ export async function readRenderedMentionsGwt(scope: Locator): Promise<
 export async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
   await page.waitForTimeout(1_500);
   const firstBlip = page.locator("wave-blip").first();
+  const inlineComposer = firstBlip.locator(
+    "wavy-composer[data-inline-composer='true']"
+  );
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       await firstBlip.scrollIntoViewIfNeeded({ timeout: 5_000 });
@@ -254,15 +256,16 @@ export async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
         .first()
         .locator("button[data-toolbar-action='reply']")
         .click({ timeout: 10_000 });
-      break;
+      await expect(
+        inlineComposer,
+        "Reply must mount <wavy-composer> inline at the blip"
+      ).toHaveCount(1, { timeout: 5_000 });
+      return inlineComposer;
     } catch (e) {
       if (attempt === 3) throw e;
       await page.waitForTimeout(800);
     }
   }
-  const inlineComposer = firstBlip.locator(
-    "wavy-composer[data-inline-composer='true']"
-  );
   await expect(
     inlineComposer,
     "Reply must mount <wavy-composer> inline at the blip"

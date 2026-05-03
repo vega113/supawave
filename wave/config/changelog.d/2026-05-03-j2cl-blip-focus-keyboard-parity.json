@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-03-j2cl-blip-focus-keyboard-parity",
+  "version": "PR #1190",
+  "date": "2026-05-03",
+  "title": "J2CL blip keyboard focus parity",
+  "summary": "Keeps J2CL blip keyboard navigation aligned with the visual focus marker during repeated shortcut use.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Moves native focus to the visually focused J2CL blip so repeated next/previous blip shortcuts continue from the current blip instead of a stale earlier target."
+      ]
+    }
+  ]
+}

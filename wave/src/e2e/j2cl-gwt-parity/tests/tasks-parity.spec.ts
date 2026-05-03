@@ -173,6 +173,45 @@ async function authorThreeBlipWave(
 }
 
 /**
+ * Creates an open task on an existing GWT blip and leaves the checkbox
+ * unchecked. J2CL intentionally no longer mounts a generic Task toggle on
+ * every normal blip; it should expose task controls only after the GWT task
+ * doodad/annotation exists.
+ */
+async function insertOpenTaskOnGwt(
+  page: Page,
+  gwt: GwtPage,
+  blipId: string
+): Promise<void> {
+  await gwt.clickEditOnBlip(blipId);
+  await expect(
+    page.locator('div[title^="Insert task"]').first(),
+    "[gwt] format toolbar Insert task button must mount in edit mode"
+  ).toBeVisible({ timeout: 15_000 });
+  await gwt.clickInsertTask();
+  await gwt.dismissTaskMetadataPopup();
+  await page.keyboard.press("Escape");
+  await expect
+    .poll(
+      async () =>
+        await page
+          .locator(`[data-blip-id="${blipId}"] input[type="checkbox"]`)
+          .count(),
+      {
+        timeout: 15_000,
+        message: `[gwt] B-J should contain an inline checkbox after Insert task`
+      }
+    )
+    .toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(async () => await gwt.blipHasCheckedTask(blipId), {
+      timeout: 10_000,
+      message: `[gwt] B-J inline checkbox should start unchecked`
+    })
+    .toBe(false);
+}
+
+/**
  * Boots a second BrowserContext that shares the first context's
  * cookies + localStorage so the second-context navigations land on
  * the same authenticated session. Mirrors Playwright's documented
@@ -319,7 +358,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
     }
   });
 
-  test("J2CL: per-blip task toggle flips data-task-completed (optimistic UI)", async ({
+  test("J2CL: existing task toggle flips data-task-completed (optimistic UI)", async ({
     page
   }) => {
     const creds = freshCredentials("g6j");
@@ -337,6 +376,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
 
     const gwt = new GwtPage(page, BASE_URL);
     const { waveId, blipJ } = await authorThreeBlipWave(page, gwt);
+    await insertOpenTaskOnGwt(page, gwt, blipJ);
 
     const j2cl = new J2clPage(page, BASE_URL);
     await j2cl.gotoWave(waveId);
@@ -366,7 +406,9 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
     // installs writeSession for this wave.
     await page.waitForTimeout(2_000);
 
-    // Click the per-blip task toggle on B-J.
+    // Click the per-blip task toggle on B-J. The toggle is expected only
+    // because the GWT side created a real task on this blip first; normal
+    // non-task blips should not show a generic task affordance.
     const toggle = j2cl.blipTaskToggle(blipJ);
     await toggle.scrollIntoViewIfNeeded();
     await expect(
@@ -396,6 +438,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
 
       const gwt = new GwtPage(page, BASE_URL);
       const { waveId, blipJ } = await authorThreeBlipWave(page, gwt);
+      await insertOpenTaskOnGwt(page, gwt, blipJ);
 
       const j2cl = new J2clPage(page, BASE_URL);
       await j2cl.gotoWave(waveId);

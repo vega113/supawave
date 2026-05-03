@@ -7,8 +7,10 @@
 // (KeySignalRouter + FocusFrameController.onKeySignal). We pick the
 // six combos called out in issue #1116 as the parity baseline:
 //
-//   - j        BLIP_FOCUS_NEXT       (move focused blip down)
-//   - k        BLIP_FOCUS_PREV       (move focused blip up)
+//   - j / ArrowDown
+//              BLIP_FOCUS_NEXT       (move focused blip down)
+//   - k / ArrowUp
+//              BLIP_FOCUS_PREV       (move focused blip up)
 //   - Shift+   OPEN_NEW_WAVE         (open the create-wave surface)
 //     Cmd+O / Shift+Ctrl+O
 //   - Esc      CLOSE_TOPMOST         (close topmost dialog OR
@@ -129,19 +131,22 @@ export function matchShortcut(evt, opts = {}) {
     return { action: KEY_ACTION.OPEN_NEW_WAVE, global: false };
   }
 
-  // j / k — blip navigation. Bare key only; not global. Modifiers
-  // disqualify because Cmd+J / Ctrl+K etc. are claimed by browsers.
-  // Allow repeat so holding j/k continuously moves focus (GWT parity).
+  // j/k and ArrowDown/ArrowUp — blip navigation. Bare key only; not
+  // global. Modifiers disqualify because Cmd+J / Ctrl+K etc. are
+  // claimed by browsers. Allow repeat so holding the key continuously
+  // moves focus (GWT parity). The Lit shell is the single repeated
+  // next/previous owner so focus always follows actual <wave-blip>
+  // DOM order, including inline-reply blips mounted inside Lit chrome.
   if (
     !evt.shiftKey &&
     !evt.ctrlKey &&
     !evt.metaKey &&
     !evt.altKey
   ) {
-    if (evt.key === "j" || evt.key === "J") {
+    if (evt.key === "j" || evt.key === "J" || evt.key === "ArrowDown") {
       return { action: KEY_ACTION.BLIP_FOCUS_NEXT, global: false };
     }
-    if (evt.key === "k" || evt.key === "K") {
+    if (evt.key === "k" || evt.key === "K" || evt.key === "ArrowUp") {
       return { action: KEY_ACTION.BLIP_FOCUS_PREV, global: false };
     }
   }

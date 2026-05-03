@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-03-j2cl-inline-task-focus-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-03",
+  "title": "J2CL inline reply and task parity hardening",
+  "summary": "Tightens J2CL wave-view parity for inline reply focus navigation, mention composer visual coverage, and task detail affordances.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Routes repeated next/previous blip keyboard navigation through the Lit shell so J2CL follows the same visible inline-reply DOM order as GWT.",
+        "Keeps clicked J2CL blips selected for focus-frame navigation before keyboard or toolbar actions continue from that blip.",
+        "Hardens parity coverage so mention popovers and task details are tested on deterministic authored waves with real task state instead of relying on seeded welcome content."
+      ]
+    }
+  ]
+}

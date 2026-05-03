@@ -42,6 +42,17 @@ describe("matchShortcut", () => {
     });
   });
 
+  it("matches ArrowDown / ArrowUp as GWT blip navigation fallbacks", () => {
+    expect(matchShortcut(fakeEvent("ArrowDown"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_NEXT,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("ArrowUp"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_PREV,
+      global: false
+    });
+  });
+
   it("matches uppercase J / K", () => {
     expect(matchShortcut(fakeEvent("J"), { isMac: true }).action).to.equal(
       KEY_ACTION.BLIP_FOCUS_NEXT

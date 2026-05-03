@@ -46,6 +46,18 @@ async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
 }
 
+async function authorSimpleGwtWave(page: Page, baseURL: string): Promise<string> {
+  const gwt = new GwtPage(page, baseURL);
+  await gwt.goto("/");
+  await gwt.assertInboxLoaded();
+  await expect(gwt.newWaveAffordance()).toBeVisible({ timeout: 15_000 });
+  await gwt.newWaveAffordance().click();
+  await page.waitForSelector("[kind='b'][data-blip-id]", { timeout: 30_000 });
+  const waveId = await gwt.readWaveIdFromHash();
+  await gwt.typeIntoBlipDocument("Root blip text for inline reply parity");
+  return waveId;
+}
+
 /**
  * Click Reply on the first <wave-blip> in the wave and return a
  * locator for the inline <wavy-composer>. Asserts the composer
@@ -472,13 +484,16 @@ test.describe("G-PORT-4 inline reply + working compose toolbar parity", () => {
     });
     await registerAndSignIn(page, BASE_URL, creds);
 
-    // The Welcome wave seeded by the WelcomeRobot at registration time
-    // gives us a wave with multiple blips to reply to.
-    const j2cl = new J2clPage(page, BASE_URL);
-    await j2cl.goto("/");
-    await j2cl.assertInboxLoaded();
+    // Author a simple owned wave first. The welcome wave is public/help
+    // content and can be read-only or large enough to make root-reply
+    // targeting ambiguous; this parity gate needs the J2CL inline reply
+    // path, not welcome-wave seeding behavior.
+    const waveId = await authorSimpleGwtWave(page, BASE_URL);
 
-    await openFirstWaveJ2cl(page, BASE_URL);
+    const j2cl = new J2clPage(page, BASE_URL);
+    await j2cl.gotoWave(waveId);
+    await j2cl.assertInboxLoaded();
+    await page.waitForSelector("wave-blip", { timeout: 30_000 });
     const composer = await clickReplyOnFirstBlipJ2cl(page);
     // Use a unique payload so we can locate the new blip exactly
     // (the welcome wave already contains the substring "hello"

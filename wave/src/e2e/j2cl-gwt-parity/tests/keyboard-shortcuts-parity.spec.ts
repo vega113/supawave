@@ -52,6 +52,34 @@ async function openFirstWaveJ2cl(page: Page): Promise<void> {
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
 }
 
+async function authorTwoBlipGwtWave(page: Page, baseURL: string): Promise<string> {
+  const gwt = new GwtPage(page, baseURL);
+  await gwt.goto("/");
+  await gwt.assertInboxLoaded();
+  await expect(gwt.newWaveAffordance()).toBeVisible({ timeout: 15_000 });
+  await gwt.newWaveAffordance().click();
+  await page.waitForSelector("[kind='b'][data-blip-id]", { timeout: 30_000 });
+  const waveId = await gwt.readWaveIdFromHash();
+  await gwt.typeIntoBlipDocument("Keyboard shortcut parity root blip");
+  const rootBlipId = await page
+    .locator("[kind='b'][data-blip-id]")
+    .first()
+    .getAttribute("data-blip-id");
+  expect(rootBlipId, "GWT root blip id must be present").toBeTruthy();
+  await gwt.clickReplyOnBlip(rootBlipId!);
+  await expect
+    .poll(
+      async () => await page.locator("[kind='b'][data-blip-id]").count(),
+      {
+        timeout: 30_000,
+        message: "GWT reply should add a second blip"
+      }
+    )
+    .toBeGreaterThanOrEqual(2);
+  await gwt.typeIntoBlipDocument("Keyboard shortcut parity reply blip");
+  return waveId;
+}
+
 /** Snapshot which J2CL wave-blip currently carries the focused attr. */
 async function focusedBlipIdJ2cl(page: Page): Promise<string | null> {
   return await page.evaluate(() => {
@@ -101,24 +129,16 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     test.info().annotations.push({ type: "test-user", description: creds.address });
     await registerAndSignIn(page, BASE_URL, creds);
 
-    // ------------------------------------------------------------------
-    // Open the J2CL view and wait for the inbox shell.
-    // ------------------------------------------------------------------
-    const j2cl = new J2clPage(page, BASE_URL);
-    await j2cl.goto("/");
-    await j2cl.assertInboxLoaded();
+    const waveId = await authorTwoBlipGwtWave(page, BASE_URL);
 
-    // ------------------------------------------------------------------
-    // Open the welcome wave so we have multiple <wave-blip> hosts to
-    // navigate through. The seeded Welcome wave from RegistrationUtil's
-    // WelcomeRobot ships with multiple blips — verify we have at least
-    // 2 (more than 2 is preferable; 2 is enough to prove j/k flips).
-    // ------------------------------------------------------------------
-    await openFirstWaveJ2cl(page);
+    const j2cl = new J2clPage(page, BASE_URL);
+    await j2cl.gotoWave(waveId);
+    await j2cl.assertInboxLoaded();
+    await page.waitForSelector("wave-blip", { timeout: 30_000 });
     const initialBlipCount = await blipCountJ2cl(page);
     expect(
       initialBlipCount,
-      "welcome wave must mount at least 2 <wave-blip> hosts on J2CL"
+      "authored wave must mount at least 2 <wave-blip> hosts on J2CL"
     ).toBeGreaterThanOrEqual(2);
 
     // ------------------------------------------------------------------

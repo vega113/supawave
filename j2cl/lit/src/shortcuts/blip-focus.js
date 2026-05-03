@@ -232,14 +232,20 @@ export function setFocusedBlip(target, root = document) {
   if (typeof target.scrollIntoView === "function") {
     target.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
-  // Keep DOM focus where the shell-level keyboard handler received it.
-  // Moving browser focus onto the <wave-blip> host makes the next
-  // repeated j/k keydown target the custom element itself; in the
-  // viewport-windowed read surface that event can be consumed at the
-  // current blip boundary before the renderer has grown the next window.
-  // GWT's focus frame is visual state rather than native DOM focus, so
-  // the parity behavior is to reflect focus via attributes/classes and
-  // leave keyboard ownership with the shell.
+  // Keep native focus aligned with the visual focus marker. j/k still
+  // bubbles to the shell-level handler, but moving DOM focus prevents a
+  // stale previously-clicked blip host from remaining the key target
+  // across combined keyboard workflows.
+  try {
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
+  } catch (_) {
+    try {
+      target.focus();
+    } catch (_) {
+      // Some test hosts may not implement focus(); visual focus still works.
+    }
+  }
   target.dispatchEvent(
     new CustomEvent(FOCUS_CHANGED_EVENT, {
       bubbles: true,
@@ -273,6 +279,9 @@ export function clearBlipFocus(root = document) {
       blip.removeAttribute("aria-current");
       if ("focused" in blip) blip.focused = false;
       blip.classList.remove(RENDERER_FOCUS_CLASS);
+      // Reset tabindex if the renderer's native focus listener promoted it to
+      // "0" — leaving "0" makes the blip tabbable and renders it as active.
+      if (blip.getAttribute("tabindex") === "0") blip.setAttribute("tabindex", "-1");
       if (!surface) surface = findReadSurface(blip, root);
       cleared = true;
     }

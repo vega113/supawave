@@ -660,10 +660,14 @@ public class J2clSelectedWaveViewChromeTest {
         "nav action must continue from the focused blip marker, not the clicked toolbar button",
         third,
         DomGlobal.document.activeElement);
+    Assert.assertEquals("true", third.getAttribute("aria-current"));
+    Assert.assertFalse(second.hasAttribute("aria-current"));
 
     dispatchNavEvent(view.getCardElement(), "wave-nav-previous-requested");
 
     Assert.assertEquals(second, DomGlobal.document.activeElement);
+    Assert.assertEquals("true", second.getAttribute("aria-current"));
+    Assert.assertFalse(third.hasAttribute("aria-current"));
   }
 
   @Test

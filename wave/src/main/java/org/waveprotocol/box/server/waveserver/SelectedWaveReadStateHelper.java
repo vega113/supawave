@@ -22,7 +22,6 @@ package org.waveprotocol.box.server.waveserver;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.google.wave.api.SearchResult.Digest;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -146,12 +145,12 @@ public class SelectedWaveReadStateHelper {
     }
 
     try {
-      Digest digest = digester.build(user, view);
+      WaveDigester.UnreadBlipState readState = digester.getUnreadBlipState(user, view);
       return Result.found(
-          Math.max(0, digest.getUnreadCount()),
-          digester.getUnreadBlipIds(user, view));
+          Math.max(0, readState.getUnreadCount()),
+          readState.getUnreadBlipIds());
     } catch (RuntimeException e) {
-      LOG.warning("read-state: digest build failed for " + waveId, e);
+      LOG.warning("read-state: unread state build failed for " + waveId, e);
       throw e;
     }
   }

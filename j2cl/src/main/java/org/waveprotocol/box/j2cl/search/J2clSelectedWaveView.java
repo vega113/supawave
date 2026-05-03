@@ -576,10 +576,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       if (blip == target) {
         blip.setAttribute("focused", "");
         blip.setAttribute("data-blip-focused", "true");
+        blip.setAttribute("aria-current", "true");
         blip.classList.add("j2cl-read-blip-focused");
       } else {
         blip.removeAttribute("focused");
         blip.removeAttribute("data-blip-focused");
+        blip.removeAttribute("aria-current");
         blip.classList.remove("j2cl-read-blip-focused");
       }
     }

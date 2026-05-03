@@ -190,6 +190,16 @@ describe("clearBlipFocus", () => {
     clearBlipFocus(root);
     expect(blips[1].hasAttribute("aria-current")).to.equal(false);
   });
+
+  it("resets tabindex=0 promoted by renderer focus listener so blip is not tabbable after Esc", async () => {
+    const root = await threeBlips();
+    const blips = Array.from(root.querySelectorAll("wave-blip"));
+    setFocusedBlip(blips[0], root);
+    // Simulate the renderer's native focus listener promoting tabindex to "0".
+    blips[0].setAttribute("tabindex", "0");
+    expect(clearBlipFocus(root)).to.equal(true);
+    expect(blips[0].getAttribute("tabindex")).to.not.equal("0");
+  });
 });
 
 describe("focusBlipBoundary", () => {

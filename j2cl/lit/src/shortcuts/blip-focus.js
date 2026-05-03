@@ -237,6 +237,7 @@ export function setFocusedBlip(target, root = document) {
   // stale previously-clicked blip host from remaining the key target
   // across combined keyboard workflows.
   try {
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
     target.focus({ preventScroll: true });
   } catch (_) {
     try {
@@ -278,6 +279,9 @@ export function clearBlipFocus(root = document) {
       blip.removeAttribute("aria-current");
       if ("focused" in blip) blip.focused = false;
       blip.classList.remove(RENDERER_FOCUS_CLASS);
+      // Reset tabindex if the renderer's native focus listener promoted it to
+      // "0" — leaving "0" makes the blip tabbable and renders it as active.
+      if (blip.getAttribute("tabindex") === "0") blip.setAttribute("tabindex", "-1");
       if (!surface) surface = findReadSurface(blip, root);
       cleared = true;
     }

@@ -554,12 +554,19 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
   private int focusedBlipIndex(List<HTMLElement> blips) {
     elemental2.dom.Element active = DomGlobal.document.activeElement;
-    if (active == null) {
-      return -1;
+    if (active != null) {
+      for (int index = 0; index < blips.size(); index++) {
+        HTMLElement blip = blips.get(index);
+        if (blip == active || blip.contains(active)) {
+          return index;
+        }
+      }
     }
     for (int index = 0; index < blips.size(); index++) {
       HTMLElement blip = blips.get(index);
-      if (blip == active || blip.contains(active)) {
+      if (blip.hasAttribute("focused")
+          || "true".equals(blip.getAttribute("data-blip-focused"))
+          || blip.classList.contains("j2cl-read-blip-focused")) {
         return index;
       }
     }
@@ -573,6 +580,17 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     List<HTMLElement> blips = renderedBlips();
     for (HTMLElement blip : blips) {
       blip.setAttribute("tabindex", blip == target ? "0" : "-1");
+      if (blip == target) {
+        blip.setAttribute("focused", "");
+        blip.setAttribute("data-blip-focused", "true");
+        blip.setAttribute("aria-current", "true");
+        blip.classList.add("j2cl-read-blip-focused");
+      } else {
+        blip.removeAttribute("focused");
+        blip.removeAttribute("data-blip-focused");
+        blip.removeAttribute("aria-current");
+        blip.classList.remove("j2cl-read-blip-focused");
+      }
     }
     FocusOptionsType focusOptions = FocusOptionsType.create();
     focusOptions.setPreventScroll(true);

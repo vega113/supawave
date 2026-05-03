@@ -2,6 +2,7 @@ package org.waveprotocol.box.j2cl.search;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -157,6 +158,9 @@ public final class J2clSelectedWaveProjector {
       read = false;
       readStateKnown = false;
     }
+    if (readStateMatchesWave) {
+      readBlips = applyReadStateToReadBlips(readBlips, readState);
+    }
     // Only surface the "stale" banner when we actually have a known read-state
     // to be stale about — an initial fetch failure with no prior snapshot would
     // otherwise claim the unread count is stale even though no count exists.
@@ -307,7 +311,7 @@ public final class J2clSelectedWaveProjector {
         previous.getReconnectCount(),
         previous.getParticipantIds(),
         previous.getContentEntries(),
-        previous.getReadBlips(),
+        applyReadStateToReadBlips(previous.getReadBlips(), readStateMatchesWave ? readState : null),
         previous.getViewportState(),
         previous.getInteractionBlips(),
         previous.getWriteSession(),
@@ -320,6 +324,47 @@ public final class J2clSelectedWaveProjector {
         // document and must not flatten threading.
         .withConversationManifest(previous.getConversationManifest())
         .withLockState(previous.getLockState());
+  }
+
+  public static List<J2clReadBlip> applyReadStateToReadBlips(
+      List<J2clReadBlip> readBlips, SidecarSelectedWaveReadState readState) {
+    if (readBlips == null || readBlips.isEmpty() || readState == null) {
+      return readBlips;
+    }
+    Set<String> unreadIds = new HashSet<String>(readState.getUnreadBlipIds());
+    if (unreadIds.isEmpty() && readState.getUnreadCount() <= 0) {
+      return markAllRead(readBlips);
+    }
+    if (unreadIds.isEmpty()) {
+      return readBlips;
+    }
+    List<J2clReadBlip> updated = new ArrayList<J2clReadBlip>(readBlips.size());
+    boolean changed = false;
+    for (J2clReadBlip blip : readBlips) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
+        updated.add(blip);
+        continue;
+      }
+      J2clReadBlip next = blip.withUnread(unreadIds.contains(blip.getBlipId()));
+      changed |= next != blip;
+      updated.add(next);
+    }
+    return changed ? updated : readBlips;
+  }
+
+  private static List<J2clReadBlip> markAllRead(List<J2clReadBlip> readBlips) {
+    List<J2clReadBlip> updated = new ArrayList<J2clReadBlip>(readBlips.size());
+    boolean changed = false;
+    for (J2clReadBlip blip : readBlips) {
+      if (blip == null) {
+        updated.add(null);
+        continue;
+      }
+      J2clReadBlip next = blip.withUnread(false);
+      changed |= next != blip;
+      updated.add(next);
+    }
+    return changed ? updated : readBlips;
   }
 
   private static String appendStatus(String base, String suffix) {
@@ -954,7 +999,7 @@ public final class J2clSelectedWaveProjector {
     }
     Map<String, J2clReadBlip> blipsById = new LinkedHashMap<String, J2clReadBlip>();
     for (J2clReadBlip blip : readBlips) {
-      if (blip == null || blip.getBlipId().isEmpty()) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
         continue;
       }
       blipsById.put(blip.getBlipId(), blip);

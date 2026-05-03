@@ -836,11 +836,13 @@ public final class J2clSelectedWaveController
               previousModel
                   .withViewportState(mergedState)
                   .withReadBlips(
-                      J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
-                          mergedState.getLoadedReadBlips(),
-                          metadataFallbacks,
-                          selectedDigestItem,
-                          /* preserveFallbackBooleans= */ true));
+                      J2clSelectedWaveProjector.applyReadStateToReadBlips(
+                          J2clSelectedWaveProjector.applyViewportMetadataFallbacks(
+                              mergedState.getLoadedReadBlips(),
+                              metadataFallbacks,
+                              selectedDigestItem,
+                              /* preserveFallbackBooleans= */ true),
+                          currentReadState));
           if (!responseManifest.isEmpty()) {
             // Viewport rendering consumes the manifest directly for depth and
             // ordering. Do not expand model readBlips here: fragment windows

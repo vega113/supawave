@@ -74,6 +74,48 @@ public class WaveDigester {
   private static final int PARTICIPANTS_SNIPPET_LENGTH = 5;
   private static final String EMPTY_WAVELET_TITLE = "";
 
+  public static final class UnreadBlipState {
+    private final int unreadCount;
+    private final List<String> unreadBlipIds;
+
+    public UnreadBlipState(List<String> unreadBlipIds) {
+      this.unreadBlipIds =
+          unreadBlipIds == null
+              ? Collections.<String>emptyList()
+              : Collections.unmodifiableList(new ArrayList<String>(unreadBlipIds));
+      this.unreadCount = this.unreadBlipIds.size();
+    }
+
+    public int getUnreadCount() {
+      return unreadCount;
+    }
+
+    public List<String> getUnreadBlipIds() {
+      return unreadBlipIds;
+    }
+  }
+
+  private static final class DigestContext {
+    private final ObservableWaveletData convWavelet;
+    private final List<ObservableWaveletData> conversationalWavelets;
+    private final SupplementedWave supplement;
+    private final ObservableConversationView conversations;
+    private final Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters;
+
+    private DigestContext(
+        ObservableWaveletData convWavelet,
+        List<ObservableWaveletData> conversationalWavelets,
+        SupplementedWave supplement,
+        ObservableConversationView conversations,
+        Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+      this.convWavelet = convWavelet;
+      this.conversationalWavelets = conversationalWavelets;
+      this.supplement = supplement;
+      this.conversations = conversations;
+      this.waveletAdapters = waveletAdapters;
+    }
+  }
+
   @Inject
   public WaveDigester(ConversationUtil conversationUtil) {
     this.conversationUtil = conversationUtil;
@@ -199,7 +241,49 @@ public class WaveDigester {
   public Digest build(ParticipantId participant, WaveViewData wave) {
 
     Digest digest;
+    DigestContext context = buildDigestContext(participant, wave);
+    if (context.conversations != null) {
+      // This is a conversational wave. Produce a conversational digest.
+      digest =
+          generateDigest(
+              context.conversations,
+              context.supplement,
+              context.convWavelet,
+              context.conversationalWavelets,
+              context.waveletAdapters);
+    } else {
+      // It is unknown how to present this wave.
+      digest = generateEmptyorUnknownDigest(wave);
+    }
 
+    return digest;
+  }
+
+  /**
+   * Returns the unread conversational blip ids for the same viewer/wave input
+   * used to build search digests. This mirrors {@link #build} rather than
+   * deriving from raw document ids so J2CL read-state uses the GWT
+   * conversation/supplement semantics and skips non-conversation documents.
+   */
+  public List<String> getUnreadBlipIds(ParticipantId participant, WaveViewData wave) {
+    return getUnreadBlipState(participant, wave).getUnreadBlipIds();
+  }
+
+  public UnreadBlipState getUnreadBlipState(ParticipantId participant, WaveViewData wave) {
+    DigestContext context = buildDigestContext(participant, wave);
+    return new UnreadBlipState(
+        collectUnreadBlipIds(
+            context.convWavelet,
+            context.conversationalWavelets,
+            context.supplement,
+            context.conversations,
+            context.waveletAdapters));
+  }
+
+  private DigestContext buildDigestContext(ParticipantId participant, WaveViewData wave) {
+    if (wave == null) {
+      return emptyDigestContext();
+    }
     // Note: the indexing infrastructure only supports single-conversation
     // snippeting, but unread state must reflect all conversational wavelets.
     ObservableWaveletData root = null;
@@ -215,33 +299,74 @@ public class WaveDigester {
         other = waveletData;
       }
     }
-    ObservableWaveletData udw = findViewerUserDataWavelet(participant, wave.getWavelets());
+    ObservableWaveletData convWavelet = root != null ? root : other;
+    if (convWavelet == null) {
+      return new DigestContext(
+          null,
+          conversationalWavelets,
+          null,
+          null,
+          new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>());
+    }
     Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters =
         new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>();
+    OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(convWavelet, waveletAdapters);
+    if (!WaveletBasedConversation.waveletHasConversation(wavelet)) {
+      return new DigestContext(convWavelet, conversationalWavelets, null, null, waveletAdapters);
+    }
+    ObservableConversationView conversations = conversationUtil.buildConversation(wavelet);
+    SupplementedWave supplement =
+        buildSupplement(
+            participant,
+            conversations,
+            findViewerUserDataWavelet(participant, wave.getWavelets()),
+            conversationalWavelets,
+            waveletAdapters);
+    return new DigestContext(
+        convWavelet, conversationalWavelets, supplement, conversations, waveletAdapters);
+  }
 
-    ObservableWaveletData convWavelet = root != null ? root : other;
-    SupplementedWave supplement = null;
-    ObservableConversationView conversations = null;
-    if (convWavelet != null) {
-      OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(convWavelet, waveletAdapters);
-      if (WaveletBasedConversation.waveletHasConversation(wavelet)) {
-        conversations = conversationUtil.buildConversation(wavelet);
-        supplement =
-            buildSupplement(
-                participant, conversations, udw, conversationalWavelets, waveletAdapters);
+  private static DigestContext emptyDigestContext() {
+    return new DigestContext(
+        null,
+        Collections.<ObservableWaveletData>emptyList(),
+        null,
+        null,
+        new IdentityHashMap<ObservableWaveletData, OpBasedWavelet>());
+  }
+
+  private List<String> collectUnreadBlipIds(
+      WaveletData convWavelet,
+      Iterable<? extends ObservableWaveletData> conversationalWavelets,
+      SupplementedWave supplement,
+      ObservableConversationView conversations,
+      Map<ObservableWaveletData, OpBasedWavelet> waveletAdapters) {
+    if (convWavelet == null || supplement == null || conversations == null) {
+      return Collections.emptyList();
+    }
+    List<String> unreadBlipIds = new ArrayList<String>();
+    ObservableConversation rootConversation = chooseDigestConversation(conversations);
+    for (ObservableWaveletData conversationalWavelet : conversationalWavelets) {
+      ObservableConversation conversation;
+      if (conversationalWavelet == convWavelet) {
+        conversation = rootConversation;
+      } else {
+        OpBasedWavelet wavelet = getOrCreateReadOnlyWavelet(conversationalWavelet, waveletAdapters);
+        if (!WaveletBasedConversation.waveletHasConversation(wavelet)) {
+          continue;
+        }
+        conversation = chooseDigestConversation(conversationUtil.buildConversation(wavelet));
+      }
+      if (conversation == null) {
+        continue;
+      }
+      for (ConversationBlip blip : BlipIterators.breadthFirst(conversation)) {
+        if (supplement.isUnread(blip)) {
+          unreadBlipIds.add(blip.getId());
+        }
       }
     }
-    if (conversations != null) {
-      // This is a conversational wave. Produce a conversational digest.
-      digest =
-          generateDigest(
-              conversations, supplement, convWavelet, conversationalWavelets, waveletAdapters);
-    } else {
-      // It is unknown how to present this wave.
-      digest = generateEmptyorUnknownDigest(wave);
-    }
-
-    return digest;
+    return unreadBlipIds;
   }
 
   static ObservableWaveletData findViewerUserDataWavelet(

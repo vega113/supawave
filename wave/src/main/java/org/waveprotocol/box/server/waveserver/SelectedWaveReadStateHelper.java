@@ -22,8 +22,10 @@ package org.waveprotocol.box.server.waveserver;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.google.wave.api.SearchResult.Digest;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.util.WaveletDataUtil;
 import org.waveprotocol.wave.model.id.IdUtil;
@@ -61,25 +63,40 @@ public class SelectedWaveReadStateHelper {
     private final boolean accessAllowed;
     private final int unreadCount;
     private final boolean read;
+    private final List<String> unreadBlipIds;
 
-    private Result(boolean exists, boolean accessAllowed, int unreadCount, boolean read) {
+    private Result(
+        boolean exists,
+        boolean accessAllowed,
+        int unreadCount,
+        boolean read,
+        List<String> unreadBlipIds) {
       this.exists = exists;
       this.accessAllowed = accessAllowed;
       this.unreadCount = unreadCount;
       this.read = read;
+      this.unreadBlipIds =
+          unreadBlipIds == null
+              ? Collections.<String>emptyList()
+              : Collections.unmodifiableList(new ArrayList<String>(unreadBlipIds));
     }
 
     public boolean exists() { return exists; }
     public boolean accessAllowed() { return accessAllowed; }
     public int getUnreadCount() { return unreadCount; }
     public boolean isRead() { return read; }
+    public List<String> getUnreadBlipIds() { return unreadBlipIds; }
 
     public static Result notFound() {
-      return new Result(false, false, 0, true);
+      return new Result(false, false, 0, true, Collections.<String>emptyList());
     }
 
     public static Result found(int unreadCount) {
-      return new Result(true, true, unreadCount, unreadCount <= 0);
+      return found(unreadCount, Collections.<String>emptyList());
+    }
+
+    public static Result found(int unreadCount, List<String> unreadBlipIds) {
+      return new Result(true, true, unreadCount, unreadCount <= 0, unreadBlipIds);
     }
   }
 
@@ -128,10 +145,12 @@ public class SelectedWaveReadStateHelper {
     }
 
     try {
-      Digest digest = digester.build(user, view);
-      return Result.found(Math.max(0, digest.getUnreadCount()));
+      WaveDigester.UnreadBlipState readState = digester.getUnreadBlipState(user, view);
+      return Result.found(
+          Math.max(0, readState.getUnreadCount()),
+          readState.getUnreadBlipIds());
     } catch (RuntimeException e) {
-      LOG.warning("read-state: digest build failed for " + waveId, e);
+      LOG.warning("read-state: unread state build failed for " + waveId, e);
       throw e;
     }
   }

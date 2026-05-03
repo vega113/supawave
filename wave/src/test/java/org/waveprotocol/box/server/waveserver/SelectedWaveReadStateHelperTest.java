@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
-import com.google.wave.api.SearchResult.Digest;
+import java.util.Arrays;
 import junit.framework.TestCase;
 import org.mockito.ArgumentCaptor;
 import org.waveprotocol.wave.model.id.IdUtil;
@@ -69,9 +69,8 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
     stubWaveletContainer(waveMap, USER_UDW, userUdw);
     stubWaveletContainer(waveMap, OTHER_UDW, otherUdw);
 
-    Digest digest = mock(Digest.class);
-    when(digest.getUnreadCount()).thenReturn(2);
-    when(digester.build(eq(USER), any(WaveViewData.class))).thenReturn(digest);
+    when(digester.getUnreadBlipState(eq(USER), any(WaveViewData.class)))
+        .thenReturn(new WaveDigester.UnreadBlipState(Arrays.asList("b+1", "b+2")));
 
     SelectedWaveReadStateHelper.Result result = helper.computeReadState(USER, WAVE_ID);
 
@@ -79,7 +78,7 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
     assertEquals(2, result.getUnreadCount());
 
     ArgumentCaptor<WaveViewData> viewCaptor = ArgumentCaptor.forClass(WaveViewData.class);
-    verify(digester).build(eq(USER), viewCaptor.capture());
+    verify(digester).getUnreadBlipState(eq(USER), viewCaptor.capture());
     WaveViewData digestedView = viewCaptor.getValue();
     assertNotNull(digestedView.getWavelet(ACCESSIBLE_CONV));
     assertNull(digestedView.getWavelet(RESTRICTED_CONV));
@@ -121,9 +120,8 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
     when(otherUdwContainer.copyWaveletData()).thenThrow(new WaveletStateException("boom"));
     when(waveMap.getWavelet(WaveletName.of(WAVE_ID, OTHER_UDW))).thenReturn(otherUdwContainer);
 
-    Digest digest = mock(Digest.class);
-    when(digest.getUnreadCount()).thenReturn(1);
-    when(digester.build(eq(USER), any(WaveViewData.class))).thenReturn(digest);
+    when(digester.getUnreadBlipState(eq(USER), any(WaveViewData.class)))
+        .thenReturn(new WaveDigester.UnreadBlipState(Arrays.asList("b+1")));
 
     SelectedWaveReadStateHelper.Result result = helper.computeReadState(USER, WAVE_ID);
 
@@ -131,7 +129,7 @@ public final class SelectedWaveReadStateHelperTest extends TestCase {
     assertEquals(1, result.getUnreadCount());
 
     ArgumentCaptor<WaveViewData> viewCaptor = ArgumentCaptor.forClass(WaveViewData.class);
-    verify(digester).build(eq(USER), viewCaptor.capture());
+    verify(digester).getUnreadBlipState(eq(USER), viewCaptor.capture());
     WaveViewData digestedView = viewCaptor.getValue();
     assertNotNull(digestedView.getWavelet(ACCESSIBLE_CONV));
     assertNull(digestedView.getWavelet(OTHER_UDW));

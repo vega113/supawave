@@ -636,6 +636,45 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void navRowNextAndPreviousUseFocusedBlipMarkerAfterToolbarButtonTakesFocus() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(navigationModel());
+    HTMLElement first = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+1']");
+    HTMLElement second = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+2']");
+    HTMLElement third = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+3']");
+    HTMLElement row = (HTMLElement) host.querySelector("wavy-wave-nav-row");
+    Assert.assertNotNull(first);
+    Assert.assertNotNull(second);
+    Assert.assertNotNull(third);
+    Assert.assertNotNull(row);
+
+    second.setAttribute("focused", "");
+    second.setAttribute("data-blip-focused", "true");
+    row.focus();
+    Assert.assertEquals(
+        "Precondition: nav row owns focus before dispatching toolbar navigation events",
+        row,
+        DomGlobal.document.activeElement);
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-next-requested");
+
+    Assert.assertEquals(
+        "nav action must continue from the focused blip marker, not the clicked toolbar button",
+        third,
+        DomGlobal.document.activeElement);
+    Assert.assertEquals("true", third.getAttribute("aria-current"));
+    Assert.assertFalse(second.hasAttribute("aria-current"));
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-previous-requested");
+
+    Assert.assertEquals(second, DomGlobal.document.activeElement);
+    Assert.assertEquals("true", second.getAttribute("aria-current"));
+    Assert.assertFalse(third.hasAttribute("aria-current"));
+  }
+
+  @Test
   public void navRowRecentEndUnreadAndMentionEventsMoveFocusedBlip() {
     assumeBrowserDom();
     HTMLElement host = createHost();

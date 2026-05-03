@@ -13,13 +13,15 @@ public class SidecarTransportCodecTest {
   @Test
   public void decodeSelectedWaveReadStateReadsEndpointJson() {
     String json =
-        "{\"waveId\":\"example.com/w+abc\",\"unreadCount\":4,\"isRead\":false}";
+        "{\"waveId\":\"example.com/w+abc\",\"unreadCount\":4,\"isRead\":false,"
+            + "\"unreadBlipIds\":[\"b+2\",\"b+7\"]}";
 
     SidecarSelectedWaveReadState state = SidecarTransportCodec.decodeSelectedWaveReadState(json);
 
     Assert.assertEquals("example.com/w+abc", state.getWaveId());
     Assert.assertEquals(4, state.getUnreadCount());
     Assert.assertFalse(state.isRead());
+    Assert.assertEquals(Arrays.asList("b+2", "b+7"), state.getUnreadBlipIds());
   }
 
   @Test
@@ -31,6 +33,7 @@ public class SidecarTransportCodecTest {
     Assert.assertEquals("example.com/w+abc", state.getWaveId());
     Assert.assertEquals(0, state.getUnreadCount());
     Assert.assertFalse(state.isRead());
+    Assert.assertTrue(state.getUnreadBlipIds().isEmpty());
   }
 
   @Test

@@ -349,10 +349,11 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
       const creds = freshCredentials("g7m");
       test.info().annotations.push({ type: "test-user", description: creds.address });
       await registerAndSignIn(page, BASE_URL, creds);
+      const waveId = await authorTwoBlipGwtWave(page, BASE_URL);
       const j2cl = new J2clPage(page, BASE_URL);
-      await j2cl.goto("/");
+      await j2cl.gotoWave(waveId);
       await j2cl.assertInboxLoaded();
-      await openFirstWaveJ2cl(page);
+      await page.waitForSelector("wave-blip", { timeout: 30_000 });
       const composer = await openInlineComposerJ2cl(page);
 
       const realParticipantCount = await waitForParticipantsJ2cl(composer, 10_000);

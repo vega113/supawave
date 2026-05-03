@@ -19,6 +19,7 @@ import {
   waitForMentionPopoverGwt,
   waitForParticipantsJ2cl
 } from "./helpers/mention";
+import { insertOpenTaskOnGwt } from "./helpers/gwt-task";
 import {
   composerRegionGwt,
   composerRegionJ2cl,
@@ -222,33 +223,6 @@ async function authorThreeBlipWave(
 
   const ids = await waitForPopulatedBlipIds(page, 3);
   return { waveId, rootBlipId, blipJ: ids[2] };
-}
-
-async function insertOpenTaskOnGwt(
-  page: Page,
-  gwt: GwtPage,
-  blipId: string
-): Promise<void> {
-  await gwt.clickEditOnBlip(blipId);
-  await expect(
-    page.locator('div[title^="Insert task"]').first(),
-    "[gwt] format toolbar Insert task button must mount in edit mode"
-  ).toBeVisible({ timeout: 15_000 });
-  await gwt.clickInsertTask();
-  await gwt.dismissTaskMetadataPopup();
-  await page.keyboard.press("Escape");
-  await expect
-    .poll(
-      async () =>
-        await page
-          .locator(`[data-blip-id="${blipId}"] input[type="checkbox"]`)
-          .count(),
-      {
-        timeout: 15_000,
-        message: `[gwt] ${blipId} should contain an inline checkbox after Insert task`
-      }
-    )
-    .toBeGreaterThanOrEqual(1);
 }
 
 async function prepareJ2clWelcome(page: Page): Promise<J2clPage> {

@@ -2183,9 +2183,29 @@ public final class J2clReadSurfaceDomRenderer {
     if (event == null || event.currentTarget == null) {
       return;
     }
+    HTMLElement target = (HTMLElement) event.target;
+    if (target != null && isInteractiveElement(target)) {
+      return;
+    }
     HTMLElement blip = (HTMLElement) event.currentTarget;
     focusBlip(blip);
     blip.focus();
+  }
+
+  private static boolean isInteractiveElement(HTMLElement el) {
+    if (el == null) {
+      return false;
+    }
+    String tag = el.tagName.toLowerCase();
+    if (tag.equals("input") || tag.equals("button") || tag.equals("a")
+        || tag.equals("select") || tag.equals("textarea")) {
+      return true;
+    }
+    if (el.hasAttribute("contenteditable")
+        && !"false".equalsIgnoreCase(el.getAttribute("contenteditable"))) {
+      return true;
+    }
+    return false;
   }
 
   private void onBlipKeyDown(Event event) {
@@ -2212,7 +2232,7 @@ public final class J2clReadSurfaceDomRenderer {
       focusByIndex(0, key);
       keyEvent.preventDefault();
     } else if ("End".equals(key) || "G".equals(key)) {
-      focusByIndex(renderedBlips.size() - 1, key);
+      focusByIndex(visibleBlips().size() - 1, key);
       keyEvent.preventDefault();
     } else if ("[".equals(key)) {
       // Drill out one depth level (G.2). Include toBlipId from the host
@@ -2222,7 +2242,11 @@ public final class J2clReadSurfaceDomRenderer {
     } else if ("]".equals(key)) {
       // Drill into the focused blip's subthread (G.1). Emits a custom
       // wavy-depth-drill-in event with the focused blip id.
-      String focusedBlipId = focusedBlip == null ? null : focusedBlip.getAttribute("data-blip-id");
+      HTMLElement drillTarget = focusedBlip;
+      if (drillTarget == null || !"true".equals(drillTarget.getAttribute("aria-current"))) {
+        drillTarget = firstVisibleFocusedMarker();
+      }
+      String focusedBlipId = drillTarget == null ? null : drillTarget.getAttribute("data-blip-id");
       if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
         dispatchDepthDrillInEvent(focusedBlipId);
       }
@@ -2932,14 +2956,19 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private HTMLElement visibleRenderedBlip(HTMLElement blip) {
-    if (blip != null && renderedBlips.contains(blip) && !isHiddenByCollapsedThread(blip)) {
-      return blip;
+    if (blip == null || isHiddenByCollapsedThread(blip)) {
+      return null;
+    }
+    for (HTMLElement candidate : focusBlipElements()) {
+      if (candidate == blip) {
+        return blip;
+      }
     }
     return null;
   }
 
   private HTMLElement firstVisibleFocusedMarker() {
-    for (HTMLElement blip : renderedBlips) {
+    for (HTMLElement blip : focusBlipElements()) {
       if (!isHiddenByCollapsedThread(blip)
           && (blip.classList.contains("j2cl-read-blip-focused")
               || "true".equals(blip.getAttribute("aria-current")))) {

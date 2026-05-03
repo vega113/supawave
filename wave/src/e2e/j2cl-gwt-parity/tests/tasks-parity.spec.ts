@@ -43,6 +43,7 @@ import { test, expect, Browser, BrowserContext, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
+import { insertOpenTaskOnGwt } from "./helpers/gwt-task";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
@@ -170,45 +171,6 @@ async function authorThreeBlipWave(
   ).toBeGreaterThanOrEqual(3);
 
   return { waveId, blipG: ids[1], blipJ: ids[2] };
-}
-
-/**
- * Creates an open task on an existing GWT blip and leaves the checkbox
- * unchecked. J2CL intentionally no longer mounts a generic Task toggle on
- * every normal blip; it should expose task controls only after the GWT task
- * doodad/annotation exists.
- */
-async function insertOpenTaskOnGwt(
-  page: Page,
-  gwt: GwtPage,
-  blipId: string
-): Promise<void> {
-  await gwt.clickEditOnBlip(blipId);
-  await expect(
-    page.locator('div[title^="Insert task"]').first(),
-    "[gwt] format toolbar Insert task button must mount in edit mode"
-  ).toBeVisible({ timeout: 15_000 });
-  await gwt.clickInsertTask();
-  await gwt.dismissTaskMetadataPopup();
-  await page.keyboard.press("Escape");
-  await expect
-    .poll(
-      async () =>
-        await page
-          .locator(`[data-blip-id="${blipId}"] input[type="checkbox"]`)
-          .count(),
-      {
-        timeout: 15_000,
-        message: `[gwt] B-J should contain an inline checkbox after Insert task`
-      }
-    )
-    .toBeGreaterThanOrEqual(1);
-  await expect
-    .poll(async () => await gwt.blipHasCheckedTask(blipId), {
-      timeout: 10_000,
-      message: `[gwt] B-J inline checkbox should start unchecked`
-    })
-    .toBe(false);
 }
 
 /**

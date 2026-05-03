@@ -130,7 +130,8 @@ public final class SelectedWaveReadStateServletTest extends TestCase {
     when(sessionManager.getLoggedInUser(any())).thenReturn(USER);
     SelectedWaveReadStateHelper helper = mock(SelectedWaveReadStateHelper.class);
     when(helper.computeReadState(any(ParticipantId.class), any(WaveId.class)))
-        .thenReturn(SelectedWaveReadStateHelper.Result.found(4));
+        .thenReturn(SelectedWaveReadStateHelper.Result.found(4,
+            java.util.Arrays.asList("b+2", "b+7")));
 
     SelectedWaveReadStateServlet servlet =
         new SelectedWaveReadStateServlet(sessionManager, helper);
@@ -146,6 +147,8 @@ public final class SelectedWaveReadStateServletTest extends TestCase {
     String json = body.toString();
     assertTrue("body missing unreadCount: " + json, json.contains("\"unreadCount\":4"));
     assertTrue("body missing isRead: " + json, json.contains("\"isRead\":false"));
+    assertTrue("body missing unreadBlipIds: " + json,
+        json.contains("\"unreadBlipIds\":[\"b+2\",\"b+7\"]"));
     assertTrue("body missing waveId: " + json, json.contains("\"waveId\":\"" + VALID_WAVE_ID + "\""));
   }
 

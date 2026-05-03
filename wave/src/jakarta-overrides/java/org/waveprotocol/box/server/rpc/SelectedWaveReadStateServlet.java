@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 
 import org.waveprotocol.box.server.authentication.SessionManager;
 import org.waveprotocol.box.server.authentication.WebSessions;
@@ -101,17 +102,31 @@ public final class SelectedWaveReadStateServlet extends HttpServlet {
       return;
     }
 
-    writeJson(resp, rawWaveId, result.getUnreadCount(), result.isRead());
+    writeJson(resp, rawWaveId, result.getUnreadCount(), result.isRead(), result.getUnreadBlipIds());
   }
 
   private static void writeJson(
-      HttpServletResponse resp, String waveId, int unreadCount, boolean isRead)
+      HttpServletResponse resp,
+      String waveId,
+      int unreadCount,
+      boolean isRead,
+      List<String> unreadBlipIds)
       throws IOException {
     resp.setStatus(HttpServletResponse.SC_OK);
     resp.setContentType("application/json; charset=utf-8");
     StringBuilder body = new StringBuilder(64);
     body.append("{\"waveId\":\"").append(escapeJson(waveId)).append("\",\"unreadCount\":")
-        .append(unreadCount).append(",\"isRead\":").append(isRead).append('}');
+        .append(unreadCount).append(",\"isRead\":").append(isRead)
+        .append(",\"unreadBlipIds\":[");
+    if (unreadBlipIds != null) {
+      for (int i = 0; i < unreadBlipIds.size(); i++) {
+        if (i > 0) {
+          body.append(',');
+        }
+        body.append('"').append(escapeJson(unreadBlipIds.get(i))).append('"');
+      }
+    }
+    body.append("]}");
     try (var w = resp.getWriter()) {
       w.append(body.toString());
       w.flush();

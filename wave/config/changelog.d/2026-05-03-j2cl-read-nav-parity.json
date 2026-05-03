@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-03-j2cl-read-nav-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-03",
+  "title": "J2CL read-state and navigation parity",
+  "summary": "Restores per-blip unread markers and toolbar navigation behavior in the J2CL wave view.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Adds per-blip unread IDs to the selected-wave read-state response so J2CL can mark unread blips inside the wave, not only show the aggregate unread count.",
+        "Keeps newly loaded J2CL viewport fragments aligned with the current read state so the search list and visible blip markers update after read-state refreshes.",
+        "Preserves the focused blip while using wave navigation toolbar buttons so previous, next, recent, and unread navigation commands keep moving from the current blip instead of losing context to the toolbar."
+      ]
+    }
+  ]
+}

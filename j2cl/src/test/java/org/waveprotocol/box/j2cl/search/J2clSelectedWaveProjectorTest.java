@@ -113,6 +113,64 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void projectAppliesServerUnreadBlipIdsToReadModels() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            fragmentUpdate("b+root", "Root text", "b+reply", "Reply text"),
+            null,
+            0,
+            new SidecarSelectedWaveReadState(
+                WAVE_ID, 1, false, Arrays.asList("b+reply")),
+            false);
+
+    Assert.assertEquals(2, projected.getReadBlips().size());
+    Assert.assertFalse(projected.getReadBlips().get(0).isUnread());
+    Assert.assertEquals("b+reply", projected.getReadBlips().get(1).getBlipId());
+    Assert.assertTrue(projected.getReadBlips().get(1).isUnread());
+  }
+
+  @Test
+  public void reprojectReadStateAppliesServerUnreadBlipIdsToExistingReadModels() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            fragmentUpdate("b+root", "Root text", "b+reply", "Reply text"),
+            null,
+            0);
+
+    J2clSelectedWaveModel reprojected =
+        J2clSelectedWaveProjector.reprojectReadState(
+            projected,
+            digest("Wave A", "snippet", 1),
+            new SidecarSelectedWaveReadState(
+                WAVE_ID, 1, false, Arrays.asList("b+reply")),
+            false);
+
+    Assert.assertEquals(2, reprojected.getReadBlips().size());
+    Assert.assertFalse(reprojected.getReadBlips().get(0).isUnread());
+    Assert.assertTrue(reprojected.getReadBlips().get(1).isUnread());
+  }
+
+  @Test
+  public void applyReadStatePreservesExistingBlipMarkersWhenUnreadIdsAreAbsent() {
+    java.util.List<J2clReadBlip> blips =
+        Arrays.asList(
+            new J2clReadBlip("b+root", "Root").withUnread(false),
+            new J2clReadBlip("b+reply", "Reply").withUnread(true));
+
+    java.util.List<J2clReadBlip> projected =
+        J2clSelectedWaveProjector.applyReadStateToReadBlips(
+            blips, new SidecarSelectedWaveReadState(WAVE_ID, 1, false));
+
+    Assert.assertSame(blips, projected);
+    Assert.assertFalse(projected.get(0).isUnread());
+    Assert.assertTrue(projected.get(1).isUnread());
+  }
+
+  @Test
   public void staleFlagPreservesPriorCountAndAnnotatesStatus() {
     J2clSelectedWaveModel fresh =
         J2clSelectedWaveProjector.project(
@@ -3604,6 +3662,29 @@ public class J2clSelectedWaveProjectorTest {
         Arrays.asList("user@example.com"),
         new ArrayList<SidecarSelectedWaveDocument>(),
         null);
+  }
+
+  private static SidecarSelectedWaveUpdate fragmentUpdate(
+      String firstBlipId, String firstText, String secondBlipId, String secondText) {
+    return new SidecarSelectedWaveUpdate(
+        1,
+        WAVELET_NAME,
+        true,
+        CHANNEL_ID,
+        9L,
+        "HASH",
+        Arrays.asList("user@example.com"),
+        Collections.<SidecarSelectedWaveDocument>emptyList(),
+        new SidecarSelectedWaveFragments(
+            9L,
+            0L,
+            9L,
+            Arrays.asList(
+                new SidecarSelectedWaveFragmentRange("blip:" + firstBlipId, 0L, 9L),
+                new SidecarSelectedWaveFragmentRange("blip:" + secondBlipId, 0L, 9L)),
+            Arrays.asList(
+                new SidecarSelectedWaveFragment("blip:" + firstBlipId, firstText, 0, 0),
+                new SidecarSelectedWaveFragment("blip:" + secondBlipId, secondText, 0, 0))));
   }
 
   private static SidecarSelectedWaveDocument lockDocument(String lockState) {

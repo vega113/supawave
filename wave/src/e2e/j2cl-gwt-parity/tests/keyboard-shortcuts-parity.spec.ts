@@ -114,6 +114,25 @@ async function clearBlipFocusBeforeShortcutDrive(page: Page): Promise<void> {
       }
     )
     .toBeNull();
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          let active: Element | null = document.activeElement;
+          while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+            active = active.shadowRoot.activeElement;
+          }
+          return (
+            active?.matches?.("input, textarea, [contenteditable='true'], [data-composer-body]") ??
+            false
+          );
+        }),
+      {
+        timeout: 5_000,
+        message: "J2CL shortcut drive should start with shell focus, not an editable control"
+      }
+    )
+    .toBe(false);
 }
 
 /**

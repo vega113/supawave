@@ -45,19 +45,6 @@ import { compareLocatorScreenshots } from "./helpers/visualDiff";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
-/**
- * On the J2CL view: open the first wave in the inbox by clicking its
- * search-rail card. Returns once at least one <wave-blip> mounts.
- */
-async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
-  await page.goto(`${baseURL}/?view=j2cl-root`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("shell-root", { timeout: 15_000 });
-  const card = page.locator("wavy-search-rail-card[data-digest-card]:visible").first();
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  await card.click({ timeout: 15_000 });
-  await page.waitForSelector("wave-blip", { timeout: 30_000 });
-}
-
 async function authorSimpleGwtWave(
   page: Page,
   gwt: GwtPage,

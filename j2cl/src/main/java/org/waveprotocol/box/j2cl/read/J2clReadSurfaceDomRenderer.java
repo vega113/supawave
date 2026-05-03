@@ -2183,8 +2183,7 @@ public final class J2clReadSurfaceDomRenderer {
     if (event == null || event.currentTarget == null) {
       return;
     }
-    HTMLElement target = (HTMLElement) event.target;
-    if (target != null && isInteractiveElement(target)) {
+    if (isInteractiveClick(event)) {
       return;
     }
     HTMLElement blip = (HTMLElement) event.currentTarget;
@@ -2192,14 +2191,57 @@ public final class J2clReadSurfaceDomRenderer {
     blip.focus();
   }
 
-  private static boolean isInteractiveElement(HTMLElement el) {
-    if (el == null) {
+  private static boolean isInteractiveClick(Event event) {
+    HTMLElement current = (HTMLElement) event.currentTarget;
+    try {
+      elemental2.core.JsArray<elemental2.dom.EventTarget> path = event.composedPath();
+      if (path != null && path.length > 0) {
+        for (int index = 0; index < path.length; index++) {
+          elemental2.dom.EventTarget target = path.getAt(index);
+          if (target == current) {
+            break;
+          }
+          if (target instanceof Element && isInteractiveElement((Element) target)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    } catch (Throwable ignored) {
+      // Fall through to a light-DOM ancestor walk for older event implementations.
+    }
+    if (!(event.target instanceof Element)) {
       return false;
     }
-    String tag = el.tagName.toLowerCase();
+    Element element = (Element) event.target;
+    while (element != null && element != current) {
+      if (isInteractiveElement(element)) {
+        return true;
+      }
+      element = element.parentElement;
+    }
+    return false;
+  }
+
+  private static boolean isInteractiveElement(Element el) {
+    if (el == null || el.tagName == null) {
+      return false;
+    }
+    String tag = el.tagName.toLowerCase(Locale.ROOT);
     if (tag.equals("input") || tag.equals("button") || tag.equals("a")
-        || tag.equals("select") || tag.equals("textarea")) {
+        || tag.equals("label") || tag.equals("select") || tag.equals("summary")
+        || tag.equals("textarea")) {
       return true;
+    }
+    String role = el.getAttribute("role");
+    if (role != null) {
+      String normalizedRole = role.toLowerCase(Locale.ROOT);
+      if (normalizedRole.equals("button") || normalizedRole.equals("checkbox")
+          || normalizedRole.equals("link") || normalizedRole.equals("menuitem")
+          || normalizedRole.equals("option") || normalizedRole.equals("radio")
+          || normalizedRole.equals("switch") || normalizedRole.equals("textbox")) {
+        return true;
+      }
     }
     if (el.hasAttribute("contenteditable")
         && !"false".equalsIgnoreCase(el.getAttribute("contenteditable"))) {

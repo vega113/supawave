@@ -7,8 +7,10 @@
 // (KeySignalRouter + FocusFrameController.onKeySignal). We pick the
 // six combos called out in issue #1116 as the parity baseline:
 //
-//   - j        BLIP_FOCUS_NEXT       (move focused blip down)
-//   - k        BLIP_FOCUS_PREV       (move focused blip up)
+//   - j / ArrowDown
+//              BLIP_FOCUS_NEXT       (move focused blip down)
+//   - k / ArrowUp
+//              BLIP_FOCUS_PREV       (move focused blip up)
 //   - Shift+   OPEN_NEW_WAVE         (open the create-wave surface)
 //     Cmd+O / Shift+Ctrl+O
 //   - Esc      CLOSE_TOPMOST         (close topmost dialog OR
@@ -24,6 +26,10 @@
 export const KEY_ACTION = Object.freeze({
   BLIP_FOCUS_NEXT: "BLIP_FOCUS_NEXT",
   BLIP_FOCUS_PREV: "BLIP_FOCUS_PREV",
+  BLIP_FOCUS_FIRST: "BLIP_FOCUS_FIRST",
+  BLIP_FOCUS_LAST: "BLIP_FOCUS_LAST",
+  BLIP_DEPTH_UP: "BLIP_DEPTH_UP",
+  BLIP_DEPTH_IN: "BLIP_DEPTH_IN",
   OPEN_NEW_WAVE: "OPEN_NEW_WAVE",
   CLOSE_TOPMOST: "CLOSE_TOPMOST"
 });
@@ -129,21 +135,45 @@ export function matchShortcut(evt, opts = {}) {
     return { action: KEY_ACTION.OPEN_NEW_WAVE, global: false };
   }
 
-  // j / k — blip navigation. Bare key only; not global. Modifiers
-  // disqualify because Cmd+J / Ctrl+K etc. are claimed by browsers.
-  // Allow repeat so holding j/k continuously moves focus (GWT parity).
+  // j/k and ArrowDown/ArrowUp — blip navigation. Bare key only; not
+  // global. Modifiers disqualify because Cmd+J / Ctrl+K etc. are
+  // claimed by browsers. Allow repeat so holding the key continuously
+  // moves focus (GWT parity). The Lit shell is the single repeated
+  // next/previous owner so focus always follows actual <wave-blip>
+  // DOM order, including inline-reply blips mounted inside Lit chrome.
   if (
     !evt.shiftKey &&
     !evt.ctrlKey &&
     !evt.metaKey &&
     !evt.altKey
   ) {
-    if (evt.key === "j" || evt.key === "J") {
+    if (evt.key === "j" || evt.key === "J" || evt.key === "ArrowDown") {
       return { action: KEY_ACTION.BLIP_FOCUS_NEXT, global: false };
     }
-    if (evt.key === "k" || evt.key === "K") {
+    if (evt.key === "k" || evt.key === "K" || evt.key === "ArrowUp") {
       return { action: KEY_ACTION.BLIP_FOCUS_PREV, global: false };
     }
+    if (evt.key === "Home" || evt.key === "g") {
+      return { action: KEY_ACTION.BLIP_FOCUS_FIRST, global: false };
+    }
+    if (evt.key === "End" || evt.key === "[") {
+      return {
+        action: evt.key === "End" ? KEY_ACTION.BLIP_FOCUS_LAST : KEY_ACTION.BLIP_DEPTH_UP,
+        global: false
+      };
+    }
+    if (evt.key === "]") {
+      return { action: KEY_ACTION.BLIP_DEPTH_IN, global: false };
+    }
+  }
+  if (
+    evt.key === "G" &&
+    evt.shiftKey &&
+    !evt.ctrlKey &&
+    !evt.metaKey &&
+    !evt.altKey
+  ) {
+    return { action: KEY_ACTION.BLIP_FOCUS_LAST, global: false };
   }
   return null;
 }

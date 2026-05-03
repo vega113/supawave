@@ -42,6 +42,47 @@ describe("matchShortcut", () => {
     });
   });
 
+  it("matches ArrowDown / ArrowUp as GWT blip navigation fallbacks", () => {
+    expect(matchShortcut(fakeEvent("ArrowDown"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_NEXT,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("ArrowUp"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_PREV,
+      global: false
+    });
+  });
+
+  it("matches Home/End and g/G as first/last blip navigation", () => {
+    expect(matchShortcut(fakeEvent("Home"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_FIRST,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("g"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_FIRST,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("End"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_LAST,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("G", { shiftKey: true }), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_FOCUS_LAST,
+      global: false
+    });
+  });
+
+  it("matches bracket depth shortcuts at shell level", () => {
+    expect(matchShortcut(fakeEvent("["), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_DEPTH_UP,
+      global: false
+    });
+    expect(matchShortcut(fakeEvent("]"), { isMac: true })).to.deep.equal({
+      action: KEY_ACTION.BLIP_DEPTH_IN,
+      global: false
+    });
+  });
+
   it("matches uppercase J / K", () => {
     expect(matchShortcut(fakeEvent("J"), { isMac: true }).action).to.equal(
       KEY_ACTION.BLIP_FOCUS_NEXT

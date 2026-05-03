@@ -19,6 +19,7 @@ import {
   waitForMentionPopoverGwt,
   waitForParticipantsJ2cl
 } from "./helpers/mention";
+import { insertOpenTaskOnGwt } from "./helpers/gwt-task";
 import {
   composerRegionGwt,
   composerRegionJ2cl,
@@ -816,13 +817,26 @@ test.describe("G-PORT-9 visual parity gates", () => {
     test.info().annotations.push({ type: "test-user", description: creds.address });
     await registerAndSignIn(page, BASE_URL, creds);
 
-    await prepareJ2clWelcome(page);
+    const authorGwt = new GwtPage(page, BASE_URL);
+    const { waveId } = await authorSingleBlipWave(
+      page,
+      authorGwt,
+      "Composer visual parity root blip"
+    );
+
+    const j2cl = new J2clPage(page, BASE_URL);
+    await j2cl.gotoWave(waveId);
+    await j2cl.assertInboxLoaded();
+    await page.waitForSelector("wave-blip", { timeout: 30_000 });
     await openInlineComposerJ2cl(page);
     await expect(composerRegionJ2cl(page)).toBeVisible({ timeout: 10_000 });
 
     const gwtPage = await page.context().newPage();
     try {
-      const gwt = await prepareGwtWelcome(gwtPage);
+      const gwt = new GwtPage(gwtPage, BASE_URL);
+      await gwt.gotoWave(waveId);
+      await gwt.assertInboxLoaded();
+      await gwtPage.waitForSelector("[data-blip-id]", { timeout: 30_000 });
       await openInlineComposerGwt(gwt);
       await expect(composerRegionGwt(gwtPage)).toBeVisible({ timeout: 10_000 });
       await normalizeDynamicBlipText(composerRegionJ2cl(page), creds.address);
@@ -899,11 +913,12 @@ test.describe("G-PORT-9 visual parity gates", () => {
 
     const authorGwt = new GwtPage(page, BASE_URL);
     const { waveId, rootBlipId } = await authorThreeBlipWave(page, authorGwt);
+    await insertOpenTaskOnGwt(page, authorGwt, rootBlipId);
 
     const j2clPage = await page.context().newPage();
     try {
-      await openTaskDetailsJ2cl(j2clPage, waveId, rootBlipId);
       await openTaskDetailsGwt(page, authorGwt, rootBlipId);
+      await openTaskDetailsJ2cl(j2clPage, waveId, rootBlipId);
       await normalizeTaskOverlayGwt(page);
       await normalizeTaskOverlayChrome(taskOverlayRegionJ2cl(j2clPage));
       await normalizeTaskOverlayChrome(taskOverlayRegionGwt(page));

@@ -43,6 +43,7 @@ import { test, expect, Browser, BrowserContext, Page } from "@playwright/test";
 import { J2clPage } from "../pages/J2clPage";
 import { GwtPage } from "../pages/GwtPage";
 import { freshCredentials, registerAndSignIn } from "../fixtures/testUser";
+import { insertOpenTaskOnGwt } from "./helpers/gwt-task";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
@@ -319,7 +320,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
     }
   });
 
-  test("J2CL: per-blip task toggle flips data-task-completed (optimistic UI)", async ({
+  test("J2CL: existing task toggle flips data-task-completed (optimistic UI)", async ({
     page
   }) => {
     const creds = freshCredentials("g6j");
@@ -337,6 +338,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
 
     const gwt = new GwtPage(page, BASE_URL);
     const { waveId, blipJ } = await authorThreeBlipWave(page, gwt);
+    await insertOpenTaskOnGwt(page, gwt, blipJ);
 
     const j2cl = new J2clPage(page, BASE_URL);
     await j2cl.gotoWave(waveId);
@@ -366,7 +368,9 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
     // installs writeSession for this wave.
     await page.waitForTimeout(2_000);
 
-    // Click the per-blip task toggle on B-J.
+    // Click the per-blip task toggle on B-J. The toggle is expected only
+    // because the GWT side created a real task on this blip first; normal
+    // non-task blips should not show a generic task affordance.
     const toggle = j2cl.blipTaskToggle(blipJ);
     await toggle.scrollIntoViewIfNeeded();
     await expect(
@@ -396,6 +400,7 @@ test.describe("G-PORT-6 tasks + done state parity", () => {
 
       const gwt = new GwtPage(page, BASE_URL);
       const { waveId, blipJ } = await authorThreeBlipWave(page, gwt);
+      await insertOpenTaskOnGwt(page, gwt, blipJ);
 
       const j2cl = new J2clPage(page, BASE_URL);
       await j2cl.gotoWave(waveId);

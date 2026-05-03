@@ -94,6 +94,22 @@ async function openWelcomeWaveGwt(page: Page, gwt: GwtPage): Promise<void> {
     .toBe(true);
 }
 
+async function authorSimpleGwtWave(
+  page: Page,
+  gwt: GwtPage,
+  text: string
+): Promise<string> {
+  await gwt.goto("/");
+  await gwt.assertInboxLoaded();
+  await expect(gwt.newWaveAffordance()).toBeVisible({ timeout: 15_000 });
+  await gwt.newWaveAffordance().click();
+  await page.waitForSelector("[data-blip-id]", { timeout: 30_000 });
+  const waveId = await gwt.readWaveIdFromHash();
+  expect(waveId, "GWT new-wave URL fragment must encode waveId").toBeTruthy();
+  await gwt.typeIntoBlipDocument(text);
+  return waveId;
+}
+
 async function sendMentionReplyJ2cl(
   page: Page,
   composer: Locator,
@@ -196,17 +212,18 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     });
     await registerAndSignIn(page, BASE_URL, creds);
 
-    const j2cl = new J2clPage(page, BASE_URL);
-    await j2cl.goto("/");
-    await j2cl.assertInboxLoaded();
-
-    // The WelcomeRobot seeds a wave whose participant set always
-    // includes the freshly registered user. We type `@<first letter
-    // of the user's address>` so the filtered candidate list is
-    // guaranteed to contain at least the user themselves.
     const firstLetter = creds.address.charAt(0);
+    const gwtAuthor = new GwtPage(page, BASE_URL);
+    const waveId = await authorSimpleGwtWave(
+      page,
+      gwtAuthor,
+      "Mention persistence parity root blip"
+    );
 
-    await openFirstWaveJ2cl(page, BASE_URL);
+    const j2cl = new J2clPage(page, BASE_URL);
+    await j2cl.gotoWave(waveId);
+    await j2cl.assertInboxLoaded();
+    await page.waitForSelector("wave-blip", { timeout: 30_000 });
     const composer = await openInlineComposerJ2cl(page);
 
     const realParticipantCount = await waitForParticipantsJ2cl(composer, 10_000);
@@ -497,10 +514,17 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await registerAndSignIn(page, BASE_URL, creds);
 
     const firstLetter = creds.address.charAt(0);
+    const gwtAuthor = new GwtPage(page, BASE_URL);
+    const waveId = await authorSimpleGwtWave(
+      page,
+      gwtAuthor,
+      "Mention popover visual parity root blip"
+    );
+
     const j2cl = new J2clPage(page, BASE_URL);
-    await j2cl.goto("/");
+    await j2cl.gotoWave(waveId);
     await j2cl.assertInboxLoaded();
-    await openFirstWaveJ2cl(page, BASE_URL);
+    await page.waitForSelector("wave-blip", { timeout: 30_000 });
     const composer = await openInlineComposerJ2cl(page);
     await waitForParticipantsJ2cl(composer, 10_000);
     await typeAtMentionTriggerJ2cl(page, composer, `@${firstLetter}`);
@@ -524,7 +548,9 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     const gwtPage = await page.context().newPage();
     try {
       const gwt = new GwtPage(gwtPage, BASE_URL);
-      await openWelcomeWaveGwt(gwtPage, gwt);
+      await gwt.gotoWave(waveId);
+      await gwt.assertInboxLoaded();
+      await gwtPage.waitForSelector("[data-blip-id]", { timeout: 30_000 });
       await openInlineComposerGwt(gwt);
       await typeAtMentionTriggerGwt(gwtPage, gwt, `@${firstLetter}`);
       await gwtPage.mouse.move(24, 24);

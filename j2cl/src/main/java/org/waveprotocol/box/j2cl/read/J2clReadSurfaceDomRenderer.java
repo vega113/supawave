@@ -2102,6 +2102,7 @@ public final class J2clReadSurfaceDomRenderer {
         blip.setAttribute("tabindex", visible && !tabStopAssigned ? "0" : "-1");
         tabStopAssigned = tabStopAssigned || visible;
         blip.setAttribute("data-j2cl-read-blip-bound", "true");
+        blip.addEventListener("click", this::onBlipClick);
         blip.addEventListener("focus", this::onBlipFocus);
         blip.addEventListener("keydown", this::onBlipKeyDown);
       } else if (!isHiddenByCollapsedThread(blip) && "0".equals(blip.getAttribute("tabindex"))) {
@@ -2178,29 +2179,102 @@ public final class J2clReadSurfaceDomRenderer {
     focusBlip((HTMLElement) event.currentTarget);
   }
 
+  private void onBlipClick(Event event) {
+    if (event == null || event.currentTarget == null) {
+      return;
+    }
+    if (isInteractiveClick(event)) {
+      return;
+    }
+    HTMLElement blip = (HTMLElement) event.currentTarget;
+    focusBlip(blip);
+    blip.focus();
+  }
+
+  private static boolean isInteractiveClick(Event event) {
+    HTMLElement current = (HTMLElement) event.currentTarget;
+    try {
+      elemental2.core.JsArray<elemental2.dom.EventTarget> path = event.composedPath();
+      if (path != null && path.length > 0) {
+        for (int index = 0; index < path.length; index++) {
+          elemental2.dom.EventTarget target = path.getAt(index);
+          if (target == current) {
+            break;
+          }
+          if (target instanceof Element && isInteractiveElement((Element) target)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    } catch (Throwable ignored) {
+      // Fall through to a light-DOM ancestor walk for older event implementations.
+    }
+    if (!(event.target instanceof Element)) {
+      return false;
+    }
+    Element element = (Element) event.target;
+    while (element != null && element != current) {
+      if (isInteractiveElement(element)) {
+        return true;
+      }
+      element = element.parentElement;
+    }
+    return false;
+  }
+
+  private static boolean isInteractiveElement(Element el) {
+    if (el == null || el.tagName == null) {
+      return false;
+    }
+    String tag = el.tagName.toLowerCase(Locale.ROOT);
+    if (tag.equals("input") || tag.equals("button") || tag.equals("a")
+        || tag.equals("label") || tag.equals("select") || tag.equals("summary")
+        || tag.equals("textarea")) {
+      return true;
+    }
+    String role = el.getAttribute("role");
+    if (role != null) {
+      String normalizedRole = role.toLowerCase(Locale.ROOT);
+      if (normalizedRole.equals("button") || normalizedRole.equals("checkbox")
+          || normalizedRole.equals("link") || normalizedRole.equals("menuitem")
+          || normalizedRole.equals("option") || normalizedRole.equals("radio")
+          || normalizedRole.equals("switch") || normalizedRole.equals("textbox")) {
+        return true;
+      }
+    }
+    if (el.hasAttribute("contenteditable")
+        && !"false".equalsIgnoreCase(el.getAttribute("contenteditable"))) {
+      return true;
+    }
+    return false;
+  }
+
   private void onBlipKeyDown(Event event) {
     KeyboardEvent keyEvent = (KeyboardEvent) event;
-    if (event.currentTarget != null) {
+    String key = keyEvent.key;
+    if (event.currentTarget != null && currentVisibleBlipIndex(visibleBlips()) < 0) {
       focusBlip((HTMLElement) event.currentTarget);
     }
-    String key = keyEvent.key;
     // F-2 slice 2 (#1046, R-3.2): j/k aliases for ArrowDown/ArrowUp.
+    // The Lit shell owns repeated next/previous navigation now because
+    // it walks the actual <wave-blip> DOM order, including inline reply
+    // blips that can be mounted by Lit after the renderer's internal
+    // list was captured. Let those keys bubble to the shell-level
+    // handler; this per-blip handler still owns Home/End and depth keys.
     // F-2 slice 5 (#1055, R-3.7 G.5): [ / ] drill out / drill in,
     //                                  g / G jump to first / last blip.
     // Documented as Wavy-specific aliases; intentionally NOT announced via
     // aria-keyshortcuts to avoid screen-reader collisions with the
     // browser's built-in shortcuts.
-    if ("ArrowDown".equals(key) || "j".equals(key)) {
-      focusByOffset(1, key);
-      keyEvent.preventDefault();
-    } else if ("ArrowUp".equals(key) || "k".equals(key)) {
-      focusByOffset(-1, key);
-      keyEvent.preventDefault();
-    } else if ("Home".equals(key) || "g".equals(key)) {
+    if ("ArrowDown".equals(key) || "j".equals(key) || "ArrowUp".equals(key) || "k".equals(key)) {
+      return;
+    }
+    if ("Home".equals(key) || "g".equals(key)) {
       focusByIndex(0, key);
       keyEvent.preventDefault();
     } else if ("End".equals(key) || "G".equals(key)) {
-      focusByIndex(renderedBlips.size() - 1, key);
+      focusByIndex(visibleBlips().size() - 1, key);
       keyEvent.preventDefault();
     } else if ("[".equals(key)) {
       // Drill out one depth level (G.2). Include toBlipId from the host
@@ -2210,7 +2284,11 @@ public final class J2clReadSurfaceDomRenderer {
     } else if ("]".equals(key)) {
       // Drill into the focused blip's subthread (G.1). Emits a custom
       // wavy-depth-drill-in event with the focused blip id.
-      String focusedBlipId = focusedBlip == null ? null : focusedBlip.getAttribute("data-blip-id");
+      HTMLElement drillTarget = focusedBlip;
+      if (drillTarget == null || !"true".equals(drillTarget.getAttribute("aria-current"))) {
+        drillTarget = firstVisibleFocusedMarker();
+      }
+      String focusedBlipId = drillTarget == null ? null : drillTarget.getAttribute("data-blip-id");
       if (focusedBlipId != null && !focusedBlipId.isEmpty()) {
         dispatchDepthDrillInEvent(focusedBlipId);
       }
@@ -2477,12 +2555,41 @@ public final class J2clReadSurfaceDomRenderer {
 
   private void focusByOffset(int offset, String key) {
     List<HTMLElement> visibleBlips = visibleBlips();
-    int current = focusedBlip == null ? -1 : visibleBlips.indexOf(focusedBlip);
+    int current = currentVisibleBlipIndex(visibleBlips);
     if (current < 0) {
       focusVisibleByIndex(offset > 0 ? 0 : visibleBlips.size() - 1, key);
       return;
     }
     focusVisibleByIndex(current + offset, key);
+  }
+
+  private int currentVisibleBlipIndex(List<HTMLElement> visibleBlips) {
+    if (visibleBlips.isEmpty()) {
+      return -1;
+    }
+    if (focusedBlip != null) {
+      int index = visibleBlips.indexOf(focusedBlip);
+      if (index >= 0) {
+        return index;
+      }
+    }
+    if (DomGlobal.document != null && DomGlobal.document.activeElement instanceof HTMLElement) {
+      HTMLElement active = visibleRenderedBlip((HTMLElement) DomGlobal.document.activeElement);
+      if (active != null) {
+        int index = visibleBlips.indexOf(active);
+        if (index >= 0) {
+          return index;
+        }
+      }
+    }
+    HTMLElement marker = firstVisibleFocusedMarker();
+    if (marker != null) {
+      int index = visibleBlips.indexOf(marker);
+      if (index >= 0) {
+        return index;
+      }
+    }
+    return -1;
   }
 
   private void focusByIndex(int index, String key) {
@@ -2641,7 +2748,7 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private void clearFocusedBlip() {
-    for (HTMLElement blip : renderedBlips) {
+    for (HTMLElement blip : focusBlipElements()) {
       clearFocusMarkers(blip);
       blip.setAttribute("tabindex", "-1");
     }
@@ -2650,12 +2757,29 @@ public final class J2clReadSurfaceDomRenderer {
 
   private List<HTMLElement> visibleBlips() {
     List<HTMLElement> visible = new ArrayList<HTMLElement>();
-    for (HTMLElement blip : renderedBlips) {
+    for (HTMLElement blip : focusBlipElements()) {
       if (!isHiddenByCollapsedThread(blip)) {
         visible.add(blip);
       }
     }
     return visible;
+  }
+
+  private List<HTMLElement> focusBlipElements() {
+    List<HTMLElement> blips = new ArrayList<HTMLElement>();
+    if (renderedSurface == null) {
+      blips.addAll(renderedBlips);
+      return blips;
+    }
+    NodeList<Element> nodes =
+        renderedSurface.querySelectorAll("wave-blip[data-blip-id], div.blip[data-blip-id]");
+    for (int index = 0; index < nodes.length; index++) {
+      HTMLElement blip = (HTMLElement) nodes.item(index);
+      if (blip != null) {
+        blips.add(blip);
+      }
+    }
+    return blips;
   }
 
   private boolean isHiddenByCollapsedThread(HTMLElement blip) {
@@ -2874,14 +2998,19 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private HTMLElement visibleRenderedBlip(HTMLElement blip) {
-    if (blip != null && renderedBlips.contains(blip) && !isHiddenByCollapsedThread(blip)) {
-      return blip;
+    if (blip == null || isHiddenByCollapsedThread(blip)) {
+      return null;
+    }
+    for (HTMLElement candidate : focusBlipElements()) {
+      if (candidate == blip) {
+        return blip;
+      }
     }
     return null;
   }
 
   private HTMLElement firstVisibleFocusedMarker() {
-    for (HTMLElement blip : renderedBlips) {
+    for (HTMLElement blip : focusBlipElements()) {
       if (!isHiddenByCollapsedThread(blip)
           && (blip.classList.contains("j2cl-read-blip-focused")
               || "true".equals(blip.getAttribute("aria-current")))) {

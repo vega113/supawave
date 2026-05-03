@@ -26,6 +26,10 @@
 export const KEY_ACTION = Object.freeze({
   BLIP_FOCUS_NEXT: "BLIP_FOCUS_NEXT",
   BLIP_FOCUS_PREV: "BLIP_FOCUS_PREV",
+  BLIP_FOCUS_FIRST: "BLIP_FOCUS_FIRST",
+  BLIP_FOCUS_LAST: "BLIP_FOCUS_LAST",
+  BLIP_DEPTH_UP: "BLIP_DEPTH_UP",
+  BLIP_DEPTH_IN: "BLIP_DEPTH_IN",
   OPEN_NEW_WAVE: "OPEN_NEW_WAVE",
   CLOSE_TOPMOST: "CLOSE_TOPMOST"
 });
@@ -149,6 +153,27 @@ export function matchShortcut(evt, opts = {}) {
     if (evt.key === "k" || evt.key === "K" || evt.key === "ArrowUp") {
       return { action: KEY_ACTION.BLIP_FOCUS_PREV, global: false };
     }
+    if (evt.key === "Home" || evt.key === "g") {
+      return { action: KEY_ACTION.BLIP_FOCUS_FIRST, global: false };
+    }
+    if (evt.key === "End" || evt.key === "[") {
+      return {
+        action: evt.key === "End" ? KEY_ACTION.BLIP_FOCUS_LAST : KEY_ACTION.BLIP_DEPTH_UP,
+        global: false
+      };
+    }
+    if (evt.key === "]") {
+      return { action: KEY_ACTION.BLIP_DEPTH_IN, global: false };
+    }
+  }
+  if (
+    evt.key === "G" &&
+    evt.shiftKey &&
+    !evt.ctrlKey &&
+    !evt.metaKey &&
+    !evt.altKey
+  ) {
+    return { action: KEY_ACTION.BLIP_FOCUS_LAST, global: false };
   }
   return null;
 }

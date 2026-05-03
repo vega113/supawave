@@ -1,7 +1,13 @@
 // G-PORT-7 (#1116): tests for the blip-focus navigation helper.
 import { fixture, expect, html } from "@open-wc/testing";
 import "../../src/elements/wave-blip.js";
-import { moveBlipFocus, clearBlipFocus, setFocusedBlip } from "../../src/shortcuts/blip-focus.js";
+import {
+  moveBlipFocus,
+  focusBlipBoundary,
+  dispatchFocusedBlipDepth,
+  clearBlipFocus,
+  setFocusedBlip
+} from "../../src/shortcuts/blip-focus.js";
 
 async function threeBlips() {
   const root = await fixture(html`
@@ -183,6 +189,55 @@ describe("clearBlipFocus", () => {
     blips[1].classList.add("j2cl-read-blip-focused");
     clearBlipFocus(root);
     expect(blips[1].hasAttribute("aria-current")).to.equal(false);
+  });
+});
+
+describe("focusBlipBoundary", () => {
+  it("focuses the first or last visible blip", async () => {
+    const root = await threeBlips();
+    expect(focusBlipBoundary("last", root)).to.equal(true);
+    expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b3");
+    expect(focusBlipBoundary("first", root)).to.equal(true);
+    expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b1");
+  });
+
+  it("returns false when there are no blips", () => {
+    expect(focusBlipBoundary("last", document.createElement("div"))).to.equal(false);
+  });
+});
+
+describe("dispatchFocusedBlipDepth", () => {
+  it("dispatches drill-in for the focused blip", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1"></wave-blip>
+      </div>
+    `);
+    const blip = root.querySelector("wave-blip");
+    setFocusedBlip(blip, root);
+    let detail = null;
+    root.addEventListener("wavy-depth-drill-in", event => {
+      detail = event.detail;
+    });
+    expect(dispatchFocusedBlipDepth("in", root)).to.equal(true);
+    expect(detail).to.deep.equal({ blipId: "b1" });
+  });
+
+  it("dispatches depth-up with the parent depth id from the host", async () => {
+    const root = await fixture(html`
+      <div data-parent-depth-blip-id="parent">
+        <section data-j2cl-read-surface="true">
+          <wave-blip data-blip-id="b1"></wave-blip>
+        </section>
+      </div>
+    `);
+    const surface = root.querySelector("[data-j2cl-read-surface]");
+    let detail = null;
+    surface.addEventListener("wavy-depth-up", event => {
+      detail = event.detail;
+    });
+    expect(dispatchFocusedBlipDepth("up", root)).to.equal(true);
+    expect(detail).to.deep.equal({ toBlipId: "parent" });
   });
 });
 

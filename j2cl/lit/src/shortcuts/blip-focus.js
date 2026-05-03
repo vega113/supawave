@@ -141,6 +141,59 @@ export function moveBlipFocus(direction, root = document) {
   return true;
 }
 
+export function focusBlipBoundary(boundary, root = document) {
+  const list = snapshotBlips(root);
+  if (list.length === 0) return false;
+  const target = boundary === "last" ? list[list.length - 1] : list[0];
+  setFocusedBlip(target, root);
+  return true;
+}
+
+function findFocusedBlip(root = document) {
+  const list = snapshotBlips(root);
+  const index = findFocusedIndex(list);
+  return index >= 0 ? list[index] : null;
+}
+
+function findDepthHost(surface) {
+  let el = surface;
+  while (el) {
+    if (typeof el.hasAttribute === "function" && el.hasAttribute("data-parent-depth-blip-id")) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
+export function dispatchFocusedBlipDepth(direction, root = document) {
+  const focused = findFocusedBlip(root);
+  const surface = findReadSurface(focused, root);
+  if (!surface) return false;
+  if (direction === "in") {
+    const blipId = focused ? focused.getAttribute("data-blip-id") || "" : "";
+    if (!blipId) return false;
+    surface.dispatchEvent(
+      new CustomEvent("wavy-depth-drill-in", {
+        bubbles: true,
+        composed: true,
+        detail: { blipId }
+      })
+    );
+    return true;
+  }
+  const depthHost = findDepthHost(surface);
+  const toBlipId = depthHost ? depthHost.getAttribute("data-parent-depth-blip-id") || "" : "";
+  surface.dispatchEvent(
+    new CustomEvent("wavy-depth-up", {
+      bubbles: true,
+      composed: true,
+      detail: { toBlipId }
+    })
+  );
+  return true;
+}
+
 /**
  * Clear `focused` on every other blip, then set it on `target`.
  * Reflects to `data-blip-focused` on the host so the parity test can
@@ -235,6 +288,7 @@ export const _internalForTesting = {
   snapshotAllBlips,
   findFocusedIndex,
   findReadSurface,
+  findFocusedBlip,
   dispatchRendererFocusChanged,
   FOCUS_CHANGED_EVENT,
   RENDERER_FOCUS_CLASS

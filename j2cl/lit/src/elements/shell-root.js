@@ -1,6 +1,11 @@
 import { LitElement, css, html } from "lit";
 import { KEY_ACTION, isEditableTarget, matchShortcut } from "../shortcuts/keybindings.js";
-import { moveBlipFocus, clearBlipFocus } from "../shortcuts/blip-focus.js";
+import {
+  moveBlipFocus,
+  focusBlipBoundary,
+  dispatchFocusedBlipDepth,
+  clearBlipFocus
+} from "../shortcuts/blip-focus.js";
 import { closeTopmostDialog } from "../shortcuts/dialog-stack.js";
 
 export class ShellRoot extends LitElement {
@@ -310,6 +315,16 @@ export class ShellRoot extends LitElement {
         if (this._modalIsOpen()) return false;
         const direction = action === KEY_ACTION.BLIP_FOCUS_NEXT ? 1 : -1;
         return moveBlipFocus(direction);
+      }
+      case KEY_ACTION.BLIP_FOCUS_FIRST:
+      case KEY_ACTION.BLIP_FOCUS_LAST: {
+        if (this._modalIsOpen()) return false;
+        return focusBlipBoundary(action === KEY_ACTION.BLIP_FOCUS_LAST ? "last" : "first");
+      }
+      case KEY_ACTION.BLIP_DEPTH_UP:
+      case KEY_ACTION.BLIP_DEPTH_IN: {
+        if (this._modalIsOpen()) return false;
+        return dispatchFocusedBlipDepth(action === KEY_ACTION.BLIP_DEPTH_IN ? "in" : "up");
       }
       case KEY_ACTION.OPEN_NEW_WAVE: {
         // The J2CL root shell already listens for this on document.body

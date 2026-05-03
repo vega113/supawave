@@ -266,11 +266,8 @@ export async function openInlineComposerJ2cl(page: Page): Promise<Locator> {
       await page.waitForTimeout(800);
     }
   }
-  await expect(
-    inlineComposer,
-    "Reply must mount <wavy-composer> inline at the blip"
-  ).toHaveCount(1, { timeout: 10_000 });
-  return inlineComposer;
+  // Loop always exits via return or throw; this line satisfies TypeScript.
+  throw new Error("openInlineComposerJ2cl: unreachable");
 }
 
 export async function openInlineComposerGwt(gwt: GwtPage): Promise<void> {

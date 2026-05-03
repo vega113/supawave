@@ -653,6 +653,10 @@ public class J2clSelectedWaveViewChromeTest {
     second.setAttribute("focused", "");
     second.setAttribute("data-blip-focused", "true");
     row.focus();
+    Assert.assertEquals(
+        "Precondition: nav row owns focus before dispatching toolbar navigation events",
+        row,
+        DomGlobal.document.activeElement);
 
     dispatchNavEvent(view.getCardElement(), "wave-nav-next-requested");
 

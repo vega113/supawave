@@ -58,42 +58,6 @@ async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
   await page.waitForSelector("wave-blip", { timeout: 30_000 });
 }
 
-async function openWelcomeWaveGwt(page: Page, gwt: GwtPage): Promise<void> {
-  await gwt.goto("/");
-  await gwt.assertInboxLoaded();
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          document.body.innerText.includes("Welcome to SupaWave")
-        ),
-      {
-        message: "GWT inbox must surface the seeded Welcome wave",
-        timeout: 30_000
-      }
-    )
-    .toBe(true);
-
-  await page.waitForTimeout(2_500);
-  const digest = page.locator("text=Welcome to SupaWave").first();
-  await expect(digest).toBeVisible({ timeout: 10_000 });
-  await digest.click({ timeout: 15_000 });
-  await page.waitForTimeout(6_000);
-
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          document.body.innerText.includes("This welcome wave is your dock")
-        ),
-      {
-        message: "GWT view must render the welcome wave's body",
-        timeout: 20_000
-      }
-    )
-    .toBe(true);
-}
-
 async function authorSimpleGwtWave(
   page: Page,
   gwt: GwtPage,

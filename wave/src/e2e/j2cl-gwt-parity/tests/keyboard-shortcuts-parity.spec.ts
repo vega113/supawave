@@ -99,21 +99,12 @@ async function blipCountJ2cl(page: Page): Promise<number> {
 
 /** Start keyboard navigation from the shell, not from a pre-focused blip. */
 async function clearBlipFocusBeforeShortcutDrive(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const active = document.activeElement as HTMLElement | null;
-    if (active && typeof active.blur === "function") {
-      active.blur();
-    }
-    document.querySelectorAll("wave-blip").forEach((blip) => {
-      blip.removeAttribute("focused");
-      blip.removeAttribute("data-blip-focused");
-      blip.removeAttribute("aria-current");
-      blip.classList.remove("j2cl-read-blip-focused");
-      if (blip.getAttribute("tabindex") === "0") {
-        blip.setAttribute("tabindex", "-1");
-      }
-    });
-  });
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if ((await focusedBlipIdJ2cl(page)) === null) break;
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(80);
+  }
   await expect
     .poll(
       async () => await focusedBlipIdJ2cl(page),

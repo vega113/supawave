@@ -558,7 +558,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       HTMLElement blip = blips.get(index);
       if ((active != null && (blip == active || blip.contains(active)))
           || blip.hasAttribute("focused")
-          || blip.hasAttribute("data-blip-focused")
+          || "true".equals(blip.getAttribute("data-blip-focused"))
           || blip.classList.contains("j2cl-read-blip-focused")) {
         return index;
       }

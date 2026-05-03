@@ -119,11 +119,16 @@ public final class SelectedWaveReadStateServlet extends HttpServlet {
         .append(unreadCount).append(",\"isRead\":").append(isRead)
         .append(",\"unreadBlipIds\":[");
     if (unreadBlipIds != null) {
-      for (int i = 0; i < unreadBlipIds.size(); i++) {
-        if (i > 0) {
+      boolean first = true;
+      for (String blipId : unreadBlipIds) {
+        if (blipId == null) {
+          continue;
+        }
+        if (!first) {
           body.append(',');
         }
-        body.append('"').append(escapeJson(unreadBlipIds.get(i))).append('"');
+        body.append('"').append(escapeJson(blipId)).append('"');
+        first = false;
       }
     }
     body.append("]}");

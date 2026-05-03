@@ -341,7 +341,7 @@ public final class J2clSelectedWaveProjector {
     List<J2clReadBlip> updated = new ArrayList<J2clReadBlip>(readBlips.size());
     boolean changed = false;
     for (J2clReadBlip blip : readBlips) {
-      if (blip == null || blip.getBlipId().isEmpty()) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
         updated.add(blip);
         continue;
       }
@@ -999,7 +999,7 @@ public final class J2clSelectedWaveProjector {
     }
     Map<String, J2clReadBlip> blipsById = new LinkedHashMap<String, J2clReadBlip>();
     for (J2clReadBlip blip : readBlips) {
-      if (blip == null || blip.getBlipId().isEmpty()) {
+      if (blip == null || blip.getBlipId() == null || blip.getBlipId().isEmpty()) {
         continue;
       }
       blipsById.put(blip.getBlipId(), blip);

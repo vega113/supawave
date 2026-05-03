@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-03-j2cl-parity-harness-focus",
+  "version": "PR #1192",
+  "date": "2026-05-03",
+  "title": "J2CL parity harness focus stability",
+  "summary": "Stabilized the J2CL/GWT parity harness around keyboard focus and mention selection so parity regressions are caught reliably.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Made the parity tests drive J2CL blip navigation and GWT mention selection from deterministic focus state."
+      ]
+    }
+  ]
+}

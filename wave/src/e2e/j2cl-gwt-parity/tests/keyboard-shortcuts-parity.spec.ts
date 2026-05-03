@@ -97,6 +97,34 @@ async function blipCountJ2cl(page: Page): Promise<number> {
   });
 }
 
+/** Start keyboard navigation from the shell, not from a pre-focused blip. */
+async function clearBlipFocusBeforeShortcutDrive(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (active && typeof active.blur === "function") {
+      active.blur();
+    }
+    document.querySelectorAll("wave-blip").forEach((blip) => {
+      blip.removeAttribute("focused");
+      blip.removeAttribute("data-blip-focused");
+      blip.removeAttribute("aria-current");
+      blip.classList.remove("j2cl-read-blip-focused");
+      if (blip.getAttribute("tabindex") === "0") {
+        blip.setAttribute("tabindex", "-1");
+      }
+    });
+  });
+  await expect
+    .poll(
+      async () => await focusedBlipIdJ2cl(page),
+      {
+        timeout: 5_000,
+        message: "J2CL shortcut drive should start without a focused blip"
+      }
+    )
+    .toBeNull();
+}
+
 /**
  * Drive the focus-next shortcut N times on J2CL (j key). Returns the
  * final focused blip id so callers can assert progression.
@@ -146,11 +174,12 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     // blip; the second j must move to a different blip. Shift+Cmd+O
     // and Esc are tested OUTSIDE the input chain — first move focus
     // away from the search input so j/k actually drive the shell
-    // handler instead of the search box.
+    // handler instead of the search box. Do not click a blip here:
+    // Chromium/Linux may focus the clicked root blip, which makes the
+    // first j legitimately advance to the reply and leaves the second j
+    // clamped at the end of this two-blip wave.
     // ------------------------------------------------------------------
-    await page.locator("wave-blip").first().click({ position: { x: 4, y: 4 } });
-    // Click on the wave panel margin to clear any text selection/focus.
-    await page.mouse.click(4, 200);
+    await clearBlipFocusBeforeShortcutDrive(page);
 
     const firstFocus = await pressJN(page, 1);
     expect(

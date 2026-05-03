@@ -417,7 +417,11 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await registerAndSignIn(page, BASE_URL, creds);
 
     const gwt = new GwtPage(page, BASE_URL);
-    await openWelcomeWaveGwt(page, gwt);
+    await authorSimpleGwtWave(
+      page,
+      gwt,
+      "GWT mention autocomplete parity root blip"
+    );
 
     const firstLetter = creds.address.charAt(0);
     const initialBlipCount = await gwt.gwtBlips().count();
@@ -436,7 +440,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     ).toBeGreaterThanOrEqual(1);
     const initialIndex = mention.activeIndex;
 
-    await dispatchMentionKeyGwt(page, "ArrowDown");
+    await dispatchMentionKeyGwt(page, gwt, "ArrowDown");
     mention = await readMentionStateGwt(page);
     if (mention.candidateCount > 1) {
       expect(
@@ -452,7 +456,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     const expectedAddress = mention.activeAddress;
     expect(expectedAddress, "GWT active mention candidate must carry an address").not.toBe("");
 
-    await dispatchMentionKeyGwt(page, "Enter");
+    await dispatchMentionKeyGwt(page, gwt, "Enter");
     const editor = gwt.gwtActiveEditableDocument();
     await expect
       .poll(

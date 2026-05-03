@@ -173,22 +173,34 @@ export async function typeAtMentionTriggerGwt(
   literal: string
 ): Promise<void> {
   const editor = gwt.gwtActiveEditableDocument();
-  await editor.click({ timeout: 10_000 });
-  await editor.evaluate((el) => (el as HTMLElement).focus());
-  await expect
-    .poll(
-      async () =>
-        await editor.evaluate(
-          (el) => el === document.activeElement || el.contains(document.activeElement)
-        ),
-      { message: "GWT editor must own focus before typing a mention trigger", timeout: 5_000 }
-    )
-    .toBe(true);
+  await expect(editor, "GWT editor must be present before typing a mention trigger").toBeVisible({
+    timeout: 10_000
+  });
+  await editor.evaluate((el) => {
+    const target = el as HTMLElement;
+    target.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
   await page.keyboard.type(literal, { delay: 20 });
   await page.waitForTimeout(350);
 }
 
-export async function dispatchMentionKeyGwt(page: Page, key: string): Promise<void> {
+export async function dispatchMentionKeyGwt(
+  page: Page,
+  gwt: GwtPage,
+  key: string
+): Promise<void> {
+  const editor = gwt.gwtActiveEditableDocument();
+  await expect(editor, `GWT editor must be focused before ${key}`).toBeVisible({
+    timeout: 5_000
+  });
+  await editor.evaluate((el) => (el as HTMLElement).focus());
   await page.keyboard.press(key);
   await page.waitForTimeout(150);
 }

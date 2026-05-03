@@ -13,7 +13,6 @@ import {
   dispatchComposerKeyJ2cl,
   openInlineComposerGwt,
   openInlineComposerJ2cl,
-  readMentionTriggerLetterJ2cl,
   typeAtMentionTriggerGwt,
   typeAtMentionTriggerJ2cl,
   waitForMentionPopoverGwt,
@@ -875,7 +874,11 @@ test.describe("G-PORT-9 visual parity gates", () => {
     );
     await openWaveByIdJ2cl(page, waveId, rootBlipId);
     const composer = await openInlineComposerJ2cl(page);
-    const trigger = (await readMentionTriggerLetterJ2cl(composer)) || creds.address.charAt(0);
+    // Use the signed-in user's address as the common cross-view trigger.
+    // J2CL may include harness-only participant candidates; GWT's legacy
+    // popup is sourced from wave participants and can legitimately return
+    // no candidates for those harness-only entries.
+    const trigger = creds.address.charAt(0).toLowerCase();
     await waitForParticipantsJ2cl(composer, 10_000);
     await typeAtMentionTriggerJ2cl(page, composer, `@${trigger}`);
     await dispatchComposerKeyJ2cl(composer, "ArrowDown");

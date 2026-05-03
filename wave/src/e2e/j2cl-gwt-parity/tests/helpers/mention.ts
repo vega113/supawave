@@ -173,24 +173,49 @@ export async function typeAtMentionTriggerGwt(
   literal: string
 ): Promise<void> {
   const editor = gwt.gwtActiveEditableDocument();
-  await editor.click({ timeout: 10_000 });
-  await editor.evaluate((el) => (el as HTMLElement).focus());
+  await expect(editor, "GWT editor must be present before typing a mention trigger").toBeVisible({
+    timeout: 10_000
+  });
+  await focusGwtEditor(editor, "GWT editor must own focus before typing a mention trigger");
+  await page.keyboard.type(literal, { delay: 20 });
+  await page.waitForTimeout(350);
+}
+
+export async function dispatchMentionKeyGwt(
+  page: Page,
+  gwt: GwtPage,
+  key: string
+): Promise<void> {
+  const editor = gwt.gwtActiveEditableDocument();
+  await expect(editor, `GWT editor must be visible before ${key}`).toBeVisible({
+    timeout: 5_000
+  });
+  await focusGwtEditor(editor, `GWT editor must own focus before ${key}`);
+  await page.keyboard.press(key);
+  await page.waitForTimeout(150);
+}
+
+async function focusGwtEditor(editor: Locator, message: string): Promise<void> {
+  await editor.evaluate((el) => {
+    const target = el as HTMLElement;
+    target.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
   await expect
     .poll(
       async () =>
         await editor.evaluate(
           (el) => el === document.activeElement || el.contains(document.activeElement)
         ),
-      { message: "GWT editor must own focus before typing a mention trigger", timeout: 5_000 }
+      { message, timeout: 5_000 }
     )
     .toBe(true);
-  await page.keyboard.type(literal, { delay: 20 });
-  await page.waitForTimeout(350);
-}
-
-export async function dispatchMentionKeyGwt(page: Page, key: string): Promise<void> {
-  await page.keyboard.press(key);
-  await page.waitForTimeout(150);
 }
 
 export async function readRenderedMentionsGwt(scope: Locator): Promise<

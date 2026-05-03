@@ -97,6 +97,44 @@ async function blipCountJ2cl(page: Page): Promise<number> {
   });
 }
 
+/** Start keyboard navigation from the shell, not from a pre-focused blip. */
+async function clearBlipFocusBeforeShortcutDrive(page: Page): Promise<void> {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if ((await focusedBlipIdJ2cl(page)) === null) break;
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(80);
+  }
+  await expect
+    .poll(
+      async () => await focusedBlipIdJ2cl(page),
+      {
+        timeout: 5_000,
+        message: "J2CL shortcut drive should start without a focused blip"
+      }
+    )
+    .toBeNull();
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          let active: Element | null = document.activeElement;
+          while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+            active = active.shadowRoot.activeElement;
+          }
+          return (
+            active?.matches?.("input, textarea, [contenteditable='true'], [data-composer-body]") ??
+            false
+          );
+        }),
+      {
+        timeout: 5_000,
+        message: "J2CL shortcut drive should start with shell focus, not an editable control"
+      }
+    )
+    .toBe(false);
+}
+
 /**
  * Drive the focus-next shortcut N times on J2CL (j key). Returns the
  * final focused blip id so callers can assert progression.
@@ -146,11 +184,12 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     // blip; the second j must move to a different blip. Shift+Cmd+O
     // and Esc are tested OUTSIDE the input chain — first move focus
     // away from the search input so j/k actually drive the shell
-    // handler instead of the search box.
+    // handler instead of the search box. Do not click a blip here:
+    // Chromium/Linux may focus the clicked root blip, which makes the
+    // first j legitimately advance to the reply and leaves the second j
+    // clamped at the end of this two-blip wave.
     // ------------------------------------------------------------------
-    await page.locator("wave-blip").first().click({ position: { x: 4, y: 4 } });
-    // Click on the wave panel margin to clear any text selection/focus.
-    await page.mouse.click(4, 200);
+    await clearBlipFocusBeforeShortcutDrive(page);
 
     const firstFocus = await pressJN(page, 1);
     expect(

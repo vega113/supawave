@@ -45,55 +45,6 @@ import { compareLocatorScreenshots } from "./helpers/visualDiff";
 
 const BASE_URL = process.env.WAVE_E2E_BASE_URL ?? "http://127.0.0.1:9900";
 
-/**
- * On the J2CL view: open the first wave in the inbox by clicking its
- * search-rail card. Returns once at least one <wave-blip> mounts.
- */
-async function openFirstWaveJ2cl(page: Page, baseURL: string): Promise<void> {
-  await page.goto(`${baseURL}/?view=j2cl-root`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("shell-root", { timeout: 15_000 });
-  const card = page.locator("wavy-search-rail-card[data-digest-card]:visible").first();
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  await card.click({ timeout: 15_000 });
-  await page.waitForSelector("wave-blip", { timeout: 30_000 });
-}
-
-async function openWelcomeWaveGwt(page: Page, gwt: GwtPage): Promise<void> {
-  await gwt.goto("/");
-  await gwt.assertInboxLoaded();
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          document.body.innerText.includes("Welcome to SupaWave")
-        ),
-      {
-        message: "GWT inbox must surface the seeded Welcome wave",
-        timeout: 30_000
-      }
-    )
-    .toBe(true);
-
-  await page.waitForTimeout(2_500);
-  const digest = page.locator("text=Welcome to SupaWave").first();
-  await expect(digest).toBeVisible({ timeout: 10_000 });
-  await digest.click({ timeout: 15_000 });
-  await page.waitForTimeout(6_000);
-
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          document.body.innerText.includes("This welcome wave is your dock")
-        ),
-      {
-        message: "GWT view must render the welcome wave's body",
-        timeout: 20_000
-      }
-    )
-    .toBe(true);
-}
-
 async function authorSimpleGwtWave(
   page: Page,
   gwt: GwtPage,
@@ -417,7 +368,11 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     await registerAndSignIn(page, BASE_URL, creds);
 
     const gwt = new GwtPage(page, BASE_URL);
-    await openWelcomeWaveGwt(page, gwt);
+    await authorSimpleGwtWave(
+      page,
+      gwt,
+      "GWT mention autocomplete parity root blip"
+    );
 
     const firstLetter = creds.address.charAt(0);
     const initialBlipCount = await gwt.gwtBlips().count();
@@ -436,7 +391,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     ).toBeGreaterThanOrEqual(1);
     const initialIndex = mention.activeIndex;
 
-    await dispatchMentionKeyGwt(page, "ArrowDown");
+    await dispatchMentionKeyGwt(page, gwt, "ArrowDown");
     mention = await readMentionStateGwt(page);
     if (mention.candidateCount > 1) {
       expect(
@@ -452,7 +407,7 @@ test.describe("G-PORT-5 mention autocomplete parity", () => {
     const expectedAddress = mention.activeAddress;
     expect(expectedAddress, "GWT active mention candidate must carry an address").not.toBe("");
 
-    await dispatchMentionKeyGwt(page, "Enter");
+    await dispatchMentionKeyGwt(page, gwt, "Enter");
     const editor = gwt.gwtActiveEditableDocument();
     await expect
       .poll(

@@ -867,7 +867,13 @@ test.describe("G-PORT-9 visual parity gates", () => {
     test.info().annotations.push({ type: "test-user", description: creds.address });
     await registerAndSignIn(page, BASE_URL, creds);
 
-    await prepareJ2clWelcome(page);
+    const gwtAuthor = new GwtPage(page, BASE_URL);
+    const { waveId, rootBlipId } = await authorSingleBlipWave(
+      page,
+      gwtAuthor,
+      "Mention visual parity root blip"
+    );
+    await openWaveByIdJ2cl(page, waveId, rootBlipId);
     const composer = await openInlineComposerJ2cl(page);
     const trigger = (await readMentionTriggerLetterJ2cl(composer)) || creds.address.charAt(0);
     await waitForParticipantsJ2cl(composer, 10_000);
@@ -878,7 +884,14 @@ test.describe("G-PORT-9 visual parity gates", () => {
 
     const gwtPage = await page.context().newPage();
     try {
-      const gwt = await prepareGwtWelcome(gwtPage);
+      const gwt = new GwtPage(gwtPage, BASE_URL);
+      await gwt.gotoWave(waveId);
+      await gwt.assertInboxLoaded();
+      await expect(
+        gwtPage.locator(`[data-blip-id="${rootBlipId}"]`).first(),
+        "GWT authored wave must render the root blip for mention visual parity"
+      ).toBeVisible({ timeout: 30_000 });
+      await stabilizeVisualPage(gwtPage);
       await openInlineComposerGwt(gwt);
       await typeAtMentionTriggerGwt(gwtPage, gwt, `@${trigger}`);
       await gwtPage.mouse.move(24, 24);

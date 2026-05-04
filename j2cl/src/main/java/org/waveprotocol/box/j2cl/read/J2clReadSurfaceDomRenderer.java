@@ -2498,14 +2498,13 @@ public final class J2clReadSurfaceDomRenderer {
     if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
       return;
     }
-    if (activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX) {
+    if (isNearTopEdge()) {
       lastScrollDirection = J2clViewportGrowthDirection.BACKWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
         return;
       }
     }
-    double distanceFromBottom = activeScrollHeight() - activeClientHeight() - activeScrollTop();
-    if (distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX) {
+    if (isNearBottomEdge()) {
       lastScrollDirection = J2clViewportGrowthDirection.FORWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
         return;
@@ -2516,11 +2515,22 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private boolean isNearEdge(String direction) {
-    if (J2clViewportGrowthDirection.isBackward(direction)) {
-      return activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX;
+    return J2clViewportGrowthDirection.isBackward(direction) ? isNearTopEdge() : isNearBottomEdge();
+  }
+
+  private boolean isNearTopEdge() {
+    if (hostOwnsVerticalScroll()) {
+      return host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    double distanceFromBottom = activeScrollHeight() - activeClientHeight() - activeScrollTop();
-    return distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX;
+    return host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX;
+  }
+
+  private boolean isNearBottomEdge() {
+    if (hostOwnsVerticalScroll()) {
+      return host.scrollHeight - host.clientHeight - host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+    }
+    return host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight
+        <= EDGE_SCROLL_THRESHOLD_PX;
   }
 
   private double activeScrollTop() {

@@ -2319,6 +2319,32 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void appendingSubmittedReplyWindowEntryPreservesExistingBlipNode() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry root =
+        J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text");
+    J2clReadWindowEntry reply =
+        J2clReadWindowEntry.loaded(
+            "blip:b+reply", 36L, 37L, "b+reply", "Submitted reply", "b+root", "t+reply");
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root)));
+    HTMLElement rootNode = blip(host, "b+root");
+    rootNode.focus();
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root, reply)));
+
+    Assert.assertSame(
+        "post-submit append must not rebuild already-rendered blips",
+        rootNode,
+        blip(host, "b+root"));
+    Assert.assertEquals(rootNode, DomGlobal.document.activeElement);
+    Assert.assertEquals("reply", blip(host, "b+reply").getAttribute("data-blip-depth"));
+    Assert.assertEquals("1", blip(host, "b+root").getAttribute("reply-count"));
+  }
+
+  @Test
   public void renderWindowPlaceholderUpgradeToLoadedAttachmentReplacesRenderedNodes() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

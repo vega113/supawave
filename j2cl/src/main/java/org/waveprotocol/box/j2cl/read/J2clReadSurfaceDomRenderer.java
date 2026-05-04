@@ -723,6 +723,14 @@ public final class J2clReadSurfaceDomRenderer {
       evaluateDwellTimers();
       return true;
     }
+    if (appendTrailingWindowEntriesIfPossible(
+        effectiveEntries,
+        previouslyCollapsedThreadIds,
+        focusedBlipId,
+        scrollAnchorBlipId,
+        scrollAnchorTop)) {
+      return true;
+    }
 
     cancelAllDwellTimers();
     host.innerHTML = "";
@@ -912,6 +920,288 @@ public final class J2clReadSurfaceDomRenderer {
     pruneStaleInFlightOnRebuild();
     evaluateDwellTimers();
     return true;
+  }
+
+  private boolean appendTrailingWindowEntriesIfPossible(
+      List<J2clReadWindowEntry> effectiveEntries,
+      List<String> previouslyCollapsedThreadIds,
+      String focusedBlipId,
+      String scrollAnchorBlipId,
+      double scrollAnchorTop) {
+    if (renderedSurface == null
+        || renderedSurface.parentElement != host
+        || renderedWindowEntries.isEmpty()
+        || effectiveEntries.size() <= renderedWindowEntries.size()
+        || !isRenderedWindowPrefix(effectiveEntries)
+        || !renderedPrefixStillMatchesManifest(effectiveEntries)) {
+      return false;
+    }
+    HTMLElement rootThread = (HTMLElement) renderedSurface.querySelector("[data-thread-id='root']");
+    if (rootThread == null) {
+      return false;
+    }
+
+    Map<String, HTMLElement> winBlipHostsById = collectRenderedBlipHosts(renderedSurface);
+    Map<String, HTMLElement> winThreadHostsByKey = collectRenderedThreadHosts(renderedSurface);
+    Map<String, HTMLElement> winLastThreadHostByParent =
+        collectRenderedFallbackThreadAnchors(renderedSurface);
+    int blipIndex = renderedBlipCount(renderedSurface);
+    boolean hasPlaceholder = false;
+    for (int i = renderedWindowEntries.size(); i < effectiveEntries.size(); i++) {
+      J2clReadWindowEntry entry = effectiveEntries.get(i);
+      if (!entry.isLoaded()) {
+        hasPlaceholder = true;
+        HTMLElement placeholderEl = renderPlaceholder(entry);
+        String phParent = "";
+        String phThread = "";
+        if (!conversationManifest.isEmpty() && !entry.getBlipId().isEmpty()) {
+          SidecarConversationManifest.Entry phManifestEntry =
+              conversationManifest.findByBlipId(entry.getBlipId());
+          if (phManifestEntry != null) {
+            phParent =
+                phManifestEntry.getParentBlipId() == null ? "" : phManifestEntry.getParentBlipId();
+            phThread = phManifestEntry.getThreadId() == null ? "" : phManifestEntry.getThreadId();
+          }
+        }
+        HTMLElement placeholderTarget =
+            resolveWinThreadTarget(
+                phParent,
+                phThread,
+                rootThread,
+                winBlipHostsById,
+                winThreadHostsByKey,
+                winLastThreadHostByParent);
+        placeholderTarget.appendChild(placeholderEl);
+        if (!entry.getBlipId().isEmpty()) {
+          winBlipHostsById.put(entry.getBlipId(), placeholderEl);
+        }
+        continue;
+      }
+      String entryParent = entry.getParentBlipId();
+      String entryThread = entry.getThreadId();
+      if ((entryParent == null || entryParent.isEmpty())
+          && (entryThread == null || entryThread.isEmpty())
+          && !conversationManifest.isEmpty()) {
+        SidecarConversationManifest.Entry manifestEntry =
+            conversationManifest.findByBlipId(entry.getBlipId());
+        if (manifestEntry != null) {
+          entryParent = manifestEntry.getParentBlipId();
+          entryThread = manifestEntry.getThreadId();
+        }
+      }
+      J2clReadBlip blip =
+          new J2clReadBlip(
+              entry.getBlipId(),
+              entry.getText(),
+              entry.getAttachments(),
+              entry.getAuthorId(),
+              entry.getAuthorDisplayName(),
+              entry.getLastModifiedTimeMillis(),
+              entryParent,
+              entryThread,
+              entry.isUnread(),
+              entry.hasMention(),
+              /* deleted= */ false,
+              /* taskDone= */ entry.isTaskDone(),
+              entry.getTaskAssignee(),
+              entry.getTaskDueTimestamp(),
+              entry.getBodyItemCount(),
+              entry.isTask(),
+              entry.getInlineReplyAnchors());
+      HTMLElement blipElement = renderBlip(blip, blipIndex++);
+      String parentForDepth = blip.getParentBlipId();
+      boolean parentPresent =
+          parentForDepth != null && !parentForDepth.isEmpty() && winBlipHostsById.containsKey(parentForDepth);
+      blipElement.setAttribute("data-blip-depth", parentPresent ? "reply" : "root");
+      winBlipHostsById.put(blip.getBlipId(), blipElement);
+      HTMLElement blipTarget =
+          resolveWinThreadTarget(
+              blip.getParentBlipId() == null ? "" : blip.getParentBlipId(),
+              blip.getThreadId() == null ? "" : blip.getThreadId(),
+              rootThread,
+              winBlipHostsById,
+              winThreadHostsByKey,
+              winLastThreadHostByParent);
+      blipTarget.appendChild(blipElement);
+    }
+
+    updateRenderedReplyCounts(renderedSurface);
+    if (hasPlaceholder) {
+      renderedSurface.setAttribute("aria-live", "polite");
+      rootThread.setAttribute("aria-busy", "true");
+    }
+    renderedWindowEntries =
+        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(effectiveEntries));
+    renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
+    renderedConversationManifest = conversationManifest;
+    enhanceSurface(renderedSurface);
+    restoreCollapsedThreads(previouslyCollapsedThreadIds);
+    restoreFocusedBlipById(focusedBlipId);
+    restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
+    notifyReadSurfaceRendered();
+    if (!requestReachablePlaceholderAfterRender()) {
+      schedulePostLayoutPlaceholderCheckIfNeeded();
+    }
+    pruneStaleInFlightOnRebuild();
+    evaluateDwellTimers();
+    return true;
+  }
+
+  private boolean isRenderedWindowPrefix(List<J2clReadWindowEntry> entries) {
+    if (renderedWindowEntries.size() > entries.size()) {
+      return false;
+    }
+    for (int i = 0; i < renderedWindowEntries.size(); i++) {
+      if (!sameWindowEntry(renderedWindowEntries.get(i), entries.get(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean renderedPrefixStillMatchesManifest(List<J2clReadWindowEntry> entries) {
+    if (conversationManifest == renderedConversationManifest || conversationManifest.isEmpty()) {
+      return true;
+    }
+    for (int i = 0; i < renderedWindowEntries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
+      if (entry == null || !entry.isLoaded() || entry.getBlipId().isEmpty()) {
+        continue;
+      }
+      String expectedParent = entry.getParentBlipId();
+      if ((expectedParent == null || expectedParent.isEmpty())
+          && (entry.getThreadId() == null || entry.getThreadId().isEmpty())) {
+        SidecarConversationManifest.Entry manifestEntry =
+            conversationManifest.findByBlipId(entry.getBlipId());
+        if (manifestEntry != null) {
+          expectedParent = manifestEntry.getParentBlipId();
+        }
+      }
+      if (!renderedBlipPlacementMatches(entry.getBlipId(), expectedParent)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean renderedBlipPlacementMatches(String blipId, String expectedParent) {
+    Element element = renderedSurface.querySelector("[data-blip-id=\"" + blipId + "\"]");
+    if (element == null) {
+      return false;
+    }
+    String parent = expectedParent == null ? "" : expectedParent;
+    Element thread =
+        element.parentElement == null || !element.parentElement.hasAttribute("data-parent-blip-id")
+            ? null
+            : element.parentElement;
+    if (parent.isEmpty()) {
+      return thread == null;
+    }
+    return thread != null && parent.equals(thread.getAttribute("data-parent-blip-id"));
+  }
+
+  private static Map<String, HTMLElement> collectRenderedBlipHosts(HTMLElement surface) {
+    Map<String, HTMLElement> hosts = new HashMap<String, HTMLElement>();
+    NodeList<Element> blips = surface.querySelectorAll("[data-blip-id], [data-placeholder-blip-id]");
+    for (int i = 0; i < blips.length; i++) {
+      Element element = blips.item(i);
+      if (!(element instanceof HTMLElement)) {
+        continue;
+      }
+      String id = element.getAttribute("data-blip-id");
+      if (id == null || id.isEmpty()) {
+        id = element.getAttribute("data-placeholder-blip-id");
+      }
+      if (id != null && !id.isEmpty() && !hosts.containsKey(id)) {
+        hosts.put(id, (HTMLElement) element);
+      }
+    }
+    return hosts;
+  }
+
+  private static Map<String, HTMLElement> collectRenderedThreadHosts(HTMLElement surface) {
+    Map<String, HTMLElement> hosts = new HashMap<String, HTMLElement>();
+    NodeList<Element> threads = surface.querySelectorAll(".inline-thread[data-parent-blip-id]");
+    for (int i = 0; i < threads.length; i++) {
+      Element element = threads.item(i);
+      if (!(element instanceof HTMLElement)) {
+        continue;
+      }
+      String parentId = element.getAttribute("data-parent-blip-id");
+      if (parentId == null || parentId.isEmpty()) {
+        continue;
+      }
+      hosts.put(parentId + "::" + rawThreadIdForHost(parentId, element), (HTMLElement) element);
+    }
+    return hosts;
+  }
+
+  private static Map<String, HTMLElement> collectRenderedFallbackThreadAnchors(HTMLElement surface) {
+    Map<String, HTMLElement> anchors = new HashMap<String, HTMLElement>();
+    NodeList<Element> threads = surface.querySelectorAll(".inline-thread[data-parent-blip-id]");
+    for (int i = 0; i < threads.length; i++) {
+      Element element = threads.item(i);
+      if (!(element instanceof HTMLElement)
+          || "inline".equals(element.getAttribute("data-inline-reply-anchor-placement"))) {
+        continue;
+      }
+      String parentId = element.getAttribute("data-parent-blip-id");
+      if (parentId != null && !parentId.isEmpty()) {
+        anchors.put(parentId, (HTMLElement) element);
+      }
+    }
+    return anchors;
+  }
+
+  private static String rawThreadIdForHost(String parentId, Element threadHost) {
+    String anchored = threadHost.getAttribute("data-inline-reply-anchor-thread-id");
+    if (anchored != null && !anchored.isEmpty()) {
+      return anchored;
+    }
+    String scoped = threadHost.getAttribute("data-thread-id");
+    if (scoped == null || scoped.isEmpty() || scoped.equals("inline-" + parentId)) {
+      return "";
+    }
+    String prefix = parentId + "::";
+    return scoped.startsWith(prefix) ? scoped.substring(prefix.length()) : scoped;
+  }
+
+  private static int renderedBlipCount(HTMLElement surface) {
+    return surface.querySelectorAll("[data-j2cl-read-blip='true']").length;
+  }
+
+  private static void updateRenderedReplyCounts(HTMLElement surface) {
+    NodeList<Element> blips = surface.querySelectorAll("[data-blip-id][reply-count]");
+    for (int i = 0; i < blips.length; i++) {
+      blips.item(i).removeAttribute("reply-count");
+    }
+    Map<String, Integer> counts = new HashMap<String, Integer>();
+    NodeList<Element> threads = surface.querySelectorAll(".inline-thread[data-parent-blip-id]");
+    for (int i = 0; i < threads.length; i++) {
+      Element thread = threads.item(i);
+      String parentId = thread.getAttribute("data-parent-blip-id");
+      if (parentId == null || parentId.isEmpty()) {
+        continue;
+      }
+      int direct = 0;
+      Element child = thread.firstElementChild;
+      while (child != null) {
+        if (child.hasAttribute("data-blip-id") || child.hasAttribute("data-placeholder-blip-id")) {
+          direct++;
+        }
+        child = child.nextElementSibling;
+      }
+      if (direct > 0) {
+        Integer prior = counts.get(parentId);
+        counts.put(parentId, (prior == null ? 0 : prior) + direct);
+      }
+    }
+    for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+      Element parent = surface.querySelector("[data-blip-id=\"" + entry.getKey() + "\"]");
+      if (parent != null && entry.getValue() != null && entry.getValue() > 0) {
+        parent.setAttribute("reply-count", String.valueOf(entry.getValue()));
+      }
+    }
   }
 
   private List<J2clReadWindowEntry> orderWindowEntriesForRender(
@@ -2206,6 +2496,8 @@ public final class J2clReadSurfaceDomRenderer {
     HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
     button.className = "j2cl-read-thread-toggle";
     button.setAttribute("type", "button");
+    button.setAttribute("tabindex", "-1");
+    button.setAttribute("aria-hidden", "true");
     button.setAttribute("aria-controls", thread.getAttribute("id"));
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-label", "Collapse " + label);

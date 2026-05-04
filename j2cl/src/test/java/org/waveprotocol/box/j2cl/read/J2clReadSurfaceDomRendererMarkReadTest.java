@@ -115,6 +115,35 @@ public class J2clReadSurfaceDomRendererMarkReadTest {
   }
 
   @Test
+  public void explicitFocusMarksUnreadBlipReadImmediately() {
+    HTMLDivElement host = createHost();
+    installViewport(host, 200);
+    installBlipLayout();
+    FakeScheduler scheduler = new FakeScheduler();
+    RecordingListener listener = new RecordingListener();
+
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setDwellTimerSchedulerForTesting(scheduler);
+    renderer.setMarkBlipReadListener(listener);
+
+    List<J2clReadBlip> blips = new ArrayList<J2clReadBlip>();
+    blips.add(unreadBlip("b+focused", "focused"));
+    renderer.render(blips, java.util.Collections.<String>emptyList());
+    HTMLElement blip = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+focused']");
+    Assert.assertNotNull(blip);
+
+    Assert.assertTrue(renderer.markFocusedBlipReadNow(blip));
+
+    Assert.assertEquals(
+        "explicit navigation/focus should credit read state without waiting for the dwell timer",
+        java.util.Arrays.asList("b+focused"),
+        listener.fired);
+    Assert.assertFalse(
+        "optimistic local read state should clear the visual unread marker immediately",
+        blip.hasAttribute("unread"));
+  }
+
+  @Test
   public void blipFiringTwiceForSameIdIsBlockedByInFlightSet() {
     HTMLDivElement host = createHost();
     installViewport(host, 200);

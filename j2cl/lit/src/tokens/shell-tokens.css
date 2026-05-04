@@ -21,6 +21,7 @@ body.j2cl-root-shell-page {
   margin: 0;
   height: 100%;
   min-height: 100vh;
+  overflow: hidden;
   background: #ffffff;
   color: var(--shell-color-text-primary);
   font-family: var(--shell-font-ui);
@@ -38,7 +39,9 @@ shell-root,
 shell-root-signed-out {
   position: relative;
   display: grid;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   gap: 0;
   box-sizing: border-box;
   width: 100%;
@@ -91,6 +94,8 @@ shell-root-signed-out > [slot="header"] {
 
 shell-root > [slot="nav"] {
   grid-area: nav;
+  min-height: 0;
+  overflow: hidden;
 }
 
 shell-root > [slot="splitter"] {
@@ -100,6 +105,8 @@ shell-root > [slot="splitter"] {
 shell-root > [slot="main"],
 shell-root-signed-out > [slot="main"] {
   grid-area: main;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .j2cl-shell-splitter {
@@ -263,6 +270,8 @@ shell-nav-rail > a:focus-visible {
 shell-nav-rail {
   display: block;
   align-self: stretch;
+  min-height: 0;
+  overflow: hidden;
   padding: 0;
   border-radius: 0;
   background: #ffffff;
@@ -290,6 +299,9 @@ shell-nav-rail > a:first-child {
 shell-main-region {
   display: block;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   padding: 0;
   border-radius: 0;
   background: #ffffff;
@@ -304,7 +316,9 @@ shell-root-signed-out > [slot="main"] {
 }
 
 #j2cl-root-shell-workflow {
-  min-height: 360px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 #j2cl-root-shell-workflow > [data-j2cl-fallback="true"] {

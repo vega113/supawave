@@ -4,6 +4,7 @@ import com.google.j2cl.junit.apt.J2clTestInput;
 import elemental2.core.JsArray;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.HTMLElement;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -132,6 +133,21 @@ public class J2clSelectedWaveViewChromeTest {
         "Nav-row receives the model's unread count via the unread-count attribute",
         "5",
         row.getAttribute("unread-count"));
+  }
+
+  @Test
+  public void renderKeepsTopReadStateTextHiddenInWaveChrome() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(selectedModel("example.com/w+read-text"));
+
+    HTMLElement readState = (HTMLElement) host.querySelector(".sidecar-selected-unread");
+    Assert.assertNotNull(readState);
+    Assert.assertTrue(
+        "Top wave chrome must not show text like 'Read.'; per-blip read state is visual.",
+        readState.hidden);
   }
 
   @Test
@@ -705,6 +721,28 @@ public class J2clSelectedWaveViewChromeTest {
     Assert.assertEquals(
         host.querySelector("wave-blip[data-blip-id='b+3']"),
         DomGlobal.document.activeElement);
+  }
+
+  @Test
+  public void navRowNextUnreadMarksFocusedUnreadBlipReadImmediately() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    final List<String> markedRead = new ArrayList<String>();
+    view.setMarkBlipReadHandler((blipId, onError) -> markedRead.add(blipId));
+    view.render(navigationModel());
+
+    dispatchNavEvent(view.getCardElement(), "wave-nav-next-unread-requested");
+
+    HTMLElement unreadBlip = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+2']");
+    Assert.assertEquals(unreadBlip, DomGlobal.document.activeElement);
+    Assert.assertEquals(
+        "Toolbar navigation to an unread blip should update read state immediately",
+        Collections.singletonList("b+2"),
+        markedRead);
+    Assert.assertFalse(
+        "Optimistic local read state should clear the unread marker before the server echo",
+        unreadBlip.hasAttribute("unread"));
   }
 
   @Test

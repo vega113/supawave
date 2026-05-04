@@ -89,9 +89,8 @@ export class WaveBlip extends LitElement {
     replyCount: { type: Number, attribute: "reply-count", reflect: true },
     livePulse: { type: Boolean, attribute: "live-pulse", reflect: true },
     // V-4 (#1102): blip depth distinguishes the root blip from reply
-    // blips so the avatar paints at the larger root size and the
-    // header timestamp picks up the ` · root` suffix that the mockup
-    // shows on the top-of-thread blip. Set by the Java renderer on
+    // blips so the avatar paints at the right size. It must not add
+    // visible "root" debug text to the header. Set by the Java renderer on
     // the host element directly — Lit reads it but does not reflect
     // back, otherwise the constructor's empty default would clobber
     // the renderer-set attribute on upgrade.
@@ -147,6 +146,8 @@ export class WaveBlip extends LitElement {
       line-height: 1.3;
     }
     .thread-chevron {
+      position: relative;
+      z-index: 2;
       flex: 0 0 auto;
       width: 16px;
       height: 20px;
@@ -179,6 +180,8 @@ export class WaveBlip extends LitElement {
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
     .avatar {
+      position: relative;
+      z-index: 1;
       flex: 0 0 auto;
       width: var(--wavy-avatar-size-reply, 28px);
       height: var(--wavy-avatar-size-reply, 28px);
@@ -546,11 +549,19 @@ export class WaveBlip extends LitElement {
 
   _onThreadChevronClick(event) {
     event.stopPropagation();
+    const detail = { blipId: this.blipId, waveId: this.waveId };
     this.dispatchEvent(
       new CustomEvent("wave-blip-drill-in-requested", {
         bubbles: true,
         composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId }
+        detail
+      })
+    );
+    this.dispatchEvent(
+      new CustomEvent("wavy-depth-drill-in", {
+        bubbles: true,
+        composed: true,
+        detail
       })
     );
   }
@@ -596,6 +607,7 @@ export class WaveBlip extends LitElement {
           class="thread-chevron"
           data-thread-chevron="true"
           aria-label=${`Drill into ${this.replyCount} ${replyNoun} under this blip`}
+          title=${`Drill into ${this.replyCount} ${replyNoun} under this blip`}
           @click=${this._onThreadChevronClick}
         >${this._chevronGlyph()}</button>`
       : html`<span class="thread-chevron" hidden></span>`;

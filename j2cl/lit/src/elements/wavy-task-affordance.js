@@ -226,6 +226,7 @@ export class WavyTaskAffordance extends LitElement {
         role="checkbox"
         aria-checked=${this.completed ? "true" : "false"}
         aria-label=${this.completed ? this.labelAriaUncheck : this.labelAriaCheck}
+        title=${this.completed ? this.labelAriaUncheck : this.labelAriaCheck}
         @click=${this._toggle}
       >
         ${this.completed ? this.labelToggleDone : this.labelToggleOpen}
@@ -234,6 +235,7 @@ export class WavyTaskAffordance extends LitElement {
         type="button"
         data-task-details-trigger="true"
         aria-label=${this.labelDetails}
+        title=${this.labelDetails}
         aria-haspopup="dialog"
         aria-expanded=${this._popoverOpen ? "true" : "false"}
         @click=${this._openDetails}

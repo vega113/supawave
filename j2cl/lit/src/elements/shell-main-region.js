@@ -6,6 +6,9 @@ export class ShellMainRegion extends LitElement {
       display: block;
       flex: 1;
       min-width: 0;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
     }
 
     /* V-1 (#1099): wave panel sits flush against the rail / header
@@ -14,7 +17,9 @@ export class ShellMainRegion extends LitElement {
      * cards into a narrow centred column. */
     main {
       padding: 0;
-      min-height: 360px;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
     }
   `;
 

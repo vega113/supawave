@@ -182,6 +182,28 @@ describe("<wave-blip>", () => {
     expect(ev.detail.waveId).to.equal("w7");
   });
 
+  it("compact thread chevron also emits the shell depth-navigation event", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b7nav"
+        data-wave-id="w7"
+        author-name="A"
+        reply-count="2"
+      >
+        body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
+    expect(chevron.getAttribute("title")).to.equal("Drill into 2 replies under this blip");
+    setTimeout(() => chevron.click(), 0);
+    const ev = await oneEvent(el, "wavy-depth-drill-in");
+    expect(ev.detail.blipId).to.equal("b7nav");
+    expect(ev.detail.waveId).to.equal("w7");
+    expect(ev.bubbles).to.be.true;
+    expect(ev.composed).to.be.true;
+  });
+
   it("uses singular grammar for a one-reply chevron aria-label", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b7a" data-wave-id="w7" author-name="A" reply-count="1">

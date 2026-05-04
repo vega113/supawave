@@ -16,11 +16,22 @@ public final class J2clSidecarRouteCodec {
   }
 
   public static J2clSidecarRouteState parse(String search, String hash) {
+    String effectiveSearch = search;
+    String effectiveHash = hash;
+    if (effectiveSearch != null) {
+      int hashStart = effectiveSearch.indexOf('#');
+      if (hashStart >= 0) {
+        if (effectiveHash == null || effectiveHash.isEmpty()) {
+          effectiveHash = effectiveSearch.substring(hashStart);
+        }
+        effectiveSearch = effectiveSearch.substring(0, hashStart);
+      }
+    }
     String query = null;
     String selectedWaveId = null;
     String depthBlipId = null;
-    if (search != null && !search.isEmpty()) {
-      String trimmed = search.charAt(0) == '?' ? search.substring(1) : search;
+    if (effectiveSearch != null && !effectiveSearch.isEmpty()) {
+      String trimmed = effectiveSearch.charAt(0) == '?' ? effectiveSearch.substring(1) : effectiveSearch;
       if (!trimmed.isEmpty()) {
         String[] parts = trimmed.split("&");
         for (String part : parts) {
@@ -38,7 +49,7 @@ public final class J2clSidecarRouteCodec {
       }
     }
     if (selectedWaveId == null) {
-      selectedWaveId = decodeLegacyHashWaveValue(hash);
+      selectedWaveId = decodeLegacyHashWaveValue(effectiveHash);
     }
     return new J2clSidecarRouteState(query, selectedWaveId, depthBlipId);
   }
@@ -63,7 +74,19 @@ public final class J2clSidecarRouteCodec {
     if (state.getDepthBlipId() != null) {
       url.append("&depth=").append(encodeUriComponentSafe(state.getDepthBlipId()));
     }
+    appendGwtCompatibleHash(url, state);
     return url.toString();
+  }
+
+  private static void appendGwtCompatibleHash(StringBuilder url, J2clSidecarRouteState state) {
+    if (state == null || state.getSelectedWaveId() == null || state.getSelectedWaveId().isEmpty()) {
+      return;
+    }
+    url.append('#').append(state.getSelectedWaveId());
+    if (state.getDepthBlipId() != null && !state.getDepthBlipId().isEmpty()) {
+      url.append("&focus=").append(encodeUriComponentSafe(state.getDepthBlipId()));
+      url.append("&slide-nav=1");
+    }
   }
 
   private static String decodeQueryValue(String value) {

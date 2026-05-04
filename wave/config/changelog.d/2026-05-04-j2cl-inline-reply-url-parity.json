@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-04-j2cl-inline-reply-url-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL inline replies target the clicked blip",
+  "summary": "Inline reply submissions in the J2CL wave view now use the blip that opened the composer and J2CL wave URLs include a GWT-compatible WaveRef hash.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Passes the inline composer's target blip through the reply submit path so replies are inserted under the clicked blip instead of the default root target.",
+        "Carries per-blip conversation-manifest insert positions in the write session so target-specific replies keep the correct thread ordering.",
+        "Adds a GWT-compatible hash WaveRef to J2CL route URLs while preserving the existing query route and legacy hash parsing."
+      ]
+    }
+  ]
+}

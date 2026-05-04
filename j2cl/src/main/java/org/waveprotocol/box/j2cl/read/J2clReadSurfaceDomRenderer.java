@@ -1073,27 +1073,31 @@ public final class J2clReadSurfaceDomRenderer {
         continue;
       }
       String expectedParent = entry.getParentBlipId();
+      String expectedThread = entry.getThreadId();
       if ((expectedParent == null || expectedParent.isEmpty())
-          && (entry.getThreadId() == null || entry.getThreadId().isEmpty())) {
+          && (expectedThread == null || expectedThread.isEmpty())) {
         SidecarConversationManifest.Entry manifestEntry =
             conversationManifest.findByBlipId(entry.getBlipId());
         if (manifestEntry != null) {
           expectedParent = manifestEntry.getParentBlipId();
+          expectedThread = manifestEntry.getThreadId();
         }
       }
-      if (!renderedBlipPlacementMatches(entry.getBlipId(), expectedParent)) {
+      if (!renderedBlipPlacementMatches(entry.getBlipId(), expectedParent, expectedThread)) {
         return false;
       }
     }
     return true;
   }
 
-  private boolean renderedBlipPlacementMatches(String blipId, String expectedParent) {
+  private boolean renderedBlipPlacementMatches(
+      String blipId, String expectedParent, String expectedThread) {
     Element element = renderedSurface.querySelector("[data-blip-id=\"" + blipId + "\"]");
     if (element == null) {
       return false;
     }
     String parent = expectedParent == null ? "" : expectedParent;
+    String threadId = expectedThread == null ? "" : expectedThread;
     Element thread =
         element.parentElement == null || !element.parentElement.hasAttribute("data-parent-blip-id")
             ? null
@@ -1101,7 +1105,9 @@ public final class J2clReadSurfaceDomRenderer {
     if (parent.isEmpty()) {
       return thread == null;
     }
-    return thread != null && parent.equals(thread.getAttribute("data-parent-blip-id"));
+    return thread != null
+        && parent.equals(thread.getAttribute("data-parent-blip-id"))
+        && threadId.equals(rawThreadIdForHost(parent, thread));
   }
 
   private static Map<String, HTMLElement> collectRenderedBlipHosts(HTMLElement surface) {

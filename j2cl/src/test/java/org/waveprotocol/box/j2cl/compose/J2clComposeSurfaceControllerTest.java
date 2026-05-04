@@ -59,7 +59,8 @@ public class J2clComposeSurfaceControllerTest {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
-        newController(gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+        newController(
+            gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
 
     controller.start();
     controller.onSelectedWaveComposeContextChanged(
@@ -2076,6 +2077,46 @@ public class J2clComposeSurfaceControllerTest {
     Assert.assertEquals(3, gateway.submitCalls);
     Assert.assertFalse(gateway.lastSubmitRequest.getDeltaJson().contains("fontWeight"));
     assertContains(gateway.lastSubmitRequest.getDeltaJson(), "\"2\":\"Plain after retry\"");
+  }
+
+  @Test
+  public void replySubmitClosesActiveComposerOnlyAfterSuccess() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+
+    controller.onReplySubmitted("Reply");
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    Assert.assertEquals(1, view.closeActiveReplyComposerCalls);
+    Assert.assertEquals("", view.model.getReplyDraft());
+    Assert.assertEquals("", view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void replySubmitFailureKeepsActiveComposerOpenForRetry() {
+    FakeGateway gateway = new FakeGateway();
+    gateway.submitResponse = new SidecarSubmitResponse(0, "server rejected", 0L);
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(
+            gateway, view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+
+    controller.start();
+    controller.onWriteSessionChanged(
+        new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
+
+    controller.onReplySubmitted("Retry me");
+
+    Assert.assertEquals(1, gateway.submitCalls);
+    Assert.assertEquals(0, view.closeActiveReplyComposerCalls);
+    Assert.assertEquals("Retry me", view.model.getReplyDraft());
+    Assert.assertEquals("server rejected", view.model.getReplyErrorText());
   }
 
   @Test
@@ -4662,6 +4703,7 @@ public class J2clComposeSurfaceControllerTest {
     private int focusReplyComposerCalls;
     private int focusCreateSurfaceCalls;
     private int focusCreateComposerCalls;
+    private int closeActiveReplyComposerCalls;
 
     @Override
     public void bind(J2clComposeSurfaceController.Listener listener) {
@@ -4680,6 +4722,11 @@ public class J2clComposeSurfaceControllerTest {
     @Override
     public void focusReplyComposer() {
       focusReplyComposerCalls++;
+    }
+
+    @Override
+    public void closeActiveReplyComposer() {
+      closeActiveReplyComposerCalls++;
     }
 
     @Override

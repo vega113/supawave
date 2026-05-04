@@ -48,6 +48,12 @@ public final class J2clComposeSurfaceController {
     void focusReplyComposer();
 
     /**
+     * Close the active inline reply composer after the controller has confirmed
+     * the submit succeeded. Default no-op preserves legacy view doubles.
+     */
+    default void closeActiveReplyComposer() {}
+
+    /**
      * J-UI-3 (#1081, R-5.1): focus the title input on the create form so
      * the rail's New Wave button gives the user an immediate place to type.
      * Default no-op so existing test doubles compile unchanged.
@@ -2208,6 +2214,7 @@ public final class J2clComposeSurfaceController {
     replyErrorText = "";
     replyStaleBasis = false;
     replyStaleWaveId = null;
+    view.closeActiveReplyComposer();
     render();
     if (replySuccessHandler != null
         && submitSession != null

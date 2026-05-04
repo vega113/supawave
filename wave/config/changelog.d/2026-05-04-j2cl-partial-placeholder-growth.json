@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-04-j2cl-partial-placeholder-growth",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL inline thread lazy-load parity",
+  "summary": "Fixes J2CL inline-thread lazy loading when the next loading sentinel is only partially visible, matching the GWT expectation that visible inline replies continue loading without manual page-bottom scrolling.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Triggers viewport fragment growth for any visibly intersecting loading placeholder while preserving the stricter visibility threshold used for marking real blips read.",
+        "Keeps the active inline composer mounted when viewport fragment growth rebuilds the target blip, so mention typing and reply drafting survive lazy-loaded inline thread updates."
+      ]
+    }
+  ]
+}

@@ -226,6 +226,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       DomGlobal.document.body.addEventListener(
           "wavy-composer-cancelled",
           event -> closeInlineComposer(eventDetailString(event, "replyTargetBlipId")));
+      DomGlobal.document.body.addEventListener(
+          "wavy-read-surface-rendered",
+          event -> ensureActiveInlineComposerMounted(activeInlineComposer()));
     }
 
     // F-3.S2 (#1038): mention popover + per-blip task affordance events.
@@ -413,6 +416,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     // composers display and submit against the wrong target.
     HTMLElement composer = activeInlineComposer();
     if (composer != null) {
+      ensureActiveInlineComposerMounted(composer);
       mirrorComposerState(composer, model);
     }
   }
@@ -569,6 +573,31 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   private HTMLElement activeInlineComposer() {
     return inlineComposers.get(activeInlineComposerKey);
+  }
+
+  @Override
+  public void closeActiveReplyComposer() {
+    closeInlineComposer(activeInlineComposerKey);
+  }
+
+  private void ensureActiveInlineComposerMounted(HTMLElement composer) {
+    if (composer == null || composer.isConnected) {
+      return;
+    }
+    HTMLElement mountPoint = locateInlineMountPoint(activeInlineComposerKey);
+    if (mountPoint != null) {
+      mountPoint.appendChild(composer);
+      composer.dispatchEvent(new Event("composer-focus-request"));
+      return;
+    }
+    if (activeInlineComposerKey != null && !activeInlineComposerKey.isEmpty()) {
+      closeInlineComposer(activeInlineComposerKey);
+      return;
+    }
+    if (replyElement.parentNode != null) {
+      replyElement.parentNode.appendChild(composer);
+      composer.dispatchEvent(new Event("composer-focus-request"));
+    }
   }
 
   private HTMLElement locateInlineMountPoint(String blipId) {

@@ -2717,6 +2717,76 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderWindowRequestsGrowthForPartiallyVisibleTrailingPlaceholder() {
+    assumeBrowserDom();
+    currentStyle = (HTMLElement) DomGlobal.document.createElement("style");
+    currentStyle.textContent =
+        ".j2cl-read-blip{display:block;height:90px;}"
+            + ".j2cl-read-viewport-placeholder{display:block;height:100px;}";
+    DomGlobal.document.head.appendChild(currentStyle);
+    HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 100px; overflow-y: auto;");
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    final String[] requested = new String[2];
+    renderer.setViewportEdgeListener(
+        (anchorBlipId, direction) -> {
+          requested[0] = anchorBlipId;
+          requested[1] = direction;
+        });
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder(
+                    "blip:b+missing", 36L, 40L, "b+missing"))));
+
+    Assert.assertEquals("b+missing", requested[0]);
+    Assert.assertEquals(J2clViewportGrowthDirection.FORWARD, requested[1]);
+  }
+
+  @Test
+  public void renderWindowRechecksVisiblePlaceholdersAfterLayoutSettles() {
+    assumeBrowserDom();
+    currentStyle = (HTMLElement) DomGlobal.document.createElement("style");
+    currentStyle.textContent =
+        ".j2cl-read-blip{display:block;height:300px;}"
+            + ".j2cl-read-viewport-placeholder{display:block;height:0;}";
+    DomGlobal.document.head.appendChild(currentStyle);
+    HTMLDivElement host = createHost();
+    host.setAttribute("style", "height: 100px; overflow-y: auto;");
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    FakeScheduler scheduler = new FakeScheduler();
+    renderer.setDwellTimerSchedulerForTesting(scheduler);
+    final String[] requested = new String[2];
+    renderer.setViewportEdgeListener(
+        (anchorBlipId, direction) -> {
+          requested[0] = anchorBlipId;
+          requested[1] = direction;
+        });
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root", 30L, 36L, "b+root", "Root text"),
+                J2clReadWindowEntry.placeholder(
+                    "blip:b+missing", 36L, 40L, "b+missing"))));
+    Assert.assertNull(requested[0]);
+    Assert.assertEquals(1, scheduler.scheduled.size());
+
+    currentStyle.textContent =
+        ".j2cl-read-blip{display:block;height:300px;}"
+            + ".j2cl-read-viewport-placeholder{display:block;height:100px;}";
+    host.scrollTop = 250;
+    scheduler.fireNext();
+
+    Assert.assertEquals("b+missing", requested[0]);
+    Assert.assertEquals(J2clViewportGrowthDirection.FORWARD, requested[1]);
+  }
+
+  @Test
   public void renderWindowSkipsPendingGrowthReplayWhenListenerIsCleared() throws Exception {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
@@ -3405,5 +3475,26 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertTrue(
         "expand should re-dispatch focus-changed when focus is visible",
         focusChangedCount[0] > afterCollapse);
+  }
+
+  private static final class FakeScheduler
+      implements J2clReadSurfaceDomRenderer.DwellTimerScheduler {
+    final List<Runnable> scheduled = new ArrayList<Runnable>();
+
+    @Override
+    public Object schedule(int delayMs, Runnable action) {
+      scheduled.add(action);
+      return action;
+    }
+
+    @Override
+    public void cancel(Object handle) {
+      scheduled.remove(handle);
+    }
+
+    void fireNext() {
+      Assert.assertFalse(scheduled.isEmpty());
+      scheduled.remove(0).run();
+    }
   }
 }

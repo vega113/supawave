@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-04-j2cl-editor-shortcut-guard",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL editor shortcuts stay scoped while composing",
+  "summary": "Wave-level keyboard shortcuts no longer open version history while editing a blip in the J2CL wave view.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Suppresses the J2CL wave navigation version-history shortcut when the key event originates from a composed-path editor target, including Lit shadow-DOM composer events."
+      ]
+    }
+  ]
+}

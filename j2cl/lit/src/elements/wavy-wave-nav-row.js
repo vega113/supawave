@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { getWaveActionIcon } from "../icons/wave-action-bar-icons.js";
+import { isEditableTarget } from "../shortcuts/keybindings.js";
 
 /**
  * <wavy-wave-nav-row> — F-2 (#1037, R-3.4; slice 2 #1046) wave-level nav
@@ -220,16 +221,8 @@ export class WavyWaveNavRow extends LitElement {
     if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
-    const target = event.target;
-    if (target && target.nodeType === 1) {
-      const tag = target.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        target.isContentEditable === true
-      ) {
-        return;
-      }
+    if (isEditableTarget(event)) {
+      return;
     }
     event.preventDefault();
     this._emit("wave-nav-version-history-requested", { keyboard: true });

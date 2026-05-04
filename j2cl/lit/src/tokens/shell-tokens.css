@@ -17,6 +17,13 @@
   --shell-font-ui: Arial, Helvetica, sans-serif;
 }
 
+html.j2cl-root-shell-page,
+html:has(body.j2cl-root-shell-page) {
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
 body.j2cl-root-shell-page {
   margin: 0;
   height: 100%;

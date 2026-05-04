@@ -220,7 +220,7 @@ describe("dispatchFocusedBlipDepth", () => {
   it("dispatches drill-in for the focused blip", async () => {
     const root = await fixture(html`
       <div data-j2cl-read-surface="true">
-        <wave-blip data-blip-id="b1"></wave-blip>
+        <wave-blip data-blip-id="b1" data-wave-id="w1"></wave-blip>
       </div>
     `);
     const blip = root.querySelector("wave-blip");
@@ -230,7 +230,7 @@ describe("dispatchFocusedBlipDepth", () => {
       detail = event.detail;
     });
     expect(dispatchFocusedBlipDepth("in", root)).to.equal(true);
-    expect(detail).to.deep.equal({ blipId: "b1" });
+    expect(detail).to.deep.equal({ blipId: "b1", waveId: "w1" });
   });
 
   it("dispatches depth-up with the parent depth id from the host", async () => {

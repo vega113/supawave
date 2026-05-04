@@ -531,6 +531,13 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
   public void testRootShellOwnsViewportHeightWithoutBodyScrollbar() {
     String css = readSourceFile("j2cl/lit/src/tokens/shell-tokens.css");
     assertTrue(
+        "J2CL root html element must hide document scrolling in standards-mode browsers.",
+        java.util.regex.Pattern.compile(
+                "html\\.j2cl-root-shell-page,\\s*html:has\\(body\\.j2cl-root-shell-page\\)"
+                    + "\\s*\\{[^}]*\\boverflow\\s*:\\s*hidden\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
         "J2CL root body must hide document scrolling so the wave panel has one scroll owner.",
         java.util.regex.Pattern.compile(
                 "body\\.j2cl-root-shell-page\\s*\\{[^}]*\\boverflow\\s*:\\s*hidden\\s*;")

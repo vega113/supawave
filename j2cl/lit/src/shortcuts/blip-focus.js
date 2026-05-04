@@ -172,12 +172,13 @@ export function dispatchFocusedBlipDepth(direction, root = document) {
   if (!surface) return false;
   if (direction === "in") {
     const blipId = focused ? focused.getAttribute("data-blip-id") || "" : "";
+    const waveId = focused ? focused.getAttribute("data-wave-id") || "" : "";
     if (!blipId) return false;
     surface.dispatchEvent(
       new CustomEvent("wavy-depth-drill-in", {
         bubbles: true,
         composed: true,
-        detail: { blipId }
+        detail: { blipId, waveId }
       })
     );
     return true;

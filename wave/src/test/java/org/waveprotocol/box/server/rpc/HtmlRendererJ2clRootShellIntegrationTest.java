@@ -509,16 +509,20 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         java.util.regex.Pattern.compile("[^{]*sidecar-selected-content[^{]*\\{([^}]*)\\}");
     java.util.regex.Matcher matcher = rulePattern.matcher(css);
     assertTrue("sidecar.css must define .sidecar-selected-content", matcher.find());
-    boolean anyOverflowY = false;
+    boolean anyOverflowYAuto = false;
     boolean anyMinHeightZero = false;
     do {
       String block = matcher.group(1);
-      if (block.contains("overflow-y")) anyOverflowY = true;
+      if (java.util.regex.Pattern.compile("overflow-y\\s*:\\s*auto\\s*;")
+          .matcher(block)
+          .find()) {
+        anyOverflowYAuto = true;
+      }
       if (block.contains("min-height: 0")) anyMinHeightZero = true;
     } while (matcher.find());
     assertTrue(
         "Selected wave content should be the single wave-panel vertical scroll owner.",
-        anyOverflowY);
+        anyOverflowYAuto);
     assertTrue(
         "Selected wave content must be allowed to shrink inside the shell grid before it scrolls.",
         anyMinHeightZero);

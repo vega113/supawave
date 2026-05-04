@@ -19,6 +19,7 @@
 
 body.j2cl-root-shell-page {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
   background: #ffffff;
   color: var(--shell-color-text-primary);

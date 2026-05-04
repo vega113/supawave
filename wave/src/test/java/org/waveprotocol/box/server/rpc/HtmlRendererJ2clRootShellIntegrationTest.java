@@ -503,6 +503,58 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             "element.setAttribute(\"posted-at\", blipLabel(blip.getBlipId()));"));
   }
 
+  public void testSelectedWaveContentDoesNotOwnNestedVerticalScrollbar() {
+    String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
+    java.util.regex.Pattern rulePattern =
+        java.util.regex.Pattern.compile("[^{]*sidecar-selected-content[^{]*\\{([^}]*)\\}");
+    java.util.regex.Matcher matcher = rulePattern.matcher(css);
+    assertTrue("sidecar.css must define .sidecar-selected-content", matcher.find());
+    boolean anyOverflowY = false;
+    boolean anyMaxHeight = false;
+    do {
+      String block = matcher.group(1);
+      if (block.contains("overflow-y")) anyOverflowY = true;
+      if (block.contains("max-height")) anyMaxHeight = true;
+    } while (matcher.find());
+    assertFalse(
+        "Selected wave content must not own an inner vertical scrollbar; the root page scrolls once.",
+        anyOverflowY);
+    assertFalse(
+        "Selected wave content must not clamp to viewport height; that creates a second wave-panel scrollbar.",
+        anyMaxHeight);
+  }
+
+  public void testReadSurfaceRendererUsesActiveScrollContainerForViewportLoading() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/read/"
+                + "J2clReadSurfaceDomRenderer.java");
+    assertTrue(
+        "Renderer must listen to page scroll events when selected wave content no longer owns a nested scrollbar.",
+        source.contains("DomGlobal.window.addEventListener(\"scroll\", this::onHostScroll);"));
+    assertTrue(
+        "Viewport edge loading must use host-relative edge helpers, not hard-coded host.scrollTop in onHostScroll.",
+        source.contains("if (isNearTopEdge())")
+            && source.contains("if (isNearBottomEdge())")
+            && source.contains("distanceFromViewportTop >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("distanceFromViewportTop <= EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains(
+                "host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight")
+            && source.contains("distanceFromViewportBottom >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("distanceFromViewportBottom <= EDGE_SCROLL_THRESHOLD_PX"));
+    assertTrue(
+        "Host-owned scroll path must be guarded by viewport intersection before arming edge/dwell logic.",
+        source.contains("hostIntersectsViewport()"));
+    assertTrue(
+        "Viewport dwell/placeholder math must clip page-level hosts to the visual viewport.",
+        source.contains("effectiveViewportBounds()"));
+    assertTrue(
+        "Tall-blip visibility must compare against actual viewport height, not the clipped host slice.",
+        source.contains("DomGlobal.window.innerHeight")
+            && source.contains("elementHeight > viewportHeight")
+            && source.contains("intersectHeight / viewportHeight >= VIEWPORT_INTERSECTION_THRESHOLD"));
+  }
+
   public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {
     // Gap 3: the toolbar controller used to call addEditActions on
     // every render, regardless of editState.editable. The view's
@@ -746,6 +798,15 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Both live and preserved render paths must gate detail visibility on errors",
         2,
         countOccurrences(source, "detail.hidden = !model.isError();"));
+    int unreadHelperStart = source.indexOf("private static String effectiveUnreadText");
+    assertTrue("J2clSelectedWaveView must define effectiveUnreadText", unreadHelperStart >= 0);
+    int unreadHelperEnd = source.indexOf("\n  @", unreadHelperStart);
+    String unreadHelper =
+        source.substring(
+            unreadHelperStart, unreadHelperEnd < 0 ? source.length() : unreadHelperEnd);
+    assertFalse(
+        "Selected-wave read-state text must not become visible through the debug overlay; GWT shows read state through highlighting.",
+        unreadHelper.contains("isDebugOverlayOn()"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

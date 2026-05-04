@@ -15,7 +15,7 @@ import "./wavy-task-affordance.js";
  *   (docs/j2cl-plugin-slots.md) reflects them on `<wavy-blip-card>`.
  * - F-2 needs to layer on top: a header with the author display name
  *   + relative timestamp + full ISO datetime tooltip (F.1 / F.2 / F.3),
- *   a per-blip toolbar with Reply / Edit / Link / overflow that reveals
+   *   a per-blip toolbar with Reply / Edit / Delete / Link that reveals
  *   on focus or hover (F.4 / F.5 / F.6 / F.7), a compact thread affordance
  *   when the blip has children (F.10 + R-3.7 G.1 drill-in), and a `has-mention`
  *   reflection so the wave-nav-row can navigate by @-mentions (E.6 / E.7).
@@ -586,8 +586,6 @@ export class WaveBlip extends LitElement {
 
   render() {
     const tooltip = this.postedAtIso || this.postedAt;
-    const isRoot = this.blipDepth === "root";
-    const timestampSuffix = isRoot && this.postedAt ? " · root" : "";
     const palette = this._palette();
     const hasReplies = this.replyCount > 0;
     const visuallyFocused = this._visuallyFocused();
@@ -631,7 +629,7 @@ export class WaveBlip extends LitElement {
             title=${tooltip}
             datetime=${ifDefined(this.postedAtIso || undefined)}
           >
-            ${this.postedAt}${timestampSuffix}
+            ${this.postedAt}
           </time>
           <span class="toolbar" data-blip-toolbar-row="true">
           <wave-blip-toolbar

@@ -1,6 +1,7 @@
 html,
 body {
   margin: 0;
+  height: 100%;
   min-height: 100%;
   font-family: Arial, Helvetica, sans-serif;
   background: #ffffff;
@@ -281,9 +282,6 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
   display: grid;
   gap: 0;
   margin-top: 0;
-  max-height: calc(100vh - 110px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding-right: 0;
 }
 

@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-04-j2cl-wave-thread-scroll-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL wave thread and chrome parity",
+  "summary": "Tightens the J2CL wave panel so read-mode scrolling, inline-thread toggles, and blip chrome behave closer to the GWT wave view.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removes the nested selected-wave scrollbar so the wave panel has a single vertical scroll path.",
+        "Keeps inline-thread expand and collapse clicks from bubbling into blip focus/navigation handlers.",
+        "Hides inert blip overflow chrome, adds hover tooltips to wired blip actions, and removes read/root debug text from normal wave chrome."
+      ]
+    }
+  ]
+}

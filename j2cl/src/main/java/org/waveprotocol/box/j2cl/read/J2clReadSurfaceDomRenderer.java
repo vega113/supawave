@@ -238,6 +238,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     if (!scrollListenerBound) {
       host.addEventListener("scroll", this::onHostScroll);
+      DomGlobal.window.addEventListener("scroll", this::onHostScroll);
       scrollListenerBound = true;
     }
   }
@@ -290,6 +291,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     if (!scrollListenerBound) {
       host.addEventListener("scroll", this::onHostScroll);
+      DomGlobal.window.addEventListener("scroll", this::onHostScroll);
       scrollListenerBound = true;
     }
   }
@@ -316,9 +318,9 @@ public final class J2clReadSurfaceDomRenderer {
       cancelAllDwellTimers();
       return;
     }
-    DOMRect hostRect = host.getBoundingClientRect();
-    double viewportHeight = hostRect.height;
-    if (viewportHeight <= 0) {
+    double[] effectiveHostBounds = effectiveViewportBounds();
+    double effectiveHostHeight = effectiveHostBounds[3] - effectiveHostBounds[1];
+    if (effectiveHostHeight <= 0) {
       // Off-screen / detached host — no point scheduling.
       cancelAllDwellTimers();
       return;
@@ -341,7 +343,7 @@ public final class J2clReadSurfaceDomRenderer {
       if (markBlipReadInFlight.contains(blipId)) {
         continue;
       }
-      if (!isBlipInViewport(blip, hostRect)) {
+      if (!isBlipInViewport(blip, effectiveHostBounds)) {
         continue;
       }
       visibleUnreadIds.add(blipId);
@@ -388,7 +390,7 @@ public final class J2clReadSurfaceDomRenderer {
     if (blipEl == null
         || !blipEl.hasAttribute("unread")
         || isHiddenByCollapsedThread(blipEl)
-        || !isBlipInViewport(blipEl, host.getBoundingClientRect())) {
+        || !isBlipInViewport(blipEl, effectiveViewportBounds())) {
       releaseGate.run();
       return;
     }
@@ -442,6 +444,96 @@ public final class J2clReadSurfaceDomRenderer {
     if (elementHeight > hostHeight
         && hostHeight > 0
         && intersectHeight / hostHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Clips a host DOMRect to the visual viewport (window bounds) and returns the
+   * effective bounds as a {@code double[4]} in {@code [left, top, right, bottom]}
+   * order. When the host is a page-level non-scrolling container, its raw
+   * {@code getBoundingClientRect()} may span the full document height; clamping
+   * it to {@code window.innerHeight} / {@code window.innerWidth} ensures only
+   * the currently-visible slice is treated as the effective viewport.
+   */
+  private static double[] clipRectToViewport(DOMRect hostRect) {
+    double vpLeft = 0;
+    double vpTop = 0;
+    double vpRight = DomGlobal.window.innerWidth;
+    double vpBottom = DomGlobal.window.innerHeight;
+    double left = Math.max(hostRect.left, vpLeft);
+    double top = Math.max(hostRect.top, vpTop);
+    double right = Math.min(hostRect.right, vpRight);
+    double bottom = Math.min(hostRect.bottom, vpBottom);
+    return new double[] {left, top, right, bottom};
+  }
+
+  private double[] effectiveViewportBounds() {
+    return clipRectToViewport(host.getBoundingClientRect());
+  }
+
+  private boolean hostOwnsVerticalScroll() {
+    return host.scrollHeight > host.clientHeight + 1;
+  }
+
+  private boolean hostIntersectsViewport() {
+    double[] bounds = clipRectToViewport(host.getBoundingClientRect());
+    return bounds[2] > bounds[0] && bounds[3] > bounds[1];
+  }
+
+  /**
+   * Overload of {@link #isBlipInViewport(HTMLElement, DOMRect)} that accepts an
+   * effective host bounds array ({@code [left, top, right, bottom]}) produced by
+   * {@link #clipRectToViewport}. Used when the host element is not a scroll
+   * container and the raw DOMRect must be clipped to the visual viewport first.
+   */
+  private static boolean isBlipInViewport(HTMLElement blip, double[] effectiveBounds) {
+    return isElementInViewport(blip, effectiveBounds);
+  }
+
+  /**
+   * Overload of {@link #isElementInViewport(HTMLElement, DOMRect)} that accepts
+   * an effective host bounds array ({@code [left, top, right, bottom]}) as
+   * produced by {@link #clipRectToViewport}.
+   */
+  private static boolean isElementInViewport(HTMLElement element, double[] hostBounds) {
+    DOMRect elementRect = element.getBoundingClientRect();
+    double elementHeight = elementRect.height;
+    double elementWidth = elementRect.width;
+    if (elementHeight <= 0 || elementWidth <= 0) {
+      return false;
+    }
+    double hLeft = hostBounds[0];
+    double hTop = hostBounds[1];
+    double hRight = hostBounds[2];
+    double hBottom = hostBounds[3];
+    double hHeight = Math.max(0, hBottom - hTop);
+    double intersectTop = Math.max(elementRect.top, hTop);
+    double intersectBottom = Math.min(elementRect.bottom, hBottom);
+    double intersectHeight = intersectBottom - intersectTop;
+    if (intersectHeight <= 0) {
+      return false;
+    }
+    double intersectLeft = Math.max(elementRect.left, hLeft);
+    double intersectRight = Math.min(elementRect.right, hRight);
+    double intersectWidth = intersectRight - intersectLeft;
+    if (intersectWidth <= 0) {
+      return false;
+    }
+    double intersectArea = intersectHeight * intersectWidth;
+    double elementArea = elementHeight * elementWidth;
+    if (intersectArea / elementArea >= VIEWPORT_INTERSECTION_THRESHOLD) {
+      return true;
+    }
+    // Tall-blip exception: a blip taller than the viewport can never reach
+    // the area-ratio threshold. Use vertical coverage against the actual
+    // viewport height (not the clipped host slice) so a partially-visible host
+    // doesn't prematurely mark blips read on a tiny intersection.
+    double viewportHeight = DomGlobal.window.innerHeight;
+    if (elementHeight > viewportHeight
+        && viewportHeight > 0
+        && intersectHeight / viewportHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
       return true;
     }
     return false;
@@ -2070,7 +2162,13 @@ public final class J2clReadSurfaceDomRenderer {
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-label", "Collapse " + label);
     button.textContent = "\u2212";
-    button.addEventListener("click", event -> toggleThread(thread, button));
+    button.addEventListener(
+        "click",
+        event -> {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleThread(thread, button);
+        });
     thread.insertBefore(button, thread.firstChild);
   }
 
@@ -2402,14 +2500,13 @@ public final class J2clReadSurfaceDomRenderer {
     if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
       return;
     }
-    if (host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX) {
+    if (isNearTopEdge()) {
       lastScrollDirection = J2clViewportGrowthDirection.BACKWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
         return;
       }
     }
-    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
-    if (distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX) {
+    if (isNearBottomEdge()) {
       lastScrollDirection = J2clViewportGrowthDirection.FORWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
         return;
@@ -2420,11 +2517,46 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private boolean isNearEdge(String direction) {
-    if (J2clViewportGrowthDirection.isBackward(direction)) {
-      return host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+    return J2clViewportGrowthDirection.isBackward(direction) ? isNearTopEdge() : isNearBottomEdge();
+  }
+
+  private boolean isNearTopEdge() {
+    if (hostOwnsVerticalScroll()) {
+      return hostIntersectsViewport() && host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
-    return distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX;
+    double distanceFromViewportTop = host.getBoundingClientRect().top;
+    return distanceFromViewportTop >= -EDGE_SCROLL_THRESHOLD_PX
+        && distanceFromViewportTop <= EDGE_SCROLL_THRESHOLD_PX;
+  }
+
+  private boolean isNearBottomEdge() {
+    if (hostOwnsVerticalScroll()) {
+      return hostIntersectsViewport()
+          && host.scrollHeight - host.clientHeight - host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+    }
+    double distanceFromViewportBottom =
+        host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight;
+    return distanceFromViewportBottom >= -EDGE_SCROLL_THRESHOLD_PX
+        && distanceFromViewportBottom <= EDGE_SCROLL_THRESHOLD_PX;
+  }
+
+  private double activeScrollTop() {
+    return hostOwnsVerticalScroll() ? host.scrollTop : DomGlobal.window.pageYOffset;
+  }
+
+  private double activeClientHeight() {
+    return hostOwnsVerticalScroll() ? host.clientHeight : DomGlobal.window.innerHeight;
+  }
+
+  private double activeScrollHeight() {
+    if (hostOwnsVerticalScroll()) {
+      return host.scrollHeight;
+    }
+    HTMLElement documentElement = (HTMLElement) DomGlobal.document.documentElement;
+    HTMLElement body = DomGlobal.document.body;
+    double documentHeight = documentElement == null ? 0 : documentElement.scrollHeight;
+    double bodyHeight = body == null ? 0 : body.scrollHeight;
+    return Math.max(documentHeight, bodyHeight);
   }
 
   private void requestReachablePlaceholderAfterRender() {
@@ -2464,15 +2596,17 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private J2clReadWindowEntry visiblePlaceholder() {
-    DOMRect hostRect = host.getBoundingClientRect();
-    if (hostRect.height <= 0 || hostRect.width <= 0) {
+    double[] effectiveHostBounds = effectiveViewportBounds();
+    double effectiveHeight = effectiveHostBounds[3] - effectiveHostBounds[1];
+    double effectiveWidth = effectiveHostBounds[2] - effectiveHostBounds[0];
+    if (effectiveHeight <= 0 || effectiveWidth <= 0) {
       return null;
     }
     NodeList<Element> placeholders =
         host.querySelectorAll("[data-j2cl-viewport-placeholder='true']");
     for (int i = 0; i < placeholders.length; i++) {
       HTMLElement placeholderEl = (HTMLElement) placeholders.item(i);
-      if (placeholderEl == null || !isElementInViewport(placeholderEl, hostRect)) {
+      if (placeholderEl == null || !isElementInViewport(placeholderEl, effectiveHostBounds)) {
         continue;
       }
       String blipId = placeholderEl.getAttribute("data-placeholder-blip-id");
@@ -2550,7 +2684,15 @@ public final class J2clReadSurfaceDomRenderer {
     // Apply the layout delta to the browser's current scrollTop. This stays
     // correct whether the browser preserved scrollTop through the rebuild or
     // reset it while the old surface was detached.
-    host.scrollTop = Math.max(0, host.scrollTop + delta);
+    setActiveScrollTop(Math.max(0, activeScrollTop() + delta));
+  }
+
+  private void setActiveScrollTop(double scrollTop) {
+    if (hostOwnsVerticalScroll()) {
+      host.scrollTop = scrollTop;
+      return;
+    }
+    DomGlobal.window.scrollTo(DomGlobal.window.pageXOffset, scrollTop);
   }
 
   private void focusByOffset(int offset, String key) {

@@ -38,7 +38,7 @@ public class J2clSidecarRouteCodecTest {
     Assert.assertEquals("with:@", state.getQuery());
     Assert.assertEquals("example.com/w+abc123", state.getSelectedWaveId());
     Assert.assertEquals(
-        "?q=with%3A%40&wave=example.com%2Fw%2Babc123",
+        "?q=with%3A%40&wave=example.com%2Fw%2Babc123#example.com/w+abc123",
         J2clSidecarRouteCodec.toUrl(state));
   }
 
@@ -124,7 +124,9 @@ public class J2clSidecarRouteCodecTest {
         new J2clSidecarRouteState("with:@", "example.com/w+abc123", "b+leaf-blip");
     String url = J2clSidecarRouteCodec.toUrl(state);
     Assert.assertEquals(
-        "?q=with%3A%40&wave=example.com%2Fw%2Babc123&depth=b%2Bleaf-blip", url);
+        "?q=with%3A%40&wave=example.com%2Fw%2Babc123&depth=b%2Bleaf-blip"
+            + "#example.com/w+abc123&focus=b%2Bleaf-blip&slide-nav=1",
+        url);
   }
 
   @Test
@@ -145,7 +147,7 @@ public class J2clSidecarRouteCodecTest {
         new J2clSidecarRouteState("with:@", "example.com/w+abc123");
     String url = J2clSidecarRouteCodec.toUrl(state);
     Assert.assertEquals(
-        "?q=with%3A%40&wave=example.com%2Fw%2Babc123", url);
+        "?q=with%3A%40&wave=example.com%2Fw%2Babc123#example.com/w+abc123", url);
   }
 
   // --- J-UI-2 (#1080, R-4.5): folder + chip composition round-trips ---

@@ -55,6 +55,60 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void targetAwareReplySubmitUsesRequestedBlipSession() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onReplySubmitted("aa under 555", "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertEquals("b+child", factory.lastReplySession.getReplyTargetBlipId());
+    Assert.assertEquals(6, factory.lastReplySession.getReplyManifestInsertPosition());
+    Assert.assertEquals(12, factory.lastReplySession.getReplyManifestItemCount());
+    Assert.assertEquals("aa under 555", factory.lastDraftText);
+  }
+
+  @Test
+  public void targetAwareComponentReplySubmitKeepsRequestedBlipSession() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onReplySubmittedWithComponents(
+        Arrays.asList(
+            J2clComposeSurfaceController.SubmittedComponent.text("plain "),
+            J2clComposeSurfaceController.SubmittedComponent.annotated(
+                "bold", "fontWeight", "bold")),
+        "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertEquals("b+child", factory.lastReplySession.getReplyTargetBlipId());
+    Assert.assertEquals(6, factory.lastReplySession.getReplyManifestInsertPosition());
+    Assert.assertEquals(12, factory.lastReplySession.getReplyManifestItemCount());
+    Assert.assertEquals("plain bold", factory.lastDraftText);
+    Assert.assertEquals(2, factory.lastDocumentComponentCount);
+  }
+
+  @Test
   public void selectedWaveParticipantsRenderBeforeWriteSessionReady() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -4339,6 +4393,27 @@ public class J2clComposeSurfaceControllerTest {
         new J2clSidecarWriteSession("example.com/w+1", "chan-1", 44L, "ABCD", "b+root"));
   }
 
+  private static J2clSidecarWriteSession writeSessionWithReplyTargets() {
+    return new J2clSidecarWriteSession(
+        "example.com/w+1",
+        "chan-1",
+        44L,
+        "ABCD",
+        "b+root",
+        Arrays.asList("user@example.com"),
+        9,
+        12,
+        replyPositions("b+root", 9, "b+child", 6));
+  }
+
+  private static java.util.Map<String, Integer> replyPositions(
+      String firstBlipId, int firstPosition, String secondBlipId, int secondPosition) {
+    java.util.Map<String, Integer> positions = new java.util.LinkedHashMap<String, Integer>();
+    positions.put(firstBlipId, Integer.valueOf(firstPosition));
+    positions.put(secondBlipId, Integer.valueOf(secondPosition));
+    return positions;
+  }
+
   private static J2clComposeSurfaceController.AttachmentControllerFactory
       testAttachmentControllerFactory(FakeAttachmentTransport transport) {
     return (waveRef, domain, insertionCallback, stateChangeCallback) ->
@@ -4764,6 +4839,7 @@ public class J2clComposeSurfaceControllerTest {
     private List<String> lastAdditionalParticipants = Collections.emptyList();
     private String lastDraftText = null;
     private int lastDocumentComponentCount = -1;
+    private J2clSidecarWriteSession lastReplySession = null;
 
     @Override
     public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
@@ -4792,7 +4868,11 @@ public class J2clComposeSurfaceControllerTest {
         J2clSidecarWriteSession session,
         String draftText,
         org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {
-      throw new UnsupportedOperationException("Not needed by this test.");
+      lastReplySession = session;
+      lastDraftText = draftText;
+      lastDocumentComponentCount = componentCount(document);
+      return new SidecarSubmitRequest(
+          session.getSelectedWaveId() + "/~/conv+root", "{\"reply\":true}", session.getChannelId());
     }
 
     private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {

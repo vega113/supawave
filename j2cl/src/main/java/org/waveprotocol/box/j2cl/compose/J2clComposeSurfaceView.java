@@ -517,9 +517,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           List<J2clComposeSurfaceController.SubmittedComponent> components =
               decodeSubmittedComponents(event);
           if (components.isEmpty()) {
-            listener.onReplySubmitted(propertyString(composer, "draft"));
+            listener.onReplySubmitted(propertyString(composer, "draft"), key);
           } else {
-            listener.onReplySubmittedWithComponents(components);
+            listener.onReplySubmittedWithComponents(components, key);
           }
         });
     composer.addEventListener(

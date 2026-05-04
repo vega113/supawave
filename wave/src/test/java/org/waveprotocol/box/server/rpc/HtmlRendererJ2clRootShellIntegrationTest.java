@@ -533,8 +533,12 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Renderer must listen to page scroll events when selected wave content no longer owns a nested scrollbar.",
         source.contains("DomGlobal.window.addEventListener(\"scroll\", this::onHostScroll);"));
     assertTrue(
-        "Viewport edge loading must use the active scroll container, not hard-coded host.scrollTop.",
-        source.contains("activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX"));
+        "Viewport edge loading must use host-relative edge helpers, not hard-coded host.scrollTop in onHostScroll.",
+        source.contains("if (isNearTopEdge())")
+            && source.contains("if (isNearBottomEdge())")
+            && source.contains("host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains(
+                "host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight"));
     assertTrue(
         "Viewport dwell/placeholder math must clip page-level hosts to the visual viewport.",
         source.contains("effectiveViewportBounds()"));

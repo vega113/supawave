@@ -1036,6 +1036,7 @@ public final class J2clReadSurfaceDomRenderer {
     renderedConversationManifest = conversationManifest;
     renderedBlips.clear();
     enhanceSurface(renderedSurface);
+    collapseAppendedThreadsForCollapsedParents(renderedSurface);
     // Do NOT call restoreCollapsedThreads here: on the append path the
     // existing DOM is reused, so threads retain their collapsed state
     // through enhanceSurface. Calling toggleThread on already-collapsed
@@ -1046,9 +1047,36 @@ public final class J2clReadSurfaceDomRenderer {
     if (!requestReachablePlaceholderAfterRender()) {
       schedulePostLayoutPlaceholderCheckIfNeeded();
     }
-    pruneStaleInFlightOnRebuild();
+    // The append path reuses existing blip nodes, so keep mark-read
+    // in-flight gates. Clearing them here would let evaluateDwellTimers
+    // send duplicate mark-read RPCs for already-visible unread blips.
     evaluateDwellTimers();
     return true;
+  }
+
+  private void collapseAppendedThreadsForCollapsedParents(HTMLElement surface) {
+    NodeList<Element> collapsedParents =
+        surface.querySelectorAll("[data-blip-id][data-thread-collapsed='true']");
+    for (int i = 0; i < collapsedParents.length; i++) {
+      Element parent = collapsedParents.item(i);
+      if (parent == null) {
+        continue;
+      }
+      String parentId = parent.getAttribute("data-blip-id");
+      if (parentId == null || parentId.isEmpty()) {
+        continue;
+      }
+      List<HTMLElement> threads = inlineThreadsForParent(parentId);
+      for (HTMLElement thread : threads) {
+        if (thread == null || thread.classList.contains("j2cl-read-thread-collapsed")) {
+          continue;
+        }
+        HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
+        if (button != null) {
+          toggleThread(thread, button);
+        }
+      }
+    }
   }
 
   private boolean isRenderedWindowPrefix(List<J2clReadWindowEntry> entries) {

@@ -1004,6 +1004,32 @@ public class J2clReadSurfaceDomRendererTest {
     }
   }
 
+  private static void addMarkBlipReadInFlightForTest(
+      J2clReadSurfaceDomRenderer renderer, String blipId) {
+    try {
+      markBlipReadInFlightForTest(renderer).add(blipId);
+    } catch (Exception e) {
+      throw new AssertionError("failed to seed mark-read in-flight state", e);
+    }
+  }
+
+  private static boolean markBlipReadInFlightContainsForTest(
+      J2clReadSurfaceDomRenderer renderer, String blipId) {
+    try {
+      return markBlipReadInFlightForTest(renderer).contains(blipId);
+    } catch (Exception e) {
+      throw new AssertionError("failed to read mark-read in-flight state", e);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static java.util.Set<String> markBlipReadInFlightForTest(
+      J2clReadSurfaceDomRenderer renderer) throws Exception {
+    Field field = J2clReadSurfaceDomRenderer.class.getDeclaredField("markBlipReadInFlight");
+    field.setAccessible(true);
+    return (java.util.Set<String>) field.get(renderer);
+  }
+
   @Test
   public void collapsingWithoutFocusedBlipSanitizesHiddenTabStop() {
     assumeBrowserDom();
@@ -2354,6 +2380,89 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals(rootNode, DomGlobal.document.activeElement);
     Assert.assertEquals("reply", blip(host, "b+reply").getAttribute("data-blip-depth"));
     Assert.assertEquals("1", blip(host, "b+root").getAttribute("reply-count"));
+  }
+
+  @Test
+  public void appendingSiblingThreadKeepsCollapsedParentState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry root =
+        J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text");
+    J2clReadWindowEntry firstReply =
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+first",
+            36L,
+            37L,
+            "b+first",
+            "First reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "b+root",
+            /* threadId= */ "t+first",
+            /* unread= */ false,
+            /* hasMention= */ false);
+    J2clReadWindowEntry secondReply =
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+second",
+            37L,
+            38L,
+            "b+second",
+            "Second reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "b+root",
+            /* threadId= */ "t+second",
+            /* unread= */ false,
+            /* hasMention= */ false);
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root, firstReply)));
+    dispatchThreadToggle(blip(host, "b+root"), "b+root");
+    Assert.assertEquals("true", blip(host, "b+root").getAttribute("data-thread-collapsed"));
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root, firstReply, secondReply)));
+
+    HTMLElement secondThread =
+        (HTMLElement) host.querySelector(".inline-thread[data-thread-id='b+root::t+second']");
+    Assert.assertNotNull(secondThread);
+    Assert.assertTrue(secondThread.classList.contains("j2cl-read-thread-collapsed"));
+    Assert.assertEquals("true", secondThread.getAttribute("data-j2cl-thread-collapsed"));
+    Assert.assertEquals("2", blip(host, "b+root").getAttribute("reply-count"));
+  }
+
+  @Test
+  public void appendingWindowEntryKeepsMarkReadInFlightGate() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clReadWindowEntry root =
+        J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text");
+    J2clReadWindowEntry reply =
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+reply",
+            36L,
+            37L,
+            "b+reply",
+            "Submitted reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "b+root",
+            /* threadId= */ "t+reply",
+            /* unread= */ false,
+            /* hasMention= */ false);
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root)));
+    addMarkBlipReadInFlightForTest(renderer, "b+root");
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(root, reply)));
+
+    Assert.assertTrue(markBlipReadInFlightContainsForTest(renderer, "b+root"));
   }
 
   @Test

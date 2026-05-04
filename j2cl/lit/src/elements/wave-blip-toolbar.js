@@ -2,8 +2,7 @@ import { LitElement, css, html } from "lit";
 
 /**
  * <wave-blip-toolbar> — F-2 (#1037, R-3.1) per-blip action toolbar that
- * surfaces Reply (F.4), Edit (F.5), Link (F.7), Delete (F.6), and the
- * overflow trigger (future F-3 actions).
+ * surfaces Reply (F.4), Edit (F.5), Delete (F.6), and Link (F.7).
  *
  * F-3.S4 (#1038, R-5.6): the Delete button now emits a dedicated
  * `wave-blip-toolbar-delete` event so the compose surface can route
@@ -109,6 +108,7 @@ export class WaveBlipToolbar extends LitElement {
         type="button"
         data-toolbar-action="reply"
         aria-label="Reply to this blip"
+        title="Reply to this blip"
         @click=${() => this._emit("wave-blip-toolbar-reply")}
       >
         <span class="glyph" aria-hidden="true">↩</span><span class="label">Reply</span>
@@ -117,6 +117,7 @@ export class WaveBlipToolbar extends LitElement {
         type="button"
         data-toolbar-action="edit"
         aria-label="Edit this blip"
+        title="Edit this blip"
         @click=${() => this._emit("wave-blip-toolbar-edit")}
       >
         <span class="glyph" aria-hidden="true">✎</span><span class="label">Edit</span>
@@ -125,6 +126,7 @@ export class WaveBlipToolbar extends LitElement {
         type="button"
         data-toolbar-action="delete"
         aria-label="Delete this blip"
+        title="Delete this blip"
         @click=${() => this._emit("wave-blip-toolbar-delete")}
       >
         <span class="glyph" aria-hidden="true">✕</span><span class="label">Delete</span>
@@ -133,18 +135,10 @@ export class WaveBlipToolbar extends LitElement {
         type="button"
         data-toolbar-action="link"
         aria-label="Copy permalink to this blip"
+        title="Copy permalink to this blip"
         @click=${() => this._emit("wave-blip-toolbar-link")}
       >
         <span class="glyph" aria-hidden="true">§</span><span class="label">Link</span>
-      </button>
-      <button
-        type="button"
-        data-toolbar-action="overflow"
-        aria-label="More blip actions"
-        aria-haspopup="menu"
-        @click=${() => this._emit("wave-blip-toolbar-overflow")}
-      >
-        <span class="glyph" aria-hidden="true">⋯</span><span class="label">More</span>
       </button>
     `;
   }

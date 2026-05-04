@@ -91,6 +91,33 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void threadToggleClickDoesNotBubbleIntoBlipNavigation() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\" data-wave-id=\"example.com/w+1\">"
+            + "<div class=\"conversation\" data-conv-id=\"c+root\">"
+            + "<div class=\"thread\" data-thread-id=\"t+root\">"
+            + "<div class=\"blip\" data-blip-id=\"b+root\">Root</div>"
+            + "<div class=\"inline-thread\" data-thread-id=\"t+inline\">"
+            + "<div class=\"blip\" data-blip-id=\"b+reply\">Reply</div>"
+            + "</div></div></div></div>";
+    final int[] bubbledClicks = {0};
+    host.addEventListener("click", evt -> bubbledClicks[0]++);
+
+    Assert.assertTrue(new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface());
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".j2cl-read-thread-toggle");
+
+    toggle.click();
+
+    Assert.assertEquals(
+        "Inline-thread toggle clicks must not bubble into blip focus/navigation handlers.",
+        0,
+        bubbledClicks[0]);
+  }
+
+  @Test
   public void enhanceExistingSurfaceIsIdempotentForThreadToggles() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

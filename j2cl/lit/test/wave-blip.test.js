@@ -227,6 +227,22 @@ describe("<wave-blip>", () => {
     expect(time.getAttribute("datetime")).to.equal("2026-04-26T12:00:00Z");
   });
 
+  it("does not append root-depth debug text to the visible timestamp", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b9r"
+        data-wave-id="w9"
+        author-name="E"
+        posted-at="5m ago"
+        data-blip-depth="root"
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    const time = el.renderRoot.querySelector("time.posted");
+    expect(time.textContent.trim()).to.equal("5m ago");
+    expect(time.textContent).to.not.include("root");
+  });
+
   it("omits the datetime attribute entirely when postedAtIso is empty", async () => {
     // Empty datetime="" is invalid HTML and confuses ATs / validators. The
     // wrapper must skip the attribute (via lit's ifDefined directive)
@@ -564,7 +580,7 @@ describe("<wave-blip>", () => {
       expect(chevron.textContent.trim()).to.equal("▸"); // ▸
     });
 
-    it("root-depth blip appends ' · root' to the timestamp text", async () => {
+    it("root-depth blip keeps the timestamp free of debug depth text", async () => {
       const el = await fixture(html`
         <wave-blip
           data-blip-id="b44"
@@ -577,7 +593,8 @@ describe("<wave-blip>", () => {
       await el.updateComplete;
       const time = el.renderRoot.querySelector("time.posted");
       expect(time.textContent).to.contain("2 hours ago");
-      expect(time.textContent).to.contain("· root");
+      expect(time.textContent).to.not.contain("· root");
+      expect(time.textContent).to.not.contain("root");
     });
 
     it("reply-depth blip omits the root suffix", async () => {

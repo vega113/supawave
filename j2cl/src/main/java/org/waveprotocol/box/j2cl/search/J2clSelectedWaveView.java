@@ -1413,36 +1413,22 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     }
   }
 
-  // V-2 (#1100): the "Read." / "Selected digest is read." status words
-  // are dev-only; suppress them from the wave header unless the
-  // j2cl-debug-overlay flag is on (HtmlRenderer adds .j2cl-debug-overlay-on
-  // to <body> in that case, page-load-stable). Visible product text
-  // ("X unread.", "X unread in the selected digest.") flows through
-  // unchanged. The model's getUnreadText() is itself unchanged so
-  // existing tests and controllers still see the full string. The
-  // sentinel strings live in J2clSelectedWaveModel.formatUnreadText and
-  // resolveUnreadText — keep this list in lockstep.
+  // The "Read." / "Selected digest is read." words are model diagnostics,
+  // not wave chrome. GWT represents read state with blip/search highlighting,
+  // so suppress these strings even when the debug overlay flag is enabled.
+  // Visible product text ("X unread.", "X unread in the selected digest.")
+  // flows through unchanged. The model's getUnreadText() is itself unchanged
+  // so existing controllers still see the full string. The sentinel strings
+  // live in J2clSelectedWaveModel.formatUnreadText and resolveUnreadText.
   private static String effectiveUnreadText(J2clSelectedWaveModel model) {
     String text = model.getUnreadText();
     if (text == null || text.isEmpty()) {
       return "";
     }
-    if (isDebugOverlayOn()) {
-      return text;
-    }
     if ("Read.".equals(text) || "Selected digest is read.".equals(text)) {
       return "";
     }
     return text;
-  }
-
-  // V-2 (#1100): true iff <body> carries `j2cl-debug-overlay-on`. Read
-  // afresh per render rather than cached so the helper stays trivial
-  // and the value still reflects the body class. Body is null in
-  // headless GwtTest environments.
-  private static boolean isDebugOverlayOn() {
-    HTMLElement body = (HTMLElement) DomGlobal.document.body;
-    return body != null && body.classList.contains("j2cl-debug-overlay-on");
   }
 
   @SuppressWarnings("unchecked")

@@ -2070,7 +2070,13 @@ public final class J2clReadSurfaceDomRenderer {
     button.setAttribute("aria-expanded", "true");
     button.setAttribute("aria-label", "Collapse " + label);
     button.textContent = "\u2212";
-    button.addEventListener("click", event -> toggleThread(thread, button));
+    button.addEventListener(
+        "click",
+        event -> {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleThread(thread, button);
+        });
     thread.insertBefore(button, thread.firstChild);
   }
 

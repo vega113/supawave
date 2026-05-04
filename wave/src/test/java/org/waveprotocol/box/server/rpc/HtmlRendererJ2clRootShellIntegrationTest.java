@@ -503,6 +503,21 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             "element.setAttribute(\"posted-at\", blipLabel(blip.getBlipId()));"));
   }
 
+  public void testSelectedWaveContentDoesNotOwnNestedVerticalScrollbar() {
+    String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
+    java.util.regex.Matcher matcher =
+        java.util.regex.Pattern.compile("\\.sidecar-selected-content\\s*\\{([^}]*)\\}")
+            .matcher(css);
+    assertTrue("sidecar.css must define .sidecar-selected-content", matcher.find());
+    String block = matcher.group(1);
+    assertFalse(
+        "Selected wave content must not own an inner vertical scrollbar; the root page scrolls once.",
+        block.contains("overflow-y"));
+    assertFalse(
+        "Selected wave content must not clamp to viewport height; that creates a second wave-panel scrollbar.",
+        block.contains("max-height"));
+  }
+
   public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {
     // Gap 3: the toolbar controller used to call addEditActions on
     // every render, regardless of editState.editable. The view's
@@ -746,6 +761,9 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Both live and preserved render paths must gate detail visibility on errors",
         2,
         countOccurrences(source, "detail.hidden = !model.isError();"));
+    assertFalse(
+        "Selected-wave read-state text must not become visible through the debug overlay; GWT shows read state through highlighting.",
+        source.contains("if (isDebugOverlayOn())"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

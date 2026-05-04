@@ -2609,10 +2609,14 @@ public final class J2clReadSurfaceDomRenderer {
       return;
     }
     postLayoutPlaceholderCheckPending = true;
+    final HTMLElement scheduledSurface = renderedSurface;
     dwellTimerScheduler.schedule(
         0,
         () -> {
           postLayoutPlaceholderCheckPending = false;
+          if (renderedSurface != scheduledSurface) {
+            return;
+          }
           requestVisiblePlaceholderIfAny();
         });
   }

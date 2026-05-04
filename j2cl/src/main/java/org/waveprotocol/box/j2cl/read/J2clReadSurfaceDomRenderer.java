@@ -154,6 +154,7 @@ public final class J2clReadSurfaceDomRenderer {
   private DwellTimerScheduler dwellTimerScheduler = defaultDwellTimerScheduler();
   private final Map<String, Object> dwellTimers = new HashMap<String, Object>();
   private final Set<String> markBlipReadInFlight = new HashSet<String>();
+  private boolean postLayoutPlaceholderCheckPending;
   // F-3.S3 (#1038, R-5.5): per-blip reaction summaries injected by the
   // view layer (J2clSelectedWaveView). Null binder means "no reactions
   // wiring yet" — the row is still mounted as an empty add-only state.
@@ -649,6 +650,7 @@ public final class J2clReadSurfaceDomRenderer {
     enhanceSurface(surface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
+    notifyReadSurfaceRendered();
     pruneStaleInFlightOnRebuild();
     evaluateDwellTimers();
     return true;
@@ -865,7 +867,10 @@ public final class J2clReadSurfaceDomRenderer {
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);
     restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
-    requestReachablePlaceholderAfterRender();
+    notifyReadSurfaceRendered();
+    if (!requestReachablePlaceholderAfterRender()) {
+      schedulePostLayoutPlaceholderCheckIfNeeded();
+    }
     pruneStaleInFlightOnRebuild();
     evaluateDwellTimers();
     return true;
@@ -2559,40 +2564,66 @@ public final class J2clReadSurfaceDomRenderer {
     return Math.max(documentHeight, bodyHeight);
   }
 
-  private void requestReachablePlaceholderAfterRender() {
+  private boolean requestReachablePlaceholderAfterRender() {
     if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
-      return;
+      return false;
     }
     if (lastScrollDirection != null && isNearEdge(lastScrollDirection)) {
       String pendingDirection = lastScrollDirection;
       lastScrollDirection = null;
       if (requestEdgeIfPlaceholder(pendingDirection)) {
-        return;
+        return true;
       }
     }
     if (edgePlaceholder(J2clViewportGrowthDirection.FORWARD) != null
         && isNearEdge(J2clViewportGrowthDirection.FORWARD)) {
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
-        return;
+        return true;
       }
     }
     if (edgePlaceholder(J2clViewportGrowthDirection.BACKWARD) != null
         && isNearEdge(J2clViewportGrowthDirection.BACKWARD)
         && requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
-      return;
+      return true;
     }
-    requestVisiblePlaceholderIfAny();
+    return requestVisiblePlaceholderIfAny();
   }
 
-  private void requestVisiblePlaceholderIfAny() {
+  private boolean requestVisiblePlaceholderIfAny() {
     if (viewportEdgeListener == null) {
-      return;
+      return false;
     }
     J2clReadWindowEntry placeholder = visiblePlaceholder();
     if (placeholder != null) {
       viewportEdgeListener.onViewportEdge(
           placeholder.getBlipId(), visiblePlaceholderDirection(placeholder));
+      return true;
     }
+    return false;
+  }
+
+  private void schedulePostLayoutPlaceholderCheckIfNeeded() {
+    if (viewportEdgeListener == null
+        || postLayoutPlaceholderCheckPending
+        || host.querySelector("[data-j2cl-viewport-placeholder='true']") == null) {
+      return;
+    }
+    postLayoutPlaceholderCheckPending = true;
+    dwellTimerScheduler.schedule(
+        0,
+        () -> {
+          postLayoutPlaceholderCheckPending = false;
+          requestVisiblePlaceholderIfAny();
+        });
+  }
+
+  private void notifyReadSurfaceRendered() {
+    if (renderedSurface == null) {
+      return;
+    }
+    CustomEventInit<Object> init = CustomEventInit.create();
+    init.setBubbles(true);
+    renderedSurface.dispatchEvent(new CustomEvent<Object>("wavy-read-surface-rendered", init));
   }
 
   private J2clReadWindowEntry visiblePlaceholder() {
@@ -2606,7 +2637,7 @@ public final class J2clReadSurfaceDomRenderer {
         host.querySelectorAll("[data-j2cl-viewport-placeholder='true']");
     for (int i = 0; i < placeholders.length; i++) {
       HTMLElement placeholderEl = (HTMLElement) placeholders.item(i);
-      if (placeholderEl == null || !isElementInViewport(placeholderEl, effectiveHostBounds)) {
+      if (placeholderEl == null || !isPlaceholderInViewport(placeholderEl, effectiveHostBounds)) {
         continue;
       }
       String blipId = placeholderEl.getAttribute("data-placeholder-blip-id");
@@ -2619,6 +2650,21 @@ public final class J2clReadSurfaceDomRenderer {
       }
     }
     return null;
+  }
+
+  private static boolean isPlaceholderInViewport(HTMLElement placeholder, double[] hostBounds) {
+    DOMRect rect = placeholder.getBoundingClientRect();
+    if (rect.height <= 0 || rect.width <= 0) {
+      return false;
+    }
+    double intersectTop = Math.max(rect.top, hostBounds[1]);
+    double intersectBottom = Math.min(rect.bottom, hostBounds[3]);
+    if (intersectBottom <= intersectTop) {
+      return false;
+    }
+    double intersectLeft = Math.max(rect.left, hostBounds[0]);
+    double intersectRight = Math.min(rect.right, hostBounds[2]);
+    return intersectRight > intersectLeft;
   }
 
   private String visiblePlaceholderDirection(J2clReadWindowEntry placeholder) {

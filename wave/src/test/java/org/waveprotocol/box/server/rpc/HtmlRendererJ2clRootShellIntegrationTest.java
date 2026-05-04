@@ -503,25 +503,52 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             "element.setAttribute(\"posted-at\", blipLabel(blip.getBlipId()));"));
   }
 
-  public void testSelectedWaveContentDoesNotOwnNestedVerticalScrollbar() {
+  public void testSelectedWaveContentOwnsOnlyWavePanelScrollbar() {
     String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
     java.util.regex.Pattern rulePattern =
         java.util.regex.Pattern.compile("[^{]*sidecar-selected-content[^{]*\\{([^}]*)\\}");
     java.util.regex.Matcher matcher = rulePattern.matcher(css);
     assertTrue("sidecar.css must define .sidecar-selected-content", matcher.find());
-    boolean anyOverflowY = false;
-    boolean anyMaxHeight = false;
+    boolean anyOverflowYAuto = false;
+    boolean anyMinHeightZero = false;
     do {
       String block = matcher.group(1);
-      if (block.contains("overflow-y")) anyOverflowY = true;
-      if (block.contains("max-height")) anyMaxHeight = true;
+      if (java.util.regex.Pattern.compile("overflow-y\\s*:\\s*auto\\s*;")
+          .matcher(block)
+          .find()) {
+        anyOverflowYAuto = true;
+      }
+      if (block.contains("min-height: 0")) anyMinHeightZero = true;
     } while (matcher.find());
-    assertFalse(
-        "Selected wave content must not own an inner vertical scrollbar; the root page scrolls once.",
-        anyOverflowY);
-    assertFalse(
-        "Selected wave content must not clamp to viewport height; that creates a second wave-panel scrollbar.",
-        anyMaxHeight);
+    assertTrue(
+        "Selected wave content should be the single wave-panel vertical scroll owner.",
+        anyOverflowYAuto);
+    assertTrue(
+        "Selected wave content must be allowed to shrink inside the shell grid before it scrolls.",
+        anyMinHeightZero);
+  }
+
+  public void testRootShellOwnsViewportHeightWithoutBodyScrollbar() {
+    String css = readSourceFile("j2cl/lit/src/tokens/shell-tokens.css");
+    assertTrue(
+        "J2CL root html element must hide document scrolling in standards-mode browsers.",
+        java.util.regex.Pattern.compile(
+                "html\\.j2cl-root-shell-page,\\s*html:has\\(body\\.j2cl-root-shell-page\\)"
+                    + "\\s*\\{[^}]*\\boverflow\\s*:\\s*hidden\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "J2CL root body must hide document scrolling so the wave panel has one scroll owner.",
+        java.util.regex.Pattern.compile(
+                "body\\.j2cl-root-shell-page\\s*\\{[^}]*\\boverflow\\s*:\\s*hidden\\s*;")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "Root shell must be constrained to the viewport height, not only min-height.",
+        java.util.regex.Pattern.compile(
+                "shell-root,\\s*shell-root-signed-out\\s*\\{[^}]*\\bheight\\s*:\\s*100vh\\s*;")
+            .matcher(css)
+            .find());
   }
 
   public void testReadSurfaceRendererUsesActiveScrollContainerForViewportLoading() {

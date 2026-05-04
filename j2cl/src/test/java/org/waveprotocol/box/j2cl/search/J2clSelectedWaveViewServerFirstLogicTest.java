@@ -129,7 +129,7 @@ public class J2clSelectedWaveViewServerFirstLogicTest {
 
     Assert.assertNull(hints.getStartBlipId());
     Assert.assertNull(hints.getDirection());
-    Assert.assertEquals(Integer.valueOf(0), hints.getLimit());
+    Assert.assertEquals(Integer.valueOf(12), hints.getLimit());
   }
 
   @Test
@@ -140,7 +140,7 @@ public class J2clSelectedWaveViewServerFirstLogicTest {
 
     Assert.assertNull(hints.getStartBlipId());
     Assert.assertNull(hints.getDirection());
-    Assert.assertEquals(Integer.valueOf(0), hints.getLimit());
+    Assert.assertEquals(Integer.valueOf(12), hints.getLimit());
   }
 
   @Test

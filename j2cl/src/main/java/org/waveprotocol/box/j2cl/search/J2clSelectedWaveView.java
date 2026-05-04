@@ -33,6 +33,16 @@ import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
+  /**
+   * Initial selected-wave viewport size for normal client-side opens.
+   *
+   * <p>The server default is intentionally conservative for fragment growth, but it is too small
+   * for the desktop wave panel: compact reply-chain waves can visibly fit more than five blips,
+   * leaving a reachable placeholder in a small wave until the user scrolls. Request one screen plus
+   * a short prefetch buffer so small/medium waves feel GWT-complete while large waves remain
+   * viewport-bounded and continue to grow lazily at the edges.
+   */
+  private static final int INITIAL_VIEWPORT_BLIP_LIMIT = 12;
   // Keep in sync with j2cl/lit/src/controllers/wave-action-bar-controller.js.
   // Java stamps model-published folder state; Lit also reconciles this marker
   // while handling source-wave-id reuse before Java publishes for a wave.
@@ -595,6 +605,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     FocusOptionsType focusOptions = FocusOptionsType.create();
     focusOptions.setPreventScroll(true);
     target.focus(focusOptions);
+    readSurface.markFocusedBlipReadNow(target);
     ScrollIntoViewOptions scrollOptions = ScrollIntoViewOptions.create();
     scrollOptions.setBlock("center");
     scrollOptions.setInline("nearest");
@@ -697,7 +708,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     title.textContent = model.getTitleText();
     String unreadText = effectiveUnreadText(model);
     unread.textContent = unreadText;
-    unread.hidden = unreadText.isEmpty();
+    unread.hidden = true;
     unread.className =
         model.isReadStateStale()
             ? "sidecar-selected-unread sidecar-selected-unread-stale"
@@ -1122,7 +1133,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
         && !anchor.isEmpty()) {
       return new SidecarViewportHints(anchor, J2clViewportGrowthDirection.FORWARD, null);
     }
-    return SidecarViewportHints.defaultLimit();
+    return new SidecarViewportHints(null, null, Integer.valueOf(INITIAL_VIEWPORT_BLIP_LIMIT));
   }
 
   private String serverFirstBlipAnchor() {
@@ -1144,7 +1155,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private void renderPreservedServerFirstState(J2clSelectedWaveModel model) {
     String unreadText = effectiveUnreadText(model);
     unread.textContent = unreadText;
-    unread.hidden = unreadText.isEmpty();
+    unread.hidden = true;
     unread.className =
         model.isReadStateStale()
             ? "sidecar-selected-unread sidecar-selected-unread-stale"

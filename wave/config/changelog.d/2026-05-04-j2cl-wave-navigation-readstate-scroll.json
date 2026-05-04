@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-04-j2cl-wave-navigation-readstate-scroll",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL wave navigation and read-state parity",
+  "summary": "Fixes remaining J2CL wave-panel parity gaps around single-scroll layout, explicit blip navigation, and read-state chrome.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Constrains the J2CL root shell to the viewport and makes the selected wave content the single vertical scroll owner.",
+        "Marks unread blips read immediately when the user focuses them via wave navigation or direct blip focus.",
+        "Hides text-only top read-state labels from the wave chrome while preserving unread counts in the navigation controls."
+      ]
+    }
+  ]
+}

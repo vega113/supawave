@@ -405,6 +405,44 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   /**
+   * Credits a user-directed focus/navigation action as an explicit read.
+   *
+   * <p>The dwell timer remains the passive scroll-through guard. Toolbar
+   * navigation, keyboard focus, and direct blip clicks are stronger signals:
+   * they intentionally target one blip, matching GWT's focused-blip read
+   * semantics and keeping the search digest unread badge responsive.
+   */
+  public boolean markFocusedBlipReadNow(HTMLElement blip) {
+    if (markBlipReadListener == null || blip == null || !blip.hasAttribute("unread")) {
+      return false;
+    }
+    String blipId = blip.getAttribute("data-blip-id");
+    if (blipId == null || blipId.isEmpty() || !markBlipReadInFlight.add(blipId)) {
+      return false;
+    }
+    Object handle = dwellTimers.remove(blipId);
+    if (handle != null) {
+      dwellTimerScheduler.cancel(handle);
+    }
+    blip.removeAttribute("unread");
+    Runnable restoreOnError =
+        () -> {
+          markBlipReadInFlight.remove(blipId);
+          if (renderedBlipById(blipId) == blip) {
+            blip.setAttribute("unread", "");
+            evaluateDwellTimers();
+          }
+        };
+    try {
+      markBlipReadListener.markBlipRead(blipId, restoreOnError);
+      return true;
+    } catch (Throwable t) {
+      restoreOnError.run();
+      return false;
+    }
+  }
+
+  /**
    * Visibility predicate used by {@link #evaluateDwellTimers}. A blip is
    * considered visible when the intersection rectangle covers ≥ 50 % of the
    * blip OR (for blips taller than the viewport) ≥ 50 % of the viewport height.
@@ -800,8 +838,8 @@ public final class J2clReadSurfaceDomRenderer {
               /* isTask= */ entry.isTask(),
               entry.getInlineReplyAnchors());
       HTMLElement blipElement = renderBlip(blip, blipIndex++);
-      // V-4 (#1102): mark blip depth so the larger root avatar paints
-      // and the timestamp picks up the ` · root` suffix. Check parent
+      // V-4 (#1102): mark blip depth so root/reply avatar sizing paints
+      // correctly without exposing implementation labels. Check parent
       // presence in winBlipHostsById to match the fallback in
       // resolveWinThreadTarget — a blip whose parent hasn't been inserted
       // yet will be placed at the root thread, so treat it as root.
@@ -2809,12 +2847,14 @@ public final class J2clReadSurfaceDomRenderer {
       return;
     }
     if (focusedBlip == next) {
+      markFocusedBlipReadNow(next);
       return;
     }
     clearFocusedBlip();
     focusedBlip = next;
     setFocusMarkers(focusedBlip);
     focusedBlip.setAttribute("tabindex", "0");
+    markFocusedBlipReadNow(focusedBlip);
     dispatchFocusChanged(focusedBlip, key);
   }
 

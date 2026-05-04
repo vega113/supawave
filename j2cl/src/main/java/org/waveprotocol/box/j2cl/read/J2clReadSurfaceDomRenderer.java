@@ -1034,6 +1034,7 @@ public final class J2clReadSurfaceDomRenderer {
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(effectiveEntries));
     renderedLiveBlips = Collections.<J2clReadBlip>emptyList();
     renderedConversationManifest = conversationManifest;
+    renderedBlips.clear();
     enhanceSurface(renderedSurface);
     restoreCollapsedThreads(previouslyCollapsedThreadIds);
     restoreFocusedBlipById(focusedBlipId);

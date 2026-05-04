@@ -505,17 +505,23 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
 
   public void testSelectedWaveContentDoesNotOwnNestedVerticalScrollbar() {
     String css = readSourceFile("j2cl/src/main/webapp/assets/sidecar.css");
-    java.util.regex.Matcher matcher =
-        java.util.regex.Pattern.compile("\\.sidecar-selected-content\\s*\\{([^}]*)\\}")
-            .matcher(css);
+    java.util.regex.Pattern rulePattern =
+        java.util.regex.Pattern.compile("[^{]*sidecar-selected-content[^{]*\\{([^}]*)\\}");
+    java.util.regex.Matcher matcher = rulePattern.matcher(css);
     assertTrue("sidecar.css must define .sidecar-selected-content", matcher.find());
-    String block = matcher.group(1);
+    boolean anyOverflowY = false;
+    boolean anyMaxHeight = false;
+    do {
+      String block = matcher.group(1);
+      if (block.contains("overflow-y")) anyOverflowY = true;
+      if (block.contains("max-height")) anyMaxHeight = true;
+    } while (matcher.find());
     assertFalse(
         "Selected wave content must not own an inner vertical scrollbar; the root page scrolls once.",
-        block.contains("overflow-y"));
+        anyOverflowY);
     assertFalse(
         "Selected wave content must not clamp to viewport height; that creates a second wave-panel scrollbar.",
-        block.contains("max-height"));
+        anyMaxHeight);
   }
 
   public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {

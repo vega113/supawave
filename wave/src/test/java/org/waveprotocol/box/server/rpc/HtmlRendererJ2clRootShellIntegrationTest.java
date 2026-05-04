@@ -537,8 +537,12 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         source.contains("if (isNearTopEdge())")
             && source.contains("if (isNearBottomEdge())")
             && source.contains("host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("host.getBoundingClientRect().top <= EDGE_SCROLL_THRESHOLD_PX")
             && source.contains(
                 "host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight"));
+    assertTrue(
+        "Host-owned scroll path must be guarded by viewport intersection before arming edge/dwell logic.",
+        source.contains("hostIntersectsViewport()"));
     assertTrue(
         "Viewport dwell/placeholder math must clip page-level hosts to the visual viewport.",
         source.contains("effectiveViewportBounds()"));

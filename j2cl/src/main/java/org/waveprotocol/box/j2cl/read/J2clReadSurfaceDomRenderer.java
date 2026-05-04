@@ -470,15 +470,16 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private double[] effectiveViewportBounds() {
-    DOMRect rawHostRect = host.getBoundingClientRect();
-    if (hostOwnsVerticalScroll()) {
-      return new double[] {rawHostRect.left, rawHostRect.top, rawHostRect.right, rawHostRect.bottom};
-    }
-    return clipRectToViewport(rawHostRect);
+    return clipRectToViewport(host.getBoundingClientRect());
   }
 
   private boolean hostOwnsVerticalScroll() {
     return host.scrollHeight > host.clientHeight + 1;
+  }
+
+  private boolean hostIntersectsViewport() {
+    double[] bounds = clipRectToViewport(host.getBoundingClientRect());
+    return bounds[2] > bounds[0] && bounds[3] > bounds[1];
   }
 
   /**
@@ -2520,14 +2521,16 @@ public final class J2clReadSurfaceDomRenderer {
 
   private boolean isNearTopEdge() {
     if (hostOwnsVerticalScroll()) {
-      return host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+      return hostIntersectsViewport() && host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    return host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX;
+    return host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX
+        && host.getBoundingClientRect().top <= EDGE_SCROLL_THRESHOLD_PX;
   }
 
   private boolean isNearBottomEdge() {
     if (hostOwnsVerticalScroll()) {
-      return host.scrollHeight - host.clientHeight - host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+      return hostIntersectsViewport()
+          && host.scrollHeight - host.clientHeight - host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
     return host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight
         <= EDGE_SCROLL_THRESHOLD_PX;

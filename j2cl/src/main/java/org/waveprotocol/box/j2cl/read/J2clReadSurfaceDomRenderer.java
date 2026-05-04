@@ -2523,8 +2523,9 @@ public final class J2clReadSurfaceDomRenderer {
     if (hostOwnsVerticalScroll()) {
       return hostIntersectsViewport() && host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    return host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX
-        && host.getBoundingClientRect().top <= EDGE_SCROLL_THRESHOLD_PX;
+    double distanceFromViewportTop = host.getBoundingClientRect().top;
+    return distanceFromViewportTop >= -EDGE_SCROLL_THRESHOLD_PX
+        && distanceFromViewportTop <= EDGE_SCROLL_THRESHOLD_PX;
   }
 
   private boolean isNearBottomEdge() {
@@ -2532,8 +2533,10 @@ public final class J2clReadSurfaceDomRenderer {
       return hostIntersectsViewport()
           && host.scrollHeight - host.clientHeight - host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    return host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight
-        <= EDGE_SCROLL_THRESHOLD_PX;
+    double distanceFromViewportBottom =
+        host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight;
+    return distanceFromViewportBottom >= -EDGE_SCROLL_THRESHOLD_PX
+        && distanceFromViewportBottom <= EDGE_SCROLL_THRESHOLD_PX;
   }
 
   private double activeScrollTop() {

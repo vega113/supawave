@@ -536,10 +536,12 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Viewport edge loading must use host-relative edge helpers, not hard-coded host.scrollTop in onHostScroll.",
         source.contains("if (isNearTopEdge())")
             && source.contains("if (isNearBottomEdge())")
-            && source.contains("host.getBoundingClientRect().top >= -EDGE_SCROLL_THRESHOLD_PX")
-            && source.contains("host.getBoundingClientRect().top <= EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("distanceFromViewportTop >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("distanceFromViewportTop <= EDGE_SCROLL_THRESHOLD_PX")
             && source.contains(
-                "host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight"));
+                "host.getBoundingClientRect().bottom - DomGlobal.window.innerHeight")
+            && source.contains("distanceFromViewportBottom >= -EDGE_SCROLL_THRESHOLD_PX")
+            && source.contains("distanceFromViewportBottom <= EDGE_SCROLL_THRESHOLD_PX"));
     assertTrue(
         "Host-owned scroll path must be guarded by viewport intersection before arming edge/dwell logic.",
         source.contains("hostIntersectsViewport()"));

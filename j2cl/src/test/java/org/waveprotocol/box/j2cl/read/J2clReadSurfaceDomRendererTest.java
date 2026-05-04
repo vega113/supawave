@@ -2326,8 +2326,20 @@ public class J2clReadSurfaceDomRendererTest {
     J2clReadWindowEntry root =
         J2clReadWindowEntry.loaded("blip:b+root", 30L, 36L, "b+root", "Root text");
     J2clReadWindowEntry reply =
-        J2clReadWindowEntry.loaded(
-            "blip:b+reply", 36L, 37L, "b+reply", "Submitted reply", "b+root", "t+reply");
+        J2clReadWindowEntry.loadedWithMetadata(
+            "blip:b+reply",
+            36L,
+            37L,
+            "b+reply",
+            "Submitted reply",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            /* authorId= */ "",
+            /* authorDisplayName= */ "",
+            /* lastModifiedTimeMillis= */ 0L,
+            /* parentBlipId= */ "b+root",
+            /* threadId= */ "t+reply",
+            /* unread= */ false,
+            /* hasMention= */ false);
 
     Assert.assertTrue(renderer.renderWindow(Arrays.asList(root)));
     HTMLElement rootNode = blip(host, "b+root");

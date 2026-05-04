@@ -354,6 +354,29 @@ describe("<wavy-wave-nav-row>", () => {
     expect(event.defaultPrevented).to.be.false;
   });
 
+  it("H keyboard ignored when an inner handler already prevented default", async () => {
+    const card = await fixture(
+      html`<section data-j2cl-selected-wave-host>
+        <wavy-wave-nav-row></wavy-wave-nav-row>
+      </section>`
+    );
+    const el = card.querySelector("wavy-wave-nav-row");
+    await el.updateComplete;
+    let fired = false;
+    el.addEventListener("wave-nav-version-history-requested", () => {
+      fired = true;
+    });
+    const event = new KeyboardEvent("keydown", {
+      key: "H",
+      bubbles: true,
+      cancelable: true
+    });
+    event.preventDefault();
+    card.dispatchEvent(event);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fired).to.be.false;
+  });
+
   it("H keyboard ignored when modifier (cmd/ctrl/alt) is held", async () => {
     const card = await fixture(
       html`<section data-j2cl-selected-wave-host>

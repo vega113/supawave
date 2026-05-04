@@ -215,7 +215,11 @@ export class WavyWaveNavRow extends LitElement {
   }
 
   _onKeyDown(event) {
-    if (!event || (event.key !== "H" && event.key !== "h")) {
+    if (
+      !event ||
+      event.defaultPrevented ||
+      (event.key !== "H" && event.key !== "h")
+    ) {
       return;
     }
     if (event.ctrlKey || event.metaKey || event.altKey) {

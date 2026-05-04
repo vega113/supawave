@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-04-j2cl-inline-thread-chevron-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-04",
+  "title": "J2CL inline reply chevrons match GWT",
+  "summary": "Inline reply controls in the J2CL wave view now expand and collapse replies in place instead of navigating away or showing stray per-thread plus controls.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changes the compact reply chevron to request inline thread expand/collapse instead of shell depth navigation.",
+        "Hides the generated per-thread plus/minus button from layout so the visible reply affordance lives on the parent blip like the GWT view.",
+        "Adds regression coverage for inline-thread toggle dispatch and rich reply manifest trailing-retain placement."
+      ]
+    }
+  ]
+}

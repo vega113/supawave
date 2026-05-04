@@ -45,6 +45,24 @@
   opacity: 0;
 }
 
+/* GWT parity: the visible affordance for an inline reply thread is the
+ * parent blip chevron. Keep the generated legacy button in the DOM for
+ * keyboard/tests, but remove the stray per-thread +/- from layout.
+ * Scope to [data-parent-blip-id] threads only: SSR-rendered inline threads
+ * lack this attribute and rely on the button as their sole toggle affordance
+ * (their parent is a div.blip, not a wave-blip, so no chevron event fires). */
+[data-parent-blip-id] > .j2cl-read-thread-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .j2cl-read-thread,
   .j2cl-read-thread-collapsed {

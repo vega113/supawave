@@ -161,7 +161,7 @@ describe("<wave-blip>", () => {
     expect(el.renderRoot.querySelector("[data-inline-reply-chip='true']")).to.not.exist;
   });
 
-  it("compact thread chevron click emits wave-blip-drill-in-requested with blip context", async () => {
+  it("compact thread chevron click requests inline thread toggle with blip context", async () => {
     const el = await fixture(html`
       <wave-blip
         data-blip-id="b7"
@@ -175,14 +175,14 @@ describe("<wave-blip>", () => {
     await el.updateComplete;
     const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
     expect(chevron).to.exist;
-    expect(chevron.getAttribute("aria-label")).to.equal("Drill into 2 replies under this blip");
+    expect(chevron.getAttribute("aria-label")).to.equal("Collapse 2 replies under this blip");
     setTimeout(() => chevron.click(), 0);
-    const ev = await oneEvent(el, "wave-blip-drill-in-requested");
+    const ev = await oneEvent(el, "wave-blip-thread-toggle-requested");
     expect(ev.detail.blipId).to.equal("b7");
     expect(ev.detail.waveId).to.equal("w7");
   });
 
-  it("compact thread chevron also emits the shell depth-navigation event", async () => {
+  it("compact thread chevron does not emit the shell depth-navigation event", async () => {
     const el = await fixture(html`
       <wave-blip
         data-blip-id="b7nav"
@@ -195,13 +195,11 @@ describe("<wave-blip>", () => {
     `);
     await el.updateComplete;
     const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
-    expect(chevron.getAttribute("title")).to.equal("Drill into 2 replies under this blip");
-    setTimeout(() => chevron.click(), 0);
-    const ev = await oneEvent(el, "wavy-depth-drill-in");
-    expect(ev.detail.blipId).to.equal("b7nav");
-    expect(ev.detail.waveId).to.equal("w7");
-    expect(ev.bubbles).to.be.true;
-    expect(ev.composed).to.be.true;
+    expect(chevron.getAttribute("title")).to.equal("Collapse 2 replies under this blip");
+    let depthEventCount = 0;
+    el.addEventListener("wavy-depth-drill-in", () => depthEventCount++);
+    chevron.click();
+    expect(depthEventCount).to.equal(0);
   });
 
   it("uses singular grammar for a one-reply chevron aria-label", async () => {
@@ -212,7 +210,7 @@ describe("<wave-blip>", () => {
     `);
     await el.updateComplete;
     const chevron = el.renderRoot.querySelector("[data-thread-chevron='true']");
-    expect(chevron.getAttribute("aria-label")).to.equal("Drill into 1 reply under this blip");
+    expect(chevron.getAttribute("aria-label")).to.equal("Collapse 1 reply under this blip");
   });
 
   it("avatar click emits wave-blip-profile-requested with author id", async () => {

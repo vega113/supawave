@@ -548,6 +548,11 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
     assertTrue(
         "Viewport dwell/placeholder math must clip page-level hosts to the visual viewport.",
         source.contains("effectiveViewportBounds()"));
+    assertTrue(
+        "Tall-blip visibility must compare against actual viewport height, not the clipped host slice.",
+        source.contains("DomGlobal.window.innerHeight")
+            && source.contains("elementHeight > viewportHeight")
+            && source.contains("intersectHeight / viewportHeight >= VIEWPORT_INTERSECTION_THRESHOLD"));
   }
 
   public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {

@@ -527,12 +527,13 @@ public final class J2clReadSurfaceDomRenderer {
       return true;
     }
     // Tall-blip exception: a blip taller than the viewport can never reach
-    // the area-ratio threshold. Use vertical coverage so narrow blips (e.g.
-    // deeply indented threads) can still qualify when the visible slice fills
-    // ≥ 50% of the viewport height.
-    if (elementHeight > hHeight
-        && hHeight > 0
-        && intersectHeight / hHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
+    // the area-ratio threshold. Use vertical coverage against the actual
+    // viewport height (not the clipped host slice) so a partially-visible host
+    // doesn't prematurely mark blips read on a tiny intersection.
+    double viewportHeight = DomGlobal.window.innerHeight;
+    if (elementHeight > viewportHeight
+        && viewportHeight > 0
+        && intersectHeight / viewportHeight >= VIEWPORT_INTERSECTION_THRESHOLD) {
       return true;
     }
     return false;

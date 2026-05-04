@@ -1036,7 +1036,10 @@ public final class J2clReadSurfaceDomRenderer {
     renderedConversationManifest = conversationManifest;
     renderedBlips.clear();
     enhanceSurface(renderedSurface);
-    restoreCollapsedThreads(previouslyCollapsedThreadIds);
+    // Do NOT call restoreCollapsedThreads here: on the append path the
+    // existing DOM is reused, so threads retain their collapsed state
+    // through enhanceSurface. Calling toggleThread on already-collapsed
+    // threads would expand them.
     restoreFocusedBlipById(focusedBlipId);
     restoreScrollAnchor(scrollAnchorBlipId, scrollAnchorTop);
     notifyReadSurfaceRendered();

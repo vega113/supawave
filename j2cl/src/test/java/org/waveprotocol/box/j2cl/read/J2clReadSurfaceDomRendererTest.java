@@ -1087,6 +1087,34 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void blipChevronEventTogglesInlineRepliesInPlace() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"thread\" data-thread-id=\"t+root\">"
+            + "<wave-blip data-blip-id=\"b+root\" reply-count=\"1\">Root</wave-blip>"
+            + "<div class=\"inline-thread\" data-thread-id=\"t+inline\" data-parent-blip-id=\"b+root\">"
+            + "<wave-blip data-blip-id=\"b+reply\">Reply</wave-blip>"
+            + "</div>"
+            + "</div></div>";
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+
+    Assert.assertTrue(renderer.enhanceExistingSurface());
+    HTMLElement root = blip(host, "b+root");
+    HTMLElement thread =
+        (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
+
+    dispatchThreadToggle(root, "b+root");
+    Assert.assertTrue(thread.classList.contains("j2cl-read-thread-collapsed"));
+    Assert.assertEquals("true", root.getAttribute("data-thread-collapsed"));
+
+    dispatchThreadToggle(root, "b+root");
+    Assert.assertFalse(thread.classList.contains("j2cl-read-thread-collapsed"));
+    Assert.assertFalse(root.hasAttribute("data-thread-collapsed"));
+  }
+
+  @Test
   public void collapsingFocusedThreadMovesToNearestFollowingVisibleBlip() {
     assumeBrowserDom();
     HTMLDivElement host = createThreadedHost();
@@ -3221,6 +3249,17 @@ public class J2clReadSurfaceDomRendererTest {
     KeyboardEventInit init = KeyboardEventInit.create();
     init.setKey(key);
     target.dispatchEvent(new KeyboardEvent("keydown", init));
+  }
+
+  private static void dispatchThreadToggle(HTMLElement target, String blipId) {
+    jsinterop.base.JsPropertyMap<Object> detail = jsinterop.base.JsPropertyMap.of();
+    detail.set("blipId", blipId);
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    init.setDetail(detail);
+    target.dispatchEvent(
+        new elemental2.dom.CustomEvent<Object>("wave-blip-thread-toggle-requested", init));
   }
 
   // ----------------------------------------------------------------------

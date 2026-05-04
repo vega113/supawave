@@ -53,8 +53,8 @@ import "./wavy-task-affordance.js";
  *   handles the clipboard write itself before emitting.
  * - `wave-blip-profile-requested` — `{detail: {blipId, authorId}}`.
  *   Emitted from the avatar click for the L.1 profile overlay.
- * - `wave-blip-drill-in-requested` — `{detail: {blipId, waveId}}`.
- *   Emitted from the compact thread chevron for the R-3.7 G.1 drill-in.
+ * - `wave-blip-thread-toggle-requested` — `{detail: {blipId, waveId}}`.
+ *   Emitted from the compact thread chevron for inline reply collapse parity.
  */
 export class WaveBlip extends LitElement {
   static properties = {
@@ -549,19 +549,11 @@ export class WaveBlip extends LitElement {
 
   _onThreadChevronClick(event) {
     event.stopPropagation();
-    const detail = { blipId: this.blipId, waveId: this.waveId };
     this.dispatchEvent(
-      new CustomEvent("wave-blip-drill-in-requested", {
+      new CustomEvent("wave-blip-thread-toggle-requested", {
         bubbles: true,
         composed: true,
-        detail
-      })
-    );
-    this.dispatchEvent(
-      new CustomEvent("wavy-depth-drill-in", {
-        bubbles: true,
-        composed: true,
-        detail
+        detail: { blipId: this.blipId, waveId: this.waveId }
       })
     );
   }
@@ -601,13 +593,14 @@ export class WaveBlip extends LitElement {
     const hasReplies = this.replyCount > 0;
     const visuallyFocused = this._visuallyFocused();
     const replyNoun = this.replyCount === 1 ? "reply" : "replies";
+    const threadToggleVerb = this.threadCollapsed ? "Expand" : "Collapse";
     const chevron = hasReplies
       ? html`<button
           type="button"
           class="thread-chevron"
           data-thread-chevron="true"
-          aria-label=${`Drill into ${this.replyCount} ${replyNoun} under this blip`}
-          title=${`Drill into ${this.replyCount} ${replyNoun} under this blip`}
+          aria-label=${`${threadToggleVerb} ${this.replyCount} ${replyNoun} under this blip`}
+          title=${`${threadToggleVerb} ${this.replyCount} ${replyNoun} under this blip`}
           @click=${this._onThreadChevronClick}
         >${this._chevronGlyph()}</button>`
       : html`<span class="thread-chevron" hidden></span>`;

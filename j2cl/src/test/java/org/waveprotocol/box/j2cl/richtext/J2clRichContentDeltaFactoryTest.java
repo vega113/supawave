@@ -182,6 +182,10 @@ public class J2clRichContentDeltaFactoryTest {
     Assert.assertTrue(
         "reply blip must appear once in manifest and once as the new document",
         countOccurrences(deltaJson, "b+seedA") >= 2);
+    Assert.assertEquals(
+        "manifest append should retain existing trailing blips exactly once",
+        1,
+        countOccurrences(deltaJson, "{\"5\":2}"));
   }
 
   @Test

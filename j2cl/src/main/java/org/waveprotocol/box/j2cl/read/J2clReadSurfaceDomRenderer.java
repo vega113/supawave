@@ -2139,6 +2139,11 @@ public final class J2clReadSurfaceDomRenderer {
     if (!surface.hasAttribute("aria-label")) {
       surface.setAttribute("aria-label", "Selected wave read surface");
     }
+    if (!surface.hasAttribute("data-j2cl-thread-toggle-bound")) {
+      surface.setAttribute("data-j2cl-thread-toggle-bound", "true");
+      surface.addEventListener(
+          "wave-blip-thread-toggle-requested", this::onBlipThreadToggleRequested);
+    }
     enhanceThreads(surface);
     enhanceBlips(surface);
     bindAttachmentTelemetry(surface);
@@ -2311,6 +2316,67 @@ public final class J2clReadSurfaceDomRenderer {
       // Telemetry is observational.
     }
     evaluateDwellTimers();
+  }
+
+  private void onBlipThreadToggleRequested(Event event) {
+    if (event == null) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    Object detail = ((CustomEvent<?>) event).detail;
+    if (detail == null) {
+      return;
+    }
+    JsPropertyMap<?> detailMap = Js.cast(detail);
+    Object rawBlipId = detailMap.get("blipId");
+    if (rawBlipId == null) {
+      return;
+    }
+    toggleInlineThreadsForParent(String.valueOf(rawBlipId));
+  }
+
+  private void toggleInlineThreadsForParent(String parentBlipId) {
+    if (parentBlipId == null || parentBlipId.isEmpty()) {
+      return;
+    }
+    List<HTMLElement> threads = inlineThreadsForParent(parentBlipId);
+    if (threads.isEmpty()) {
+      return;
+    }
+    boolean collapse = false;
+    for (HTMLElement thread : threads) {
+      if (!thread.classList.contains("j2cl-read-thread-collapsed")) {
+        collapse = true;
+        break;
+      }
+    }
+    for (HTMLElement thread : threads) {
+      HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
+      if (button == null) {
+        continue;
+      }
+      boolean currentlyCollapsed = thread.classList.contains("j2cl-read-thread-collapsed");
+      if (currentlyCollapsed != collapse) {
+        toggleThread(thread, button);
+      }
+    }
+  }
+
+  private List<HTMLElement> inlineThreadsForParent(String parentBlipId) {
+    List<HTMLElement> matches = new ArrayList<>();
+    HTMLElement surface = renderedSurface != null ? renderedSurface : findExistingSurface();
+    if (surface == null) {
+      return matches;
+    }
+    NodeList<Element> threads = surface.querySelectorAll(".inline-thread[data-parent-blip-id]");
+    for (int index = 0; index < threads.length; index++) {
+      HTMLElement thread = (HTMLElement) threads.item(index);
+      if (thread != null && parentBlipId.equals(thread.getAttribute("data-parent-blip-id"))) {
+        matches.add(thread);
+      }
+    }
+    return matches;
   }
 
   private void onBlipFocus(Event event) {

@@ -524,6 +524,22 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         anyMaxHeight);
   }
 
+  public void testReadSurfaceRendererUsesActiveScrollContainerForViewportLoading() {
+    String source =
+        readSourceFile(
+            "j2cl/src/main/java/org/waveprotocol/box/j2cl/read/"
+                + "J2clReadSurfaceDomRenderer.java");
+    assertTrue(
+        "Renderer must listen to page scroll events when selected wave content no longer owns a nested scrollbar.",
+        source.contains("DomGlobal.window.addEventListener(\"scroll\", this::onHostScroll);"));
+    assertTrue(
+        "Viewport edge loading must use the active scroll container, not hard-coded host.scrollTop.",
+        source.contains("activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX"));
+    assertTrue(
+        "Viewport dwell/placeholder math must clip page-level hosts to the visual viewport.",
+        source.contains("effectiveViewportBounds()"));
+  }
+
   public void testJ2clToolbarOnlyEmitsEditActionsWhileEditing() {
     // Gap 3: the toolbar controller used to call addEditActions on
     // every render, regardless of editState.editable. The view's

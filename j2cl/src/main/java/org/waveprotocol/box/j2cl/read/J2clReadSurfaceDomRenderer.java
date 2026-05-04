@@ -318,10 +318,7 @@ public final class J2clReadSurfaceDomRenderer {
       cancelAllDwellTimers();
       return;
     }
-    DOMRect rawHostRect = host.getBoundingClientRect();
-    // If the host is not a scroll container (the page scrolls instead), clip to
-    // the visual viewport so we don't treat the full content height as visible.
-    double[] effectiveHostBounds = clipRectToViewport(rawHostRect);
+    double[] effectiveHostBounds = effectiveViewportBounds();
     double effectiveHostHeight = effectiveHostBounds[3] - effectiveHostBounds[1];
     if (effectiveHostHeight <= 0) {
       // Off-screen / detached host — no point scheduling.
@@ -393,7 +390,7 @@ public final class J2clReadSurfaceDomRenderer {
     if (blipEl == null
         || !blipEl.hasAttribute("unread")
         || isHiddenByCollapsedThread(blipEl)
-        || !isBlipInViewport(blipEl, clipRectToViewport(host.getBoundingClientRect()))) {
+        || !isBlipInViewport(blipEl, effectiveViewportBounds())) {
       releaseGate.run();
       return;
     }
@@ -470,6 +467,18 @@ public final class J2clReadSurfaceDomRenderer {
     double right = Math.min(hostRect.right, vpRight);
     double bottom = Math.min(hostRect.bottom, vpBottom);
     return new double[] {left, top, right, bottom};
+  }
+
+  private double[] effectiveViewportBounds() {
+    DOMRect rawHostRect = host.getBoundingClientRect();
+    if (hostOwnsVerticalScroll()) {
+      return new double[] {rawHostRect.left, rawHostRect.top, rawHostRect.right, rawHostRect.bottom};
+    }
+    return clipRectToViewport(rawHostRect);
+  }
+
+  private boolean hostOwnsVerticalScroll() {
+    return host.scrollHeight > host.clientHeight + 1;
   }
 
   /**
@@ -2489,13 +2498,13 @@ public final class J2clReadSurfaceDomRenderer {
     if (viewportEdgeListener == null || renderedWindowEntries.isEmpty()) {
       return;
     }
-    if (host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX) {
+    if (activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX) {
       lastScrollDirection = J2clViewportGrowthDirection.BACKWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.BACKWARD)) {
         return;
       }
     }
-    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
+    double distanceFromBottom = activeScrollHeight() - activeClientHeight() - activeScrollTop();
     if (distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX) {
       lastScrollDirection = J2clViewportGrowthDirection.FORWARD;
       if (requestEdgeIfPlaceholder(J2clViewportGrowthDirection.FORWARD)) {
@@ -2508,10 +2517,29 @@ public final class J2clReadSurfaceDomRenderer {
 
   private boolean isNearEdge(String direction) {
     if (J2clViewportGrowthDirection.isBackward(direction)) {
-      return host.scrollTop <= EDGE_SCROLL_THRESHOLD_PX;
+      return activeScrollTop() <= EDGE_SCROLL_THRESHOLD_PX;
     }
-    double distanceFromBottom = host.scrollHeight - host.clientHeight - host.scrollTop;
+    double distanceFromBottom = activeScrollHeight() - activeClientHeight() - activeScrollTop();
     return distanceFromBottom <= EDGE_SCROLL_THRESHOLD_PX;
+  }
+
+  private double activeScrollTop() {
+    return hostOwnsVerticalScroll() ? host.scrollTop : DomGlobal.window.pageYOffset;
+  }
+
+  private double activeClientHeight() {
+    return hostOwnsVerticalScroll() ? host.clientHeight : DomGlobal.window.innerHeight;
+  }
+
+  private double activeScrollHeight() {
+    if (hostOwnsVerticalScroll()) {
+      return host.scrollHeight;
+    }
+    HTMLElement documentElement = (HTMLElement) DomGlobal.document.documentElement;
+    HTMLElement body = DomGlobal.document.body;
+    double documentHeight = documentElement == null ? 0 : documentElement.scrollHeight;
+    double bodyHeight = body == null ? 0 : body.scrollHeight;
+    return Math.max(documentHeight, bodyHeight);
   }
 
   private void requestReachablePlaceholderAfterRender() {
@@ -2551,8 +2579,7 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   private J2clReadWindowEntry visiblePlaceholder() {
-    DOMRect rawHostRect = host.getBoundingClientRect();
-    double[] effectiveHostBounds = clipRectToViewport(rawHostRect);
+    double[] effectiveHostBounds = effectiveViewportBounds();
     double effectiveHeight = effectiveHostBounds[3] - effectiveHostBounds[1];
     double effectiveWidth = effectiveHostBounds[2] - effectiveHostBounds[0];
     if (effectiveHeight <= 0 || effectiveWidth <= 0) {
@@ -2640,7 +2667,15 @@ public final class J2clReadSurfaceDomRenderer {
     // Apply the layout delta to the browser's current scrollTop. This stays
     // correct whether the browser preserved scrollTop through the rebuild or
     // reset it while the old surface was detached.
-    host.scrollTop = Math.max(0, host.scrollTop + delta);
+    setActiveScrollTop(Math.max(0, activeScrollTop() + delta));
+  }
+
+  private void setActiveScrollTop(double scrollTop) {
+    if (hostOwnsVerticalScroll()) {
+      host.scrollTop = scrollTop;
+      return;
+    }
+    DomGlobal.window.scrollTo(DomGlobal.window.pageXOffset, scrollTop);
   }
 
   private void focusByOffset(int offset, String key) {

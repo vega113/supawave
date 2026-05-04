@@ -783,9 +783,15 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         "Both live and preserved render paths must gate detail visibility on errors",
         2,
         countOccurrences(source, "detail.hidden = !model.isError();"));
+    int unreadHelperStart = source.indexOf("private static String effectiveUnreadText");
+    assertTrue("J2clSelectedWaveView must define effectiveUnreadText", unreadHelperStart >= 0);
+    int unreadHelperEnd = source.indexOf("\n  @", unreadHelperStart);
+    String unreadHelper =
+        source.substring(
+            unreadHelperStart, unreadHelperEnd < 0 ? source.length() : unreadHelperEnd);
     assertFalse(
         "Selected-wave read-state text must not become visible through the debug overlay; GWT shows read state through highlighting.",
-        source.contains("if (isDebugOverlayOn())"));
+        unreadHelper.contains("isDebugOverlayOn()"));
   }
 
   public void testV2SidecarCssCarriesDebugOnlyHideRule() {

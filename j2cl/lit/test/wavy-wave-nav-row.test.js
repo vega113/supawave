@@ -315,6 +315,68 @@ describe("<wavy-wave-nav-row>", () => {
     expect(fired).to.be.false;
   });
 
+  it("H keyboard ignored when composed path starts inside a contenteditable editor", async () => {
+    const card = await fixture(
+      html`<section data-j2cl-selected-wave-host>
+        <div id="editor-host"></div>
+        <wavy-wave-nav-row></wavy-wave-nav-row>
+      </section>`
+    );
+    const el = card.querySelector("wavy-wave-nav-row");
+    await el.updateComplete;
+    let fired = false;
+    el.addEventListener("wave-nav-version-history-requested", () => {
+      fired = true;
+    });
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "true");
+    const event = new KeyboardEvent("keydown", {
+      key: "H",
+      bubbles: true,
+      composed: true,
+      cancelable: true
+    });
+    Object.defineProperty(event, "composedPath", {
+      configurable: true,
+      value: () => [
+        editor,
+        card.querySelector("#editor-host"),
+        card,
+        document.body,
+        document.documentElement,
+        document,
+        window
+      ]
+    });
+    card.dispatchEvent(event);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fired).to.be.false;
+    expect(event.defaultPrevented).to.be.false;
+  });
+
+  it("H keyboard ignored when an inner handler already prevented default", async () => {
+    const card = await fixture(
+      html`<section data-j2cl-selected-wave-host>
+        <wavy-wave-nav-row></wavy-wave-nav-row>
+      </section>`
+    );
+    const el = card.querySelector("wavy-wave-nav-row");
+    await el.updateComplete;
+    let fired = false;
+    el.addEventListener("wave-nav-version-history-requested", () => {
+      fired = true;
+    });
+    const event = new KeyboardEvent("keydown", {
+      key: "H",
+      bubbles: true,
+      cancelable: true
+    });
+    event.preventDefault();
+    card.dispatchEvent(event);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fired).to.be.false;
+  });
+
   it("H keyboard ignored when modifier (cmd/ctrl/alt) is held", async () => {
     const card = await fixture(
       html`<section data-j2cl-selected-wave-host>

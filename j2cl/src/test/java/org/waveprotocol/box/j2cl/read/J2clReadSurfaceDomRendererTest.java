@@ -148,6 +148,9 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertNotNull(toggle);
     Assert.assertFalse(toggle.hasAttribute("hidden"));
     Assert.assertNull(toggle.getAttribute("aria-hidden"));
+    Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
+    Assert.assertEquals(
+        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("aria-label"));
     Assert.assertEquals(
         "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("title"));
     Assert.assertEquals("▾", toggle.textContent);

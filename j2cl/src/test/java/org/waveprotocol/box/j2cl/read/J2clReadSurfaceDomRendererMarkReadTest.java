@@ -144,6 +144,32 @@ public class J2clReadSurfaceDomRendererMarkReadTest {
   }
 
   @Test
+  public void clickingUnreadBlipMarksReadImmediately() {
+    HTMLDivElement host = createHost();
+    installViewport(host, 200);
+    installBlipLayout();
+    FakeScheduler scheduler = new FakeScheduler();
+    RecordingListener listener = new RecordingListener();
+
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setDwellTimerSchedulerForTesting(scheduler);
+    renderer.setMarkBlipReadListener(listener);
+
+    List<J2clReadBlip> blips = new ArrayList<J2clReadBlip>();
+    blips.add(unreadBlip("b+clicked", "clicked"));
+    renderer.render(blips, java.util.Collections.<String>emptyList());
+    HTMLElement blip = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+clicked']");
+    Assert.assertNotNull(blip);
+
+    blip.click();
+
+    Assert.assertEquals(java.util.Arrays.asList("b+clicked"), listener.fired);
+    Assert.assertFalse(blip.hasAttribute("unread"));
+    Assert.assertEquals("0", blip.getAttribute("tabindex"));
+    Assert.assertEquals("true", blip.getAttribute("aria-current"));
+  }
+
+  @Test
   public void blipFiringTwiceForSameIdIsBlockedByInFlightSet() {
     HTMLDivElement host = createHost();
     installViewport(host, 200);

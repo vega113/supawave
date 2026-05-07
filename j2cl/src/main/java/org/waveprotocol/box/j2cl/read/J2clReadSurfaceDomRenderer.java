@@ -5,6 +5,7 @@ import elemental2.dom.CustomEventInit;
 import elemental2.dom.DOMRect;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Element;
+import elemental2.dom.Element.FocusOptionsType;
 import elemental2.dom.Event;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
@@ -2521,12 +2522,8 @@ public final class J2clReadSurfaceDomRenderer {
     if (thread.hasAttribute("data-j2cl-collapse-ready")) {
       HTMLElement existingButton = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
       if (existingButton != null) {
-        existingButton.setAttribute(
-            "aria-label",
-            (thread.classList.contains("j2cl-read-thread-collapsed") ? "Expand " : "Collapse ")
-                + label);
-        existingButton.textContent =
-            thread.classList.contains("j2cl-read-thread-collapsed") ? "+" : "\u2212";
+        updateThreadToggleButton(
+            thread, existingButton, thread.classList.contains("j2cl-read-thread-collapsed"));
       }
       return;
     }
@@ -2540,11 +2537,10 @@ public final class J2clReadSurfaceDomRenderer {
     if (thread.hasAttribute("data-parent-blip-id")) {
       button.setAttribute("tabindex", "-1");
       button.setAttribute("aria-hidden", "true");
+      button.setAttribute("hidden", "");
     }
     button.setAttribute("aria-controls", thread.getAttribute("id"));
-    button.setAttribute("aria-expanded", "true");
-    button.setAttribute("aria-label", "Collapse " + label);
-    button.textContent = "\u2212";
+    updateThreadToggleButton(thread, button, false);
     button.addEventListener(
         "click",
         event -> {
@@ -2598,16 +2594,11 @@ public final class J2clReadSurfaceDomRenderer {
     if (collapsed) {
       thread.classList.add("j2cl-read-thread-collapsed");
       thread.setAttribute("data-j2cl-thread-collapsed", "true");
-      button.setAttribute("aria-expanded", "false");
-      button.setAttribute("aria-label", "Expand " + threadLabel(thread));
-      button.textContent = "+";
     } else {
       thread.classList.remove("j2cl-read-thread-collapsed");
       thread.removeAttribute("data-j2cl-thread-collapsed");
-      button.setAttribute("aria-expanded", "true");
-      button.setAttribute("aria-label", "Collapse " + threadLabel(thread));
-      button.textContent = "\u2212";
     }
+    updateThreadToggleButton(thread, button, collapsed);
     // V-4 (#1102): mirror collapse state onto the parent wave-blip so
     // the chevron glyph (triangle-down/right) reflects the actual
     // thread state. Use the rendered-blip lookup helper rather than
@@ -2730,7 +2721,7 @@ public final class J2clReadSurfaceDomRenderer {
     }
     HTMLElement blip = (HTMLElement) event.currentTarget;
     focusBlip(blip);
-    blip.focus();
+    focusWithoutScrolling(blip);
   }
 
   private static boolean isInteractiveClick(Event event) {
@@ -3235,7 +3226,7 @@ public final class J2clReadSurfaceDomRenderer {
     int boundedIndex = Math.max(0, Math.min(index, visibleBlips.size() - 1));
     HTMLElement next = visibleBlips.get(boundedIndex);
     focusBlip(next, key);
-    next.focus();
+    focusWithoutScrolling(next);
   }
 
   private void focusBlip(HTMLElement next) {
@@ -3257,6 +3248,31 @@ public final class J2clReadSurfaceDomRenderer {
     focusedBlip.setAttribute("tabindex", "0");
     markFocusedBlipReadNow(focusedBlip);
     dispatchFocusChanged(focusedBlip, key);
+  }
+
+  private static void focusWithoutScrolling(HTMLElement element) {
+    if (element == null) {
+      return;
+    }
+    try {
+      FocusOptionsType options = FocusOptionsType.create();
+      options.setPreventScroll(true);
+      element.focus(options);
+    } catch (Throwable ignored) {
+      element.focus();
+    }
+  }
+
+  private static void updateThreadToggleButton(
+      HTMLElement thread, HTMLElement button, boolean collapsed) {
+    if (button == null) {
+      return;
+    }
+    String label = (collapsed ? "Expand " : "Collapse ") + threadLabel(thread);
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+    button.textContent = collapsed ? "\u25b8" : "\u25be";
   }
 
   private void setFocusMarkers(HTMLElement blip) {

@@ -37,6 +37,8 @@ public final class J2clRichContentDeltaFactory {
 
   private static final char[] WEB64_ALPHABET =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
+  // Mirrors ClientFlagsBase.maxReplyDepth's default and the local/prod server depth gate.
+  private static final int DEFAULT_MAX_INLINE_REPLY_DEPTH = 5;
 
   private final String sessionSeed;
   private int counter;
@@ -874,7 +876,15 @@ public final class J2clRichContentDeltaFactory {
     }
     String replyBlipId = nextToken("b+");
     String operationsJson = buildDocumentOperation(replyBlipId, document);
-    if (session.getReplyManifestInsertPosition() >= 0) {
+    if (shouldCreateRegularReply(session)) {
+      operationsJson =
+          buildConversationRegularReplyOperation(
+                  session.getReplyManifestSiblingInsertPosition(),
+                  session.getReplyManifestItemCount(),
+                  replyBlipId)
+              + ","
+              + operationsJson;
+    } else if (session.getReplyManifestInsertPosition() >= 0) {
       String replyThreadId = nextToken("t+");
       operationsJson =
           buildConversationReplyThreadOperation(
@@ -905,6 +915,32 @@ public final class J2clRichContentDeltaFactory {
     appendComponentSeparator(components);
     appendElementEnd(components);
     return buildRawDocumentOperation("conversation", components.toString());
+  }
+
+  private String buildConversationRegularReplyOperation(
+      int insertPosition, int manifestItemCount, String replyBlipId) {
+    if (insertPosition < 0) {
+      throw new IllegalArgumentException("Invalid manifest sibling reply insert position.");
+    }
+    StringBuilder components = new StringBuilder();
+    if (insertPosition > 0) {
+      appendRetain(components, insertPosition);
+      appendComponentSeparator(components);
+    }
+    appendElementStartWithAttr(components, "blip", "id", replyBlipId);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    int trailingRetain = manifestItemCount < 0 ? 0 : manifestItemCount - insertPosition;
+    if (trailingRetain > 0) {
+      appendComponentSeparator(components);
+      appendRetain(components, trailingRetain);
+    }
+    return buildRawDocumentOperation("conversation", components.toString());
+  }
+
+  private static boolean shouldCreateRegularReply(J2clSidecarWriteSession session) {
+    return session.getReplyTargetDepth() >= DEFAULT_MAX_INLINE_REPLY_DEPTH
+        && session.getReplyManifestSiblingInsertPosition() >= 0;
   }
 
   private String buildConversationReplyThreadOperation(

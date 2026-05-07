@@ -35,6 +35,7 @@ public final class SidecarConversationManifest {
     private final int depth;
     private final int siblingIndex;
     private final int replyInsertPosition;
+    private final int siblingReplyInsertPosition;
 
     public Entry(String blipId, String parentBlipId, String threadId, int depth, int siblingIndex) {
       this(blipId, parentBlipId, threadId, depth, siblingIndex, -1);
@@ -47,12 +48,24 @@ public final class SidecarConversationManifest {
         int depth,
         int siblingIndex,
         int replyInsertPosition) {
+      this(blipId, parentBlipId, threadId, depth, siblingIndex, replyInsertPosition, -1);
+    }
+
+    public Entry(
+        String blipId,
+        String parentBlipId,
+        String threadId,
+        int depth,
+        int siblingIndex,
+        int replyInsertPosition,
+        int siblingReplyInsertPosition) {
       this.blipId = blipId == null ? "" : blipId;
       this.parentBlipId = parentBlipId == null ? "" : parentBlipId;
       this.threadId = threadId == null ? "" : threadId;
       this.depth = depth;
       this.siblingIndex = siblingIndex;
       this.replyInsertPosition = Math.max(-1, replyInsertPosition);
+      this.siblingReplyInsertPosition = Math.max(-1, siblingReplyInsertPosition);
     }
 
     public String getBlipId() {
@@ -86,6 +99,15 @@ public final class SidecarConversationManifest {
      */
     public int getReplyInsertPosition() {
       return replyInsertPosition;
+    }
+
+    /**
+     * Item position immediately after this blip's closing element in the
+     * conversation manifest. Depth-limit fallback reply deltas retain to this
+     * position and insert a sibling {@code <blip/>} in the current thread.
+     */
+    public int getSiblingReplyInsertPosition() {
+      return siblingReplyInsertPosition;
     }
   }
 
@@ -238,6 +260,7 @@ public final class SidecarConversationManifest {
             Integer entryIndex = removeLast(openBlipEntryIndexStack);
             if (entryIndex != null && entryIndex.intValue() >= 0) {
               setReplyInsertPosition(entries, entryIndex.intValue(), itemPosition);
+              setSiblingReplyInsertPosition(entries, entryIndex.intValue(), itemPosition + 1);
             }
             itemPosition++;
           }
@@ -302,6 +325,7 @@ public final class SidecarConversationManifest {
                 siblingIndex));
         if (selfClosing) {
           setReplyInsertPosition(entries, entryIndex, itemPosition);
+          setSiblingReplyInsertPosition(entries, entryIndex, itemPosition + 1);
           itemPosition++;
         } else {
           openBlipStack.add(blipId);
@@ -457,6 +481,7 @@ public final class SidecarConversationManifest {
     for (Entry entry : entries) {
       if (entry != null) {
         inferredMin = Math.max(inferredMin, entry.getReplyInsertPosition() + 1);
+        inferredMin = Math.max(inferredMin, entry.getSiblingReplyInsertPosition());
       }
     }
     if (explicitItemCount >= 0) {
@@ -478,6 +503,24 @@ public final class SidecarConversationManifest {
             entry.getThreadId(),
             entry.getDepth(),
             entry.getSiblingIndex(),
+            position,
+            entry.getSiblingReplyInsertPosition()));
+  }
+
+  private static void setSiblingReplyInsertPosition(List<Entry> entries, int index, int position) {
+    if (entries == null || index < 0 || index >= entries.size()) {
+      return;
+    }
+    Entry entry = entries.get(index);
+    entries.set(
+        index,
+        new Entry(
+            entry.getBlipId(),
+            entry.getParentBlipId(),
+            entry.getThreadId(),
+            entry.getDepth(),
+            entry.getSiblingIndex(),
+            entry.getReplyInsertPosition(),
             position));
   }
 }

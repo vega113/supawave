@@ -279,6 +279,17 @@ export class WaveBlip extends LitElement {
       color: var(--wavy-signal-cyan, #0077b6);
       font-weight: 600;
     }
+    :host([unread]) .body {
+      border-color: rgba(0, 119, 182, 0.5);
+      background: rgba(0, 180, 216, 0.1);
+      color: #0f3f5f;
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 var(--wavy-signal-cyan, #0077b6);
+    }
+    :host([unread]) .author {
+      color: #075985;
+      font-weight: 700;
+    }
     .task-affordance-slot {
       display: inline-flex;
       align-items: center;
@@ -420,13 +431,17 @@ export class WaveBlip extends LitElement {
   }
 
   _initials() {
-    const name = (this.authorName || this.authorId || "?").trim();
-    if (!name) return "?";
+    const name = this._authorLabel();
     const parts = name.split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+  }
+
+  _authorLabel() {
+    const label = (this.authorName || this.authorId || "").trim();
+    return label || "Unknown user";
   }
 
   /**
@@ -594,6 +609,7 @@ export class WaveBlip extends LitElement {
     const visuallyFocused = this._visuallyFocused();
     const replyNoun = this.replyCount === 1 ? "reply" : "replies";
     const threadToggleVerb = this.threadCollapsed ? "Expand" : "Collapse";
+    const authorLabel = this._authorLabel();
     const chevron = hasReplies
       ? html`<button
           type="button"
@@ -623,12 +639,12 @@ export class WaveBlip extends LitElement {
             class="avatar"
             data-blip-avatar="true"
             data-palette=${String(palette)}
-            aria-label=${`Open ${this.authorName || this.authorId || "user"} profile`}
+            aria-label=${`Open ${authorLabel} profile`}
             @click=${this._onAvatarClick}
           >
             ${this._initials()}
           </button>
-          <span class="author">${this.authorName || this.authorId || ""}</span>
+          <span class="author">${this.authorName || this.authorId || authorLabel}</span>
           <time
             class="posted"
             title=${tooltip}

@@ -70,7 +70,9 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals(
         "Collapse inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
-    Assert.assertEquals("−", toggle.textContent);
+    Assert.assertEquals(
+        "Collapse inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▾", toggle.textContent);
 
     HTMLElement inlineThread =
         (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
@@ -87,7 +89,34 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", inlineThread.getAttribute("data-j2cl-thread-collapsed"));
     Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
-    Assert.assertEquals("+", toggle.textContent);
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▸", toggle.textContent);
+  }
+
+  @Test
+  public void parentOwnedInlineThreadToggleIsHiddenBecauseParentChevronOwnsAction() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setConversationManifest(
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "t+root", 0, 0),
+                new SidecarConversationManifest.Entry("b+reply", "b+root", "t+inline", 1, 0))));
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(
+                new J2clReadBlip("b+root", "Root"),
+                new J2clReadBlip("b+reply", "Reply")),
+            Collections.<String>emptyList()));
+
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".inline-thread .j2cl-read-thread-toggle");
+    Assert.assertNotNull(toggle);
+    Assert.assertTrue(toggle.hasAttribute("hidden"));
+    Assert.assertEquals("true", toggle.getAttribute("aria-hidden"));
+    Assert.assertEquals("-1", toggle.getAttribute("tabindex"));
   }
 
   @Test

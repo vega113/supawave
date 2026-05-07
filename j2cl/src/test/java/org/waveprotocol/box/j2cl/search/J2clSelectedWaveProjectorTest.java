@@ -2844,6 +2844,42 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void writeSessionCanRetargetSiblingReplyPositionAndDepthToChildBlip() {
+    SidecarConversationManifest manifest =
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0, 9, 10),
+                new SidecarConversationManifest.Entry("b+child", "b+root", "t+child", 5, 0, 6, 7)),
+            12);
+    SidecarSelectedWaveUpdate update =
+        new SidecarSelectedWaveUpdate(
+            1,
+            WAVELET_NAME,
+            true,
+            CHANNEL_ID,
+            44L,
+            "ABCD",
+            Arrays.asList("user@example.com"),
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root", "user@example.com", 33L, 44L, "root content"),
+                new SidecarSelectedWaveDocument(
+                    "b+child", "user@example.com", 33L, 44L, "child content")),
+            null,
+            manifest);
+
+    J2clSidecarWriteSession writeSession =
+        J2clSelectedWaveProjector.project(WAVE_ID, null, update, null, 0).getWriteSession();
+    J2clSidecarWriteSession childSession = writeSession.forReplyTarget("b+child");
+
+    Assert.assertNotNull(writeSession);
+    Assert.assertEquals(10, writeSession.getReplyManifestSiblingInsertPosition());
+    Assert.assertEquals(0, writeSession.getReplyTargetDepth());
+    Assert.assertEquals(7, childSession.getReplyManifestSiblingInsertPosition());
+    Assert.assertEquals(5, childSession.getReplyTargetDepth());
+  }
+
+  @Test
   public void writeSessionDoesNotReusePreviousManifestOffsetsWithFreshBasis() {
     SidecarConversationManifest previousManifest =
         SidecarConversationManifest.of(

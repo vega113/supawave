@@ -77,6 +77,40 @@ public class J2clPlainTextDeltaFactoryTest {
         countOccurrences(deltaJson, "b+seedA"));
   }
 
+  @Test
+  public void replyRequestAtInlineDepthLimitFallsBackToRegularSiblingReply() {
+    J2clPlainTextDeltaFactory factory = new J2clPlainTextDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+deep",
+            java.util.Collections.<String>emptyList(),
+            6,
+            10,
+            7,
+            5,
+            java.util.Collections.singletonMap("b+deep", Integer.valueOf(6)),
+            java.util.Collections.singletonMap("b+deep", Integer.valueOf(7)),
+            java.util.Collections.singletonMap("b+deep", Integer.valueOf(5)));
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest("user@example.com", session, "Plain reply");
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    Assert.assertTrue(deltaJson.contains("\"1\":\"conversation\""));
+    Assert.assertTrue(deltaJson.contains("{\"5\":7}"));
+    Assert.assertTrue(deltaJson.contains("{\"5\":3}"));
+    Assert.assertFalse(deltaJson.contains("\"1\":\"thread\""));
+    Assert.assertEquals(
+        "regular fallback still inserts the reply blip into manifest and creates its document",
+        2,
+        countOccurrences(deltaJson, "b+seedA"));
+  }
+
   private static void assertSubmitRequest(
       SidecarSubmitRequest request,
       String expectedWaveletName,

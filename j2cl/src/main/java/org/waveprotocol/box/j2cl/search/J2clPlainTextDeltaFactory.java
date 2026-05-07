@@ -23,6 +23,8 @@ public class J2clPlainTextDeltaFactory {
 
   private static final char[] WEB64_ALPHABET =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();
+  // Mirrors ClientFlagsBase.maxReplyDepth's default and the local/prod server depth gate.
+  private static final int DEFAULT_MAX_INLINE_REPLY_DEPTH = 5;
 
   private final String sessionSeed;
   private int counter;
@@ -64,7 +66,15 @@ public class J2clPlainTextDeltaFactory {
             + "\",\"2\":{\"1\":[{\"2\":\""
             + escapeJson(text)
             + "\"}]}}}";
-    if (session.getReplyManifestInsertPosition() >= 0) {
+    if (shouldCreateRegularReply(session)) {
+      operationsJson =
+          buildConversationRegularReplyOperation(
+                  session.getReplyManifestSiblingInsertPosition(),
+                  session.getReplyManifestItemCount(),
+                  replyBlipId)
+              + ","
+              + operationsJson;
+    } else if (session.getReplyManifestInsertPosition() >= 0) {
       String replyThreadId = nextToken("t+");
       operationsJson =
           buildConversationReplyThreadOperation(
@@ -113,6 +123,26 @@ public class J2clPlainTextDeltaFactory {
             + "\"}]}},{\"4\":true},{\"4\":true}"
             + (trailingRetain > 0 ? ",{\"5\":" + trailingRetain + "}" : "");
     return buildRawDocumentOperation("conversation", componentsJson);
+  }
+
+  private static String buildConversationRegularReplyOperation(
+      int insertPosition, int manifestItemCount, String replyBlipId) {
+    if (insertPosition < 0) {
+      throw new IllegalArgumentException("Invalid manifest sibling reply insert position.");
+    }
+    int trailingRetain = manifestItemCount < 0 ? 0 : manifestItemCount - insertPosition;
+    String componentsJson =
+        (insertPosition > 0 ? "{\"5\":" + insertPosition + "}," : "")
+            + "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\""
+            + escapeJson(replyBlipId)
+            + "\"}]}},{\"4\":true}"
+            + (trailingRetain > 0 ? ",{\"5\":" + trailingRetain + "}" : "");
+    return buildRawDocumentOperation("conversation", componentsJson);
+  }
+
+  private static boolean shouldCreateRegularReply(J2clSidecarWriteSession session) {
+    return session.getReplyTargetDepth() >= DEFAULT_MAX_INLINE_REPLY_DEPTH
+        && session.getReplyManifestSiblingInsertPosition() >= 0;
   }
 
   private static String buildRawDocumentOperation(String documentId, String componentsJson) {

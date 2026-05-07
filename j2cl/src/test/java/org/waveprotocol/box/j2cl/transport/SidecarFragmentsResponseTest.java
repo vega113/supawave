@@ -189,7 +189,9 @@ public class SidecarFragmentsResponseTest {
 
     Assert.assertEquals(2, manifest.getOrderedEntries().size());
     Assert.assertEquals(6, manifest.findByBlipId("b+root").getReplyInsertPosition());
+    Assert.assertEquals(7, manifest.findByBlipId("b+root").getSiblingReplyInsertPosition());
     Assert.assertEquals(4, manifest.findByBlipId("b+child").getReplyInsertPosition());
+    Assert.assertEquals(5, manifest.findByBlipId("b+child").getSiblingReplyInsertPosition());
     Assert.assertEquals(8, manifest.getItemCount());
   }
 

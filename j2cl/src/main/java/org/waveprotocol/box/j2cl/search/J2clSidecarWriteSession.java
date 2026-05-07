@@ -251,7 +251,10 @@ public final class J2clSidecarWriteSession {
         siblingInsertPosition == null ? -1 : Math.max(-1, siblingInsertPosition.intValue());
     Integer targetDepth = replyTargetDepthsByBlipId.get(target);
     int normalizedTargetDepth = targetDepth == null ? -1 : Math.max(-1, targetDepth.intValue());
-    int normalizedItemCount = normalizedInsertPosition >= 0 ? replyManifestItemCount : -1;
+    int normalizedItemCount =
+        normalizedInsertPosition >= 0 || normalizedSiblingInsertPosition >= 0
+            ? replyManifestItemCount
+            : -1;
     return new J2clSidecarWriteSession(
         selectedWaveId,
         channelId,

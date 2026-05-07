@@ -3262,7 +3262,7 @@ public final class J2clReadSurfaceDomRenderer {
       FocusOptionsType options = FocusOptionsType.create();
       options.setPreventScroll(true);
       element.focus(options);
-    } catch (Throwable ignored) {
+    } catch (RuntimeException ignored) {
       element.focus();
     }
   }

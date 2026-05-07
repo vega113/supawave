@@ -118,6 +118,10 @@ export class WaveBlip extends LitElement {
   static styles = css`
     :host {
       display: block;
+      --wavy-unread-border: rgba(0, 119, 182, 0.5);
+      --wavy-unread-bg: rgba(0, 180, 216, 0.1);
+      --wavy-unread-fg: #0f3f5f;
+      --wavy-unread-author-fg: #075985;
       /* The visual envelope lives on the inner <wavy-blip-card>; this
        * host is a transparent wrapper so the F-0 recipe styling owns
        * focus / unread / pulse visuals. */
@@ -280,14 +284,14 @@ export class WaveBlip extends LitElement {
       font-weight: 600;
     }
     :host([unread]) .body {
-      border-color: rgba(0, 119, 182, 0.5);
-      background: rgba(0, 180, 216, 0.1);
-      color: #0f3f5f;
+      border-color: var(--wavy-unread-border);
+      background: var(--wavy-unread-bg);
+      color: var(--wavy-unread-fg);
       font-weight: 600;
       box-shadow: inset 3px 0 0 var(--wavy-signal-cyan, #0077b6);
     }
     :host([unread]) .author {
-      color: #075985;
+      color: var(--wavy-unread-author-fg);
       font-weight: 700;
     }
     .task-affordance-slot {

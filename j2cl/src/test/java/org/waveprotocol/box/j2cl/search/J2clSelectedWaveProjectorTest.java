@@ -2849,7 +2849,7 @@ public class J2clSelectedWaveProjectorTest {
         SidecarConversationManifest.of(
             Arrays.asList(
                 new SidecarConversationManifest.Entry("b+root", "", "root", 0, 0, 9, 10),
-                new SidecarConversationManifest.Entry("b+child", "b+root", "t+child", 5, 0, 6, 7)),
+                new SidecarConversationManifest.Entry("b+child", "b+root", "t+child", 5, 0, -1, 7)),
             12);
     SidecarSelectedWaveUpdate update =
         new SidecarSelectedWaveUpdate(
@@ -2875,6 +2875,8 @@ public class J2clSelectedWaveProjectorTest {
     Assert.assertNotNull(writeSession);
     Assert.assertEquals(10, writeSession.getReplyManifestSiblingInsertPosition());
     Assert.assertEquals(0, writeSession.getReplyTargetDepth());
+    Assert.assertEquals(-1, childSession.getReplyManifestInsertPosition());
+    Assert.assertEquals(12, childSession.getReplyManifestItemCount());
     Assert.assertEquals(7, childSession.getReplyManifestSiblingInsertPosition());
     Assert.assertEquals(5, childSession.getReplyTargetDepth());
   }

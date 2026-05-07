@@ -102,9 +102,10 @@ public final class SidecarConversationManifest {
     }
 
     /**
-     * Item position immediately after this blip's closing element in the
-     * conversation manifest. Depth-limit fallback reply deltas retain to this
-     * position and insert a sibling {@code <blip/>} in the current thread.
+     * Item position in the conversation manifest immediately after this blip's
+     * closing element. Depth-limit fallback reply deltas retain document items
+     * up to this position and insert a sibling {@code <blip/>} in the current
+     * thread.
      */
     public int getSiblingReplyInsertPosition() {
       return siblingReplyInsertPosition;
@@ -495,6 +496,9 @@ public final class SidecarConversationManifest {
       return;
     }
     Entry entry = entries.get(index);
+    if (entry == null) {
+      return;
+    }
     entries.set(
         index,
         new Entry(

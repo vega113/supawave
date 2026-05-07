@@ -104,8 +104,17 @@ describe("<wave-blip>", () => {
     await el.updateComplete;
     const body = el.renderRoot.querySelector(".body");
     const style = getComputedStyle(body);
+    const token =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--wavy-signal-cyan")
+        .trim() || "#0077b6";
+    const probe = document.createElement("span");
+    probe.style.color = token;
+    document.body.appendChild(probe);
+    const expectedCyan = getComputedStyle(probe).color;
+    probe.remove();
     expect(style.backgroundColor).to.equal("rgb(255, 255, 255)");
-    expect(style.color).to.equal("rgb(0, 119, 182)");
+    expect(style.color).to.equal(expectedCyan);
     expect(style.boxShadow).to.contain("inset");
   });
 

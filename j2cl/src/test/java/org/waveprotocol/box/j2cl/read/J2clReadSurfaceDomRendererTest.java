@@ -130,7 +130,17 @@ public class J2clReadSurfaceDomRendererTest {
         renderer.render(
             Arrays.asList(
                 new J2clReadBlip("b+root", "Root"),
-                new J2clReadBlip("b+reply", "Reply")),
+                new J2clReadBlip(
+                    "b+reply",
+                    "Reply",
+                    Collections.<J2clAttachmentRenderModel>emptyList(),
+                    "",
+                    "",
+                    0L,
+                    "b+root",
+                    "t+inline",
+                    false,
+                    false)),
             Collections.<String>emptyList()));
 
     HTMLButtonElement toggle =

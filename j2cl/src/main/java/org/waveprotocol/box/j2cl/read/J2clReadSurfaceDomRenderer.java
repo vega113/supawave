@@ -2531,14 +2531,6 @@ public final class J2clReadSurfaceDomRenderer {
     HTMLElement button = (HTMLElement) DomGlobal.document.createElement("button");
     button.className = "j2cl-read-thread-toggle";
     button.setAttribute("type", "button");
-    // SSR-rendered threads lack data-parent-blip-id; their parent is a legacy
-    // div.blip that does not emit wave-blip-thread-toggle-requested, so the
-    // button is the only toggle affordance and must remain visible/focusable.
-    if (thread.hasAttribute("data-parent-blip-id")) {
-      button.setAttribute("tabindex", "-1");
-      button.setAttribute("aria-hidden", "true");
-      button.setAttribute("hidden", "");
-    }
     button.setAttribute("aria-controls", thread.getAttribute("id"));
     updateThreadToggleButton(
         thread, button, thread.classList.contains("j2cl-read-thread-collapsed"));

@@ -116,7 +116,7 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
-  public void parentOwnedInlineThreadToggleIsHiddenBecauseParentChevronOwnsAction() {
+  public void parentOwnedInlineThreadToggleIsVisibleAndDescribed() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
     J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
@@ -136,9 +136,11 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLButtonElement toggle =
         (HTMLButtonElement) host.querySelector(".inline-thread .j2cl-read-thread-toggle");
     Assert.assertNotNull(toggle);
-    Assert.assertTrue(toggle.hasAttribute("hidden"));
-    Assert.assertEquals("true", toggle.getAttribute("aria-hidden"));
-    Assert.assertEquals("-1", toggle.getAttribute("tabindex"));
+    Assert.assertFalse(toggle.hasAttribute("hidden"));
+    Assert.assertNull(toggle.getAttribute("aria-hidden"));
+    Assert.assertEquals(
+        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▾", toggle.textContent);
   }
 
   @Test

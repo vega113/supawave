@@ -95,6 +95,20 @@ describe("<wave-blip>", () => {
     expect(style.fontWeight).to.not.equal("normal");
   });
 
+  it("keeps focused unread blip bodies visibly focused while read status syncs", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b2f" data-wave-id="w2" author-name="Bob" focused unread>
+        body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const body = el.renderRoot.querySelector(".body");
+    const style = getComputedStyle(body);
+    expect(style.backgroundColor).to.equal("rgb(255, 255, 255)");
+    expect(style.color).to.equal("rgb(0, 119, 182)");
+    expect(style.boxShadow).to.contain("inset");
+  });
+
   it("renders the per-blip toolbar in the metadata slot", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b3" data-wave-id="w3" author-name="Carol">

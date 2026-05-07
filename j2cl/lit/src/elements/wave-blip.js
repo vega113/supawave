@@ -276,19 +276,19 @@ export class WaveBlip extends LitElement {
       border-color: #90cdf4;
       background: #ffffff;
     }
-    :host([focused]) .body,
-    :host([tabindex="0"]) .body {
-      border-color: #d9e2ec;
-      background: #ffffff;
-      color: var(--wavy-signal-cyan, #0077b6);
-      font-weight: 600;
-    }
     :host([unread]) .body {
       border-color: var(--wavy-unread-border);
       background: var(--wavy-unread-bg);
       color: var(--wavy-unread-fg);
       font-weight: 600;
       box-shadow: inset 3px 0 0 var(--wavy-signal-cyan, #0077b6);
+    }
+    :host([focused]) .body,
+    :host([tabindex="0"]) .body {
+      border-color: #d9e2ec;
+      background: #ffffff;
+      color: var(--wavy-signal-cyan, #0077b6);
+      font-weight: 600;
     }
     :host([unread]) .author {
       color: var(--wavy-unread-author-fg);

@@ -440,8 +440,9 @@ export class WaveBlip extends LitElement {
   }
 
   _authorLabel() {
-    const label = (this.authorName || this.authorId || "").trim();
-    return label || "Unknown user";
+    const name = typeof this.authorName === "string" ? this.authorName.trim() : "";
+    const id = typeof this.authorId === "string" ? this.authorId.trim() : "";
+    return name || id || "Unknown user";
   }
 
   /**
@@ -625,7 +626,7 @@ export class WaveBlip extends LitElement {
       <wavy-blip-card
         data-blip-id=${this.blipId}
         data-wave-id=${this.waveId}
-        author-name=${this.authorName}
+        author-name=${authorLabel}
         posted-at=${this.postedAt}
         ?is-author=${this.isAuthor}
         ?focused=${visuallyFocused}
@@ -644,7 +645,7 @@ export class WaveBlip extends LitElement {
           >
             ${this._initials()}
           </button>
-          <span class="author">${this.authorName || this.authorId || authorLabel}</span>
+          <span class="author">${authorLabel}</span>
           <time
             class="posted"
             title=${tooltip}

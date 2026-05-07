@@ -3226,7 +3226,11 @@ public final class J2clReadSurfaceDomRenderer {
     int boundedIndex = Math.max(0, Math.min(index, visibleBlips.size() - 1));
     HTMLElement next = visibleBlips.get(boundedIndex);
     focusBlip(next, key);
-    focusWithoutScrolling(next);
+    if (key == null || key.isEmpty()) {
+      focusWithoutScrolling(next);
+    } else {
+      next.focus();
+    }
   }
 
   private void focusBlip(HTMLElement next) {

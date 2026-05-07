@@ -92,6 +92,7 @@ describe("<wave-blip>", () => {
     const style = getComputedStyle(body);
     expect(style.boxShadow).to.contain("inset");
     expect(style.fontWeight).to.not.equal("400");
+    expect(style.fontWeight).to.not.equal("normal");
   });
 
   it("renders the per-blip toolbar in the metadata slot", async () => {
@@ -593,6 +594,22 @@ describe("<wave-blip>", () => {
       expect(avatar.textContent.trim()).to.equal("UU");
       expect(avatar.getAttribute("aria-label")).to.equal("Open Unknown user profile");
       expect(author.textContent.trim()).to.equal("Unknown user");
+    });
+
+    it("whitespace author name falls back to trimmed author id", async () => {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b41trim"
+          author-name="   "
+          author-id="  alice@example.com  "
+        ></wave-blip>
+      `);
+      await el.updateComplete;
+      const avatar = el.renderRoot.querySelector(".avatar");
+      const author = el.renderRoot.querySelector(".author");
+      expect(avatar.textContent.trim()).to.equal("AL");
+      expect(avatar.getAttribute("aria-label")).to.equal("Open alice@example.com profile");
+      expect(author.textContent.trim()).to.equal("alice@example.com");
     });
 
     it("renders the thread chevron only when reply-count > 0", async () => {

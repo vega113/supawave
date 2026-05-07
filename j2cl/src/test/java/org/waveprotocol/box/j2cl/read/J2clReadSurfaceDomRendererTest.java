@@ -94,6 +94,28 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void enhanceExistingSurfaceInitializesCollapsedThreadToggleState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"inline-thread j2cl-read-thread-collapsed\""
+            + " data-thread-id=\"t+inline\" data-j2cl-thread-collapsed=\"true\">"
+            + "<div class=\"blip\" data-blip-id=\"b+reply\">Reply</div>"
+            + "</div></div>";
+
+    Assert.assertTrue(new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface());
+
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".j2cl-read-thread-toggle");
+    Assert.assertNotNull(toggle);
+    Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▸", toggle.textContent);
+  }
+
+  @Test
   public void parentOwnedInlineThreadToggleIsHiddenBecauseParentChevronOwnsAction() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

@@ -2540,7 +2540,8 @@ public final class J2clReadSurfaceDomRenderer {
       button.setAttribute("hidden", "");
     }
     button.setAttribute("aria-controls", thread.getAttribute("id"));
-    updateThreadToggleButton(thread, button, false);
+    updateThreadToggleButton(
+        thread, button, thread.classList.contains("j2cl-read-thread-collapsed"));
     button.addEventListener(
         "click",
         event -> {

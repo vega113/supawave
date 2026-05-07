@@ -516,6 +516,9 @@ public final class SidecarConversationManifest {
       return;
     }
     Entry entry = entries.get(index);
+    if (entry == null) {
+      return;
+    }
     entries.set(
         index,
         new Entry(

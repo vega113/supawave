@@ -118,6 +118,10 @@ export class WaveBlip extends LitElement {
   static styles = css`
     :host {
       display: block;
+      --wavy-unread-border: rgba(0, 119, 182, 0.5);
+      --wavy-unread-bg: rgba(0, 180, 216, 0.1);
+      --wavy-unread-fg: #0f3f5f;
+      --wavy-unread-author-fg: #075985;
       /* The visual envelope lives on the inner <wavy-blip-card>; this
        * host is a transparent wrapper so the F-0 recipe styling owns
        * focus / unread / pulse visuals. */
@@ -272,12 +276,23 @@ export class WaveBlip extends LitElement {
       border-color: #90cdf4;
       background: #ffffff;
     }
+    :host([unread]) .body {
+      border-color: var(--wavy-unread-border);
+      background: var(--wavy-unread-bg);
+      color: var(--wavy-unread-fg);
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 var(--wavy-signal-cyan, #0077b6);
+    }
     :host([focused]) .body,
     :host([tabindex="0"]) .body {
       border-color: #d9e2ec;
       background: #ffffff;
       color: var(--wavy-signal-cyan, #0077b6);
       font-weight: 600;
+    }
+    :host([unread]) .author {
+      color: var(--wavy-unread-author-fg);
+      font-weight: 700;
     }
     .task-affordance-slot {
       display: inline-flex;
@@ -420,13 +435,18 @@ export class WaveBlip extends LitElement {
   }
 
   _initials() {
-    const name = (this.authorName || this.authorId || "?").trim();
-    if (!name) return "?";
+    const name = this._authorLabel();
     const parts = name.split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+  }
+
+  _authorLabel() {
+    const name = typeof this.authorName === "string" ? this.authorName.trim() : "";
+    const id = typeof this.authorId === "string" ? this.authorId.trim() : "";
+    return name || id || "Unknown user";
   }
 
   /**
@@ -594,6 +614,7 @@ export class WaveBlip extends LitElement {
     const visuallyFocused = this._visuallyFocused();
     const replyNoun = this.replyCount === 1 ? "reply" : "replies";
     const threadToggleVerb = this.threadCollapsed ? "Expand" : "Collapse";
+    const authorLabel = this._authorLabel();
     const chevron = hasReplies
       ? html`<button
           type="button"
@@ -609,7 +630,7 @@ export class WaveBlip extends LitElement {
       <wavy-blip-card
         data-blip-id=${this.blipId}
         data-wave-id=${this.waveId}
-        author-name=${this.authorName}
+        author-name=${authorLabel}
         posted-at=${this.postedAt}
         ?is-author=${this.isAuthor}
         ?focused=${visuallyFocused}
@@ -623,12 +644,12 @@ export class WaveBlip extends LitElement {
             class="avatar"
             data-blip-avatar="true"
             data-palette=${String(palette)}
-            aria-label=${`Open ${this.authorName || this.authorId || "user"} profile`}
+            aria-label=${`Open ${authorLabel} profile`}
             @click=${this._onAvatarClick}
           >
             ${this._initials()}
           </button>
-          <span class="author">${this.authorName || this.authorId || ""}</span>
+          <span class="author">${authorLabel}</span>
           <time
             class="posted"
             title=${tooltip}

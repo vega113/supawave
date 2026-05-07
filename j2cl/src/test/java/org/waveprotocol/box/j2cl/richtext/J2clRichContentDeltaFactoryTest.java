@@ -189,6 +189,42 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void replyRequestAtInlineDepthLimitFallsBackToRegularSiblingReply() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+deep",
+            Collections.<String>emptyList(),
+            6,
+            10,
+            7,
+            5,
+            Collections.singletonMap("b+deep", Integer.valueOf(6)),
+            Collections.singletonMap("b+deep", Integer.valueOf(7)),
+            Collections.singletonMap("b+deep", Integer.valueOf(5)));
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Depth-limited reply").build();
+
+    SidecarSubmitRequest request = factory.createReplyRequest("user@example.com", session, document);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    assertContains(
+        deltaJson,
+        "\"1\":\"conversation\"",
+        "{\"5\":7}",
+        "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+seedA\"}]}}",
+        "{\"5\":3}",
+        "\"2\":\"Depth-limited reply\"");
+    Assert.assertFalse("fallback must not create another nested thread", deltaJson.contains("\"1\":\"thread\""));
+    Assert.assertEquals(2, countOccurrences(deltaJson, "b+seedA"));
+  }
+
+  @Test
   public void replyRequestAllowsVersionZeroWriteSession() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

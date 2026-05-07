@@ -81,6 +81,43 @@ describe("<wave-blip>", () => {
     expect(card.hasAttribute("unread")).to.be.true;
   });
 
+  it("highlights unread blip bodies beyond the small card unread dot", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b2u" data-wave-id="w2" author-name="Bob" unread>
+        body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const body = el.renderRoot.querySelector(".body");
+    const style = getComputedStyle(body);
+    expect(style.boxShadow).to.contain("inset");
+    expect(style.fontWeight).to.not.equal("400");
+    expect(style.fontWeight).to.not.equal("normal");
+  });
+
+  it("keeps focused unread blip bodies visibly focused while read status syncs", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b2f" data-wave-id="w2" author-name="Bob" focused unread>
+        body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const body = el.renderRoot.querySelector(".body");
+    const style = getComputedStyle(body);
+    const token =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--wavy-signal-cyan")
+        .trim() || "#0077b6";
+    const probe = document.createElement("span");
+    probe.style.color = token;
+    document.body.appendChild(probe);
+    const expectedCyan = getComputedStyle(probe).color;
+    probe.remove();
+    expect(style.backgroundColor).to.equal("rgb(255, 255, 255)");
+    expect(style.color).to.equal(expectedCyan);
+    expect(style.boxShadow).to.contain("inset");
+  });
+
   it("renders the per-blip toolbar in the metadata slot", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b3" data-wave-id="w3" author-name="Carol">
@@ -568,6 +605,34 @@ describe("<wave-blip>", () => {
         palettes.add(el.renderRoot.querySelector(".avatar").getAttribute("data-palette"));
       }
       expect(palettes.size).to.be.greaterThan(1);
+    });
+
+    it("missing author metadata uses a stable unknown-user avatar instead of a question mark", async () => {
+      const el = await fixture(html`
+        <wave-blip data-blip-id="b41unknown"></wave-blip>
+      `);
+      await el.updateComplete;
+      const avatar = el.renderRoot.querySelector(".avatar");
+      const author = el.renderRoot.querySelector(".author");
+      expect(avatar.textContent.trim()).to.equal("UU");
+      expect(avatar.getAttribute("aria-label")).to.equal("Open Unknown user profile");
+      expect(author.textContent.trim()).to.equal("Unknown user");
+    });
+
+    it("whitespace author name falls back to trimmed author id", async () => {
+      const el = await fixture(html`
+        <wave-blip
+          data-blip-id="b41trim"
+          author-name="   "
+          author-id="  alice@example.com  "
+        ></wave-blip>
+      `);
+      await el.updateComplete;
+      const avatar = el.renderRoot.querySelector(".avatar");
+      const author = el.renderRoot.querySelector(".author");
+      expect(avatar.textContent.trim()).to.equal("AL");
+      expect(avatar.getAttribute("aria-label")).to.equal("Open alice@example.com profile");
+      expect(author.textContent.trim()).to.equal("alice@example.com");
     });
 
     it("renders the thread chevron only when reply-count > 0", async () => {

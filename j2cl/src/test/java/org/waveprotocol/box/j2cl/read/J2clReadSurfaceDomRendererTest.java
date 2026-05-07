@@ -70,7 +70,9 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals(
         "Collapse inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
-    Assert.assertEquals("−", toggle.textContent);
+    Assert.assertEquals(
+        "Collapse inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▾", toggle.textContent);
 
     HTMLElement inlineThread =
         (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
@@ -87,7 +89,71 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("true", inlineThread.getAttribute("data-j2cl-thread-collapsed"));
     Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
-    Assert.assertEquals("+", toggle.textContent);
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▸", toggle.textContent);
+  }
+
+  @Test
+  public void enhanceExistingSurfaceInitializesCollapsedThreadToggleState() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    host.innerHTML =
+        "<div class=\"wave-content\">"
+            + "<div class=\"inline-thread j2cl-read-thread-collapsed\""
+            + " data-thread-id=\"t+inline\" data-j2cl-thread-collapsed=\"true\">"
+            + "<div class=\"blip\" data-blip-id=\"b+reply\">Reply</div>"
+            + "</div></div>";
+
+    Assert.assertTrue(new J2clReadSurfaceDomRenderer(host).enhanceExistingSurface());
+
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".j2cl-read-thread-toggle");
+    Assert.assertNotNull(toggle);
+    Assert.assertEquals("false", toggle.getAttribute("aria-expanded"));
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("aria-label"));
+    Assert.assertEquals("Expand inline reply thread 1 (inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▸", toggle.textContent);
+  }
+
+  @Test
+  public void parentOwnedInlineThreadToggleIsVisibleAndDescribed() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setConversationManifest(
+        SidecarConversationManifest.of(
+            Arrays.asList(
+                new SidecarConversationManifest.Entry("b+root", "", "t+root", 0, 0),
+                new SidecarConversationManifest.Entry("b+reply", "b+root", "t+inline", 1, 0))));
+
+    Assert.assertTrue(
+        renderer.render(
+            Arrays.asList(
+                new J2clReadBlip("b+root", "Root"),
+                new J2clReadBlip(
+                    "b+reply",
+                    "Reply",
+                    Collections.<J2clAttachmentRenderModel>emptyList(),
+                    "",
+                    "",
+                    0L,
+                    "b+root",
+                    "t+inline",
+                    false,
+                    false)),
+            Collections.<String>emptyList()));
+
+    HTMLButtonElement toggle =
+        (HTMLButtonElement) host.querySelector(".inline-thread .j2cl-read-thread-toggle");
+    Assert.assertNotNull(toggle);
+    Assert.assertFalse(toggle.hasAttribute("hidden"));
+    Assert.assertNull(toggle.getAttribute("aria-hidden"));
+    Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
+    Assert.assertEquals(
+        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("aria-label"));
+    Assert.assertEquals(
+        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("title"));
+    Assert.assertEquals("▾", toggle.textContent);
   }
 
   @Test

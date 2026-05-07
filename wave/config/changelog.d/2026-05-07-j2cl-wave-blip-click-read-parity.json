@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-07-j2cl-wave-blip-click-read-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-07",
+  "title": "J2CL wave blip click and reply parity",
+  "summary": "Improves the J2CL wave reader so blip click, unread, avatar, thread-toggle, and depth-limited reply behavior match the legacy wave view more closely.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Clicking an unread blip now marks it read immediately without shifting the wave panel.",
+        "Unread blips receive a stronger visual highlight and missing author metadata no longer renders a question-mark avatar.",
+        "Inline thread controls now use clearer chevrons with tooltips, hide duplicate inert buttons, and depth-limited inline replies fall back to regular replies."
+      ]
+    }
+  ]
+}

@@ -60,9 +60,9 @@ class ContaboHostKeyWorkflowTest(unittest.TestCase):
           check=False,
       )
 
-    self.assertNotEqual(0, result.returncode)
-    self.assertIn("CONTABO_HOST_FINGERPRINT must be set", result.stderr)
-    self.assertFalse(sentinel.exists(), "ssh-keyscan must not be called when fingerprint is missing")
+      self.assertNotEqual(0, result.returncode)
+      self.assertIn("CONTABO_HOST_FINGERPRINT must be set", result.stderr)
+      self.assertFalse(sentinel.exists(), "ssh-keyscan must not be called when fingerprint is missing")
 
   def test_shared_trust_script_accepts_matching_scanned_fingerprint(self):
     result, known_hosts = run_trust_script_with_fake_ssh_key_tools(

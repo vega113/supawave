@@ -66,19 +66,28 @@ public final class J2clBuildStageContractTest extends TestCase {
         "Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
   }
 
-  public void testDockerfileCopiesJ2clTreeAndUsesUniversalStageOnly() throws Exception {
+  public void testDockerfileCopiesJ2clTreeAndBuildsRuntimeAssets() throws Exception {
     String dockerfile = read("Dockerfile");
 
     assertTrue(dockerfile.contains("COPY j2cl /workspace/j2cl"));
-    assertTrue(dockerfile.contains("RUN sbt --batch \"pst/compile; wave/compile; Universal/stage\""));
-    assertFalse(dockerfile.contains("j2clSearchBuild; j2clProductionBuild; Universal/stage"));
+    assertTrue(dockerfile.contains("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1"));
+    assertTrue(dockerfile.contains(
+        "RUN WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch \"pst/compile; wave/compile; j2clRuntimeBuild; Universal/stage\""));
   }
 
-  public void testDeployWorkflowUsesUniversalStageOnly() throws Exception {
+  public void testDeployWorkflowBuildsAndVerifiesJ2clAssets() throws Exception {
     String workflow = read(".github/workflows/deploy-contabo.yml");
 
-    assertTrue(workflow.contains("sbt --batch \"pst/compile; wave/compile; Universal/stage\""));
-    assertFalse(workflow.contains("j2clSearchBuild; j2clProductionBuild; Universal/stage"));
+    assertTrue(workflow.contains("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1"));
+    assertTrue(workflow.contains(
+        "WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch \"pst/compile; wave/compile; j2clRuntimeBuild; Universal/stage\""));
+    assertTrue(workflow.contains("Verify staged J2CL assets"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/wavy-thread-collapse.css"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/shell.css"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/sidecar.css"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/wavy-tokens.css"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/shell.js"));
+    assertTrue(workflow.contains("target/universal/stage/war/j2cl-search/sidecar/j2cl-sidecar.js"));
   }
 
   private static String read(String relativePath) throws IOException {

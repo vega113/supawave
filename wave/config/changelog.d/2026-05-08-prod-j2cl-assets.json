@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-prod-j2cl-assets",
+  "version": "Issue #1212",
+  "date": "2026-05-08",
+  "title": "Production deploys include J2CL shell assets again",
+  "summary": "The production deploy build now explicitly rebuilds and packages the J2CL root-shell assets before creating the runtime image, preventing the J2CL shell from loading HTML or 404 responses for CSS and JavaScript files.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Add a deploy guard that fails before image publication if the staged J2CL CSS or JavaScript assets are missing"
+      ]
+    }
+  ]
+}

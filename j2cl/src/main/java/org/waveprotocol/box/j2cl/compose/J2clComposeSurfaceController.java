@@ -2280,7 +2280,7 @@ public final class J2clComposeSurfaceController {
     }
     String normalizedTarget = replyTargetBlipId == null ? "" : replyTargetBlipId.trim();
     if (normalizedTarget.isEmpty()) {
-      return writeSession;
+      return continuation ? null : writeSession;
     }
     return continuation
         ? writeSession.forContinuationTarget(normalizedTarget)

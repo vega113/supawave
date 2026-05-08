@@ -265,7 +265,7 @@ function inlineFormatAnnotationsForNode(node) {
  * - replyTargetBlipId (String, attribute "reply-target-blip-id") —
  *   the blip the composer is replying to (absent for wave-root +
  *   create-wave composers).
- * - mode (String) — "reply" | "edit" | "create" | "wave-root";
+ * - mode (String) — "reply" | "edit" | "create" | "wave-root" | "continuation";
  *   surfaces the verb used in the host chip and submit button label.
  * - targetLabel (String) — display name of the reply target ("Yuri",
  *   "Top thread", …) used in the "Replying to <author>" chip.

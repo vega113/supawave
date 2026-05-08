@@ -68,7 +68,8 @@ public class J2clPlainTextDeltaFactory {
             + "\"}]}}}";
     if (session.isContinuationReply() && session.getReplyManifestSiblingInsertPosition() < 0) {
       throw new IllegalArgumentException(
-          "Missing manifest sibling reply insert position for continuation.");
+          "Unable to submit continuation reply: missing insert position for blip "
+              + session.getReplyTargetBlipId() + ".");
     }
     if (shouldCreateRegularReply(session)) {
       operationsJson =

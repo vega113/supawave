@@ -97,6 +97,7 @@ export class WavyWaveHeaderActions extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
+      position: relative;
       background: linear-gradient(180deg, #e8f4f8 0%, #ffffff 100%);
       border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
       min-height: 34px;
@@ -104,7 +105,10 @@ export class WavyWaveHeaderActions extends LitElement {
     }
 
     :host([has-participants]) {
-      margin-top: -46px;
+      background: transparent;
+      border-bottom: none;
+      min-height: 0;
+      padding: 0;
     }
 
     .row {
@@ -116,6 +120,12 @@ export class WavyWaveHeaderActions extends LitElement {
       width: var(--wavy-wave-actions-reserved-width, 174px);
       max-width: 100%;
       margin-left: auto;
+    }
+
+    :host([has-participants]) .row {
+      position: absolute;
+      right: 4px;
+      top: -42px;
     }
 
     button {

@@ -69,7 +69,17 @@ describe("<wavy-wave-header-actions>", () => {
     expect(cssText).to.include("max-width: 100%");
   });
 
-  it("does not apply negative margin-top on :host when no participants", async () => {
+  it("keeps participant-present host transparent and zero-height in flow", () => {
+    const cssText = WavyWaveHeaderActions_styleText();
+    expect(cssText).to.not.include("margin-top: -46px");
+    expect(cssText).to.include(":host([has-participants])");
+    expect(cssText).to.include("background: transparent");
+    expect(cssText).to.include("min-height: 0");
+    expect(cssText).to.include("position: absolute");
+    expect(cssText).to.include("top: -42px");
+  });
+
+  it("does not offset host when no participants", async () => {
     const el = await createActions({ participants: [] });
     expect(el.hasAttribute("has-participants")).to.be.false;
   });

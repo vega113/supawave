@@ -399,9 +399,9 @@ async function assertFocusMovesOnArrowDown(
 }
 
 /**
- * Clicks the collapse chevron / toggle for the inline-reply thread
- * under the parent blip and asserts at least one descendant blip
- * disappears from the visible blip count.
+ * Clicks the parent blip's collapse chevron for the inline-reply
+ * thread and asserts at least one descendant blip disappears from the
+ * visible blip count.
  */
 async function assertCollapseFoldsReplyChain(
   page: Page,
@@ -412,19 +412,23 @@ async function assertCollapseFoldsReplyChain(
     .count();
   expect(before).toBeGreaterThanOrEqual(4);
 
-  // The J2CL renderer mounts a `.j2cl-read-thread-toggle` button on
-  // every inline-thread wrapper under the parent blip. Fail hard when
-  // absent so a regression in the renderer's enhanceInlineThread wiring
-  // stays visible rather than silently passing via a wrong-thread fallback.
+  await expect(
+    page.locator(
+      `[data-parent-blip-id="${parentBlipId}"] .j2cl-read-thread-toggle`
+    ),
+    "J2CL parent-owned inline threads should use the parent blip chevron, " +
+      "not a generated per-thread gutter toggle."
+  ).toHaveCount(0);
+
   const toggle = page
     .locator(
-      `[data-parent-blip-id="${parentBlipId}"] .j2cl-read-thread-toggle`
+      `wave-blip[data-blip-id="${parentBlipId}"] [data-thread-chevron="true"]`
     )
     .first();
   await expect(
     toggle,
-    `assertCollapseFoldsReplyChain: no .j2cl-read-thread-toggle found under ` +
-      `[data-parent-blip-id="${parentBlipId}"] on J2CL view.`
+    `assertCollapseFoldsReplyChain: no parent wave-blip chevron found for ` +
+      `${parentBlipId} on J2CL view.`
   ).toBeVisible({ timeout: 10_000 });
 
   await toggle.click();

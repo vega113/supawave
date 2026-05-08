@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-issue-1208-j2cl-inline-thread-plus",
+  "version": "Issue #1208",
+  "date": "2026-05-08",
+  "title": "J2CL inline reply controls match GWT",
+  "summary": "Removes redundant J2CL inline-thread plus controls from parent-owned blips so the visible reply-thread affordance matches the GWT-style parent chevron.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Parent-owned inline replies in the J2CL wave view now use the blip's existing reply chevron instead of an extra gutter plus control that had no useful label and often appeared inert."
+      ]
+    }
+  ]
+}

@@ -1072,10 +1072,8 @@ public final class J2clReadSurfaceDomRenderer {
         if (thread == null || thread.classList.contains("j2cl-read-thread-collapsed")) {
           continue;
         }
-        HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-        if (button != null) {
-          toggleThread(thread, button);
-        }
+        HTMLElement button = ownToggleButton(thread);
+        toggleThread(thread, button);
       }
     }
   }
@@ -1317,8 +1315,8 @@ public final class J2clReadSurfaceDomRenderer {
       }
       String threadId = thread.getAttribute("data-thread-id");
       if (threadId != null && collapsedIds.contains(threadId)) {
-        HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-        if (button != null) {
+        HTMLElement button = ownToggleButton(thread);
+        if (!thread.classList.contains("j2cl-read-thread-collapsed")) {
           toggleThread(thread, button);
         }
       }
@@ -2519,8 +2517,20 @@ public final class J2clReadSurfaceDomRenderer {
     String label = threadLabel(thread, ordinal);
     thread.setAttribute("aria-label", label);
     thread.setAttribute("data-j2cl-thread-label", label);
+    if (thread.hasAttribute("data-parent-blip-id")) {
+      HTMLElement existingButton =
+          (thread.firstElementChild != null
+                  && thread.firstElementChild.classList.contains("j2cl-read-thread-toggle"))
+              ? (HTMLElement) thread.firstElementChild
+              : null;
+      if (existingButton != null && existingButton.parentElement != null) {
+        existingButton.parentElement.removeChild(existingButton);
+      }
+      thread.setAttribute("data-j2cl-collapse-ready", "true");
+      return;
+    }
     if (thread.hasAttribute("data-j2cl-collapse-ready")) {
-      HTMLElement existingButton = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
+      HTMLElement existingButton = ownToggleButton(thread);
       if (existingButton != null) {
         updateThreadToggleButton(
             thread, existingButton, thread.classList.contains("j2cl-read-thread-collapsed"));
@@ -2671,10 +2681,7 @@ public final class J2clReadSurfaceDomRenderer {
       }
     }
     for (HTMLElement thread : threads) {
-      HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-      if (button == null) {
-        continue;
-      }
+      HTMLElement button = ownToggleButton(thread);
       boolean currentlyCollapsed = thread.classList.contains("j2cl-read-thread-collapsed");
       if (currentlyCollapsed != collapse) {
         toggleThread(thread, button);
@@ -3270,6 +3277,18 @@ public final class J2clReadSurfaceDomRenderer {
     button.setAttribute("aria-label", label);
     button.setAttribute("title", label);
     button.textContent = collapsed ? "\u25b8" : "\u25be";
+  }
+
+  // Returns the thread's own toggle button (always first child when present),
+  // or null for parent-owned threads that intentionally have no own button.
+  // Never descends into nested threads so callers cannot accidentally operate
+  // on a descendant legacy toggle.
+  private static HTMLElement ownToggleButton(HTMLElement thread) {
+    if (thread.firstElementChild != null
+        && thread.firstElementChild.classList.contains("j2cl-read-thread-toggle")) {
+      return (HTMLElement) thread.firstElementChild;
+    }
+    return null;
   }
 
   private void setFocusMarkers(HTMLElement blip) {

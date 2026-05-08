@@ -116,7 +116,7 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
-  public void parentOwnedInlineThreadToggleIsVisibleAndDescribed() {
+  public void parentOwnedInlineThreadUsesParentChevronWithoutGeneratedThreadToggle() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
     J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
@@ -143,17 +143,12 @@ public class J2clReadSurfaceDomRendererTest {
                     false)),
             Collections.<String>emptyList()));
 
-    HTMLButtonElement toggle =
-        (HTMLButtonElement) host.querySelector(".inline-thread .j2cl-read-thread-toggle");
-    Assert.assertNotNull(toggle);
-    Assert.assertFalse(toggle.hasAttribute("hidden"));
-    Assert.assertNull(toggle.getAttribute("aria-hidden"));
-    Assert.assertEquals("true", toggle.getAttribute("aria-expanded"));
     Assert.assertEquals(
-        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("aria-label"));
-    Assert.assertEquals(
-        "Collapse inline reply thread 2 (b+root::t+inline)", toggle.getAttribute("title"));
-    Assert.assertEquals("▾", toggle.textContent);
+        "Parent-owned J2CL threads use the parent wave-blip chevron; the generated"
+            + " per-thread toggle paints as a stray gutter control.",
+        0,
+        host.querySelectorAll(".inline-thread[data-parent-blip-id] .j2cl-read-thread-toggle").length);
+    Assert.assertEquals("1", blip(host, "b+root").getAttribute("reply-count"));
   }
 
   @Test
@@ -1196,6 +1191,10 @@ public class J2clReadSurfaceDomRendererTest {
     HTMLElement root = blip(host, "b+root");
     HTMLElement thread =
         (HTMLElement) host.querySelector(".inline-thread[data-thread-id='t+inline']");
+    Assert.assertEquals(
+        "Parent chevron is the only visible J2CL affordance for this thread.",
+        0,
+        host.querySelectorAll(".inline-thread[data-parent-blip-id] .j2cl-read-thread-toggle").length);
 
     dispatchThreadToggle(root, "b+root");
     Assert.assertTrue(thread.classList.contains("j2cl-read-thread-collapsed"));

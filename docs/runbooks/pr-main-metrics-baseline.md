@@ -50,9 +50,11 @@ definition.
 - `gh` CLI authenticated against `vega113/incubator-wave` with at least
   `repo` and `read:org` scopes
 - `node` for the JSON reduce step
-- GitHub REST and GraphQL share a 5000 requests/hour authenticated quota.
+- GitHub REST API: 5 000 requests/hour per authenticated user (request-count
+  based). GraphQL API: separate point-based quota (~5 000 points/hour); a
+  simple paginated query costs roughly 1 point per page.
   This runbook makes ~3 REST calls and ~3 GraphQL pages per run, well under
-  any rate-limit threshold
+  either rate-limit threshold
 
 ## 3. Snapshot the data
 
@@ -235,6 +237,12 @@ const closedMainInWindow = closedMain.filter((pr) => {
   return Number.isFinite(c) && c >= ws && c < we && !Number.isFinite(m);
 });
 
+const gqlCount = inWindowGql.length;
+if (gqlCount === 0) {
+  process.stderr.write('WARNING: GraphQL pass returned 0 qualifying PRs — check pagination or window bounds\n');
+}
+const divGql = (n) => gqlCount > 0 ? round2(n / gqlCount) : null;
+
 console.log(JSON.stringify({
   window_start: new Date(ws).toISOString(),
   window_end:   new Date(we).toISOString(),
@@ -250,12 +258,12 @@ console.log(JSON.stringify({
   merged_within_24h:       within(24),
   max_open_to_merge_hours: round2(hours.at(-1) ?? null),
 
-  pct_with_reviews:                        round2(withReviews        / inWindowGql.length * 100),
-  pct_with_review_threads:                 round2(withReviewThreads  / inWindowGql.length * 100),
+  pct_with_reviews:                        gqlCount > 0 ? round2(withReviews       / gqlCount * 100) : null,
+  pct_with_review_threads:                 gqlCount > 0 ? round2(withReviewThreads / gqlCount * 100) : null,
   total_review_threads:                    totalThreads,
-  threads_per_pr_mean:                     round2(totalThreads      / inWindowGql.length),
+  threads_per_pr_mean:                     divGql(totalThreads),
   unresolved_threads_at_merge_total:       unresolvedAtMerge,
-  unresolved_threads_per_pr_mean:          round2(unresolvedAtMerge / inWindowGql.length),
+  unresolved_threads_per_pr_mean:          divGql(unresolvedAtMerge),
   max_review_threads_per_pr:               maxThreadsPerPr,
   prs_with_threads_truncated_at_100:       truncated,
   status_check_rollup_distribution:        rollup,

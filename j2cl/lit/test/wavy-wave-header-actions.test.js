@@ -69,6 +69,24 @@ describe("<wavy-wave-header-actions>", () => {
     expect(cssText).to.include("max-width: 100%");
   });
 
+  it("does not apply negative margin-top on :host when no participants", async () => {
+    const el = await createActions({ participants: [] });
+    expect(el.hasAttribute("has-participants")).to.be.false;
+  });
+
+  it("sets has-participants attribute when participants are provided", async () => {
+    const el = await createActions({ participants: ["alice@example.com"] });
+    expect(el.hasAttribute("has-participants")).to.be.true;
+  });
+
+  it("removes has-participants attribute when participants are cleared", async () => {
+    const el = await createActions({ participants: ["alice@example.com"] });
+    expect(el.hasAttribute("has-participants")).to.be.true;
+    el.participants = [];
+    await el.updateComplete;
+    expect(el.hasAttribute("has-participants")).to.be.false;
+  });
+
   it("disables write buttons when no source wave is selected", async () => {
     const el = await createActions({ sourceWaveId: "" });
 

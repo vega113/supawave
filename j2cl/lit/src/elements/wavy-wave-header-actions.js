@@ -100,8 +100,11 @@ export class WavyWaveHeaderActions extends LitElement {
       background: linear-gradient(180deg, #e8f4f8 0%, #ffffff 100%);
       border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
       min-height: 34px;
-      margin-top: -46px;
       padding: 4px;
+    }
+
+    :host([has-participants]) {
+      margin-top: -46px;
     }
 
     .row {
@@ -303,6 +306,9 @@ export class WavyWaveHeaderActions extends LitElement {
       this._pendingConfirm = null;
       this._addDialogOpen = false;
       this._participantDraft = "";
+    }
+    if (changedProperties.has("participants")) {
+      this.toggleAttribute("has-participants", participantList(this.participants).length > 0);
     }
   }
 

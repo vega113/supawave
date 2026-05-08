@@ -115,7 +115,11 @@ proves both of these at once:
 
 ### 3. Prepare Local Runtime Assets
 
+Build the J2CL production output first so `worktree-boot.sh`'s staging step
+finds the sentinel and includes the sidecar assets:
+
 ```bash
+sbt -batch j2clRuntimeBuild
 bash scripts/worktree-boot.sh --port 9900
 ```
 

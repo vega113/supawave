@@ -47,7 +47,12 @@ jobs:
       - name: Compile PST and Wave
         run: sbt --batch pst/compile wave/compile
 
+      - name: Build J2CL runtime assets
+        run: sbt --batch j2clRuntimeBuild
+
       - name: Stage distribution
+        env:
+          WAVE_STAGE_INCLUDE_J2CL_ASSETS: '1'
         run: sbt --batch Universal/stage
 
       - name: Start Wave server
@@ -57,18 +62,12 @@ jobs:
         run: PORT=9898 bash scripts/wave-smoke.sh start
 
       - name: Sanity-check server
-        # G-PORT-4 (#1113): the original `wave-smoke.sh check` subcommand
-        # asserts that the unauthenticated root path serves the GWT
-        # bootstrap asset (webclient.nocache.js). That stopped being
-        # true once `/` started routing signed-out visitors to the
-        # marketing page (this predates G-PORT-4 — see
-        # WaveClientServlet.java:165-178). The Playwright fixtures
-        # register a fresh user before exercising any view, so the
-        # signed-in routing does not depend on the smoke `check`. We
-        # assert a 200 from `/` directly here, which is what the
-        # harness actually needs before launching browsers.
+        # This parity lane explicitly builds J2CL assets above, so keep the
+        # smoke check strict for the J2CL index and sidecar before launching
+        # the browser harness.
         run: |
           PORT=9898 bash scripts/wave-smoke.sh status
+          WAVE_SMOKE_REQUIRE_J2CL_ASSETS=1 PORT=9898 bash scripts/wave-smoke.sh check
           status=$(curl -sS --max-time 15 --connect-timeout 5 -o /dev/null -w "%{http_code}" "http://localhost:9898/")
           if [[ "$status" -ne 200 ]]; then
             echo "Root path returned non-200: $status" >&2

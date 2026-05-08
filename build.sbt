@@ -666,9 +666,14 @@ Universal / mappings ++= {
   val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("config/" + IO.relativize(configDir, f).get)
   }
-  // war/ -> war/
+  // war/ -> war/ (excluding J2CL output dirs unless explicitly requested)
   val warDir = base / "war"
-  val warFiles = (warDir ** "*").get.filter(_.isFile).map { f =>
+  val j2clOutputDirs = Set("j2cl", "j2cl-search", "j2cl-debug")
+  val includeJ2clAssets = sys.env.get("WAVE_STAGE_INCLUDE_J2CL_ASSETS").contains("1")
+  val warFiles = (warDir ** "*").get.filter(_.isFile).filter { f =>
+    val rel = IO.relativize(warDir, f).getOrElse("")
+    includeJ2clAssets || !j2clOutputDirs.exists(d => rel == d || rel.startsWith(d + "/"))
+  }.map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
   // Root docs
@@ -1189,9 +1194,10 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place and both browser runtimes are rebuilt
-// before launching the server.
-Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated
+// Ensure `run` has a config in place and the default GWT browser runtime is
+// rebuilt before launching the server. J2CL sidecar builds remain explicit SBT
+// tasks so the normal app path does not depend on the Maven-backed sidecar.
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1386,6 +1392,7 @@ ThisBuild / compileGwtDev := {
 
 // Prevent packaging distributions with missing GWT assets when -DskipGwt=true
 lazy val verifyGwtAssets = taskKey[Unit]("Fail when packaging would ship with missing GWT assets")
+lazy val cleanStagedJ2clAssets = taskKey[Unit]("Remove stale J2CL assets from the staged default distribution")
 
 ThisBuild / verifyGwtAssets := {
   val log = streams.value.log
@@ -1397,13 +1404,24 @@ ThisBuild / verifyGwtAssets := {
   log.info("[verifyGwtAssets] OK — GWT assets will be compiled")
 }
 
+ThisBuild / cleanStagedJ2clAssets := {
+  val stagedWarDir = target.value / "universal" / "stage" / "war"
+  IO.delete(Seq(
+    stagedWarDir / "j2cl",
+    stagedWarDir / "j2cl-search",
+    stagedWarDir / "j2cl-debug"
+  ))
+}
+
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
-Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
+Universal / stage := (Universal / stage)
+  .dependsOn(cleanStagedJ2clAssets, compileGwt, verifyGwtAssets)
+  .value
+Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

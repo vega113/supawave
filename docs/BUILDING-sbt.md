@@ -54,10 +54,10 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `prepareServerConfig` still bootstraps the root `config/` directory because
     some runtime helpers expect those copies even though the default `sbt run`
     java options point at `wave/config/`.
-  - `sbt run` also rebuilds the maintained J2CL root shell, the J2CL
-    search-sidecar asset, the production `/j2cl/**` asset tree, and the legacy
-    `/webclient/**` asset tree so the runtime does not depend on leftover
-    browser artifacts under `war/`.
+  - `sbt run` rebuilds the legacy `/webclient/**` asset tree through
+    `compileGwt`. It does not build the J2CL sidecar assets by default.
+    Run the explicit J2CL SBT tasks below when you are working on J2CL or need
+    `/j2cl/**` and `/j2cl-search/**` assets for a smoke check.
   - To override, replace the relevant `Compile / javaOptions` entry with your
     own absolute path.
 
@@ -65,10 +65,12 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `sbt j2clSearchBuild`
   - `sbt j2clProductionBuild`
   - `sbt compileGwt`
-  - `sbt run` rebuilds both the maintained J2CL assets and the rollback-ready
-    `/webclient/**` asset tree before launch.
-  - `Universal/stage` and `Universal/packageBin` depend on both the maintained
-    J2CL build tasks and `compileGwt`.
+  - `sbt run` rebuilds the rollback-ready `/webclient/**` asset tree before
+    launch.
+  - `Universal/stage` and `Universal/packageBin` depend on `compileGwt` and do
+    not build or stage the J2CL sidecar unless you run the J2CL tasks
+    explicitly and set `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1` for the stage/package
+    command.
 
 - WebSocket endpoint: `/socket` via JSR 356. Socket.IO `/socket.io/*` is disabled.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)

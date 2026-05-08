@@ -47,7 +47,12 @@ def write_fake_install(tmp_path: Path, server_source: str) -> Path:
     return install
 
 
-def run_smoke(install: Path, port: int, command: str) -> subprocess.CompletedProcess[str]:
+def run_smoke(
+    install: Path,
+    port: int,
+    command: str,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.update(
         {
@@ -56,6 +61,8 @@ def run_smoke(install: Path, port: int, command: str) -> subprocess.CompletedPro
             "STOP_TIMEOUT": "5",
         }
     )
+    if extra_env:
+        env.update(extra_env)
     args = ["bash", str(SCRIPT), command]
     try:
         return subprocess.run(
@@ -193,6 +200,8 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
                         body = b"<script src='webclient/webclient.nocache.js'></script>"
                     elif route == "/healthz":
                         body = b"ok"
+                    elif route == "/" and query == "view=gwt":
+                        body = b"<script src='webclient/webclient.nocache.js'></script>"
                     elif route == "/" and query == "view=landing":
                         body = b"landing"
                     elif route == "/" and query == "view=j2cl-root":
@@ -265,6 +274,88 @@ def test_start_check_stop_keeps_fake_staged_server_alive(tmp_path: Path) -> None
         stop = run_smoke(install, port, "stop")
         assert stop.returncode == 0, stop.stdout + stop.stderr
         assert not (install / "wave_server.pid").exists()
+        assert not port_accepts_connection(port)
+
+
+def test_check_treats_j2cl_assets_as_opt_in(tmp_path: Path) -> None:
+    port = free_port()
+    install = write_fake_install(
+        tmp_path,
+        textwrap.dedent(
+            """
+            import http.server
+            import os
+            import signal
+            import socketserver
+            import sys
+            from urllib.parse import urlparse
+
+            port = int(os.environ["PORT"])
+
+            class Handler(http.server.BaseHTTPRequestHandler):
+                def do_GET(self):
+                    body = b""
+                    status = 200
+                    parsed = urlparse(self.path)
+                    route = parsed.path
+                    query = parsed.query
+                    if route == "/" and query == "":
+                        body = b"<script src='webclient/webclient.nocache.js'></script>"
+                    elif route == "/healthz":
+                        body = b"ok"
+                    elif route == "/" and query == "view=gwt":
+                        body = b"<script src='webclient/webclient.nocache.js'></script>"
+                    elif route == "/" and query == "view=landing":
+                        body = b"landing"
+                    elif route == "/" and query == "view=j2cl-root":
+                        body = b"<div data-j2cl-root-shell></div>"
+                    elif route == "/webclient/webclient.nocache.js":
+                        body = b"asset"
+                    elif route in (
+                        "/j2cl/index.html",
+                        "/j2cl-search/sidecar/j2cl-sidecar.js",
+                    ):
+                        status = 404
+                    else:
+                        status = 404
+                    self.send_response(status)
+                    self.end_headers()
+                    self.wfile.write(body)
+
+                def log_message(self, format, *args):
+                    return
+
+            class ReusableTCPServer(socketserver.TCPServer):
+                allow_reuse_address = True
+
+            signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+            with ReusableTCPServer(("127.0.0.1", port), Handler) as httpd:
+                httpd.serve_forever()
+            """
+        ),
+    )
+
+    start = run_smoke(install, port, "start")
+    try:
+        assert start.returncode == 0, start.stdout + start.stderr
+
+        default_check = run_smoke(install, port, "check")
+        assert default_check.returncode == 0, default_check.stdout + default_check.stderr
+        assert "J2CL_ASSET_CHECK=optional" in default_check.stdout
+        assert "J2CL_INDEX_STATUS=404" in default_check.stdout
+        assert "SIDECAR_STATUS=404" in default_check.stdout
+
+        required_check = run_smoke(
+            install,
+            port,
+            "check",
+            {"WAVE_SMOKE_REQUIRE_J2CL_ASSETS": "1"},
+        )
+        assert required_check.returncode != 0
+        assert "Missing production J2CL asset" in required_check.stderr
+    finally:
+        stop = run_smoke(install, port, "stop")
+        assert stop.returncode == 0, stop.stdout + stop.stderr
         assert not port_accepts_connection(port)
 
 

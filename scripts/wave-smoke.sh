@@ -7,6 +7,7 @@ set -euo pipefail
 #   ./scripts/wave-smoke.sh status  # prints HTTP status of root endpoint
 #   ./scripts/wave-smoke.sh check   # runs a few endpoint checks
 #   PORT=9899 ./scripts/wave-smoke.sh stop  # stops server listening on the selected port
+# Set WAVE_SMOKE_REQUIRE_J2CL_ASSETS=1 to fail check when J2CL assets are absent.
 #
 # Notes:
 # - Expects the distribution staged at target/universal/stage (SBT) or wave/build/install/wave (legacy)
@@ -194,6 +195,7 @@ check() {
   local j2cl_root_body_file j2cl_root_body legacy_status
   local root_gwt_presence j2cl_root_shell_presence
   local gwt_view_body_file gwt_view_body gwt_view_status
+  local require_j2cl_assets="${WAVE_SMOKE_REQUIRE_J2CL_ASSETS:-0}"
 
   # G-PORT-2 (#1111): bare "/" no longer renders the GWT bootstrap by
   # default (V-1/V-5 swapped the unauthenticated root to the J2CL
@@ -264,16 +266,21 @@ check() {
 
   j2cl_index_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/j2cl/index.html" || true)
   echo "J2CL_INDEX_STATUS=${j2cl_index_status:-000}"
-  if [[ "${j2cl_index_status}" -ne 200 ]]; then
+  if [[ "$require_j2cl_assets" == "1" && "${j2cl_index_status}" -ne 200 ]]; then
     echo "Missing production J2CL asset: /j2cl/index.html" >&2
     return 1
   fi
 
   sidecar_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/j2cl-search/sidecar/j2cl-sidecar.js" || true)
   echo "SIDECAR_STATUS=${sidecar_status:-000}"
-  if [[ "${sidecar_status}" -ne 200 ]]; then
+  if [[ "$require_j2cl_assets" == "1" && "${sidecar_status}" -ne 200 ]]; then
     echo "Missing compiled J2CL sidecar asset: /j2cl-search/sidecar/j2cl-sidecar.js" >&2
     return 1
+  fi
+  if [[ "$require_j2cl_assets" == "1" ]]; then
+    echo "J2CL_ASSET_CHECK=required"
+  else
+    echo "J2CL_ASSET_CHECK=optional"
   fi
 
   legacy_status=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" "http://localhost:$PORT/webclient/webclient.nocache.js" || true)

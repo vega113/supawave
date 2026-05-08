@@ -666,17 +666,14 @@ Universal / mappings ++= {
   val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("config/" + IO.relativize(configDir, f).get)
   }
-  // war/ -> war/ (excluding J2CL output dirs only when they are absent/empty;
-  // if j2clRuntimeBuild was run explicitly, honour those assets in staging)
+  // war/ -> war/ (J2CL output dirs are always excluded here; Universal/stage
+  // copies them in post-hoc only when j2clRuntimeBuild populated them, so
+  // packageBin never ships stale sidecar assets from a prior session)
   val warDir = base / "war"
   val j2clOutputDirs = Set("j2cl", "j2cl-search", "j2cl-debug")
-  val absentJ2clDirs = j2clOutputDirs.filter { d =>
-    val dir = warDir / d
-    !dir.exists || Option(dir.listFiles()).forall(_.isEmpty)
-  }
   val warFiles = (warDir ** "*").get.filter(_.isFile).filter { f =>
     val rel = IO.relativize(warDir, f).getOrElse("")
-    !absentJ2clDirs.exists(d => rel == d || rel.startsWith(d + "/"))
+    !j2clOutputDirs.exists(d => rel == d || rel.startsWith(d + "/"))
   }.map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
@@ -1415,11 +1412,14 @@ compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 Universal / stage := {
   val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
   val stagedWarDir = stagedDir / "war"
-  IO.delete(Seq(
-    stagedWarDir / "j2cl",
-    stagedWarDir / "j2cl-search",
-    stagedWarDir / "j2cl-debug"
-  ))
+  val warDir = baseDirectory.value / "war"
+  // J2CL dirs are excluded from Universal/mappings unconditionally; copy them
+  // into the staged distribution only when j2clRuntimeBuild populated them.
+  Seq("j2cl", "j2cl-search", "j2cl-debug").foreach { d =>
+    val srcDir = warDir / d
+    if (srcDir.exists && Option(srcDir.listFiles()).exists(_.nonEmpty))
+      IO.copyDirectory(srcDir, stagedWarDir / d)
+  }
   stagedDir
 }
 Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value

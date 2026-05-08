@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-08-sbt-only-default-build",
+  "version": "Operator workflow",
+  "date": "2026-05-08",
+  "title": "SBT-only default build path",
+  "summary": "Keeps the normal app run, stage, and package flow on SBT-only build steps while leaving J2CL assets available through explicit SBT tasks.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Normal `sbt run`, `sbt Universal/stage`, and `sbt Universal/packageBin` no longer invoke the Maven-backed J2CL sidecar build by default.",
+        "J2CL parity and sidecar lanes can still build and require those assets explicitly with `sbt j2clRuntimeBuild` and `WAVE_SMOKE_REQUIRE_J2CL_ASSETS=1`."
+      ]
+    }
+  ]
+}

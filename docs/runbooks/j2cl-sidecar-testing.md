@@ -125,7 +125,7 @@ Then run the exact printed commands. The normal shape is:
 
 ```bash
 PORT=9900 JAVA_OPTS='-Djava.util.logging.config.file=... -Djava.security.auth.login.config=...' bash scripts/wave-smoke.sh start
-PORT=9900 bash scripts/wave-smoke.sh check
+WAVE_SMOKE_REQUIRE_J2CL_ASSETS=1 PORT=9900 bash scripts/wave-smoke.sh check
 ```
 
 Keep the server running through the route checks and browser verification
@@ -263,7 +263,7 @@ the opt-in J2CL root mode.
 ```bash
 bash scripts/worktree-boot.sh --port 9914
 PORT=9914 bash scripts/wave-smoke.sh start
-PORT=9914 bash scripts/wave-smoke.sh check
+WAVE_SMOKE_REQUIRE_J2CL_ASSETS=1 PORT=9914 bash scripts/wave-smoke.sh check
 curl -fsS http://localhost:9914/ | grep -F 'webclient/webclient.nocache.js'
 curl -fsS http://localhost:9914/?view=landing | grep -F 'nav-link-signin'
 curl -fsS http://localhost:9914/?view=j2cl-root | grep -F 'data-j2cl-root-shell'
@@ -302,22 +302,23 @@ Expected result:
 - `/webclient/webclient.nocache.js` remains reachable in opt-in J2CL mode
 - `/?view=landing` remains the explicit public landing page
 
-## When To Use Direct Maven Instead Of SBT
+## SBT-Only Operator Boundary
 
-Prefer the SBT tasks above for normal repo work. Use the Maven wrapper only
-when you need to debug the J2CL sidecar in isolation.
+Normal app boot, stage, and package commands do not build the J2CL sidecar:
+`sbt run`, `sbt Universal/stage`, and `sbt Universal/packageBin` stay on the
+GWT/default app path.
 
-From `j2cl/`:
+Run J2CL sidecar builds explicitly through SBT when the task touches J2CL or
+when a local smoke check needs `/j2cl/**` or `/j2cl-search/**` assets:
 
 ```bash
-./mvnw -Psearch-sidecar test
-./mvnw -Psearch-sidecar package
-./mvnw -Pdebug-single-project package
-./mvnw -Pproduction package
+sbt --batch "j2clSearchBuild; j2clSearchTest"
+sbt --batch "j2clProductionBuild; j2clLitBuild"
 ```
 
-Use those only for deep sidecar debugging; the repo-standard verification path
-should still go through SBT.
+Do not use `j2cl/mvnw` as routine verification evidence. The wrapper remains an
+implementation detail of the current Vertispan sidecar toolchain until the repo
+migrates J2CL itself to a non-Maven build path.
 
 ## Common Failure Signals
 

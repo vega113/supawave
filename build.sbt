@@ -1189,9 +1189,10 @@ Compile / compile := (Compile / compile)
   // generateGxp removed — GXP replaced by HtmlRenderer
   .value
 
-// Ensure `run` has a config in place and both browser runtimes are rebuilt
-// before launching the server.
-Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated
+// Ensure `run` has a config in place and the default GWT browser runtime is
+// rebuilt before launching the server. J2CL sidecar builds remain explicit SBT
+// tasks so the normal app path does not depend on the Maven-backed sidecar.
+Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated
 
 // =============================================================================
 // Phase 6: GWT Compilation Bridge
@@ -1402,8 +1403,8 @@ compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
-Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value
+Universal / stage := (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
+Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

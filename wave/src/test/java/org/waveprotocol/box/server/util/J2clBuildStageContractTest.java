@@ -28,15 +28,37 @@ import java.nio.file.Path;
 
 public final class J2clBuildStageContractTest extends TestCase {
 
-  public void testBuildSbtSerializesStageJ2clBuilds() throws Exception {
+  public void testBuildSbtKeepsJ2clBuildsExplicit() throws Exception {
     String buildSbt = read("build.sbt");
+    String normalizedBuild = buildSbt.replaceAll("\\s+", " ");
 
+    assertTrue(buildSbt.contains("lazy val j2clSearchBuild = taskKey[Unit]"));
+    assertTrue(buildSbt.contains("lazy val j2clSearchTest = taskKey[Unit]"));
+    assertTrue(buildSbt.contains("lazy val j2clLitBuild = taskKey[Unit]"));
+    assertTrue(buildSbt.contains("lazy val j2clProductionBuild = taskKey[Unit]"));
     assertTrue(buildSbt.contains("lazy val j2clRuntimeBuild = taskKey[Unit]"));
     assertTrue(buildSbt.contains("ThisBuild / j2clRuntimeBuild := Def.sequential("));
-    assertTrue(buildSbt.contains("Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated"));
+
+    String runLine = findLine(buildSbt, "Compile / run :=");
+    String stageLine = findLine(buildSbt, "Universal / stage :=");
+    String packageLine = findLine(buildSbt, "Universal / packageBin :=");
+
+    assertFalse(runLine.contains("j2cl"));
+    assertFalse(stageLine.contains("j2cl"));
+    assertFalse(packageLine.contains("j2cl"));
+    assertTrue(normalizedBuild.contains(
+        "Compile / run := (Compile / run).dependsOn(prepareServerConfig, compileGwt).evaluated"));
+    assertFalse(normalizedBuild.contains(
+        "Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated"));
     assertTrue(buildSbt.contains("compileGwt := (compileGwt).dependsOn(Compile / compile).value"));
-    assertTrue(buildSbt.contains("Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
-    assertTrue(buildSbt.contains("Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
+    assertTrue(normalizedBuild.contains(
+        "Universal / stage := (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value"));
+    assertFalse(normalizedBuild.contains(
+        "Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
+    assertTrue(normalizedBuild.contains(
+        "Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value"));
+    assertFalse(normalizedBuild.contains(
+        "Universal / packageBin := (Universal / packageBin).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
   }
 
   public void testDockerfileCopiesJ2clTreeAndUsesUniversalStageOnly() throws Exception {
@@ -56,5 +78,12 @@ public final class J2clBuildStageContractTest extends TestCase {
 
   private static String read(String relativePath) throws IOException {
     return Files.readString(Path.of(relativePath), StandardCharsets.UTF_8);
+  }
+
+  private static String findLine(String text, String needle) {
+    return text.lines()
+        .filter(line -> line.contains(needle))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("Missing line containing: " + needle));
   }
 }

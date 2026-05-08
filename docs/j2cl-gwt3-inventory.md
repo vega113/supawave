@@ -71,10 +71,11 @@ What changed since the earlier inventory:
 - the repo now has an isolated `j2cl/` sidecar subtree
 - `build.sbt` now exposes `j2clSandboxBuild`, `j2clSandboxTest`,
   `j2clSearchBuild`, `j2clSearchTest`, and `j2clProductionBuild`
-- `sbt run`, `Universal/stage`, and `Universal/packageBin` now depend on the
-  maintained J2CL build tasks instead of the legacy `compileGwt` path
-- the browser client still has legacy GWT compile/runtime code, but it is no
-  longer part of the default run/package flow
+- `sbt run`, `Universal/stage`, and `Universal/packageBin` now stay on the
+  default `compileGwt` app path and no longer build the J2CL sidecar
+  transitively
+- the maintained J2CL sidecar remains available through explicit SBT tasks for
+  J2CL parity and diagnostic work
 
 The current toolchain picture means a J2CL move is still not just a compiler
 swap, but the dependency-cleanup story is no longer blocked on `guava-gwt`.

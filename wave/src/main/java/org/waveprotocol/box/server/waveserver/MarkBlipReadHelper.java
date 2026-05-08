@@ -250,7 +250,19 @@ public class MarkBlipReadHelper {
       return Result.internalError();
     }
     context.putWavelet(waveId, udwId, udwData);
-    OpBasedWavelet udw = openWaveletViaContext(context, waveId, udwId, user);
+    OpBasedWavelet udw;
+    try {
+      udw = openWaveletViaContext(context, waveId, udwId, user);
+    } catch (RuntimeException e) {
+      LOG.warning("mark-blip-read: failed to open user-data wavelet after seed "
+          + WaveletName.of(waveId, udwId), e);
+      return Result.internalError();
+    }
+    if (udw == null) {
+      LOG.warning("mark-blip-read: user-data wavelet unavailable after seed "
+          + WaveletName.of(waveId, udwId));
+      return Result.internalError();
+    }
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
     SupplementedWave supplement =

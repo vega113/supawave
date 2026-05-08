@@ -186,6 +186,7 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
 }
 
 .sidecar-selected-card {
+  --wavy-wave-actions-reserved-width: 174px;
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid #e2e8f0;
   border-radius: 4px;
@@ -196,7 +197,7 @@ body.j2cl-root-shell-page:not(.j2cl-debug-overlay-on) [data-j2cl-debug-only] {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 12px;
+  padding: 0;
   width: 100%;
 }
 
@@ -211,24 +212,29 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
  * and let the wave panel breathe with simple padding — the inner blip
  * cards keep their own surfaces.
  *
- * V-5 (#1103): the V-1 24 px symmetric inset left a perceptible top
- * gap between the 64 px header bar and the first row of wave content
- * (e.g. "OPENED WAVE"). The pane-gutter tokens from wavy-tokens.css
- * tighten the top inset to 12 px and keep 20 px on the sides so the
- * wave panel widens visibly without cropping. */
+ * #1223: the selected-wave panel now owns its own compact title and
+ * participant bars, so the server-first wrapper must not add a second
+ * inset around the GWT-style panel chrome. */
 [data-j2cl-server-first-workflow="true"] .sidecar-selected-card {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  padding: var(--wavy-pane-gutter-y, 12px) var(--wavy-pane-gutter-x, 20px)
-    var(--wavy-pane-gutter-x, 20px);
+  padding: 0;
 }
 
 .sidecar-selected-title {
+  box-sizing: border-box;
+  min-height: 22px;
   margin: 0;
-  font-size: 1.5rem;
-  line-height: 1.2;
+  padding: 3px 8px;
+  border-bottom: 1px solid #7aa7d9;
+  background: linear-gradient(180deg, #69a9ec 0%, #2f80d1 100%);
+  color: #ffffff;
+  font: 700 12px / 16px Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidecar-selected-unread {
@@ -264,8 +270,14 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
 .sidecar-selected-participants[role="list"] {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
+  gap: 4px;
+  min-height: 46px;
+  margin: 0;
+  padding: 4px var(--wavy-wave-actions-reserved-width, 174px) 4px 4px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #e8f4f8 0%, #ffffff 100%);
+  overflow: hidden;
 }
 
 .sidecar-selected-participants [role="listitem"] {
@@ -273,23 +285,36 @@ shell-root[data-wave-controls-compact="true"] wavy-wave-nav-row {
 }
 
 .sidecar-selected-participant-avatar {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #d7e3ef;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #e0f2fe, #f8fafc);
-  color: #075985;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   cursor: pointer;
-  font: 700 11px / 1 Arial, sans-serif;
   padding: 0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
+}
+
+.sidecar-selected-participant-avatar img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+  object-fit: cover;
+  transition: transform 0.15s ease;
 }
 
 .sidecar-selected-participant-avatar:hover,
 .sidecar-selected-participant-avatar:focus-visible {
-  border-color: #0077b6;
-  box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.14);
   outline: none;
+}
+
+.sidecar-selected-participant-avatar:hover img,
+.sidecar-selected-participant-avatar:focus-visible img {
+  transform: scale(1.08);
 }
 
 .sidecar-selected-content {

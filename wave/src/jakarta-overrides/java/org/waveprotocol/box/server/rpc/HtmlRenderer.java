@@ -3935,7 +3935,6 @@ public final class HtmlRenderer {
     sb.append("          </div>\n");
     sb.append("          <div class=\"sidecar-selected-host\" data-j2cl-selected-wave-host=\"true\">\n");
     sb.append("            <section class=\"sidecar-selected-card\" data-j2cl-server-first-mode=\"snapshot\" data-j2cl-server-first-selected-wave=\"preview-fixture-1\" data-j2cl-upgrade-placeholder=\"selected-wave\">\n");
-    sb.append("              <p class=\"sidecar-eyebrow\" data-j2cl-debug-only=\"true\">Opened wave</p>\n");
     sb.append("              <wavy-depth-nav-bar data-j2cl-server-first-chrome=\"true\" data-current-depth=\"top-thread\"></wavy-depth-nav-bar>\n");
     sb.append("              <h2 class=\"sidecar-selected-title\">Sample read-surface preview wave</h2>\n");
     sb.append("              <p class=\"sidecar-selected-unread\">3 unread</p>\n");
@@ -4710,7 +4709,6 @@ public final class HtmlRenderer {
       // no-JS path never leaves the region permanently aria-busy.
       sb.append("              <script>document.currentScript.parentElement.setAttribute('aria-busy','true');</script>\n");
     }
-    sb.append("              <p class=\"sidecar-eyebrow\" data-j2cl-debug-only=\"true\">Opened wave</p>\n");
     // F-2 slice 2 (#1046, R-3.7-chrome): depth-nav-bar landmark.
     // Hidden by default; the J2CL client (S5) writes the current depth
     // and toggles the hidden attribute via property assignment.

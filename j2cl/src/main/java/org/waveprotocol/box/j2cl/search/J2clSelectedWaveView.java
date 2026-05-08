@@ -114,10 +114,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       // status is NOT marked debug-only here — error text must stay visible
       // even when the debug overlay is off; visibility is set in render().
       markDebugOnly(detail);
-      HTMLElement reboundEyebrow = (HTMLElement) existingCard.querySelector(".sidecar-eyebrow");
-      if (reboundEyebrow != null) {
-        markDebugOnly(reboundEyebrow);
-      }
+      removeSelectedWaveEyebrow(existingCard);
       participantSummary = queryRequired(existingCard, ".sidecar-selected-participants");
       snippet = queryRequired(existingCard, ".sidecar-selected-snippet");
       composeHost = queryRequired(existingCard, ".sidecar-selected-compose");
@@ -155,12 +152,6 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     coldCard.setAttribute("data-j2cl-selected-wave-host", "");
     host.appendChild(coldCard);
     this.card = coldCard;
-
-    HTMLElement eyebrow = (HTMLElement) DomGlobal.document.createElement("p");
-    eyebrow.className = "sidecar-eyebrow";
-    eyebrow.textContent = "Opened wave";
-    markDebugOnly(eyebrow);
-    coldCard.appendChild(eyebrow);
 
     // F-2 slice 2 (#1046, R-3.7-chrome): depth-nav bar (G.2 + G.3).
     // Hidden by default until S5 writes a current depth.
@@ -250,6 +241,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
    * node is the live element the view writes properties on.
    */
   private static HTMLElement ensureDepthNavBar(HTMLElement card) {
+    removeSelectedWaveEyebrow(card);
     HTMLElement existing = (HTMLElement) card.querySelector("wavy-depth-nav-bar");
     if (existing != null) {
       return existing;
@@ -257,15 +249,18 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     HTMLElement bar =
         (HTMLElement) DomGlobal.document.createElement("wavy-depth-nav-bar");
     bar.setAttribute("hidden", "");
-    // Insert directly after the eyebrow if present, else as the first
-    // child of the card.
-    HTMLElement eyebrow = (HTMLElement) card.querySelector(".sidecar-eyebrow");
-    if (eyebrow != null && eyebrow.nextSibling != null) {
-      card.insertBefore(bar, eyebrow.nextSibling);
-    } else {
-      card.insertBefore(bar, card.firstChild);
-    }
+    card.insertBefore(bar, card.firstChild);
     return bar;
+  }
+
+  private static void removeSelectedWaveEyebrow(HTMLElement card) {
+    if (card == null) {
+      return;
+    }
+    HTMLElement eyebrow = (HTMLElement) card.querySelector(".sidecar-eyebrow");
+    if (eyebrow != null && eyebrow.parentElement != null) {
+      eyebrow.parentElement.removeChild(eyebrow);
+    }
   }
 
   /**
@@ -816,7 +811,12 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       button.setAttribute("data-participant-id", address);
       button.setAttribute("aria-label", "Open " + address + " profile");
       button.setAttribute("title", address);
-      button.textContent = participantInitials(address);
+      HTMLElement image = (HTMLElement) DomGlobal.document.createElement("img");
+      image.setAttribute("src", participantProfileImageUrl(address));
+      image.setAttribute("alt", address);
+      image.setAttribute("loading", "lazy");
+      image.setAttribute("decoding", "async");
+      button.appendChild(image);
       button.addEventListener("click", event -> dispatchParticipantProfileRequest(address));
       item.appendChild(button);
       participantSummary.appendChild(item);
@@ -886,6 +886,58 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       initials.append(Character.toUpperCase(value.charAt(0)));
     }
     return initials.toString();
+  }
+
+  static String participantProfileImageUrl(String participantId) {
+    String address = participantId == null ? "" : participantId.trim();
+    return address.isEmpty() ? "" : "/userprofile/image/" + encodePathSegment(address);
+  }
+
+  static String encodePathSegment(String value) {
+    if (value == null || value.isEmpty()) {
+      return "";
+    }
+    StringBuilder encoded = new StringBuilder(value.length());
+    for (int index = 0; index < value.length(); index++) {
+      char ch = value.charAt(index);
+      if (isPathSegmentSafe(ch)) {
+        encoded.append(ch);
+      } else {
+        appendPercentEncodedUtf16CodeUnit(encoded, ch);
+      }
+    }
+    return encoded.toString();
+  }
+
+  private static boolean isPathSegmentSafe(char ch) {
+    return (ch >= 'A' && ch <= 'Z')
+        || (ch >= 'a' && ch <= 'z')
+        || (ch >= '0' && ch <= '9')
+        || ch == '-'
+        || ch == '.'
+        || ch == '_'
+        || ch == '~'
+        || ch == '@';
+  }
+
+  private static void appendPercentEncodedUtf16CodeUnit(StringBuilder encoded, char ch) {
+    if (ch <= 0x7F) {
+      appendPercentByte(encoded, ch);
+    } else if (ch <= 0x7FF) {
+      appendPercentByte(encoded, 0xC0 | ((ch >> 6) & 0x1F));
+      appendPercentByte(encoded, 0x80 | (ch & 0x3F));
+    } else {
+      appendPercentByte(encoded, 0xE0 | ((ch >> 12) & 0x0F));
+      appendPercentByte(encoded, 0x80 | ((ch >> 6) & 0x3F));
+      appendPercentByte(encoded, 0x80 | (ch & 0x3F));
+    }
+  }
+
+  private static void appendPercentByte(StringBuilder encoded, int value) {
+    final char[] hex = "0123456789ABCDEF".toCharArray();
+    encoded.append('%');
+    encoded.append(hex[(value >> 4) & 0x0F]);
+    encoded.append(hex[value & 0x0F]);
   }
 
   private void publishWaveHeaderActions(J2clSelectedWaveModel model, String waveId) {

@@ -153,4 +153,16 @@ public class J2clSelectedWaveViewServerFirstLogicTest {
     Assert.assertEquals("Selected wave content", attributes.get("aria-label"));
     Assert.assertEquals("0", attributes.get("tabindex"));
   }
+
+  @Test
+  public void participantProfileImageUrlUsesExistingProfileImageEndpoint() {
+    Assert.assertEquals(
+        "/userprofile/image/alice@example.com",
+        J2clSelectedWaveView.participantProfileImageUrl(" alice@example.com "));
+    Assert.assertEquals(
+        "/userprofile/image/weird%2Fname%3F%23%25@example.com",
+        J2clSelectedWaveView.participantProfileImageUrl("weird/name?#%@example.com"));
+    Assert.assertEquals("", J2clSelectedWaveView.participantProfileImageUrl(" "));
+    Assert.assertEquals("", J2clSelectedWaveView.participantProfileImageUrl(null));
+  }
 }

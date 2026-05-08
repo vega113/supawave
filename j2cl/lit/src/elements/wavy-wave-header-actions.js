@@ -97,20 +97,22 @@ export class WavyWaveHeaderActions extends LitElement {
     :host {
       display: block;
       box-sizing: border-box;
-      background: linear-gradient(
-        90deg,
-        var(--wavy-toolbar-pill-bg, #f0f4f8),
-        var(--wavy-bg-elevated, #ffffff)
-      );
+      background: linear-gradient(180deg, #e8f4f8 0%, #ffffff 100%);
       border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
-      padding: var(--wavy-spacing-2, 8px) var(--wavy-spacing-2, 8px);
+      min-height: 34px;
+      margin-top: -46px;
+      padding: 4px;
     }
 
     .row {
       display: flex;
       align-items: center;
-      flex-wrap: wrap;
-      gap: var(--wavy-spacing-2, 8px);
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+      gap: 4px;
+      width: var(--wavy-wave-actions-reserved-width, 174px);
+      max-width: 100%;
+      margin-left: auto;
     }
 
     button {
@@ -131,8 +133,8 @@ export class WavyWaveHeaderActions extends LitElement {
     }
 
     button svg {
-      width: 18px;
-      height: 18px;
+      width: 15px;
+      height: 15px;
       display: block;
       color: currentColor;
       stroke: currentColor;
@@ -145,11 +147,40 @@ export class WavyWaveHeaderActions extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 42px;
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      min-height: 26px;
       padding: 0;
-      background: var(--wavy-signal-cyan-soft, #e6f6ff);
-      border-color: rgba(0, 119, 182, 0.32);
-      color: var(--wavy-signal-cyan-strong, #005f93);
+      border: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #48cae4, #00b4d8);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 180, 216, 0.30);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+    }
+
+    .row > button[data-action="new-with-participants"] {
+      background: linear-gradient(135deg, #00b4d8, #0077b6);
+      box-shadow: 0 2px 6px rgba(0, 119, 182, 0.30);
+    }
+
+    .row > button[data-action="publicity-toggle"] {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      min-height: 24px;
+      background: #0077b6;
+      box-shadow: 0 2px 6px rgba(0, 119, 182, 0.30);
+    }
+
+    .row > button[data-action="lock-toggle"] {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      min-height: 24px;
+      background: #6c757d;
+      box-shadow: 0 2px 6px rgba(108, 117, 125, 0.25);
     }
 
     .action-label {
@@ -166,9 +197,10 @@ export class WavyWaveHeaderActions extends LitElement {
     }
 
     button:hover:not([disabled]) {
-      background: var(--wavy-toolbar-tile-hover-bg, rgba(0, 119, 182, 0.08));
-      border-color: var(--wavy-signal-cyan, #0077b6);
-      color: var(--wavy-signal-cyan, #0077b6);
+      transform: scale(1.12);
+      background: linear-gradient(135deg, #00b4d8, #0096c7);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 180, 216, 0.40);
     }
 
     button:focus-visible,
@@ -185,9 +217,8 @@ export class WavyWaveHeaderActions extends LitElement {
     button[data-action="publicity-toggle"][aria-pressed="true"],
     button[data-action="lock-toggle"][data-lock-state="root"],
     button[data-action="lock-toggle"][data-lock-state="all"] {
-      background: var(--wavy-signal-amber-soft, #fff4e5);
-      border-color: var(--wavy-signal-amber, #9a6700);
-      color: var(--wavy-signal-amber, #9a6700);
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #ffffff;
     }
 
     .add-popover {

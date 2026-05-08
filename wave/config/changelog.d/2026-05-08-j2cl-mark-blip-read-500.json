@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-j2cl-mark-blip-read-500",
+  "version": "Issue #1221",
+  "date": "2026-05-08",
+  "title": "J2CL read markers no longer fail on missing user-data wavelets",
+  "summary": "The J2CL read surface now creates the current user's missing user-data wavelet before marking a blip as read, preventing repeated 500 responses from /j2cl/mark-blip-read.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Avoid false internal-server errors when J2CL marks a visible blip as read for a user whose supplement wavelet has not been created yet"
+      ]
+    }
+  ]
+}

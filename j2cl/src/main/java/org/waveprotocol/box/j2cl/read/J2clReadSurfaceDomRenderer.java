@@ -1073,9 +1073,7 @@ public final class J2clReadSurfaceDomRenderer {
           continue;
         }
         HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-        if (button != null) {
-          toggleThread(thread, button);
-        }
+        toggleThread(thread, button);
       }
     }
   }
@@ -1318,7 +1316,7 @@ public final class J2clReadSurfaceDomRenderer {
       String threadId = thread.getAttribute("data-thread-id");
       if (threadId != null && collapsedIds.contains(threadId)) {
         HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-        if (button != null) {
+        if (!thread.classList.contains("j2cl-read-thread-collapsed")) {
           toggleThread(thread, button);
         }
       }

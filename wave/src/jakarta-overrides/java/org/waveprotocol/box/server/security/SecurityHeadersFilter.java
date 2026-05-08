@@ -53,6 +53,7 @@ public final class SecurityHeadersFilter implements Filter {
 
   private static final String DEFAULT_REFERRER = "strict-origin-when-cross-origin";
   private static final String DEFAULT_XCTO = "nosniff";
+  private static final String DEFAULT_PERMISSIONS_POLICY = "unload=(self)";
 
   @Inject
   public SecurityHeadersFilter(Config config) {
@@ -79,11 +80,17 @@ public final class SecurityHeadersFilter implements Filter {
       String xcto = config.hasPath("security.x_content_type_options")
           ? config.getString("security.x_content_type_options")
           : DEFAULT_XCTO;
+      String permissionsPolicy = config.hasPath("security.permissions_policy")
+          ? config.getString("security.permissions_policy")
+          : DEFAULT_PERMISSIONS_POLICY;
 
       if (!isCommitted(http)) {
         http.setHeader("Content-Security-Policy", csp);
         http.setHeader("Referrer-Policy", referrer);
         http.setHeader("X-Content-Type-Options", xcto);
+        if (permissionsPolicy != null && !permissionsPolicy.isBlank()) {
+          http.setHeader("Permissions-Policy", permissionsPolicy);
+        }
 
         // Conditionally add HSTS when connection is secure
         try {

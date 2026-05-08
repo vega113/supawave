@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-gwt-unload-permissions-policy",
+  "version": "GWT rollback path",
+  "date": "2026-05-08",
+  "title": "GWT view-switch unload permission",
+  "summary": "The legacy GWT route now sends a permissions policy that allows its same-origin unload handler when users switch back from the J2CL view.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Allows the legacy GWT web client to register its unload handler without Chrome logging a permissions-policy violation during J2CL-to-GWT view switches."
+      ]
+    }
+  ]
+}

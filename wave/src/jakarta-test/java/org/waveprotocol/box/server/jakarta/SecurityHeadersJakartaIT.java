@@ -82,6 +82,11 @@ public class SecurityHeadersJakartaIT {
     java.util.Map<String, java.util.List<String>> headers = c.getHeaderFields();
     assertNotNull(getHeader(headers, "Content-Security-Policy"));
     assertNotNull(getHeader(headers, "Referrer-Policy"));
+    String permissionsPolicy = getHeader(headers, "Permissions-Policy");
+    assertNotNull("Permissions-Policy header expected", permissionsPolicy);
+    assertTrue(
+        "Permissions-Policy should allow legacy GWT unload handlers, was: " + permissionsPolicy,
+        permissionsPolicy.contains("unload=(self)"));
     String xcto = getHeader(headers, "X-Content-Type-Options");
     assertNotNull(xcto);
     assertTrue("X-Content-Type-Options should be nosniff, was: " + xcto, "nosniff".equalsIgnoreCase(xcto));
@@ -103,7 +108,8 @@ public class SecurityHeadersJakartaIT {
       var cfg = ConfigFactory.parseString(
           "security.csp=\"default-src 'none'\"\n" +
           "security.referrer_policy=\"no-referrer\"\n" +
-          "security.x_content_type_options=\"nosniff\"\n");
+          "security.x_content_type_options=\"nosniff\"\n" +
+          "security.permissions_policy=\"unload=()\"\n");
       var filter = new SecurityHeadersFilter(cfg);
       ctx.addFilter(new org.eclipse.jetty.ee10.servlet.FilterHolder(filter), "/*",
           java.util.EnumSet.allOf(jakarta.servlet.DispatcherType.class));
@@ -124,9 +130,11 @@ public class SecurityHeadersJakartaIT {
       java.util.Map<String, java.util.List<String>> headers = c2.getHeaderFields();
       String csp = getHeader(headers, "Content-Security-Policy");
       String ref = getHeader(headers, "Referrer-Policy");
+      String permissionsPolicy = getHeader(headers, "Permissions-Policy");
       String xcto = getHeader(headers, "X-Content-Type-Options");
       assertEquals("default-src 'none'", csp);
       assertEquals("no-referrer", ref);
+      assertEquals("unload=()", permissionsPolicy);
       assertNotNull("X-Content-Type-Options header expected", xcto);
       assertTrue("X-Content-Type-Options should be nosniff, was: " + xcto, "nosniff".equalsIgnoreCase(xcto));
     } finally {

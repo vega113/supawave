@@ -35,16 +35,34 @@ class ContaboHostKeyWorkflowTest(unittest.TestCase):
     self.assertIn("CONTABO_HOST_FINGERPRINT", workflow[trust_idx:upload_idx])
 
   def test_shared_trust_script_rejects_missing_fingerprint_without_network(self):
-    result = subprocess.run(
-        [str(TRUST_SCRIPT), "contabo.example", "22", ""],
-        cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+      root = Path(temp_dir)
+      fake_bin = root / "bin"
+      fake_bin.mkdir()
+      sentinel = root / "ssh_keyscan_called"
+      write_executable(
+          fake_bin / "ssh-keyscan",
+          f"""\
+          #!/usr/bin/env bash
+          touch {sentinel}
+          exit 0
+          """,
+      )
+      env = os.environ.copy()
+      env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+
+      result = subprocess.run(
+          [str(TRUST_SCRIPT), "contabo.example", "22", ""],
+          cwd=REPO_ROOT,
+          env=env,
+          text=True,
+          capture_output=True,
+          check=False,
+      )
 
     self.assertNotEqual(0, result.returncode)
     self.assertIn("CONTABO_HOST_FINGERPRINT must be set", result.stderr)
+    self.assertFalse(sentinel.exists(), "ssh-keyscan must not be called when fingerprint is missing")
 
   def test_shared_trust_script_accepts_matching_scanned_fingerprint(self):
     result, known_hosts = run_trust_script_with_fake_ssh_key_tools(

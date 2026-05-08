@@ -20,7 +20,14 @@ tmp_dir="${RUNNER_TEMP:-$(mktemp -d)}"
 mkdir -p "$tmp_dir"
 scanned_host_keys="$tmp_dir/contabo_known_hosts"
 
-ssh-keyscan -p "$port" -H "$host" > "$scanned_host_keys"
+ssh_keyscan_err="$tmp_dir/ssh_keyscan_err"
+ssh_keyscan_exit=0
+ssh-keyscan -p "$port" -H "$host" > "$scanned_host_keys" 2>"$ssh_keyscan_err" || ssh_keyscan_exit=$?
+if [ "$ssh_keyscan_exit" -ne 0 ]; then
+  echo "ssh-keyscan failed (exit $ssh_keyscan_exit) for $host:$port" >&2
+  cat "$ssh_keyscan_err" >&2
+  exit 1
+fi
 actual_fingerprints="$(ssh-keygen -lf "$scanned_host_keys" | awk '{print $2}')"
 
 if [ -z "$actual_fingerprints" ]; then

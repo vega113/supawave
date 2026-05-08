@@ -23,13 +23,19 @@ opening an SSH connection:
 - `.github/workflows/deploy-contabo.yml`
 - `.github/workflows/rollback-contabo.yml`
 
-Configure `CONTABO_HOST_FINGERPRINT` as either a repository variable or a
+Configure `CONTABO_HOST_FINGERPRINT` as a repository variable (recommended) or a
 repository secret. Use the `SHA256:...` fingerprint for the trusted Contabo SSH
 host key, not a value captured from a failed workflow run. Verify it from a
 trusted channel first, then set it with:
 
 ```bash
 gh variable set CONTABO_HOST_FINGERPRINT --repo vega113/supawave --body 'SHA256:...'
+```
+
+To store it as a secret instead (not visible in workflow logs):
+
+```bash
+gh secret set CONTABO_HOST_FINGERPRINT --repo vega113/supawave --body 'SHA256:...'
 ```
 
 If this value is missing or does not match the key returned by the host, deploy

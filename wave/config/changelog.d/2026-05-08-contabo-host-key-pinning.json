@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-contabo-host-key-pinning",
+  "version": "Issue #1214",
+  "date": "2026-05-08",
+  "title": "Contabo deploys require a pinned SSH host key",
+  "summary": "The Contabo deploy and rollback workflows now share the same pinned SSH host-key verification path, so emergency rollback tooling fails early when the trusted fingerprint is missing or mismatched.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Document the required CONTABO_HOST_FINGERPRINT repository variable or secret for production deploy and rollback workflows"
+      ]
+    }
+  ]
+}

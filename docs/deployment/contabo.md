@@ -14,3 +14,23 @@ Contabo-specific assumptions in the current project history:
 
 The canonical deploy assets are now provider-neutral and live under `deploy/caddy/`.
 Do not treat `deploy/contabo/` as the source of truth for new work.
+
+## GitHub Actions Host Key Pinning
+
+Both Contabo deployment workflows require a pinned SSH host key fingerprint before
+opening an SSH connection:
+
+- `.github/workflows/deploy-contabo.yml`
+- `.github/workflows/rollback-contabo.yml`
+
+Configure `CONTABO_HOST_FINGERPRINT` as either a repository variable or a
+repository secret. Use the `SHA256:...` fingerprint for the trusted Contabo SSH
+host key, not a value captured from a failed workflow run. Verify it from a
+trusted channel first, then set it with:
+
+```bash
+gh variable set CONTABO_HOST_FINGERPRINT --repo vega113/supawave --body 'SHA256:...'
+```
+
+If this value is missing or does not match the key returned by the host, deploy
+and rollback workflows fail before uploading or executing the deployment bundle.

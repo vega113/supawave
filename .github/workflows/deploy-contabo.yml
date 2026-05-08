@@ -60,6 +60,7 @@ jobs:
       CANONICAL_HOST: supawave.ai
       ROOT_HOST: wave.supawave.ai
       WWW_HOST: www.supawave.ai
+      CONTABO_HOST_FINGERPRINT: ${{ vars.CONTABO_HOST_FINGERPRINT || secrets.CONTABO_HOST_FINGERPRINT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -193,8 +194,10 @@ jobs:
       - name: Trust Contabo host key
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.ssh"
-          ssh-keyscan -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" -H "${{ secrets.CONTABO_SSH_HOST }}" >> "$HOME/.ssh/known_hosts"
+          scripts/deployment/trust-ssh-host-key.sh \
+            "${{ secrets.CONTABO_SSH_HOST }}" \
+            "${{ secrets.CONTABO_SSH_PORT || '22' }}" \
+            "$CONTABO_HOST_FINGERPRINT"
 
       - name: Upload bundle
         run: |

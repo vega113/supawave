@@ -52,27 +52,10 @@ jobs:
       - name: Trust Contabo host key
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.ssh"
-          scanned_host_keys="$RUNNER_TEMP/contabo_known_hosts"
-          ssh-keyscan -p "${{ secrets.CONTABO_SSH_PORT || '22' }}" -H "${{ secrets.CONTABO_SSH_HOST }}" > "$scanned_host_keys"
-          expected_fingerprint="${CONTABO_HOST_FINGERPRINT:-}"
-          actual_fingerprints="$(ssh-keygen -lf "$scanned_host_keys" | awk '{print $2}')"
-          if [ -z "$expected_fingerprint" ]; then
-            echo "CONTABO_HOST_FINGERPRINT must be set as a repo variable or secret" >&2
-            exit 1
-          fi
-          if [ -z "$actual_fingerprints" ]; then
-            echo "Failed to read SSH host key fingerprint for ${{ secrets.CONTABO_SSH_HOST }}" >&2
-            exit 1
-          fi
-          if ! printf '%s\n' "$actual_fingerprints" | grep -Fx -- "$expected_fingerprint" > /dev/null; then
-            echo "SSH host key fingerprint mismatch for ${{ secrets.CONTABO_SSH_HOST }}" >&2
-            echo "Expected: $expected_fingerprint" >&2
-            echo "Actual fingerprints:" >&2
-            printf '%s\n' "$actual_fingerprints" >&2
-            exit 1
-          fi
-          cat "$scanned_host_keys" >> "$HOME/.ssh/known_hosts"
+          scripts/deployment/trust-ssh-host-key.sh \
+            "${{ secrets.CONTABO_SSH_HOST }}" \
+            "${{ secrets.CONTABO_SSH_PORT || '22' }}" \
+            "$CONTABO_HOST_FINGERPRINT"
 
       - name: Upload rollback bundle
         run: |

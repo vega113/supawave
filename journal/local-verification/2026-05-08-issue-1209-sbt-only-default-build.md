@@ -15,8 +15,8 @@ Default app entrypoints now stay on the SBT/GWT path:
 - `Universal / packageBin`
 
 The Maven-backed J2CL sidecar remains available only through explicit SBT tasks
-such as `j2clRuntimeBuild`. The J2CL parity workflow opts into that task before
-running browser parity.
+such as `j2clRuntimeBuild`. The J2CL parity workflow opts into that task and
+sets `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1` before running browser parity.
 
 ## Review
 
@@ -45,9 +45,17 @@ running browser parity.
 - After PR review follow-up commits, `sbt --batch Universal/stage` plus
   `find target/universal/stage -path '*/war/j2cl*'` - passed; default stage
   excludes stale J2CL output dirs.
+- After PR review follow-up commits, `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch Universal/stage`
+  plus file checks for `target/universal/stage/war/j2cl/index.html` and
+  `target/universal/stage/war/j2cl-search/sidecar/j2cl-sidecar.js` - passed;
+  explicit J2CL stage includes the sidecar assets.
 - After PR review follow-up commits, `sbt --batch Universal/packageBin` plus
   `unzip -Z1 target/universal/*.zip | grep -E '/war/j2cl($|/|-search|-debug)'`
   - passed; default package zip excludes stale J2CL output dirs.
+- After PR review follow-up commits, `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch Universal/packageBin`
+  plus zip entry checks for `/war/j2cl/index.html` and
+  `/war/j2cl-search/sidecar/j2cl-sidecar.js` - passed; explicit J2CL package
+  includes the sidecar assets.
 
 ## Notes
 

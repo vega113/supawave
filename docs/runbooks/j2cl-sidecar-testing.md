@@ -104,7 +104,8 @@ commit only changelog fragments under `wave/config/changelog.d/`.
 ### 2. Run The Cross-Path Build Gate
 
 ```bash
-sbt -batch j2clSearchBuild j2clSearchTest compileGwt Universal/stage
+sbt --batch "j2clSearchBuild; j2clSearchTest"
+WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch "compileGwt; Universal/stage"
 ```
 
 This is the minimum trustworthy gate for the current coexistence phase because it
@@ -314,7 +315,12 @@ when a local smoke check needs `/j2cl/**` or `/j2cl-search/**` assets:
 ```bash
 sbt --batch "j2clSearchBuild; j2clSearchTest"
 sbt --batch "j2clProductionBuild; j2clLitBuild"
+WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch Universal/stage
 ```
+
+Use `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1` only for those explicit J2CL lanes; the
+default stage/package path removes J2CL output directories so stale sidecar
+assets are not shipped accidentally.
 
 Do not use `j2cl/mvnw` as routine verification evidence. The wrapper remains an
 implementation detail of the current Vertispan sidecar toolchain until the repo

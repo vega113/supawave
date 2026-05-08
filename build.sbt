@@ -666,14 +666,13 @@ Universal / mappings ++= {
   val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("config/" + IO.relativize(configDir, f).get)
   }
-  // war/ -> war/ (J2CL output dirs are always excluded here; Universal/stage
-  // copies them in post-hoc only when j2clRuntimeBuild populated them, so
-  // packageBin never ships stale sidecar assets from a prior session)
+  // war/ -> war/ (excluding J2CL output dirs unless explicitly requested)
   val warDir = base / "war"
   val j2clOutputDirs = Set("j2cl", "j2cl-search", "j2cl-debug")
+  val includeJ2clAssets = sys.env.get("WAVE_STAGE_INCLUDE_J2CL_ASSETS").contains("1")
   val warFiles = (warDir ** "*").get.filter(_.isFile).filter { f =>
     val rel = IO.relativize(warDir, f).getOrElse("")
-    !j2clOutputDirs.exists(d => rel == d || rel.startsWith(d + "/"))
+    includeJ2clAssets || !j2clOutputDirs.exists(d => rel == d || rel.startsWith(d + "/"))
   }.map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }
@@ -970,15 +969,11 @@ ThisBuild / j2clProductionBuild := {
   runJ2clWrapper(log, base, "production", "package")
 }
 
-ThisBuild / j2clRuntimeBuild := {
-  Def.sequential(
-    ThisBuild / j2clSearchBuild,
-    ThisBuild / j2clProductionBuild,
-    ThisBuild / j2clLitBuild
-  ).value
-  // Write a sentinel so Universal/stage knows J2CL was built in this sbt invocation.
-  IO.touch(baseDirectory.value / "target" / "j2cl-built.marker")
-}
+ThisBuild / j2clRuntimeBuild := Def.sequential(
+  ThisBuild / j2clSearchBuild,
+  ThisBuild / j2clProductionBuild,
+  ThisBuild / j2clLitBuild
+).value
 
 // sbt-protoc: use embedded protoc to generate Java directly into proto_src
 // Protoc version is managed by sbt-protoc; proto2 syntax is supported.
@@ -1397,6 +1392,7 @@ ThisBuild / compileGwtDev := {
 
 // Prevent packaging distributions with missing GWT assets when -DskipGwt=true
 lazy val verifyGwtAssets = taskKey[Unit]("Fail when packaging would ship with missing GWT assets")
+lazy val cleanStagedJ2clAssets = taskKey[Unit]("Remove stale J2CL assets from the staged default distribution")
 
 ThisBuild / verifyGwtAssets := {
   val log = streams.value.log
@@ -1408,28 +1404,23 @@ ThisBuild / verifyGwtAssets := {
   log.info("[verifyGwtAssets] OK — GWT assets will be compiled")
 }
 
+ThisBuild / cleanStagedJ2clAssets := {
+  val stagedWarDir = target.value / "universal" / "stage" / "war"
+  IO.delete(Seq(
+    stagedWarDir / "j2cl",
+    stagedWarDir / "j2cl-search",
+    stagedWarDir / "j2cl-debug"
+  ))
+}
+
 // Wire compileGwt to run after compileJava (GWT needs compiled classes)
 compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := {
-  val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
-  val stagedWarDir = stagedDir / "war"
-  val warDir = baseDirectory.value / "war"
-  // Copy J2CL dirs only when j2clRuntimeBuild ran in this invocation (marker present),
-  // so stale outputs from a prior build are never silently included in a default stage.
-  val j2clMarker = baseDirectory.value / "target" / "j2cl-built.marker"
-  if (j2clMarker.exists()) {
-    Seq("j2cl", "j2cl-search", "j2cl-debug").foreach { d =>
-      val srcDir = warDir / d
-      if (srcDir.exists && Option(srcDir.listFiles()).exists(_.nonEmpty))
-        IO.copyDirectory(srcDir, stagedWarDir / d)
-    }
-    IO.delete(j2clMarker)
-  }
-  stagedDir
-}
+Universal / stage := (Universal / stage)
+  .dependsOn(cleanStagedJ2clAssets, compileGwt, verifyGwtAssets)
+  .value
 Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"

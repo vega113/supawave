@@ -38,6 +38,8 @@ public final class J2clBuildStageContractTest extends TestCase {
     assertTrue(buildSbt.contains("lazy val j2clProductionBuild = taskKey[Unit]"));
     assertTrue(buildSbt.contains("lazy val j2clRuntimeBuild = taskKey[Unit]"));
     assertTrue(buildSbt.contains("ThisBuild / j2clRuntimeBuild := Def.sequential("));
+    assertTrue(buildSbt.contains("lazy val cleanStagedJ2clAssets = taskKey[Unit]"));
+    assertTrue(buildSbt.contains("WAVE_STAGE_INCLUDE_J2CL_ASSETS"));
 
     String runLine = findLine(buildSbt, "Compile / run :=");
     String stageLine = findLine(buildSbt, "Universal / stage :=");
@@ -52,7 +54,7 @@ public final class J2clBuildStageContractTest extends TestCase {
         "Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated"));
     assertTrue(buildSbt.contains("compileGwt := (compileGwt).dependsOn(Compile / compile).value"));
     assertTrue(normalizedBuild.contains(
-        "val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value"));
+        ".dependsOn(cleanStagedJ2clAssets, compileGwt, verifyGwtAssets)"));
     assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl\""));
     assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl-search\""));
     assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl-debug\""));

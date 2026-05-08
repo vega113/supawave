@@ -68,7 +68,9 @@ supported JDK 17 / Jakarta server path and the repo's current SBT layout.
   - `sbt run` rebuilds the rollback-ready `/webclient/**` asset tree before
     launch.
   - `Universal/stage` and `Universal/packageBin` depend on `compileGwt` and do
-    not build the J2CL sidecar unless you run the J2CL tasks explicitly.
+    not build or stage the J2CL sidecar unless you run the J2CL tasks
+    explicitly and set `WAVE_STAGE_INCLUDE_J2CL_ASSETS=1` for the stage/package
+    command.
 
 - WebSocket endpoint: `/socket` via JSR 356. Socket.IO `/socket.io/*` is disabled.
 - Status: `/statusz/socket` returns websocket/http address info (JSON)

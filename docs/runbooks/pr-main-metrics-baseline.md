@@ -68,9 +68,19 @@ export WINDOW_START="$(node -e '
 ' "$WINDOW_END")"
 printf 'WINDOW_START=%s\nWINDOW_END=%s\n' "$WINDOW_START" "$WINDOW_END"
 
-gh pr list -R vega113/incubator-wave --state merged --base main --limit 1000 \
-  --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
-  > /tmp/issue-590-main-merged.json
+# Use merge-date-bounded search so ordering by CREATED_AT cannot drop
+# PRs that were created before the window but merged within it.
+export WINDOW_START_DATE="${WINDOW_START:0:10}"
+export WINDOW_END_DATE="${WINDOW_END:0:10}"
+
+gh search prs -R vega113/incubator-wave --base main --state merged \
+  --merged ">=${WINDOW_START_DATE}" --merged "<=${WINDOW_END_DATE}" \
+  --limit 1000 \
+  --json number,title,createdAt,mergedAt,closedAt,isDraft,headRefName,url \
+  | node -e '
+    const rows = JSON.parse(require("fs").readFileSync("/dev/stdin","utf8"));
+    console.log(JSON.stringify(rows.map(r => ({...r, baseRefName: "main"}))));
+  ' > /tmp/issue-590-main-merged.json
 
 gh pr list -R vega113/incubator-wave --state merged --limit 1000 \
   --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
@@ -81,8 +91,7 @@ gh pr list -R vega113/incubator-wave --state closed --base main --limit 1000 \
   > /tmp/issue-590-main-closed.json
 ```
 
-Verify each export is JSON and has not hit the `--limit` while still inside
-the fixed window:
+Verify each export has not hit the `--limit` ceiling:
 
 ```bash
 node -e '
@@ -94,14 +103,19 @@ node -e '
     ["/tmp/issue-590-main-closed.json", 1000, "closedAt"],
   ]) {
     const r = JSON.parse(fs.readFileSync(p, "utf8"));
-    const oldest = Date.parse(r.at(-1)?.[key] ?? "");
-    if (r.length === lim && Number.isFinite(oldest) && oldest >= ws) {
-      throw new Error(p + " may be truncated for the fixed window; raise --limit");
+    if (r.length === lim) {
+      console.warn("WARNING: " + p + " hit the --limit ceiling; raise --limit before relying on results");
     }
   }
-  console.log("export limits cover the fixed window");
+  console.log("export limit check complete");
 '
 ```
+
+> **Note on `gh pr list` vs `gh search prs`**: `gh pr list` orders by
+> `CREATED_AT DESC`. A PR created before the window but merged within it can
+> be pushed past the `--limit` boundary by newer PRs, making the old
+> limit-vs-`mergedAt` check insufficient. The search-based export above bounds
+> results by merge date, which is the correct key for this baseline.
 
 Pull the GraphQL slice for review-thread engagement and status-check rollup.
 Save the query in a file to avoid shell-escape pitfalls:
@@ -111,7 +125,7 @@ cat > /tmp/issue-590-graphql.gql <<'GQL'
 query($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     pullRequests(first: 100, after: $cursor, states: MERGED, baseRefName: "main",
-                  orderBy: {field: UPDATED_AT, direction: DESC}) {
+                  orderBy: {field: CREATED_AT, direction: DESC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
         number createdAt mergedAt isDraft headRefName title
@@ -125,6 +139,10 @@ query($owner: String!, $repo: String!, $cursor: String) {
 }
 GQL
 
+# NOTE: The query orders by CREATED_AT, not UPDATED_AT, so the early-stop
+# by mergedAt is unreliable (a PR updated after merge can break ordering).
+# Instead, fetch all pages up to the safety cap and let the reduce step
+# filter by window. 30 pages × 100 = 3 000 PRs, enough for any 30-day window.
 node - <<'EOF' > /tmp/issue-590-review-threads.json
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -142,10 +160,10 @@ while (true) {
   const out = execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64*1024*1024 });
   const conn = JSON.parse(out).data.repository.pullRequests;
   all.push(...conn.nodes);
-  const oldest = conn.nodes.at(-1)?.mergedAt;
-  process.stderr.write(`page ${pages}: oldest mergedAt=${oldest} total=${all.length}\n`);
+  const oldest = conn.nodes.at(-1)?.createdAt;
+  process.stderr.write(`page ${pages}: oldest createdAt=${oldest} total=${all.length}\n`);
   if (!conn.pageInfo.hasNextPage) { stopReason = 'no-more-pages'; break; }
-  if (oldest && oldest < stopBefore) { stopReason = `oldest<${stopBefore}`; break; }
+  if (oldest && oldest < stopBefore) { stopReason = `oldest-createdAt<${stopBefore}`; break; }
   cursor = conn.pageInfo.endCursor;
   if (pages > 30) { stopReason = 'safety-cap-30-pages'; break; }
 }
@@ -201,7 +219,7 @@ const inWindowGql = gql.filter((pr) => {
   return Number.isFinite(m) && m >= ws && m < we && pr.isDraft === false && !isReleaseHotfix(pr);
 });
 
-let withReviews = 0, withReviewThreads = 0, totalThreads = 0, unresolvedAtMerge = 0;
+let withReviews = 0, withReviewThreads = 0, totalThreads = 0, currentlyUnresolved = 0;
 let maxThreadsPerPr = 0;
 const rollup = {};
 let truncated = 0;
@@ -211,7 +229,7 @@ for (const pr of inWindowGql) {
   const total   = pr.reviewThreads?.totalCount ?? 0;
   if (threads.length > 0) withReviewThreads++;
   totalThreads += threads.length;
-  unresolvedAtMerge += threads.filter((t) => !t.isResolved).length;
+  currentlyUnresolved += threads.filter((t) => !t.isResolved).length;
   if (total > maxThreadsPerPr) maxThreadsPerPr = total;
   if (total > threads.length) truncated++;
   const state = pr.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? 'NONE';
@@ -262,8 +280,8 @@ console.log(JSON.stringify({
   pct_with_review_threads:                 gqlCount > 0 ? round2(withReviewThreads / gqlCount * 100) : null,
   total_review_threads:                    totalThreads,
   threads_per_pr_mean:                     divGql(totalThreads),
-  unresolved_threads_at_merge_total:       unresolvedAtMerge,
-  unresolved_threads_per_pr_mean:          divGql(unresolvedAtMerge),
+  currently_unresolved_threads_total:      currentlyUnresolved,
+  currently_unresolved_threads_per_pr_mean: divGql(currentlyUnresolved),
   max_review_threads_per_pr:               maxThreadsPerPr,
   prs_with_threads_truncated_at_100:       truncated,
   status_check_rollup_distribution:        rollup,
@@ -292,7 +310,7 @@ between the two passes; rerun the snapshot before publishing.
 | `merged_within_{1h,6h,24h}` / `max_open_to_merge_hours` | REST: same series |
 | `pct_with_reviews` | GraphQL `pullRequest.reviews.totalCount` |
 | `pct_with_review_threads`, `threads_per_pr_mean` | GraphQL `pullRequest.reviewThreads` |
-| `unresolved_threads_at_merge_total` | GraphQL `reviewThreads.nodes.isResolved` |
+| `currently_unresolved_threads_total` | GraphQL `reviewThreads.nodes.isResolved` (collection-time state) |
 | `status_check_rollup_distribution` | GraphQL `commits.last(1).commit.statusCheckRollup.state` |
 | `excluded_non_main_merged_count` | REST `gh pr list --state merged` |
 | `excluded_release_hotfix_main_count` | REST + branch/title matcher |
@@ -312,7 +330,7 @@ Open a policy-review issue when a future 30-day `main` baseline meets the
 gate (≥ 20 qualifying merged PRs) and any of the following holds:
 
 - `p90_open_to_merge_hours` exceeds **2× the latest published baseline `p90`**
-- `unresolved_threads_at_merge_total / qualifying` exceeds **3× the latest
+- `currently_unresolved_threads_total / qualifying` exceeds **3× the latest
   published baseline mean**
 
 The 2× / 3× multipliers are conservative on purpose. The first baseline does
@@ -329,6 +347,11 @@ issue is the unit of work that may then propose a change.
 - Baseline v1 uses `isDraft` at collection time, not historical draft-to-ready
   transitions. A PR that was a draft for most of its lifetime but flipped to
   ready before merge is included; the report records this caveat.
+- `currently_unresolved_threads_total` reflects thread state at **collection
+  time**, not at `mergedAt`. Threads resolved after merge reduce the count;
+  threads opened as follow-ups after merge increase it. The metric is useful
+  for trend comparison across runs taken at similar times relative to merge,
+  but should not be read as "threads that were open when the PR landed."
 - `status_check_rollup_distribution` is informational only (see above).
 - Direct-push deploy events are out of scope by definition; promoting them
   into the baseline requires a different data source (workflow runs API

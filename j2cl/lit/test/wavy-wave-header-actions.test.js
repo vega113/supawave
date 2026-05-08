@@ -97,6 +97,11 @@ describe("<wavy-wave-header-actions>", () => {
     expect(el.hasAttribute("has-participants")).to.be.false;
   });
 
+  it("makes host transparent when overlaying participants to avoid covering avatars", () => {
+    const cssText = WavyWaveHeaderActions_styleText();
+    expect(cssText).to.match(/:host\(\[has-participants\]\)\s*\{[^}]*background:\s*transparent/);
+  });
+
   it("disables write buttons when no source wave is selected", async () => {
     const el = await createActions({ sourceWaveId: "" });
 

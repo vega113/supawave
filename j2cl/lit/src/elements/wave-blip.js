@@ -42,8 +42,6 @@ import "./wavy-task-affordance.js";
  * Events emitted (CustomEvent, bubbles + composed):
  * - `wave-blip-reply-requested` — `{detail: {blipId, waveId}}`. F-3
  *   (compose) listens.
- * - `wave-blip-continuation-requested` — `{detail: {blipId, waveId}}`.
- *   Mirrors the GWT reply-box "+" continuation affordance.
  * - `wave-blip-edit-requested` — `{detail: {blipId, waveId}}`. F-3 owns
  *   the edit surface; F-2 only emits the request.
  * - `wave-blip-delete-requested` — `{detail: {blipId, waveId, bodySize}}`. F-3.S4
@@ -180,30 +178,6 @@ export class WaveBlip extends LitElement {
      * with children, so the glyph is purely a visual cue here. */
     .thread-chevron[hidden] {
       display: none;
-    }
-    .continuation-trigger {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      margin: 4px 0 0 3.35em;
-      padding: 0;
-      border-radius: var(--wavy-radius-pill, 999px);
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.24));
-      background: #ffffff;
-      color: var(--wavy-signal-cyan, #0077b6);
-      font: var(--wavy-type-label, 12px / 1 sans-serif);
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .continuation-trigger:hover {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      background: #eef8ff;
-    }
-    .continuation-trigger:focus-visible {
-      outline: none;
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
     }
     .thread-chevron:focus-visible {
       outline: none;
@@ -536,17 +510,6 @@ export class WaveBlip extends LitElement {
     );
   }
 
-  _onContinuationClick(event) {
-    event.stopPropagation();
-    this.dispatchEvent(
-      new CustomEvent("wave-blip-continuation-requested", {
-        bubbles: true,
-        composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId }
-      })
-    );
-  }
-
   _onEditClick(event) {
     event.stopPropagation();
     this.dispatchEvent(
@@ -724,14 +687,6 @@ export class WaveBlip extends LitElement {
         <div class="body">
           <slot></slot>
         </div>
-        <button
-          type="button"
-          class="continuation-trigger"
-          data-blip-continuation-trigger
-          aria-label="Add reply below this blip"
-          title="Add reply below this blip"
-          @click=${this._onContinuationClick}
-        >+</button>
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>
       </wavy-blip-card>

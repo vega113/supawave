@@ -2145,6 +2145,10 @@ public final class J2clReadSurfaceDomRenderer {
       preview.setAttribute("src", model.getSourceUrl());
       preview.setAttribute("data-display-size", displaySize);
       preview.setAttribute("referrerpolicy", "no-referrer");
+      if (model.getImageWidth() > 0 && model.getImageHeight() > 0) {
+        preview.setAttribute("width", Integer.toString(model.getImageWidth()));
+        preview.setAttribute("height", Integer.toString(model.getImageHeight()));
+      }
       if (model.isInlineImage()) {
         preview.setAttribute("alt", model.getCaption());
         preview.setAttribute("loading", "lazy");

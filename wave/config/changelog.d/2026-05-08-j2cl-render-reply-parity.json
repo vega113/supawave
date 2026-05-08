@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-08-j2cl-render-reply-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-08",
+  "title": "Smooth J2CL wave loading and reply parity",
+  "summary": "J2CL waves now avoid flashing raw blip text before the Lit read surface upgrades, reserve attachment preview space to reduce resizing while images load, and remove the redundant below-blip plus reply affordance so replying matches the GWT action flow.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Hides pre-upgrade J2CL blip light DOM behind the wave-blip shell so users no longer see unformatted wave text while Lit finishes upgrading the read surface.",
+        "Stamps known attachment image dimensions and adds read-surface attachment sizing CSS so image previews reserve their final layout space while loading.",
+        "Removes the redundant below-blip continuation plus from the J2CL blip surface so users reply through the existing GWT-style blip action affordance."
+      ]
+    }
+  ]
+}

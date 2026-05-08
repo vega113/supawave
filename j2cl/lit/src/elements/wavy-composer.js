@@ -265,7 +265,7 @@ function inlineFormatAnnotationsForNode(node) {
  * - replyTargetBlipId (String, attribute "reply-target-blip-id") —
  *   the blip the composer is replying to (absent for wave-root +
  *   create-wave composers).
- * - mode (String) — "reply" | "edit" | "create" | "wave-root" | "continuation";
+ * - mode (String) — "reply" | "edit" | "create" | "wave-root";
  *   surfaces the verb used in the host chip and submit button label.
  * - targetLabel (String) — display name of the reply target ("Yuri",
  *   "Top thread", …) used in the "Replying to <author>" chip.
@@ -1782,7 +1782,6 @@ export class WavyComposer extends LitElement {
 
   _composeBodyAriaLabel() {
     if (this.mode === "edit") return "Edit blip";
-    if (this.mode === "continuation") return "Add reply below this blip";
     if (this.mode === "wave-root") return "Reply to wave";
     if (this.mode === "create") return "New wave";
     return this.targetLabel ? `Reply to ${this.targetLabel}` : "Reply";
@@ -2864,9 +2863,7 @@ export class WavyComposer extends LitElement {
     const verb =
       this.mode === "edit"
         ? "Editing"
-        : this.mode === "continuation"
-          ? "Replying below"
-          : "Replying to";
+        : "Replying to";
     const label = this._replyHeaderLabel();
     const time = this._replyHeaderTime();
     return html`

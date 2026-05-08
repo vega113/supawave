@@ -70,6 +70,7 @@ public final class J2clBuildStageContractTest extends TestCase {
     String dockerfile = read("Dockerfile");
 
     assertTrue(dockerfile.contains("COPY j2cl /workspace/j2cl"));
+    assertTrue(dockerfile.contains("nodejs npm"));
     assertTrue(dockerfile.contains("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1"));
     assertTrue(dockerfile.contains(
         "RUN WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch \"pst/compile; wave/compile; j2clRuntimeBuild; Universal/stage\""));

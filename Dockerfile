@@ -4,9 +4,9 @@
 FROM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
 
-# Install SBT
+# Install SBT plus the Node/npm toolchain required by j2clLitBuild.
 RUN apt-get update -qq && \
-    apt-get install -y -qq apt-transport-https gnupg && \
+    apt-get install -y -qq apt-transport-https gnupg nodejs npm && \
     install -d -m 0755 /etc/apt/keyrings && \
     curl --fail --show-error --location --retry 5 \
       "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \

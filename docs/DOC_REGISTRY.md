@@ -38,6 +38,8 @@ docs/runbooks/mongo-migrations.md
 docs/runbooks/worktree-diagnostics.md
 docs/runbooks/worktree-lane-lifecycle.md
 docs/runbooks/doc-guardrails.md
+docs/runbooks/pr-main-metrics-baseline.md
+docs/runbooks/2026-05-08-pr-main-baseline-report.md
 docs/README.md
 docs/DEV_SETUP.md
 docs/BUILDING-sbt.md

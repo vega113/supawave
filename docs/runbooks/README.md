@@ -52,6 +52,14 @@ setup, smoke checks, deployment, and operational routines.
 - [`doc-guardrails.md`](doc-guardrails.md)
   - Blocking doc-link and owner/freshness checks enforced on every PR.
 
+## Harness Metrics
+
+- [`pr-main-metrics-baseline.md`](pr-main-metrics-baseline.md)
+  - Methodology for capturing the 30-day PR-to-`main` throughput baseline
+    and the policy-review threshold rule.
+- [`2026-05-08-pr-main-baseline-report.md`](2026-05-08-pr-main-baseline-report.md)
+  - First executed snapshot (window `2026-04-08` → `2026-05-08`).
+
 ## Operational Procedures
 
 - [`../pr-monitor-lanes.md`](../pr-monitor-lanes.md)

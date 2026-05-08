@@ -20,16 +20,20 @@
 package org.waveprotocol.box.server.waveserver;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.wave.api.data.converter.EventDataConverterManager;
 
 import junit.framework.TestCase;
 import org.waveprotocol.box.server.robots.OperationContextImpl;
+import org.waveprotocol.box.server.robots.RobotWaveletData;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.wave.model.id.IdUtil;
 import org.waveprotocol.wave.model.id.WaveId;
 import org.waveprotocol.wave.model.id.WaveletId;
+import org.waveprotocol.wave.model.id.WaveletName;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.opbased.OpBasedWavelet;
 
@@ -50,12 +54,13 @@ public final class MarkBlipReadHelperTest extends TestCase {
       IdUtil.buildUserDataWaveletId(USER);
   private static final String BLIP_ID = "b+abc";
 
+  private WaveletProvider waveletProvider;
   private SelectedWaveReadStateHelper readStateHelper;
   private MarkBlipReadHelper helper;
 
   @Override
   protected void setUp() {
-    WaveletProvider waveletProvider = mock(WaveletProvider.class);
+    waveletProvider = mock(WaveletProvider.class);
     EventDataConverterManager converterManager = mock(EventDataConverterManager.class);
     ConversationUtil conversationUtil = mock(ConversationUtil.class);
     readStateHelper = mock(SelectedWaveReadStateHelper.class);
@@ -186,6 +191,18 @@ public final class MarkBlipReadHelperTest extends TestCase {
         helperWithMissingConv.markBlipRead(USER, WAVE_ID, CONV_ROOT, BLIP_ID);
     assertEquals(MarkBlipReadHelper.Outcome.NOT_FOUND, result.getOutcome());
     assertEquals(-1, result.getUnreadCountAfter());
+  }
+
+  public void testLoadParticipantUserDataWaveletCreatesMissingOwnUdwWithoutAccessProbe()
+      throws Exception {
+    WaveletName udwName = WaveletName.of(WAVE_ID, IdUtil.buildUserDataWaveletId(USER));
+    when(waveletProvider.getSnapshot(udwName)).thenReturn(null);
+
+    RobotWaveletData udw = helper.loadParticipantUserDataWavelet(WAVE_ID, USER);
+
+    assertEquals(udwName, udw.getWaveletName());
+    verify(waveletProvider).getSnapshot(udwName);
+    verify(waveletProvider, never()).checkAccessPermission(udwName, USER);
   }
 
   public void testResultFactories() {

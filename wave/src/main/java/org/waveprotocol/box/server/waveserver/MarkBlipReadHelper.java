@@ -25,10 +25,12 @@ import com.google.wave.api.InvalidRequestException;
 import com.google.wave.api.ProtocolVersion;
 import com.google.wave.api.data.converter.EventDataConverterManager;
 
+import org.waveprotocol.box.server.frontend.CommittedWaveletSnapshot;
 import org.waveprotocol.box.server.robots.OperationContextImpl;
 import org.waveprotocol.box.server.robots.RobotWaveletData;
 import org.waveprotocol.box.server.robots.util.ConversationUtil;
 import org.waveprotocol.box.server.robots.util.OperationUtil;
+import org.waveprotocol.box.server.robots.util.RobotsUtil;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.model.conversation.Conversation;
 import org.waveprotocol.wave.model.conversation.ConversationBlip;
@@ -234,22 +236,21 @@ public class MarkBlipReadHelper {
     }
 
     // Open the user-data wavelet on the same context so the supplement
-    // mutations land in a single delta. UDW is auto-created by openWavelet
-    // when missing (see OperationContextImpl#openWavelet).
+    // mutations land in a single delta. Load the UDW directly instead of
+    // calling OperationContextImpl#openWavelet first: that path checks access
+    // before reaching its own missing-UDW auto-create branch, so a missing
+    // user-data wavelet can otherwise become a false INTERNAL_ERROR.
     WaveletId udwId = IdUtil.buildUserDataWaveletId(user);
-    OpBasedWavelet udw;
+    RobotWaveletData udwData;
     try {
-      udw = openWaveletViaContext(context, waveId, udwId, user);
+      udwData = loadParticipantUserDataWavelet(waveId, user);
     } catch (RuntimeException e) {
       LOG.warning("mark-blip-read: failed to open user-data wavelet "
           + WaveletName.of(waveId, udwId), e);
       return Result.internalError();
     }
-    if (udw == null) {
-      LOG.warning("mark-blip-read: user-data wavelet unavailable "
-          + WaveletName.of(waveId, udwId));
-      return Result.internalError();
-    }
+    context.putWavelet(waveId, udwId, udwData);
+    OpBasedWavelet udw = openWaveletViaContext(context, waveId, udwId, user);
 
     PrimitiveSupplement udwState = WaveletBasedSupplement.create(udw);
     SupplementedWave supplement =
@@ -363,6 +364,21 @@ public class MarkBlipReadHelper {
       // openWavelet wraps load failures and missing wavelets in
       // InvalidRequestException; collapse to null so the caller can map to 404.
       return null;
+    }
+  }
+
+  @VisibleForTesting
+  RobotWaveletData loadParticipantUserDataWavelet(WaveId waveId, ParticipantId user) {
+    WaveletName userDataWaveletName = WaveletName.of(waveId, IdUtil.buildUserDataWaveletId(user));
+    try {
+      CommittedWaveletSnapshot snapshot = waveletProvider.getSnapshot(userDataWaveletName);
+      if (snapshot == null) {
+        return RobotsUtil.createEmptyRobotWavelet(user, userDataWaveletName);
+      }
+      return new RobotWaveletData(snapshot.snapshot, snapshot.committedVersion);
+    } catch (WaveServerException e) {
+      throw new IllegalStateException(
+          "Wavelet " + userDataWaveletName + " couldn't be retrieved", e);
     }
   }
 }

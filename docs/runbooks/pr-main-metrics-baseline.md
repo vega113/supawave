@@ -73,14 +73,11 @@ printf 'WINDOW_START=%s\nWINDOW_END=%s\n' "$WINDOW_START" "$WINDOW_END"
 export WINDOW_START_DATE="${WINDOW_START:0:10}"
 export WINDOW_END_DATE="${WINDOW_END:0:10}"
 
-gh search prs -R vega113/incubator-wave --base main --state merged \
-  --merged ">=${WINDOW_START_DATE}" --merged "<=${WINDOW_END_DATE}" \
+gh pr list -R vega113/incubator-wave --base main --state merged \
+  --search "merged:${WINDOW_START_DATE}..${WINDOW_END_DATE}" \
   --limit 1000 \
-  --json number,title,createdAt,mergedAt,closedAt,isDraft,headRefName,url \
-  | node -e '
-    const rows = JSON.parse(require("fs").readFileSync("/dev/stdin","utf8"));
-    console.log(JSON.stringify(rows.map(r => ({...r, baseRefName: "main"}))));
-  ' > /tmp/issue-590-main-merged.json
+  --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
+  > /tmp/issue-590-main-merged.json
 
 gh pr list -R vega113/incubator-wave --state merged --limit 1000 \
   --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
@@ -111,11 +108,13 @@ node -e '
 '
 ```
 
-> **Note on `gh pr list` vs `gh search prs`**: `gh pr list` orders by
-> `CREATED_AT DESC`. A PR created before the window but merged within it can
-> be pushed past the `--limit` boundary by newer PRs, making the old
-> limit-vs-`mergedAt` check insufficient. The search-based export above bounds
-> results by merge date, which is the correct key for this baseline.
+> **Note on merge-date-bounded export**: `gh pr list` without `--search` orders
+> by `CREATED_AT DESC`, so a PR created before the window but merged within it
+> can be pushed past the `--limit` boundary by newer PRs. Adding
+> `--search "merged:DATE..DATE"` routes the query through the GitHub search API,
+> which bounds results by merge date. Unlike `gh search prs`, `gh pr list
+> --search` still returns all PR fields including `mergedAt`, `headRefName`, and
+> `baseRefName`, which are required by the reduce step.
 
 Pull the GraphQL slice for review-thread engagement and status-check rollup.
 Save the query in a file to avoid shell-escape pitfalls:
@@ -147,7 +146,6 @@ node - <<'EOF' > /tmp/issue-590-review-threads.json
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const query = fs.readFileSync('/tmp/issue-590-graphql.gql', 'utf8');
-const stopBefore = process.env.WINDOW_START;
 const all = [];
 let cursor = null;
 let pages = 0;
@@ -160,10 +158,8 @@ while (true) {
   const out = execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64*1024*1024 });
   const conn = JSON.parse(out).data.repository.pullRequests;
   all.push(...conn.nodes);
-  const oldest = conn.nodes.at(-1)?.createdAt;
-  process.stderr.write(`page ${pages}: oldest createdAt=${oldest} total=${all.length}\n`);
+  process.stderr.write(`page ${pages}: total=${all.length}\n`);
   if (!conn.pageInfo.hasNextPage) { stopReason = 'no-more-pages'; break; }
-  if (oldest && oldest < stopBefore) { stopReason = `oldest-createdAt<${stopBefore}`; break; }
   cursor = conn.pageInfo.endCursor;
   if (pages > 30) { stopReason = 'safety-cap-30-pages'; break; }
 }

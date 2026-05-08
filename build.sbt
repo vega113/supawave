@@ -970,11 +970,15 @@ ThisBuild / j2clProductionBuild := {
   runJ2clWrapper(log, base, "production", "package")
 }
 
-ThisBuild / j2clRuntimeBuild := Def.sequential(
-  ThisBuild / j2clSearchBuild,
-  ThisBuild / j2clProductionBuild,
-  ThisBuild / j2clLitBuild
-).value
+ThisBuild / j2clRuntimeBuild := {
+  Def.sequential(
+    ThisBuild / j2clSearchBuild,
+    ThisBuild / j2clProductionBuild,
+    ThisBuild / j2clLitBuild
+  ).value
+  // Write a sentinel so Universal/stage knows J2CL was built in this sbt invocation.
+  IO.touch(baseDirectory.value / "target" / "j2cl-built.marker")
+}
 
 // sbt-protoc: use embedded protoc to generate Java directly into proto_src
 // Protoc version is managed by sbt-protoc; proto2 syntax is supported.
@@ -1413,12 +1417,16 @@ Universal / stage := {
   val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
   val stagedWarDir = stagedDir / "war"
   val warDir = baseDirectory.value / "war"
-  // J2CL dirs are excluded from Universal/mappings unconditionally; copy them
-  // into the staged distribution only when j2clRuntimeBuild populated them.
-  Seq("j2cl", "j2cl-search", "j2cl-debug").foreach { d =>
-    val srcDir = warDir / d
-    if (srcDir.exists && Option(srcDir.listFiles()).exists(_.nonEmpty))
-      IO.copyDirectory(srcDir, stagedWarDir / d)
+  // Copy J2CL dirs only when j2clRuntimeBuild ran in this invocation (marker present),
+  // so stale outputs from a prior build are never silently included in a default stage.
+  val j2clMarker = baseDirectory.value / "target" / "j2cl-built.marker"
+  if (j2clMarker.exists()) {
+    Seq("j2cl", "j2cl-search", "j2cl-debug").foreach { d =>
+      val srcDir = warDir / d
+      if (srcDir.exists && Option(srcDir.listFiles()).exists(_.nonEmpty))
+        IO.copyDirectory(srcDir, stagedWarDir / d)
+    }
+    IO.delete(j2clMarker)
   }
   stagedDir
 }

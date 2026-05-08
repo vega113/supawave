@@ -52,7 +52,10 @@ public final class J2clBuildStageContractTest extends TestCase {
         "Compile / run := (Compile / run).dependsOn(prepareServerConfig, j2clRuntimeBuild, compileGwt).evaluated"));
     assertTrue(buildSbt.contains("compileGwt := (compileGwt).dependsOn(Compile / compile).value"));
     assertTrue(normalizedBuild.contains(
-        "Universal / stage := (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value"));
+        "val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value"));
+    assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl\""));
+    assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl-search\""));
+    assertTrue(normalizedBuild.contains("stagedWarDir / \"j2cl-debug\""));
     assertFalse(normalizedBuild.contains(
         "Universal / stage := (Universal / stage).dependsOn(j2clRuntimeBuild, compileGwt, verifyGwtAssets).value"));
     assertTrue(normalizedBuild.contains(

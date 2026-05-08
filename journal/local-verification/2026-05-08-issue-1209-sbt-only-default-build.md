@@ -42,6 +42,12 @@ running browser parity.
 - `sbt --batch Universal/stage` - passed.
 - `sbt --batch Universal/packageBin` - passed.
 - `sbt --batch j2clRuntimeBuild` - passed.
+- After PR review follow-up commits, `sbt --batch Universal/stage` plus
+  `find target/universal/stage -path '*/war/j2cl*'` - passed; default stage
+  excludes stale J2CL output dirs.
+- After PR review follow-up commits, `sbt --batch Universal/packageBin` plus
+  `unzip -Z1 target/universal/*.zip | grep -E '/war/j2cl($|/|-search|-debug)'`
+  - passed; default package zip excludes stale J2CL output dirs.
 
 ## Notes
 

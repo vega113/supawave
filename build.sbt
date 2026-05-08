@@ -1407,7 +1407,16 @@ compileGwt := (compileGwt).dependsOn(Compile / compile).value
 devCompile := (Compile / compile).value
 compileGwtDev := (compileGwtDev).dependsOn(Compile / compile).value
 
-Universal / stage := (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
+Universal / stage := {
+  val stagedDir = (Universal / stage).dependsOn(compileGwt, verifyGwtAssets).value
+  val stagedWarDir = stagedDir / "war"
+  IO.delete(Seq(
+    stagedWarDir / "j2cl",
+    stagedWarDir / "j2cl-search",
+    stagedWarDir / "j2cl-debug"
+  ))
+  stagedDir
+}
 Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
 
 cleanFiles += baseDirectory.value / "war" / "webclient"

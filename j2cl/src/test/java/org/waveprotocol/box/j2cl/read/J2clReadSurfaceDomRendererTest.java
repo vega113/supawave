@@ -1366,6 +1366,45 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void renderInlineImageStampsIntrinsicDimensionsToReserveLayoutSpace() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clAttachmentRenderModel attachment =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+large",
+            "Large image",
+            "large",
+            attachmentMetadata(
+                "example.com/att+large",
+                "large.png",
+                "image/png",
+                "/attachment/example.com/att+large",
+                "/thumbnail/example.com/att+large",
+                new J2clAttachmentMetadata.ImageMetadata(1600, 900),
+                false));
+
+    Assert.assertTrue(
+        new J2clReadSurfaceDomRenderer(host)
+            .render(
+                Arrays.asList(new J2clReadBlip("b+root", "Root text", Arrays.asList(attachment))),
+                Collections.<String>emptyList()));
+
+    HTMLElement preview =
+        (HTMLElement) host.querySelector(".j2cl-read-attachment-preview");
+    Assert.assertNotNull(preview);
+    Assert.assertEquals(
+        "Read-surface attachment images need intrinsic width so the browser "
+            + "can reserve the final aspect ratio before the image decodes.",
+        "1600",
+        preview.getAttribute("width"));
+    Assert.assertEquals(
+        "Read-surface attachment images need intrinsic height so attachment "
+            + "loads do not resize the wave after first paint.",
+        "900",
+        preview.getAttribute("height"));
+  }
+
+  @Test
   public void renderWindowEntriesPropagatePerBlipMetadataIntoTheRenderedBlipElement() {
     // F-2 (#1037, R-3.1) — the viewport-window path is the dominant render
     // path. The window entry now carries author / timestamp / unread /

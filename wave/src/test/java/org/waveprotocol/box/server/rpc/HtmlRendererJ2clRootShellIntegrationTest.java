@@ -364,6 +364,35 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
             ".sidecar-selected-compose[data-j2cl-compose-host=\"true\"]:empty"));
   }
 
+  public void testWaveBlipPreUpgradeCssHidesRawLightDomText() {
+    String css = readWavyThreadCollapseCss();
+    assertTrue(
+        "Before Lit defines <wave-blip>, the global read-surface CSS must "
+            + "hide raw light-DOM blip text so users do not see unformatted waves.",
+        java.util.regex.Pattern.compile(
+                "wave-blip:not\\(:defined\\)\\s*>\\s*\\*\\s*\\{[^}]*\\bvisibility\\s*:\\s*hidden\\s*;")
+            .matcher(css)
+            .find());
+  }
+
+  public void testReadSurfaceAttachmentCssReservesPreviewSpace() {
+    String css = readWavyThreadCollapseCss();
+    assertTrue(
+        "Read-surface attachments need display-size box rules so image decode "
+            + "does not resize the wave after first paint.",
+        java.util.regex.Pattern.compile(
+                "\\.j2cl-read-attachment\\[data-display-size=\"large\"\\]\\s*\\{[^}]*\\bmax-width\\s*:")
+            .matcher(css)
+            .find());
+    assertTrue(
+        "Read-surface attachment previews must be block-level and constrained "
+            + "by width/height rules to preserve intrinsic aspect ratio.",
+        java.util.regex.Pattern.compile(
+                "\\.j2cl-read-attachment-preview\\s*\\{[^}]*\\bdisplay\\s*:\\s*block\\s*;[^}]*\\bheight\\s*:\\s*auto\\s*;")
+            .matcher(css)
+            .find());
+  }
+
   public void testLegacySearchFormHideRulePresent() {
     String css = readWavyThreadCollapseCss();
     assertTrue(

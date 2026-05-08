@@ -12,6 +12,70 @@
   position: relative;
 }
 
+/* Prevent the server-first <wave-blip> light DOM from painting as raw
+ * unformatted text while the Lit bundle is still defining the custom
+ * element. The skeleton keeps a stable block in the wave so upgrade
+ * replaces it with the final card instead of flashing text. */
+wave-blip:not(:defined) {
+  display: block;
+  min-height: 96px;
+  margin: var(--wavy-spacing-2, 8px) 0;
+  border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+  border-radius: var(--wavy-radius-sm, 4px);
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(255, 255, 255, 0.72), rgba(34, 211, 238, 0.08)),
+    var(--wavy-bg-surface, #f8fafc);
+  color: transparent;
+  overflow: hidden;
+}
+
+wave-blip:not(:defined) > * {
+  visibility: hidden;
+}
+
+.j2cl-read-attachments {
+  display: grid;
+  gap: var(--wavy-spacing-2, 8px);
+  margin: var(--wavy-spacing-2, 8px) 0 0;
+}
+
+.j2cl-read-attachment {
+  display: grid;
+  gap: var(--wavy-spacing-1, 4px);
+  padding: var(--wavy-spacing-2, 8px);
+  border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+  border-radius: var(--wavy-radius-sm, 4px);
+  background: var(--wavy-bg-surface, #f8fafc);
+}
+
+.j2cl-read-attachment[data-display-size="small"] {
+  max-width: 240px;
+}
+
+.j2cl-read-attachment[data-display-size="medium"] {
+  max-width: 360px;
+}
+
+.j2cl-read-attachment[data-display-size="large"] {
+  max-width: 520px;
+}
+
+.j2cl-read-attachment-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: var(--wavy-radius-sm, 4px);
+  background: rgba(226, 232, 240, 0.72);
+}
+
+.j2cl-read-attachment[data-attachment-state="pending"],
+.j2cl-read-attachment[data-attachment-state="metadata-failure"],
+.j2cl-read-attachment[data-attachment-state="blocked"] {
+  min-height: 72px;
+}
+
 /* Inline reply threads animate height + opacity per F-0 token. Default
  * max-height covers any plausible thread height; the collapsed state
  * snaps to 0. The root thread ([data-thread-id="root"]) is excluded from

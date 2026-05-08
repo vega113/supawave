@@ -20,6 +20,8 @@ public final class J2clAttachmentRenderModel {
   private final String downloadUrl;
   private final String downloadFileName;
   private final String statusText;
+  private final int imageWidth;
+  private final int imageHeight;
   private final boolean inlineImage;
   private final boolean blocked;
   private final boolean metadataFailure;
@@ -35,6 +37,8 @@ public final class J2clAttachmentRenderModel {
       String openUrl,
       String downloadUrl,
       String statusText,
+      int imageWidth,
+      int imageHeight,
       boolean inlineImage,
       boolean blocked,
       boolean metadataFailure,
@@ -54,6 +58,8 @@ public final class J2clAttachmentRenderModel {
     this.downloadUrl = safeUrl(downloadUrl);
     this.downloadFileName = safeDownloadFileName(this.fileName, this.attachmentId);
     this.statusText = normalize(statusText);
+    this.imageWidth = Math.max(0, imageWidth);
+    this.imageHeight = Math.max(0, imageHeight);
     this.inlineImage = inlineImage && !this.sourceUrl.isEmpty();
     this.blocked = blocked;
     this.metadataFailure = metadataFailure;
@@ -86,6 +92,8 @@ public final class J2clAttachmentRenderModel {
           "",
           "",
           "Attachment blocked by malware scan.",
+          0,
+          0,
           false,
           true,
           false,
@@ -93,7 +101,8 @@ public final class J2clAttachmentRenderModel {
     }
 
     boolean image = isImageMimeType(normalizedMimeType);
-    boolean hasImageDimensions = hasDimensions(metadata.getImageMetadata());
+    J2clAttachmentMetadata.ImageMetadata imageMetadata = metadata.getImageMetadata();
+    boolean hasImageDimensions = hasDimensions(imageMetadata);
     boolean inlineImage =
         image
             && hasImageDimensions
@@ -123,6 +132,8 @@ public final class J2clAttachmentRenderModel {
         metadata.getAttachmentUrl(),
         metadata.getAttachmentUrl(),
         "",
+        hasImageDimensions ? imageMetadata.getWidth() : 0,
+        hasImageDimensions ? imageMetadata.getHeight() : 0,
         inlineImage,
         false,
         false,
@@ -144,6 +155,8 @@ public final class J2clAttachmentRenderModel {
         "",
         "",
         metadataFailureStatus(normalizedReason),
+        0,
+        0,
         false,
         false,
         true,
@@ -164,6 +177,8 @@ public final class J2clAttachmentRenderModel {
         "",
         "",
         "Attachment metadata loading...",
+        0,
+        0,
         false,
         false,
         false,
@@ -208,6 +223,14 @@ public final class J2clAttachmentRenderModel {
 
   public String getStatusText() {
     return statusText;
+  }
+
+  public int getImageWidth() {
+    return imageWidth;
+  }
+
+  public int getImageHeight() {
+    return imageHeight;
   }
 
   public boolean isInlineImage() {
@@ -258,6 +281,8 @@ public final class J2clAttachmentRenderModel {
         && downloadUrl.equals(that.downloadUrl)
         && downloadFileName.equals(that.downloadFileName)
         && statusText.equals(that.statusText)
+        && imageWidth == that.imageWidth
+        && imageHeight == that.imageHeight
         && inlineImage == that.inlineImage
         && blocked == that.blocked
         && metadataFailure == that.metadataFailure
@@ -276,6 +301,8 @@ public final class J2clAttachmentRenderModel {
     result = 31 * result + downloadUrl.hashCode();
     result = 31 * result + downloadFileName.hashCode();
     result = 31 * result + statusText.hashCode();
+    result = 31 * result + imageWidth;
+    result = 31 * result + imageHeight;
     result = 31 * result + (inlineImage ? 1 : 0);
     result = 31 * result + (blocked ? 1 : 0);
     result = 31 * result + (metadataFailure ? 1 : 0);

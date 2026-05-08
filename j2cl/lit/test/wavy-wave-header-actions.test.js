@@ -62,6 +62,46 @@ describe("<wavy-wave-header-actions>", () => {
     );
   });
 
+  it("keeps the add-participant popover clickable while reserving the shared panel action width", () => {
+    const cssText = WavyWaveHeaderActions_styleText();
+    expect(cssText).to.not.match(/:host\s*\{[^}]*pointer-events:\s*none/);
+    expect(cssText).to.include("var(--wavy-wave-actions-reserved-width, 174px)");
+    expect(cssText).to.include("max-width: 100%");
+  });
+
+  it("keeps participant-present host transparent and zero-height in flow", () => {
+    const cssText = WavyWaveHeaderActions_styleText();
+    expect(cssText).to.not.include("margin-top: -46px");
+    expect(cssText).to.include(":host([has-participants])");
+    expect(cssText).to.include("background: transparent");
+    expect(cssText).to.include("min-height: 0");
+    expect(cssText).to.include("position: absolute");
+    expect(cssText).to.include("top: -42px");
+  });
+
+  it("does not offset host when no participants", async () => {
+    const el = await createActions({ participants: [] });
+    expect(el.hasAttribute("has-participants")).to.be.false;
+  });
+
+  it("sets has-participants attribute when participants are provided", async () => {
+    const el = await createActions({ participants: ["alice@example.com"] });
+    expect(el.hasAttribute("has-participants")).to.be.true;
+  });
+
+  it("removes has-participants attribute when participants are cleared", async () => {
+    const el = await createActions({ participants: ["alice@example.com"] });
+    expect(el.hasAttribute("has-participants")).to.be.true;
+    el.participants = [];
+    await el.updateComplete;
+    expect(el.hasAttribute("has-participants")).to.be.false;
+  });
+
+  it("makes host transparent when overlaying participants to avoid covering avatars", () => {
+    const cssText = WavyWaveHeaderActions_styleText();
+    expect(cssText).to.match(/:host\(\[has-participants\]\)\s*\{[^}]*background:\s*transparent/);
+  });
+
   it("disables write buttons when no source wave is selected", async () => {
     const el = await createActions({ sourceWaveId: "" });
 
@@ -313,3 +353,10 @@ describe("<wavy-wave-header-actions>", () => {
     });
   });
 });
+
+function WavyWaveHeaderActions_styleText() {
+  const cls = customElements.get("wavy-wave-header-actions");
+  const styles = cls.styles;
+  const arr = Array.isArray(styles) ? styles : [styles];
+  return arr.map((s) => (s && s.cssText) || "").join("\n");
+}

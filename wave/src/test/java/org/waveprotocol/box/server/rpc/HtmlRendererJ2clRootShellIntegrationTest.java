@@ -808,12 +808,11 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         html.contains("<body class=\"j2cl-root-shell-page j2cl-debug-overlay-on\">"));
   }
 
-  public void testV2PreviewFixtureEyebrowIsTaggedDebugOnly() {
+  public void testSelectedWaveChromeDoesNotRenderOpenedWaveEyebrow() {
     String html = renderSignedInPage();
-    assertTrue(
-        "Preview-fixture eyebrow must carry data-j2cl-debug-only so sidecar.css hides it (V-2 #1100)",
-        html.contains(
-            "<p class=\"sidecar-eyebrow\" data-j2cl-debug-only=\"true\">Opened wave</p>"));
+    assertFalse(
+        "Selected-wave chrome must not render the J2CL-only 'Opened wave' eyebrow",
+        html.contains("Opened wave"));
   }
 
   public void testV2PreviewFixtureStatusAndDetailAreTaggedDebugOnly() {

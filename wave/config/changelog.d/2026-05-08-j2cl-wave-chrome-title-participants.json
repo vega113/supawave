@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-08-j2cl-wave-chrome-title-participants",
+  "version": "Issue #1223",
+  "date": "2026-05-08",
+  "title": "J2CL wave chrome now matches the legacy wave title and participant panels more closely.",
+  "summary": "The J2CL selected-wave view uses a compact title bar, removes the extra Opened wave label, shows participant profile images, and aligns wave action buttons with the legacy panel controls.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replaces the large selected-wave heading with a compact legacy-style title bar.",
+        "Removes the J2CL-only Opened wave eyebrow from cold and server-first selected-wave markup.",
+        "Renders selected-wave participants as profile image avatars and restyles the wave action strip to match the legacy participant panel density."
+      ]
+    }
+  ]
+}

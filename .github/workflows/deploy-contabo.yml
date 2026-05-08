@@ -109,7 +109,7 @@ jobs:
             echo "Build attempt $attempt/3"
             log_file="$(mktemp)"
             status=0
-            sbt --batch "pst/compile; wave/compile; Universal/stage" >"$log_file" 2>&1 || status=$?
+            WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch "pst/compile; wave/compile; j2clRuntimeBuild; Universal/stage" >"$log_file" 2>&1 || status=$?
             cat "$log_file"
             if [ "$status" -eq 0 ]; then
               rm -f "$log_file"
@@ -141,6 +141,24 @@ jobs:
             exit 1
           fi
           diff -u wave/config/changelog.json "$staged_changelog"
+
+      - name: Verify staged J2CL assets
+        if: github.event_name == 'push' || github.event.inputs.action == 'deploy'
+        run: |
+          set -euo pipefail
+          for asset in \
+            target/universal/stage/war/j2cl/assets/wavy-thread-collapse.css \
+            target/universal/stage/war/j2cl/assets/shell.css \
+            target/universal/stage/war/j2cl/assets/sidecar.css \
+            target/universal/stage/war/j2cl/assets/wavy-tokens.css \
+            target/universal/stage/war/j2cl/assets/shell.js \
+            target/universal/stage/war/j2cl-search/sidecar/j2cl-sidecar.js
+          do
+            if [ ! -s "$asset" ]; then
+              echo "Missing staged J2CL asset: $asset" >&2
+              exit 1
+            fi
+          done
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' || github.event.inputs.action == 'deploy'

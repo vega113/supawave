@@ -79,7 +79,9 @@ gh pr list -R vega113/incubator-wave --base main --state merged \
   --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
   > /tmp/issue-590-main-merged.json
 
-gh pr list -R vega113/incubator-wave --state merged --limit 1000 \
+gh pr list -R vega113/incubator-wave --state merged \
+  --search "merged:${WINDOW_START_DATE}..${WINDOW_END_DATE}" \
+  --limit 1000 \
   --json number,title,createdAt,mergedAt,closedAt,isDraft,baseRefName,headRefName,url \
   > /tmp/issue-590-all-merged.json
 
@@ -108,9 +110,10 @@ node -e '
 '
 ```
 
-> **Note on merge-date-bounded export**: `gh pr list` without `--search` orders
-> by `CREATED_AT DESC`, so a PR created before the window but merged within it
-> can be pushed past the `--limit` boundary by newer PRs. Adding
+> **Note on merge-date-bounded exports**: Both the `main-merged` and `all-merged`
+> exports use `--search "merged:DATE..DATE"`. `gh pr list` without `--search`
+> orders by `CREATED_AT DESC`, so a PR created before the window but merged
+> within it can be pushed past the `--limit` boundary by newer PRs. Adding
 > `--search "merged:DATE..DATE"` routes the query through the GitHub search API,
 > which bounds results by merge date. Unlike `gh search prs`, `gh pr list
 > --search` still returns all PR fields including `mergedAt`, `headRefName`, and

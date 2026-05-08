@@ -1103,27 +1103,20 @@ public final class J2clComposeSurfaceController {
 
   public void onReplySubmittedWithComponents(
       List<SubmittedComponent> components, String replyTargetBlipId) {
-    if (components == null) {
-      pendingSubmittedComponents = null;
-      onReplySubmitted("", replyTargetBlipId);
-      return;
-    }
-    StringBuilder plainBuilder = new StringBuilder();
-    for (SubmittedComponent component : components) {
-      if (component != null && component.getText() != null) {
-        plainBuilder.append(component.getText());
-      }
-    }
-    replyDraft = normalizeDraft(plainBuilder.toString());
-    pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
-    submitReply(replyTargetBlipId, false);
+    submitWithComponents(components, replyTargetBlipId, false);
   }
 
   public void onContinuationSubmittedWithComponents(
       List<SubmittedComponent> components, String replyTargetBlipId) {
+    submitWithComponents(components, replyTargetBlipId, true);
+  }
+
+  private void submitWithComponents(
+      List<SubmittedComponent> components, String replyTargetBlipId, boolean continuation) {
     if (components == null) {
+      replyDraft = normalizeDraft("");
       pendingSubmittedComponents = null;
-      onContinuationSubmitted("", replyTargetBlipId);
+      submitReply(replyTargetBlipId, continuation);
       return;
     }
     StringBuilder plainBuilder = new StringBuilder();
@@ -1134,7 +1127,7 @@ public final class J2clComposeSurfaceController {
     }
     replyDraft = normalizeDraft(plainBuilder.toString());
     pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
-    submitReply(replyTargetBlipId, true);
+    submitReply(replyTargetBlipId, continuation);
   }
 
   public boolean onToolbarAction(J2clDailyToolbarAction action) {

@@ -925,7 +925,8 @@ public final class J2clRichContentDeltaFactory {
   private String buildConversationRegularReplyOperation(
       int insertPosition, int manifestItemCount, String replyBlipId) {
     if (insertPosition < 0) {
-      throw new IllegalArgumentException("Invalid manifest sibling reply insert position.");
+      throw new IllegalArgumentException(
+          "Reply failed: the sibling insert position is invalid. Please try again.");
     }
     StringBuilder components = new StringBuilder();
     if (insertPosition > 0) {
@@ -952,7 +953,8 @@ public final class J2clRichContentDeltaFactory {
   private String buildConversationReplyThreadOperation(
       int insertPosition, int manifestItemCount, String threadId, String replyBlipId) {
     if (insertPosition < 0) {
-      throw new IllegalArgumentException("Invalid manifest reply insert position.");
+      throw new IllegalArgumentException(
+          "Reply failed: the thread insert position is invalid. Please try again.");
     }
     StringBuilder components = new StringBuilder();
     if (insertPosition > 0) {

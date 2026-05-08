@@ -96,9 +96,10 @@ export class ReactionRow extends LitElement {
           type="button"
           data-reaction-add
           aria-label="Add reaction"
+          title="Add reaction"
           @click=${this.onAdd}
         >
-          +
+          ☺
         </button>
       </div>
       <span class="sr-only" aria-live="polite">${this.liveText()}</span>

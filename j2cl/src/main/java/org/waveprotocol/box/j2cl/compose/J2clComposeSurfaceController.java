@@ -99,6 +99,10 @@ public final class J2clComposeSurfaceController {
       onReplySubmitted(draft);
     }
 
+    default void onContinuationSubmitted(String draft, String replyTargetBlipId) {
+      onReplySubmitted(draft, replyTargetBlipId);
+    }
+
     /**
      * J-UI-5 (#1083, R-5.1 + R-5.7): the user submitted a reply from the
      * inline rich-text composer. {@code components} carries the
@@ -137,6 +141,19 @@ public final class J2clComposeSurfaceController {
         }
       }
       onReplySubmitted(builder.toString(), replyTargetBlipId);
+    }
+
+    default void onContinuationSubmittedWithComponents(
+        List<SubmittedComponent> components, String replyTargetBlipId) {
+      StringBuilder builder = new StringBuilder();
+      if (components != null) {
+        for (SubmittedComponent component : components) {
+          if (component != null && component.getText() != null) {
+            builder.append(component.getText());
+          }
+        }
+      }
+      onContinuationSubmitted(builder.toString(), replyTargetBlipId);
     }
 
     void onAttachmentFilesSelected(List<AttachmentFileSelection> selections);
@@ -806,6 +823,11 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
+          public void onContinuationSubmitted(String draft, String replyTargetBlipId) {
+            J2clComposeSurfaceController.this.onContinuationSubmitted(draft, replyTargetBlipId);
+          }
+
+          @Override
           public void onReplySubmittedWithComponents(List<SubmittedComponent> components) {
             J2clComposeSurfaceController.this.onReplySubmittedWithComponents(components);
           }
@@ -814,6 +836,13 @@ public final class J2clComposeSurfaceController {
           public void onReplySubmittedWithComponents(
               List<SubmittedComponent> components, String replyTargetBlipId) {
             J2clComposeSurfaceController.this.onReplySubmittedWithComponents(
+                components, replyTargetBlipId);
+          }
+
+          @Override
+          public void onContinuationSubmittedWithComponents(
+              List<SubmittedComponent> components, String replyTargetBlipId) {
+            J2clComposeSurfaceController.this.onContinuationSubmittedWithComponents(
                 components, replyTargetBlipId);
           }
 
@@ -1051,7 +1080,13 @@ public final class J2clComposeSurfaceController {
   public void onReplySubmitted(String draft, String replyTargetBlipId) {
     replyDraft = normalizeDraft(draft);
     pendingSubmittedComponents = null;
-    submitReply(replyTargetBlipId);
+    submitReply(replyTargetBlipId, false);
+  }
+
+  public void onContinuationSubmitted(String draft, String replyTargetBlipId) {
+    replyDraft = normalizeDraft(draft);
+    pendingSubmittedComponents = null;
+    submitReply(replyTargetBlipId, true);
   }
 
   /**
@@ -1081,7 +1116,25 @@ public final class J2clComposeSurfaceController {
     }
     replyDraft = normalizeDraft(plainBuilder.toString());
     pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
-    submitReply(replyTargetBlipId);
+    submitReply(replyTargetBlipId, false);
+  }
+
+  public void onContinuationSubmittedWithComponents(
+      List<SubmittedComponent> components, String replyTargetBlipId) {
+    if (components == null) {
+      pendingSubmittedComponents = null;
+      onContinuationSubmitted("", replyTargetBlipId);
+      return;
+    }
+    StringBuilder plainBuilder = new StringBuilder();
+    for (SubmittedComponent component : components) {
+      if (component != null && component.getText() != null) {
+        plainBuilder.append(component.getText());
+      }
+    }
+    replyDraft = normalizeDraft(plainBuilder.toString());
+    pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
+    submitReply(replyTargetBlipId, true);
   }
 
   public boolean onToolbarAction(J2clDailyToolbarAction action) {
@@ -2151,15 +2204,15 @@ public final class J2clComposeSurfaceController {
   }
 
   private void submitReply() {
-    submitReply(null);
+    submitReply(null, false);
   }
 
-  private void submitReply(String replyTargetBlipId) {
+  private void submitReply(String replyTargetBlipId, boolean continuation) {
     if (signedOut || replySubmitting) {
       render();
       return;
     }
-    J2clSidecarWriteSession submitSession = sessionForReplyTarget(replyTargetBlipId);
+    J2clSidecarWriteSession submitSession = sessionForReplyTarget(replyTargetBlipId, continuation);
     if (submitSession == null || isEmpty(submitSession.getSelectedWaveId())) {
       replyStatusText = "";
       replyErrorText =
@@ -2220,12 +2273,18 @@ public final class J2clComposeSurfaceController {
         error -> handleReplyFailure(generation, error));
   }
 
-  private J2clSidecarWriteSession sessionForReplyTarget(String replyTargetBlipId) {
+  private J2clSidecarWriteSession sessionForReplyTarget(
+      String replyTargetBlipId, boolean continuation) {
     if (writeSession == null) {
       return null;
     }
     String normalizedTarget = replyTargetBlipId == null ? "" : replyTargetBlipId.trim();
-    return normalizedTarget.isEmpty() ? writeSession : writeSession.forReplyTarget(normalizedTarget);
+    if (normalizedTarget.isEmpty()) {
+      return writeSession;
+    }
+    return continuation
+        ? writeSession.forContinuationTarget(normalizedTarget)
+        : writeSession.forReplyTarget(normalizedTarget);
   }
 
   private void handleReplyResponse(

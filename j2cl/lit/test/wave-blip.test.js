@@ -145,6 +145,21 @@ describe("<wave-blip>", () => {
     expect(ev.detail.waveId).to.equal("w4");
   });
 
+  it("renders a GWT-style continuation + that requests a same-thread reply", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b4" data-wave-id="w4" author-name="A"></wave-blip>
+    `);
+    await el.updateComplete;
+    const button = el.renderRoot.querySelector("[data-blip-continuation-trigger]");
+    expect(button).to.exist;
+    expect(button.textContent.trim()).to.equal("+");
+    expect(button.getAttribute("aria-label")).to.equal("Add reply below this blip");
+    expect(button.getAttribute("title")).to.equal("Add reply below this blip");
+    setTimeout(() => button.click(), 0);
+    const ev = await oneEvent(el, "wave-blip-continuation-requested");
+    expect(ev.detail).to.deep.equal({ blipId: "b4", waveId: "w4" });
+  });
+
   it("re-emits wave-blip-edit-requested when toolbar Edit fires", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b5" data-wave-id="w5" author-name="A"></wave-blip>

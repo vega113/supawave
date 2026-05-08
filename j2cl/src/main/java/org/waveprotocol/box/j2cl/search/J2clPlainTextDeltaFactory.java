@@ -66,6 +66,10 @@ public class J2clPlainTextDeltaFactory {
             + "\",\"2\":{\"1\":[{\"2\":\""
             + escapeJson(text)
             + "\"}]}}}";
+    if (session.isContinuationReply() && session.getReplyManifestSiblingInsertPosition() < 0) {
+      throw new IllegalArgumentException(
+          "Missing manifest sibling reply insert position for continuation.");
+    }
     if (shouldCreateRegularReply(session)) {
       operationsJson =
           buildConversationRegularReplyOperation(
@@ -141,7 +145,8 @@ public class J2clPlainTextDeltaFactory {
   }
 
   private static boolean shouldCreateRegularReply(J2clSidecarWriteSession session) {
-    return session.getReplyTargetDepth() >= DEFAULT_MAX_INLINE_REPLY_DEPTH
+    return (session.isContinuationReply()
+            || session.getReplyTargetDepth() >= DEFAULT_MAX_INLINE_REPLY_DEPTH)
         && session.getReplyManifestSiblingInsertPosition() >= 0;
   }
 

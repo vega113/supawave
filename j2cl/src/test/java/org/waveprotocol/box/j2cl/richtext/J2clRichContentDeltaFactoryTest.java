@@ -225,6 +225,63 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void continuationReplyUsesSiblingManifestPositionLikeGwtPlus() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession baseSession =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+root",
+            Collections.<String>emptyList(),
+            6,
+            10,
+            7,
+            1,
+            Collections.singletonMap("b+root", Integer.valueOf(6)),
+            Collections.singletonMap("b+root", Integer.valueOf(7)),
+            Collections.singletonMap("b+root", Integer.valueOf(1)));
+    J2clSidecarWriteSession session = baseSession.forContinuationTarget("b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Continuation reply").build();
+
+    SidecarSubmitRequest request = factory.createReplyRequest("user@example.com", session, document);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    assertContains(
+        deltaJson,
+        "\"1\":\"conversation\"",
+        "{\"5\":7}",
+        "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+seedA\"}]}}",
+        "{\"5\":3}",
+        "\"2\":\"Continuation reply\"");
+    Assert.assertFalse("GWT-style continuation must not create a nested thread", deltaJson.contains("\"1\":\"thread\""));
+    Assert.assertEquals(2, countOccurrences(deltaJson, "b+seedA"));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void continuationReplyRequiresSiblingManifestPosition() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession baseSession =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+root",
+            Collections.<String>emptyList(),
+            6,
+            10);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Continuation reply").build();
+
+    factory.createReplyRequest(
+        "user@example.com", baseSession.forContinuationTarget("b+root"), document);
+  }
+
+  @Test
   public void replyRequestAllowsVersionZeroWriteSession() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

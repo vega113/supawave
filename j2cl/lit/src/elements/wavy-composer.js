@@ -1782,6 +1782,7 @@ export class WavyComposer extends LitElement {
 
   _composeBodyAriaLabel() {
     if (this.mode === "edit") return "Edit blip";
+    if (this.mode === "continuation") return "Add reply below this blip";
     if (this.mode === "wave-root") return "Reply to wave";
     if (this.mode === "create") return "New wave";
     return this.targetLabel ? `Reply to ${this.targetLabel}` : "Reply";
@@ -2860,7 +2861,12 @@ export class WavyComposer extends LitElement {
 
   _renderReplyChip(sendLabel, sendDisabled) {
     if (!this.replyTargetBlipId) return null;
-    const verb = this.mode === "edit" ? "Editing" : "Replying to";
+    const verb =
+      this.mode === "edit"
+        ? "Editing"
+        : this.mode === "continuation"
+          ? "Replying below"
+          : "Replying to";
     const label = this._replyHeaderLabel();
     const time = this._replyHeaderTime();
     return html`

@@ -816,6 +816,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       image.setAttribute("alt", address);
       image.setAttribute("loading", "lazy");
       image.setAttribute("decoding", "async");
+      String initials = participantInitials(address);
+      image.addEventListener("error", e -> {
+        image.hidden = true;
+        button.textContent = initials;
+      });
       button.appendChild(image);
       button.addEventListener("click", event -> dispatchParticipantProfileRequest(address));
       item.appendChild(button);

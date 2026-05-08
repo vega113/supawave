@@ -269,6 +269,30 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void participantAvatarShowsInitialsOnImageError() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+
+    view.render(
+        selectedModel(
+            "example.com/w+fallback",
+            Arrays.asList("alice@example.com")));
+
+    HTMLElement button =
+        (HTMLElement) host.querySelector("[data-selected-participant-avatar]");
+    HTMLElement image = (HTMLElement) button.querySelector("img");
+    Assert.assertNotNull(image);
+
+    elemental2.dom.EventInit init = elemental2.dom.EventInit.create();
+    init.setBubbles(false);
+    image.dispatchEvent(new elemental2.dom.Event("error", init));
+
+    Assert.assertTrue("img should be hidden after error", image.hidden);
+    Assert.assertEquals("A", button.textContent);
+  }
+
+  @Test
   public void renderPublishesParticipantsToProfileOverlay() {
     assumeBrowserDom();
     HTMLElement host = createHost();

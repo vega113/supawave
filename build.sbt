@@ -1430,7 +1430,13 @@ Universal / stage := {
   }
   stagedDir
 }
-Universal / packageBin := (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
+Universal / packageBin := {
+  val result = (Universal / packageBin).dependsOn(compileGwt, verifyGwtAssets).value
+  // Consume the marker so a later plain `sbt Universal/stage` in the same workspace
+  // does not find it and copy stale J2CL outputs from a prior explicit build.
+  IO.delete(baseDirectory.value / "target" / "j2cl-built.marker")
+  result
+}
 
 cleanFiles += baseDirectory.value / "war" / "webclient"
 cleanFiles += baseDirectory.value / "war" / "org"

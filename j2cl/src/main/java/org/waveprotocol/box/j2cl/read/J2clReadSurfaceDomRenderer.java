@@ -2521,7 +2521,10 @@ public final class J2clReadSurfaceDomRenderer {
     thread.setAttribute("data-j2cl-thread-label", label);
     if (thread.hasAttribute("data-parent-blip-id")) {
       HTMLElement existingButton =
-          (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
+          (thread.firstElementChild != null
+                  && thread.firstElementChild.classList.contains("j2cl-read-thread-toggle"))
+              ? (HTMLElement) thread.firstElementChild
+              : null;
       if (existingButton != null && existingButton.parentElement != null) {
         existingButton.parentElement.removeChild(existingButton);
       }

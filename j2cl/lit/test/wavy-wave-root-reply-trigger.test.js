@@ -21,6 +21,7 @@ describe("<wavy-wave-root-reply-trigger>", () => {
     expect(button).to.exist;
     expect(button.textContent.trim()).to.equal("+");
     expect(button.getAttribute("aria-label")).to.equal("Reply to the wave");
+    expect(button.getAttribute("title")).to.equal("Reply to the wave");
   });
 
   it("emits wave-root-reply-requested with the wave id on click", async () => {

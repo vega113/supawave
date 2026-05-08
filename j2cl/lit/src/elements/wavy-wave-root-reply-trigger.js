@@ -76,6 +76,7 @@ export class WavyWaveRootReplyTrigger extends LitElement {
         type="button"
         data-wave-root-reply-trigger
         aria-label="Reply to the wave"
+        title="Reply to the wave"
         @click=${this._onClick}
       >
         +

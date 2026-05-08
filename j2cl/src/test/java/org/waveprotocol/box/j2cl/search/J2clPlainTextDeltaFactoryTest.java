@@ -111,6 +111,60 @@ public class J2clPlainTextDeltaFactoryTest {
         countOccurrences(deltaJson, "b+seedA"));
   }
 
+  @Test
+  public void continuationReplyUsesSiblingManifestPositionLikeGwtPlus() {
+    J2clPlainTextDeltaFactory factory = new J2clPlainTextDeltaFactory("seed");
+    J2clSidecarWriteSession baseSession =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+root",
+            java.util.Collections.<String>emptyList(),
+            6,
+            10,
+            7,
+            1,
+            java.util.Collections.singletonMap("b+root", Integer.valueOf(6)),
+            java.util.Collections.singletonMap("b+root", Integer.valueOf(7)),
+            java.util.Collections.singletonMap("b+root", Integer.valueOf(1)));
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest(
+            "user@example.com", baseSession.forContinuationTarget("b+root"), "Plain continuation");
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    Assert.assertTrue(deltaJson.contains("\"1\":\"conversation\""));
+    Assert.assertTrue(deltaJson.contains("{\"5\":7}"));
+    Assert.assertTrue(deltaJson.contains("{\"5\":3}"));
+    Assert.assertFalse(deltaJson.contains("\"1\":\"thread\""));
+    Assert.assertTrue(deltaJson.contains("Plain continuation"));
+    Assert.assertEquals(
+        "continuation inserts the reply blip into manifest and creates its document",
+        2,
+        countOccurrences(deltaJson, "b+seedA"));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void continuationReplyRequiresSiblingManifestPosition() {
+    J2clPlainTextDeltaFactory factory = new J2clPlainTextDeltaFactory("seed");
+    J2clSidecarWriteSession baseSession =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+root",
+            java.util.Collections.<String>emptyList(),
+            6,
+            10);
+
+    factory.createReplyRequest(
+        "user@example.com", baseSession.forContinuationTarget("b+root"), "Plain continuation");
+  }
+
   private static void assertSubmitRequest(
       SidecarSubmitRequest request,
       String expectedWaveletName,

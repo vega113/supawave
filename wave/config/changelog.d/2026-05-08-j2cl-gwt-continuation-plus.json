@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-08-j2cl-gwt-continuation-plus",
+  "version": "J2CL root shell",
+  "date": "2026-05-08",
+  "title": "J2CL blip plus follows GWT continuation behavior",
+  "summary": "Makes the visible plus below J2CL blips open a same-thread continuation composer instead of leaving an unclear inert-looking control.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The J2CL blip plus now has a tooltip, opens the inline composer for that blip, and submits through the same sibling-continuation manifest path used by the GWT reply-box plus."
+      ]
+    }
+  ]
+}

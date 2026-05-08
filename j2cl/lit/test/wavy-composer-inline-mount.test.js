@@ -45,7 +45,12 @@ before(async () => {
 function attachInlineComposerHandler() {
   const composers = new Map();
   const handler = (event) => {
-    const mode = event.type === "wave-blip-edit-requested" ? "edit" : "reply";
+    const mode =
+      event.type === "wave-blip-edit-requested"
+        ? "edit"
+        : event.type === "wave-blip-continuation-requested"
+          ? "continuation"
+          : "reply";
     const blipId = event.detail.blipId;
     if (composers.has(blipId)) return;
     const composer = document.createElement("wavy-composer");
@@ -66,11 +71,13 @@ function attachInlineComposerHandler() {
     composers.delete(blipId);
   };
   document.body.addEventListener("wave-blip-reply-requested", handler);
+  document.body.addEventListener("wave-blip-continuation-requested", handler);
   document.body.addEventListener("wave-blip-edit-requested", handler);
   document.body.addEventListener("wavy-composer-cancelled", cancelHandler);
   return {
     teardown() {
       document.body.removeEventListener("wave-blip-reply-requested", handler);
+      document.body.removeEventListener("wave-blip-continuation-requested", handler);
       document.body.removeEventListener("wave-blip-edit-requested", handler);
       document.body.removeEventListener("wavy-composer-cancelled", cancelHandler);
       for (const composer of composers.values()) {
@@ -128,6 +135,26 @@ describe("F-3.S1 inline composer mount integration", () => {
       await new Promise((r) => requestAnimationFrame(r));
       const composer = blip.querySelector("wavy-composer");
       expect(composer.getAttribute("mode")).to.equal("edit");
+    } finally {
+      ctx.teardown();
+    }
+  });
+
+  it("mounts a continuation composer from the blip + affordance", async () => {
+    const blip = await fixture(html`
+      <wave-blip data-blip-id="b99" data-wave-id="w1" author-name="A" posted-at="1m">
+      </wave-blip>
+    `);
+    await blip.updateComplete;
+    const ctx = attachInlineComposerHandler();
+    try {
+      const button = blip.renderRoot.querySelector("[data-blip-continuation-trigger]");
+      button.click();
+      await new Promise((r) => requestAnimationFrame(r));
+      const composer = blip.querySelector('wavy-composer[data-inline-composer="true"]');
+      expect(composer).to.exist;
+      expect(composer.getAttribute("reply-target-blip-id")).to.equal("b99");
+      expect(composer.getAttribute("mode")).to.equal("continuation");
     } finally {
       ctx.teardown();
     }

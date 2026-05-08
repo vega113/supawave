@@ -17,6 +17,7 @@ public final class J2clSidecarWriteSession {
   private final int replyManifestItemCount;
   private final int replyManifestSiblingInsertPosition;
   private final int replyTargetDepth;
+  private final boolean continuationReply;
   private final Map<String, Integer> replyManifestInsertPositionsByBlipId;
   private final Map<String, Integer> replyManifestSiblingInsertPositionsByBlipId;
   private final Map<String, Integer> replyTargetDepthsByBlipId;
@@ -124,6 +125,7 @@ public final class J2clSidecarWriteSession {
         replyManifestItemCount,
         -1,
         -1,
+        false,
         singletonReplyPosition(replyTargetBlipId, replyManifestInsertPosition),
         Collections.<String, Integer>emptyMap(),
         Collections.<String, Integer>emptyMap());
@@ -150,6 +152,7 @@ public final class J2clSidecarWriteSession {
         replyManifestItemCount,
         -1,
         -1,
+        false,
         replyManifestInsertPositionsByBlipId,
         Collections.<String, Integer>emptyMap(),
         Collections.<String, Integer>emptyMap());
@@ -169,6 +172,38 @@ public final class J2clSidecarWriteSession {
       Map<String, Integer> replyManifestInsertPositionsByBlipId,
       Map<String, Integer> replyManifestSiblingInsertPositionsByBlipId,
       Map<String, Integer> replyTargetDepthsByBlipId) {
+    this(
+        selectedWaveId,
+        channelId,
+        baseVersion,
+        historyHash,
+        replyTargetBlipId,
+        participantIds,
+        replyManifestInsertPosition,
+        replyManifestItemCount,
+        replyManifestSiblingInsertPosition,
+        replyTargetDepth,
+        false,
+        replyManifestInsertPositionsByBlipId,
+        replyManifestSiblingInsertPositionsByBlipId,
+        replyTargetDepthsByBlipId);
+  }
+
+  private J2clSidecarWriteSession(
+      String selectedWaveId,
+      String channelId,
+      long baseVersion,
+      String historyHash,
+      String replyTargetBlipId,
+      List<String> participantIds,
+      int replyManifestInsertPosition,
+      int replyManifestItemCount,
+      int replyManifestSiblingInsertPosition,
+      int replyTargetDepth,
+      boolean continuationReply,
+      Map<String, Integer> replyManifestInsertPositionsByBlipId,
+      Map<String, Integer> replyManifestSiblingInsertPositionsByBlipId,
+      Map<String, Integer> replyTargetDepthsByBlipId) {
     this.selectedWaveId = selectedWaveId;
     this.channelId = channelId;
     this.baseVersion = baseVersion;
@@ -182,6 +217,7 @@ public final class J2clSidecarWriteSession {
     this.replyManifestItemCount = Math.max(-1, replyManifestItemCount);
     this.replyManifestSiblingInsertPosition = Math.max(-1, replyManifestSiblingInsertPosition);
     this.replyTargetDepth = Math.max(-1, replyTargetDepth);
+    this.continuationReply = continuationReply;
     this.replyManifestInsertPositionsByBlipId =
         immutableReplyPositions(
             replyManifestInsertPositionsByBlipId,
@@ -239,10 +275,26 @@ public final class J2clSidecarWriteSession {
     return replyTargetDepth;
   }
 
+  public boolean isContinuationReply() {
+    return continuationReply;
+  }
+
   public J2clSidecarWriteSession forReplyTarget(String replyTargetBlipId) {
+    return forReplyTarget(replyTargetBlipId, false);
+  }
+
+  public J2clSidecarWriteSession forContinuationTarget(String replyTargetBlipId) {
+    return forReplyTarget(replyTargetBlipId, true);
+  }
+
+  private J2clSidecarWriteSession forReplyTarget(
+      String replyTargetBlipId, boolean continuationReply) {
     String target = replyTargetBlipId == null ? "" : replyTargetBlipId.trim();
-    if (target.isEmpty() || target.equals(this.replyTargetBlipId)) {
-      return this;
+    if (target.isEmpty()) {
+      return continuationReply == this.continuationReply ? this : withContinuation(continuationReply);
+    }
+    if (target.equals(this.replyTargetBlipId)) {
+      return continuationReply == this.continuationReply ? this : withContinuation(continuationReply);
     }
     Integer insertPosition = replyManifestInsertPositionsByBlipId.get(target);
     int normalizedInsertPosition = insertPosition == null ? -1 : Math.max(-1, insertPosition.intValue());
@@ -266,6 +318,28 @@ public final class J2clSidecarWriteSession {
         normalizedItemCount,
         normalizedSiblingInsertPosition,
         normalizedTargetDepth,
+        continuationReply,
+        replyManifestInsertPositionsByBlipId,
+        replyManifestSiblingInsertPositionsByBlipId,
+        replyTargetDepthsByBlipId);
+  }
+
+  private J2clSidecarWriteSession withContinuation(boolean continuationReply) {
+    if (continuationReply == this.continuationReply) {
+      return this;
+    }
+    return new J2clSidecarWriteSession(
+        selectedWaveId,
+        channelId,
+        baseVersion,
+        historyHash,
+        replyTargetBlipId,
+        participantIds,
+        replyManifestInsertPosition,
+        replyManifestItemCount,
+        replyManifestSiblingInsertPosition,
+        replyTargetDepth,
+        continuationReply,
         replyManifestInsertPositionsByBlipId,
         replyManifestSiblingInsertPositionsByBlipId,
         replyTargetDepthsByBlipId);

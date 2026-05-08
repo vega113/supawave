@@ -218,6 +218,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           "wave-blip-reply-requested",
           event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
       DomGlobal.document.body.addEventListener(
+          "wave-blip-continuation-requested",
+          event -> openInlineComposer(eventDetailString(event, "blipId"), "continuation"));
+      DomGlobal.document.body.addEventListener(
           "wave-blip-edit-requested",
           event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
       DomGlobal.document.body.addEventListener(
@@ -498,6 +501,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     composer.setAttribute("reply-target-blip-id", key);
     composer.setAttribute("mode", mode);
     setProperty(composer, "available", true);
+    setProperty(composer, "mode", mode);
     composer.addEventListener(
         "draft-change",
         event -> {
@@ -517,9 +521,17 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           List<J2clComposeSurfaceController.SubmittedComponent> components =
               decodeSubmittedComponents(event);
           if (components.isEmpty()) {
-            listener.onReplySubmitted(propertyString(composer, "draft"), key);
+            if ("continuation".equals(propertyString(composer, "mode"))) {
+              listener.onContinuationSubmitted(propertyString(composer, "draft"), key);
+            } else {
+              listener.onReplySubmitted(propertyString(composer, "draft"), key);
+            }
           } else {
-            listener.onReplySubmittedWithComponents(components, key);
+            if ("continuation".equals(propertyString(composer, "mode"))) {
+              listener.onContinuationSubmittedWithComponents(components, key);
+            } else {
+              listener.onReplySubmittedWithComponents(components, key);
+            }
           }
         });
     composer.addEventListener(

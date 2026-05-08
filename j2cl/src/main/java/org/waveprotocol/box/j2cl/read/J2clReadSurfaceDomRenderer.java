@@ -2519,6 +2519,15 @@ public final class J2clReadSurfaceDomRenderer {
     String label = threadLabel(thread, ordinal);
     thread.setAttribute("aria-label", label);
     thread.setAttribute("data-j2cl-thread-label", label);
+    if (thread.hasAttribute("data-parent-blip-id")) {
+      HTMLElement existingButton =
+          (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
+      if (existingButton != null && existingButton.parentElement != null) {
+        existingButton.parentElement.removeChild(existingButton);
+      }
+      thread.setAttribute("data-j2cl-collapse-ready", "true");
+      return;
+    }
     if (thread.hasAttribute("data-j2cl-collapse-ready")) {
       HTMLElement existingButton = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
       if (existingButton != null) {
@@ -2672,9 +2681,6 @@ public final class J2clReadSurfaceDomRenderer {
     }
     for (HTMLElement thread : threads) {
       HTMLElement button = (HTMLElement) thread.querySelector(".j2cl-read-thread-toggle");
-      if (button == null) {
-        continue;
-      }
       boolean currentlyCollapsed = thread.classList.contains("j2cl-read-thread-collapsed");
       if (currentlyCollapsed != collapse) {
         toggleThread(thread, button);

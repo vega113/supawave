@@ -89,6 +89,15 @@ public final class J2clBuildStageContractTest extends TestCase {
     assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/wavy-tokens.css"));
     assertTrue(workflow.contains("target/universal/stage/war/j2cl/assets/shell.js"));
     assertTrue(workflow.contains("target/universal/stage/war/j2cl-search/sidecar/j2cl-sidecar.js"));
+
+    // J2CL build and verification steps must appear before the container image is published.
+    String publishMarker = "Build and push container image";
+    assertTrue("image publication marker missing", workflow.contains(publishMarker));
+    assertTrue("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 must precede image publication",
+        workflow.indexOf("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1") < workflow.indexOf(publishMarker));
+    assertTrue("j2clRuntimeBuild command must precede image publication",
+        workflow.indexOf("WAVE_STAGE_INCLUDE_J2CL_ASSETS=1 sbt --batch \"pst/compile; wave/compile; j2clRuntimeBuild; Universal/stage\"")
+            < workflow.indexOf(publishMarker));
   }
 
   private static String read(String relativePath) throws IOException {

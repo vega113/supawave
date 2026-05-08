@@ -666,12 +666,17 @@ Universal / mappings ++= {
   val configFiles = (configDir ** "*").get.filter(_.isFile).map { f =>
     f -> ("config/" + IO.relativize(configDir, f).get)
   }
-  // war/ -> war/ (excluding J2CL output dirs that are only built on explicit request)
+  // war/ -> war/ (excluding J2CL output dirs only when they are absent/empty;
+  // if j2clRuntimeBuild was run explicitly, honour those assets in staging)
   val warDir = base / "war"
   val j2clOutputDirs = Set("j2cl", "j2cl-search", "j2cl-debug")
+  val absentJ2clDirs = j2clOutputDirs.filter { d =>
+    val dir = warDir / d
+    !dir.exists || Option(dir.listFiles()).forall(_.isEmpty)
+  }
   val warFiles = (warDir ** "*").get.filter(_.isFile).filter { f =>
     val rel = IO.relativize(warDir, f).getOrElse("")
-    !j2clOutputDirs.exists(d => rel == d || rel.startsWith(d + "/"))
+    !absentJ2clDirs.exists(d => rel == d || rel.startsWith(d + "/"))
   }.map { f =>
     f -> ("war/" + IO.relativize(warDir, f).get)
   }

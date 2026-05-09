@@ -23,6 +23,7 @@ import jsinterop.base.JsPropertyMap;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
+import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.read.J2clReadSurfaceDomRenderer;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
@@ -718,8 +719,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     detail.hidden = !model.isError();
     renderParticipantStrip(model.getParticipantIds());
     publishProfileOverlayParticipants(model.getParticipantIds());
-    snippet.textContent = model.getSnippetText();
-    snippet.hidden = model.getSnippetText().isEmpty();
+    // GWT keeps digest/root preview text inside the root blip, not as a
+    // separate selected-wave header line. Hide the J2CL header snippet so task
+    // text and root content do not appear above the read surface.
+    snippet.textContent = "";
+    snippet.hidden = true;
 
     // J-UI-4 (#1082, R-3.1): publish the conversation manifest before
     // each render pass so the renderer's renderWindow path can graft
@@ -735,6 +739,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     List<J2clReadWindowEntry> readWindowEntries =
         J2clSelectedWaveProjector.enrichWindowEntriesFromReadBlips(
             model.getViewportState().getReadWindowEntries(), model.getReadBlips());
+    publishTaskBinder(model);
     boolean hasViewportReadWindow = !readWindowEntries.isEmpty();
     boolean hasRenderedReadSurface =
         hasViewportReadWindow
@@ -772,6 +777,24 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             model.getSelectedWaveId() != null && !model.getSelectedWaveId().isEmpty());
       }
     }
+  }
+
+  private void publishTaskBinder(J2clSelectedWaveModel model) {
+    Map<String, List<J2clTaskItemModel>> tasksByBlip =
+        new LinkedHashMap<String, List<J2clTaskItemModel>>();
+    if (model != null) {
+      for (J2clInteractionBlipModel blip : model.getInteractionBlips()) {
+        if (blip == null || blip.getBlipId().isEmpty() || blip.getTaskItems().isEmpty()) {
+          continue;
+        }
+        tasksByBlip.put(blip.getBlipId(), blip.getTaskItems());
+      }
+    }
+    readSurface.setTaskBinder(
+        blipId -> {
+          List<J2clTaskItemModel> tasks = tasksByBlip.get(blipId);
+          return tasks == null ? Collections.<J2clTaskItemModel>emptyList() : tasks;
+        });
   }
 
   private void clearWaveHeaderActions() {
@@ -851,6 +874,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       participant.set("id", address);
       participant.set("displayName", address);
       participant.set("avatarToken", participantInitials(address));
+      participant.set("avatarUrl", participantProfileImageUrl(address));
       participants.push(participant);
     }
     return participants;

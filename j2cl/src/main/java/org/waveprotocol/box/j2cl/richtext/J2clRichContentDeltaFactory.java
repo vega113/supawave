@@ -152,6 +152,25 @@ public final class J2clRichContentDeltaFactory {
         bodyItemCount);
   }
 
+  public SidecarSubmitRequest taskToggleRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      boolean completed,
+      int bodyItemCount,
+      int textStart,
+      int textEnd) {
+    return buildBlipAnnotationRequest(
+        address,
+        session,
+        blipId,
+        new String[] {"task/done"},
+        new String[] {completed ? "true" : "false"},
+        bodyItemCount,
+        textStart,
+        textEnd);
+  }
+
   /**
    * F-3.S2 (#1038, R-5.4 step 5): build a stand-alone delta that
    * writes the `task/assignee` and `task/dueTs` annotations on the blip.
@@ -201,6 +220,28 @@ public final class J2clRichContentDeltaFactory {
         new String[] {"task/assignee", "task/dueTs"},
         new String[] {assignee, due},
         bodyItemCount);
+  }
+
+  public SidecarSubmitRequest taskMetadataRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String assigneeAddress,
+      String dueDate,
+      int bodyItemCount,
+      int textStart,
+      int textEnd) {
+    String assignee = assigneeAddress == null ? "" : assigneeAddress.trim();
+    String due = normalizeDueTimestamp(dueDate);
+    return buildBlipAnnotationRequest(
+        address,
+        session,
+        blipId,
+        new String[] {"task/assignee", "task/dueTs"},
+        new String[] {assignee, due},
+        bodyItemCount,
+        textStart,
+        textEnd);
   }
 
   /**
@@ -847,11 +888,86 @@ public final class J2clRichContentDeltaFactory {
     return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
   }
 
+  private SidecarSubmitRequest buildBlipAnnotationRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      String[] keys,
+      String[] values,
+      int bodyItemCount,
+      int textStart,
+      int textEnd) {
+    requirePresent(session, "Missing write session.");
+    if (keys == null || values == null || keys.length != values.length || keys.length == 0) {
+      throw new IllegalArgumentException("Mismatched annotation keys/values.");
+    }
+    String normalizedAddress = normalizeAddress(address);
+    extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId = requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    String documentId = requireNonEmpty(blipId, "Missing blip id.");
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
+    int retainedBodyItemCount = requirePositiveBodyItemCount(bodyItemCount);
+    requireTaskRange(textStart, textEnd, retainedBodyItemCount);
+    StringBuilder components = new StringBuilder();
+    if (textStart > 0) {
+      appendRetain(components, textStart);
+      appendComponentSeparator(components);
+    }
+    components.append("{\"1\":{\"3\":[");
+    for (int i = 0; i < keys.length; i++) {
+      if (i > 0) components.append(",");
+      components
+          .append("{\"1\":\"")
+          .append(escapeJson(keys[i]))
+          .append("\",\"3\":\"")
+          .append(escapeJson(values[i]))
+          .append("\"}");
+    }
+    components.append("]}}");
+    appendComponentSeparator(components);
+    appendRetain(components, textEnd - textStart);
+    appendComponentSeparator(components);
+    components.append("{\"1\":{\"2\":[");
+    for (int i = 0; i < keys.length; i++) {
+      if (i > 0) components.append(",");
+      components.append("\"").append(escapeJson(keys[i])).append("\"");
+    }
+    components.append("]}}");
+    int trailingRetain = retainedBodyItemCount - textEnd;
+    if (trailingRetain > 0) {
+      appendComponentSeparator(components);
+      appendRetain(components, trailingRetain);
+    }
+    StringBuilder operation = new StringBuilder(components.length() + documentId.length() + 32);
+    operation
+        .append("{\"3\":{\"1\":\"")
+        .append(escapeJson(documentId))
+        .append("\",\"2\":{\"1\":[")
+        .append(components)
+        .append("]}}}");
+    String deltaJson =
+        buildDeltaJson(baseVersion, historyHash, normalizedAddress, operation.toString());
+    return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
+  }
+
   private static int requirePositiveBodyItemCount(int bodyItemCount) {
     if (bodyItemCount <= 0) {
       throw new IllegalArgumentException("Missing blip body item count.");
     }
     return bodyItemCount;
+  }
+
+  private static void requireTaskRange(int textStart, int textEnd, int bodyItemCount) {
+    if (textStart < 0 || textEnd <= textStart || textEnd > bodyItemCount) {
+      throw new IllegalArgumentException("Invalid task annotation range.");
+    }
   }
 
   private static IllegalArgumentException missingBodyItemCount(String methodName) {

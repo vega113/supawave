@@ -187,11 +187,12 @@ public final class J2clInteractionBlipModel {
       tasks.add(
           new J2clTaskItemModel(
               taskId,
-              taskIdRange.getStartOffset(),
+              taskIdRange.getDocStartOffset(),
+              taskIdRange.getDocEndOffset(),
               "task-" + safe(blipId) + "-" + safe(taskId),
               findTaskValue(annotationRanges, "task/assignee", taskIdRange),
               parseLong(findTaskValue(annotationRanges, "task/dueTs", taskIdRange)),
-              false,
+              parseBoolean(findTaskDoneValue(annotationRanges, taskIdRange)),
               editable));
     }
     return Collections.unmodifiableList(tasks);
@@ -227,11 +228,36 @@ public final class J2clInteractionBlipModel {
         continue;
       }
       if (range.getStartOffset() == taskIdRange.getStartOffset()
-          && range.getEndOffset() == taskIdRange.getEndOffset()) {
+          && range.getEndOffset() == taskIdRange.getEndOffset()
+          && range.getDocStartOffset() == taskIdRange.getDocStartOffset()
+          && range.getDocEndOffset() == taskIdRange.getDocEndOffset()) {
         return safe(range.getValue());
       }
     }
     return "";
+  }
+
+  // task/done may be a body-wide blip annotation while task/id is on a small element range;
+  // exact-range match misses it. Try exact first, then doc-offset containment.
+  private static String findTaskDoneValue(
+      List<SidecarAnnotationRange> annotationRanges, SidecarAnnotationRange taskIdRange) {
+    String exactMatch = "";
+    String containingMatch = "";
+    for (SidecarAnnotationRange range : annotationRanges) {
+      if (range == null || !"task/done".equals(range.getKey())) {
+        continue;
+      }
+      if (range.getStartOffset() == taskIdRange.getStartOffset()
+          && range.getEndOffset() == taskIdRange.getEndOffset()
+          && range.getDocStartOffset() == taskIdRange.getDocStartOffset()
+          && range.getDocEndOffset() == taskIdRange.getDocEndOffset()) {
+        exactMatch = safe(range.getValue());
+      } else if (range.getDocStartOffset() <= taskIdRange.getDocStartOffset()
+          && range.getDocEndOffset() >= taskIdRange.getDocEndOffset()) {
+        containingMatch = safe(range.getValue());
+      }
+    }
+    return exactMatch.isEmpty() ? containingMatch : exactMatch;
   }
 
   private static String sliceText(String text, int startOffset, int endOffset) {
@@ -251,6 +277,10 @@ public final class J2clInteractionBlipModel {
     } catch (NumberFormatException e) {
       return J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;
     }
+  }
+
+  private static boolean parseBoolean(String value) {
+    return "true".equalsIgnoreCase(safe(value).trim());
   }
 
   private static String safe(String value) {

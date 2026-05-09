@@ -45,6 +45,9 @@ export class WavyTaskAffordance extends LitElement {
   static properties = {
     blipId: { type: String, attribute: "data-blip-id", reflect: true },
     waveId: { type: String, attribute: "data-wave-id", reflect: true },
+    taskId: { type: String, attribute: "data-task-id", reflect: true },
+    textStart: { type: Number, attribute: "data-task-start", reflect: true },
+    textEnd: { type: Number, attribute: "data-task-end", reflect: true },
     completed: { type: Boolean, attribute: "data-task-completed", reflect: true },
     assigneeAddress: { type: String, attribute: "data-task-assignee", reflect: true },
     dueDate: { type: String, attribute: "data-task-due-date", reflect: true },
@@ -125,6 +128,9 @@ export class WavyTaskAffordance extends LitElement {
     super();
     this.blipId = "";
     this.waveId = "";
+    this.taskId = "";
+    this.textStart = -1;
+    this.textEnd = -1;
     this.completed = false;
     this.assigneeAddress = "";
     this.dueDate = "";
@@ -155,9 +161,12 @@ export class WavyTaskAffordance extends LitElement {
         bubbles: true,
         composed: true,
         detail: {
-          blipId: this.blipId,
-          waveId: this.waveId,
-          completed: next,
+            blipId: this.blipId,
+            waveId: this.waveId,
+            taskId: this.taskId || this.blipId,
+          textStart: this.textStart ?? -1,
+          textEnd: this.textEnd ?? -1,
+            completed: next,
           bodySize: this.bodySize || 0
         }
       })
@@ -206,9 +215,12 @@ export class WavyTaskAffordance extends LitElement {
         bubbles: true,
         composed: true,
         detail: {
-          blipId: this.blipId,
-          waveId: this.waveId,
-          assigneeAddress: assignee,
+            blipId: this.blipId,
+            waveId: this.waveId,
+            taskId: this.taskId || this.blipId,
+          textStart: this.textStart ?? -1,
+          textEnd: this.textEnd ?? -1,
+            assigneeAddress: assignee,
           dueDate: due,
           bodySize: this.bodySize || 0
         }
@@ -247,7 +259,7 @@ export class WavyTaskAffordance extends LitElement {
         ${this._popoverOpen
           ? html`<task-metadata-popover
               open
-              .taskId=${this.blipId}
+                .taskId=${this.taskId || this.blipId}
               .assigneeAddress=${this.assigneeAddress}
               .dueDate=${this.dueDate}
               .participants=${this.participants || []}

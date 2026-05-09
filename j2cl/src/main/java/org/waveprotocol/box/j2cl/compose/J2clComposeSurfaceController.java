@@ -192,6 +192,11 @@ public final class J2clComposeSurfaceController {
      */
     default void onTaskToggled(String blipId, boolean completed, int bodyItemCount) {}
 
+    default void onTaskToggled(
+        String blipId, boolean completed, int bodyItemCount, int textStart, int textEnd) {
+      onTaskToggled(blipId, completed, bodyItemCount);
+    }
+
     /**
      * F-3.S2 (#1038, R-5.4 step 5): the task-metadata popover emitted
      * a submit. The controller emits a stand-alone delta carrying
@@ -199,6 +204,16 @@ public final class J2clComposeSurfaceController {
      */
     default void onTaskMetadataChanged(
         String blipId, String assigneeAddress, String dueDate, int bodyItemCount) {}
+
+    default void onTaskMetadataChanged(
+        String blipId,
+        String assigneeAddress,
+        String dueDate,
+        int bodyItemCount,
+        int textStart,
+        int textEnd) {
+      onTaskMetadataChanged(blipId, assigneeAddress, dueDate, bodyItemCount);
+    }
 
     /**
      * F-3.S3 (#1038, R-5.5): the user picked a reaction emoji in the
@@ -413,6 +428,17 @@ public final class J2clComposeSurfaceController {
           "Task toggle is only available with the rich-content delta factory.");
     }
 
+    default SidecarSubmitRequest createTaskToggleRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        boolean completed,
+        int bodyItemCount,
+        int textStart,
+        int textEnd) {
+      return createTaskToggleRequest(address, session, blipId, completed, bodyItemCount);
+    }
+
     /**
      * F-3.S2 (#1038, R-5.4 step 5): build a stand-alone metadata
      * request for a single blip carrying `task/assignee` + `task/dueTs`.
@@ -426,6 +452,19 @@ public final class J2clComposeSurfaceController {
         int bodyItemCount) {
       throw new UnsupportedOperationException(
           "Task metadata is only available with the rich-content delta factory.");
+    }
+
+    default SidecarSubmitRequest createTaskMetadataRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String assigneeAddress,
+        String dueDate,
+        int bodyItemCount,
+        int textStart,
+        int textEnd) {
+      return createTaskMetadataRequest(
+          address, session, blipId, assigneeAddress, dueDate, bodyItemCount);
     }
 
     /**
@@ -875,10 +914,29 @@ public final class J2clComposeSurfaceController {
           }
 
           @Override
+          public void onTaskToggled(
+              String blipId, boolean completed, int bodyItemCount, int textStart, int textEnd) {
+            J2clComposeSurfaceController.this.onTaskToggled(
+                blipId, completed, bodyItemCount, textStart, textEnd);
+          }
+
+          @Override
           public void onTaskMetadataChanged(
               String blipId, String assigneeAddress, String dueDate, int bodyItemCount) {
             J2clComposeSurfaceController.this.onTaskMetadataChanged(
                 blipId, assigneeAddress, dueDate, bodyItemCount);
+          }
+
+          @Override
+          public void onTaskMetadataChanged(
+              String blipId,
+              String assigneeAddress,
+              String dueDate,
+              int bodyItemCount,
+              int textStart,
+              int textEnd) {
+            J2clComposeSurfaceController.this.onTaskMetadataChanged(
+                blipId, assigneeAddress, dueDate, bodyItemCount, textStart, textEnd);
           }
 
           @Override
@@ -1475,6 +1533,15 @@ public final class J2clComposeSurfaceController {
    */
   public void onTaskToggled(
       final String blipId, final boolean completed, final int bodyItemCount) {
+    onTaskToggled(blipId, completed, bodyItemCount, -1, -1);
+  }
+
+  public void onTaskToggled(
+      final String blipId,
+      final boolean completed,
+      final int bodyItemCount,
+      final int textStart,
+      final int textEnd) {
     if (signedOut) return;
     if (blipId == null || blipId.trim().isEmpty()) return;
     if (!hasSelectedWave(writeSession)) return;
@@ -1497,12 +1564,21 @@ public final class J2clComposeSurfaceController {
           SidecarSubmitRequest request;
           try {
             request =
-                deltaFactory.createTaskToggleRequest(
-                    bootstrap.getAddress(),
-                    writeSession,
-                    trimmedBlipId,
-                    completed,
-                    bodyItemCount);
+                hasValidTaskRange(bodyItemCount, textStart, textEnd)
+                    ? deltaFactory.createTaskToggleRequest(
+                        bootstrap.getAddress(),
+                        writeSession,
+                        trimmedBlipId,
+                        completed,
+                        bodyItemCount,
+                        textStart,
+                        textEnd)
+                    : deltaFactory.createTaskToggleRequest(
+                        bootstrap.getAddress(),
+                        writeSession,
+                        trimmedBlipId,
+                        completed,
+                        bodyItemCount);
           } catch (RuntimeException e) {
             // Toggling a task is best-effort; log telemetry and return.
             recordTaskToggleTelemetry(completed, "failure-build");
@@ -1533,6 +1609,16 @@ public final class J2clComposeSurfaceController {
       final String assigneeAddress,
       final String dueDate,
       final int bodyItemCount) {
+    onTaskMetadataChanged(blipId, assigneeAddress, dueDate, bodyItemCount, -1, -1);
+  }
+
+  public void onTaskMetadataChanged(
+      final String blipId,
+      final String assigneeAddress,
+      final String dueDate,
+      final int bodyItemCount,
+      final int textStart,
+      final int textEnd) {
     if (signedOut) return;
     if (blipId == null || blipId.trim().isEmpty()) return;
     if (!hasSelectedWave(writeSession)) return;
@@ -1556,13 +1642,23 @@ public final class J2clComposeSurfaceController {
           SidecarSubmitRequest request;
           try {
             request =
-                deltaFactory.createTaskMetadataRequest(
-                    bootstrap.getAddress(),
-                    writeSession,
-                    trimmedBlipId,
-                    normalizedAssignee,
-                    normalizedDue,
-                    bodyItemCount);
+                hasValidTaskRange(bodyItemCount, textStart, textEnd)
+                    ? deltaFactory.createTaskMetadataRequest(
+                        bootstrap.getAddress(),
+                        writeSession,
+                        trimmedBlipId,
+                        normalizedAssignee,
+                        normalizedDue,
+                        bodyItemCount,
+                        textStart,
+                        textEnd)
+                    : deltaFactory.createTaskMetadataRequest(
+                        bootstrap.getAddress(),
+                        writeSession,
+                        trimmedBlipId,
+                        normalizedAssignee,
+                        normalizedDue,
+                        bodyItemCount);
           } catch (RuntimeException e) {
             recordTaskMetadataTelemetry("failure-build");
             return;
@@ -1943,6 +2039,10 @@ public final class J2clComposeSurfaceController {
     } catch (Exception ignored) {
       // Telemetry must never affect composer behavior.
     }
+  }
+
+  private static boolean hasValidTaskRange(int bodyItemCount, int textStart, int textEnd) {
+    return bodyItemCount > 0 && textStart >= 0 && textEnd > textStart && textEnd <= bodyItemCount;
   }
 
   public void onWriteSessionChanged(J2clSidecarWriteSession nextWriteSession) {
@@ -2716,6 +2816,19 @@ public final class J2clComposeSurfaceController {
       }
 
       @Override
+      public SidecarSubmitRequest createTaskToggleRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String blipId,
+          boolean completed,
+          int bodyItemCount,
+          int textStart,
+          int textEnd) {
+        return factory.taskToggleRequest(
+            address, session, blipId, completed, bodyItemCount, textStart, textEnd);
+      }
+
+      @Override
       public SidecarSubmitRequest createTaskMetadataRequest(
           String address,
           J2clSidecarWriteSession session,
@@ -2725,6 +2838,20 @@ public final class J2clComposeSurfaceController {
           int bodyItemCount) {
         return factory.taskMetadataRequest(
             address, session, blipId, assigneeAddress, dueDate, bodyItemCount);
+      }
+
+      @Override
+      public SidecarSubmitRequest createTaskMetadataRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String blipId,
+          String assigneeAddress,
+          String dueDate,
+          int bodyItemCount,
+          int textStart,
+          int textEnd) {
+        return factory.taskMetadataRequest(
+            address, session, blipId, assigneeAddress, dueDate, bodyItemCount, textStart, textEnd);
       }
 
       @Override

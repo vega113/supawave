@@ -34,10 +34,10 @@ export class WaveBlipToolbar extends LitElement {
     :host {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       padding: 0;
       background: transparent;
-      color: var(--wavy-blip-toolbar-fg, var(--wavy-text-body, #fff));
+      color: var(--wavy-blip-toolbar-fg, #718096);
       border: 0;
       border-radius: 0;
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
@@ -58,7 +58,7 @@ export class WaveBlipToolbar extends LitElement {
       align-items: center;
       justify-content: center;
       gap: 4px;
-      border-radius: var(--wavy-toolbar-tile-radius, 4px);
+      border-radius: 4px;
       transition: background-color var(--wavy-motion-focus-duration, 180ms)
         var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
@@ -66,14 +66,15 @@ export class WaveBlipToolbar extends LitElement {
       border-right: 0;
     }
     button:hover {
-      background: var(--wavy-toolbar-tile-hover-bg, rgba(255, 255, 255, 0.08));
+      background: #edf2f7;
+      color: #4a5568;
     }
     button:focus-visible {
       outline: none;
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
     }
     .glyph {
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1;
     }
     .label {
@@ -129,7 +130,7 @@ export class WaveBlipToolbar extends LitElement {
         title="Delete this blip"
         @click=${() => this._emit("wave-blip-toolbar-delete")}
       >
-        <span class="glyph" aria-hidden="true">✕</span><span class="label">Delete</span>
+        <span class="glyph" aria-hidden="true">⌫</span><span class="label">Delete</span>
       </button>
       <button
         type="button"
@@ -138,7 +139,7 @@ export class WaveBlipToolbar extends LitElement {
         title="Copy permalink to this blip"
         @click=${() => this._emit("wave-blip-toolbar-link")}
       >
-        <span class="glyph" aria-hidden="true">§</span><span class="label">Link</span>
+        <span class="glyph" aria-hidden="true">↗</span><span class="label">Link</span>
       </button>
     `;
   }

@@ -97,7 +97,7 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
       min-width: 280px;
     }
-    .search {
+      .search {
       position: relative;
       display: flex;
       align-items: center;
@@ -107,8 +107,28 @@ export class WavySearchRail extends LitElement {
       padding: 0 8px;
       border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
       background: #ffffff;
-      box-sizing: border-box;
-    }
+        box-sizing: border-box;
+      }
+      .panel-title {
+        display: flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 8px;
+        box-sizing: border-box;
+        color: #ffffff;
+        background: linear-gradient(180deg, #5ba3e0 0%, #2d6fa8 100%);
+        border: 1px solid #5b8fc1;
+        border-bottom-color: #2c5f91;
+        border-radius: 3px 3px 0 0;
+        font: 700 13px / 1.25 Arial, sans-serif;
+        text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.18);
+      }
+      .panel-title-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     .query {
       flex: 1 1 auto;
       box-sizing: border-box;
@@ -1087,6 +1107,9 @@ export class WavySearchRail extends LitElement {
     const effectiveSort = explicitSort || defaultSort;
     const pinnedSearches = this.savedSearches.filter((item) => item.pinned);
     return html`
+      <div class="panel-title" data-search-panel-title>
+        <span class="panel-title-text">${this._panelTitle()}</span>
+      </div>
       <div class="search">
         <span class="waveform" aria-hidden="true">
           <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -1378,9 +1401,15 @@ export class WavySearchRail extends LitElement {
           </div>
         </section>
       </div>
-    `;
+      `;
+    }
+
+    _panelTitle() {
+      const query = String(this.query || "").trim() || "in:inbox";
+      const count = String(this.resultCount || "").trim();
+      return count ? `${query} (${count})` : query;
+    }
   }
-}
 
 if (!customElements.get("wavy-search-rail")) {
   customElements.define("wavy-search-rail", WavySearchRail);

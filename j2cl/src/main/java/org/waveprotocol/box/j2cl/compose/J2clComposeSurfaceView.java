@@ -239,7 +239,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String blipId = eventDetailString(event, "blipId");
           boolean completed = eventDetailBoolean(event, "completed");
           int bodyItemCount = eventDetailInt(event, "bodySize", 0);
-          listener.onTaskToggled(blipId, completed, bodyItemCount);
+          int textStart = eventDetailInt(event, "textStart", -1);
+          int textEnd = eventDetailInt(event, "textEnd", -1);
+          listener.onTaskToggled(blipId, completed, bodyItemCount, textStart, textEnd);
         });
     DomGlobal.document.body.addEventListener(
         "wave-blip-task-metadata-changed",
@@ -249,7 +251,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           String assignee = eventDetailString(event, "assigneeAddress");
           String due = dueDateToEpochMs(eventDetailString(event, "dueDate"));
           int bodyItemCount = eventDetailInt(event, "bodySize", 0);
-          listener.onTaskMetadataChanged(blipId, assignee, due, bodyItemCount);
+          int textStart = eventDetailInt(event, "textStart", -1);
+          int textEnd = eventDetailInt(event, "textEnd", -1);
+          listener.onTaskMetadataChanged(blipId, assignee, due, bodyItemCount, textStart, textEnd);
         });
     DomGlobal.document.body.addEventListener(
         "wavy-composer-mention-picked",

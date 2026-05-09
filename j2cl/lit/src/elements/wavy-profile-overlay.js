@@ -87,6 +87,7 @@ export class WavyProfileOverlay extends LitElement {
       justify-content: center;
       font: var(--wavy-type-section, 0.875rem / 1.4 sans-serif);
       font-weight: 700;
+      overflow: hidden;
     }
     .avatar img {
       width: 100%;
@@ -103,6 +104,34 @@ export class WavyProfileOverlay extends LitElement {
       margin: 0;
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
       font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+    }
+    .bio {
+      max-width: 300px;
+      margin: 0;
+      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      font: var(--wavy-type-body, 0.875rem / 1.45 sans-serif);
+      text-align: center;
+    }
+    .status,
+    .member-since,
+    .profile-link {
+      margin: 0;
+      color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
+      font: var(--wavy-type-label, 0.75rem / 1.35 sans-serif);
+    }
+    .status[data-online="true"]::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 5px;
+      border-radius: 50%;
+      background: #22c55e;
+      vertical-align: -1px;
+    }
+    .profile-link {
+      color: var(--wavy-signal-cyan, #22d3ee);
+      text-decoration: none;
     }
     .nav {
       position: absolute;
@@ -182,6 +211,7 @@ export class WavyProfileOverlay extends LitElement {
     this.currentUserId = "";
     this.editProfileUrl = "/userprofile/edit";
     this._fallbackParticipant = null;
+    this._activeFetchAddress = "";
     this._onAvatarRequest = this._onAvatarRequest.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -212,7 +242,11 @@ export class WavyProfileOverlay extends LitElement {
         participant &&
         previous.id === participant.id &&
         previous.displayName === participant.displayName &&
-        previous.avatarUrl === participant.avatarUrl);
+        previous.avatarUrl === participant.avatarUrl &&
+        previous.bio === participant.bio &&
+        previous.memberSince === participant.memberSince &&
+        previous.profileUrl === participant.profileUrl &&
+        previous.lastSeenTime === participant.lastSeenTime);
     this._fallbackParticipant = participant;
     if (!same) {
       this.requestUpdate("_fallbackParticipant", previous);
@@ -332,6 +366,7 @@ export class WavyProfileOverlay extends LitElement {
       this.index = 0;
     }
     this.open = true;
+    this._fetchProfileDetails(authorId);
     this.dispatchEvent(
       new CustomEvent("wavy-profile-overlay-opened", {
         bubbles: true,
@@ -339,6 +374,66 @@ export class WavyProfileOverlay extends LitElement {
         detail: { authorId: authorId || null }
       })
     );
+  }
+
+  async _fetchProfileDetails(authorId) {
+    const address = String(authorId || "").trim();
+    if (!address || typeof fetch !== "function") {
+      return;
+    }
+    this._activeFetchAddress = address;
+    try {
+      const response = await fetch(`/profile/?addresses=${encodeURIComponent(address)}`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      });
+      if (!response || !response.ok) {
+        return;
+      }
+      const json = await response.json();
+      const profiles = Array.isArray(json && json.profiles) ? json.profiles : [];
+      const profile =
+        profiles.find((item) => item && String(item.address || item.id || "") === address) ||
+        profiles[0];
+      if (!profile || this._activeFetchAddress !== address) {
+        return;
+      }
+      this._mergeProfileDetails(address, profile);
+    } catch (_err) {
+      // Profile detail fetch is progressive enhancement; keep the overlay usable.
+    }
+  }
+
+  _mergeProfileDetails(address, profile) {
+    const normalize = (raw) => ({
+      id: String(raw.address || raw.id || address),
+      displayName: String(raw.name || raw.displayName || raw.address || address),
+      avatarUrl: String(raw.imageUrl || raw.avatarUrl || ""),
+      profileUrl: this._safeProfileUrl(raw.profileUrl),
+      firstName: String(raw.firstName || ""),
+      lastName: String(raw.lastName || ""),
+      bio: String(raw.bio || ""),
+      lastSeenTime: this._coerceTime(raw.lastSeenTime),
+      memberSince: this._formatMemberSince(raw.memberSince || raw.memberSinceText || ""),
+      isBot:
+        raw.isBot === true ||
+        raw.robot === true ||
+        /bot@|robot@|gpt.*bot/i.test(String(raw.address || address))
+    });
+    const nextProfile = normalize(profile);
+    const list = Array.isArray(this.participants) ? [...this.participants] : [];
+    const found = list.findIndex((p) => p && String(p.id || "") === address);
+    if (found >= 0) {
+      list[found] = { ...list[found], ...nextProfile };
+      this.participants = list;
+      this.index = found;
+      this._setFallbackParticipant(null);
+    } else if (this._fallbackParticipant && this._fallbackParticipant.id === address) {
+      this._setFallbackParticipant({ ...this._fallbackParticipant, ...nextProfile });
+    } else {
+      this._setFallbackParticipant(nextProfile);
+      this.index = 0;
+    }
   }
 
   open_(index) {
@@ -382,6 +477,8 @@ export class WavyProfileOverlay extends LitElement {
     if (this.index >= list.length - 1) return;
     this.index = this.index + 1;
     this._emitChange();
+    const p = list[this.index];
+    if (p) this._fetchProfileDetails(this._profileAddress(p));
   }
 
   _prev() {
@@ -390,6 +487,8 @@ export class WavyProfileOverlay extends LitElement {
     if (this.index <= 0) return;
     this.index = this.index - 1;
     this._emitChange();
+    const p = list[this.index];
+    if (p) this._fetchProfileDetails(this._profileAddress(p));
   }
 
   _emitChange() {
@@ -471,6 +570,54 @@ export class WavyProfileOverlay extends LitElement {
     return parts.map((p) => p.charAt(0).toUpperCase()).join("");
   }
 
+  _onlineLabel(participant) {
+    const lastSeen = this._coerceTime(participant && participant.lastSeenTime);
+    if (!Number.isFinite(lastSeen) || lastSeen <= 0) {
+      return "";
+    }
+    const ageMs = Date.now() - lastSeen;
+    return ageMs >= 0 && ageMs <= 5 * 60 * 1000
+      ? "Online"
+      : "Last seen " + new Date(lastSeen).toLocaleString();
+  }
+
+  _coerceTime(value) {
+    if (value == null || value === "") {
+      return 0;
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const raw = String(value).trim();
+    if (!raw) {
+      return 0;
+    }
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+    const parsed = Date.parse(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  _formatMemberSince(value) {
+    if (value == null || value === "") {
+      return "";
+    }
+    if (typeof value === "number" || /^-?\d+$/.test(String(value).trim())) {
+      const millis = Number(value);
+      return Number.isFinite(millis) && millis > 0
+        ? "Member since " + new Date(millis).toLocaleDateString()
+        : "";
+    }
+    return String(value).trim();
+  }
+
+  _safeProfileUrl(value) {
+    const raw = String(value || "").trim();
+    return /^https?:\/\//i.test(raw) ? raw : "";
+  }
+
   render() {
     const list = this._activeParticipants();
     const max = list.length > 0 ? list.length - 1 : 0;
@@ -480,6 +627,10 @@ export class WavyProfileOverlay extends LitElement {
     const pid = current ? current.id : "";
     const isSelf = this._isSelfParticipant(current);
     const canSendMessage = Boolean(this._profileAddress(current)) && !isSelf;
+    const bio = current && current.bio ? String(current.bio).trim() : "";
+    const statusLabel = current ? this._onlineLabel(current) : "";
+    const memberSince = current && current.memberSince ? String(current.memberSince).trim() : "";
+    const profileUrl = current && current.profileUrl ? String(current.profileUrl).trim() : "";
     const prevDisabled = list.length === 0 || idx === 0;
     const nextDisabled = list.length === 0 || idx >= max;
 
@@ -519,6 +670,26 @@ export class WavyProfileOverlay extends LitElement {
         </div>
         <h2 class="name" id="wavy-profile-name">${displayName}</h2>
         ${pid ? html`<p class="pid">${pid}</p>` : null}
+        ${bio ? html`<p class="bio" data-profile-bio>${bio}</p>` : null}
+        ${statusLabel
+          ? html`<p
+              class="status"
+              data-profile-status
+              data-online=${statusLabel === "Online" ? "true" : "false"}
+            >${statusLabel}</p>`
+          : null}
+        ${memberSince
+          ? html`<p class="member-since" data-profile-member-since>${memberSince}</p>`
+          : null}
+        ${profileUrl
+          ? html`<a
+              class="profile-link"
+              data-profile-url
+              href=${profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >${current && current.isBot ? "Bot profile" : "Profile"}</a>`
+          : null}
         <div class="actions-slot">
           <button
             class="profile-action profile-action-primary"

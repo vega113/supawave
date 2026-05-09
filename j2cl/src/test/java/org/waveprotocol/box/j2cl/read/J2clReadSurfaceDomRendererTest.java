@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
+import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
 import org.waveprotocol.box.j2cl.transport.SidecarConversationManifest;
@@ -805,6 +806,57 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertTrue(
         "reopened task must carry data-task-present so Lit can keep affordance mounted",
         element.hasAttribute("data-task-present"));
+  }
+
+  @Test
+  public void renderWindowUsesPerTaskCheckedStateForTaskAffordances() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    renderer.setTaskBinder(
+        blipId ->
+            "b+task".equals(blipId)
+                ? Arrays.asList(
+                    new J2clTaskItemModel(
+                        "task-1",
+                        0,
+                        4,
+                        "task-b-task-task-1",
+                        "",
+                        J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+                        true,
+                        true))
+                : Collections.<J2clTaskItemModel>emptyList());
+    J2clReadWindowEntry task =
+        J2clReadWindowEntry.loadedWithTaskMetadata(
+            "blip:b+task",
+            0L,
+            12L,
+            "b+task",
+            "Task body",
+            Collections.<J2clAttachmentRenderModel>emptyList(),
+            "alice@example.com",
+            "alice@example.com",
+            1714240000000L,
+            "",
+            "",
+            /* unread= */ false,
+            /* hasMention= */ false,
+            /* taskDone= */ false,
+            /* taskAssignee= */ "",
+            /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+            /* bodyItemCount= */ 9,
+            /* isTask= */ true);
+
+    Assert.assertTrue(renderer.renderWindow(Arrays.asList(task)));
+
+    HTMLElement affordance =
+        (HTMLElement) blip(host, "b+task").querySelector("wavy-task-affordance");
+    Assert.assertNotNull(affordance);
+    Assert.assertEquals("task-1", affordance.getAttribute("data-task-id"));
+    Assert.assertEquals("0", affordance.getAttribute("data-task-start"));
+    Assert.assertEquals("4", affordance.getAttribute("data-task-end"));
+    Assert.assertTrue(affordance.hasAttribute("data-task-completed"));
   }
 
   @Test

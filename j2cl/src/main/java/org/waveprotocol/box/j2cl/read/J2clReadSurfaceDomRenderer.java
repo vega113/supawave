@@ -126,6 +126,11 @@ public final class J2clReadSurfaceDomRenderer {
     List<J2clMentionRange> mentionsFor(String blipId);
   }
 
+  @FunctionalInterface
+  public interface TaskBinder {
+    List<J2clTaskItemModel> tasksFor(String blipId);
+  }
+
   /** Test seam for the dwell-timer scheduler so unit tests can swap a fake clock. */
   public interface DwellTimerScheduler {
     /**
@@ -161,6 +166,7 @@ public final class J2clReadSurfaceDomRenderer {
   // wiring yet" — the row is still mounted as an empty add-only state.
   private ReactionBinder reactionBinder;
   private MentionBinder mentionBinder;
+  private TaskBinder taskBinder;
   // J-UI-4 (#1082, R-3.1): conversation manifest for the current wave.
   // Set by the view layer before each render call. The renderer uses
   // this to graft parent-blip-id / thread-id onto each blip in the
@@ -261,6 +267,10 @@ public final class J2clReadSurfaceDomRenderer {
 
   public void setMentionBinder(MentionBinder binder) {
     this.mentionBinder = binder;
+  }
+
+  public void setTaskBinder(TaskBinder binder) {
+    this.taskBinder = binder;
   }
 
   /**
@@ -1549,10 +1559,26 @@ public final class J2clReadSurfaceDomRenderer {
     // also consults the optimistic-toggle registry so a self-initiated
     // toggle that is still in flight is preserved across unrelated
     // live updates.
+    // When per-task affordances exist, only mark the host done if ALL tasks
+    // are checked; a single checked task must not apply line-through to the
+    // entire blip body.
+    boolean effectiveTaskDone = blip.isTaskDone();
+    if (taskBinder != null) {
+      List<J2clTaskItemModel> blipTasks = taskBinder.tasksFor(blip.getBlipId());
+      if (blipTasks != null && !blipTasks.isEmpty()) {
+        effectiveTaskDone = true;
+        for (J2clTaskItemModel t : blipTasks) {
+          if (!t.isChecked()) {
+            effectiveTaskDone = false;
+            break;
+          }
+        }
+      }
+    }
     applyTaskState(
         element,
         blip.getBlipId(),
-        blip.isTaskDone(),
+        effectiveTaskDone,
         blip.getTaskAssignee(),
         blip.getTaskDueTimestamp(),
         blip.getBodyItemCount(),
@@ -1580,6 +1606,11 @@ public final class J2clReadSurfaceDomRenderer {
         blip.getInlineReplyAnchors());
     element.appendChild(content);
 
+    HTMLElement taskList = renderTaskAffordances(blip);
+    if (taskList != null) {
+      element.appendChild(taskList);
+    }
+
     if (!blip.getAttachments().isEmpty()) {
       HTMLElement attachments = (HTMLElement) DomGlobal.document.createElement("div");
       attachments.className = "j2cl-read-attachments";
@@ -1602,6 +1633,86 @@ public final class J2clReadSurfaceDomRenderer {
     setProperty(reactionRow, "reactions", buildReactionsArray(blip.getBlipId()));
     element.appendChild(reactionRow);
     return element;
+  }
+
+  private HTMLElement renderTaskAffordances(J2clReadBlip blip) {
+    List<J2clTaskItemModel> tasks = taskBinder == null
+        ? Collections.<J2clTaskItemModel>emptyList()
+        : taskBinder.tasksFor(blip.getBlipId());
+    if (tasks == null || tasks.isEmpty()) {
+      // Legacy task blip: has task/done annotation but no task/id ranges. Render a
+      // single affordance without task-id so the toggle button remains usable.
+      // Also preserve affordance for blips that only carry legacy task metadata
+      // (task/assignee or task/dueTs) without a task/done annotation — isTask()
+      // only returns true when task/done is present, so we must also check metadata.
+      boolean hasLegacyMetadata = !blip.getTaskAssignee().isEmpty()
+          || blip.getTaskDueTimestamp() > 0;
+      if (!blip.isTask() && !hasLegacyMetadata) {
+        return null;
+      }
+      HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
+      list.className = "j2cl-read-task-affordances";
+      list.setAttribute("data-task-affordance-list", "");
+      list.setAttribute("slot", "blip-extension");
+      HTMLElement affordance = (HTMLElement) DomGlobal.document.createElement("wavy-task-affordance");
+      affordance.setAttribute("data-blip-id", blip.getBlipId());
+      if (blip.isTaskDone()) {
+        affordance.setAttribute("data-task-completed", "");
+      }
+      if (!blip.getTaskAssignee().isEmpty()) {
+        affordance.setAttribute("data-task-assignee", blip.getTaskAssignee());
+      }
+      String legacyDueDate = formatDueDate(blip.getTaskDueTimestamp());
+      if (!legacyDueDate.isEmpty()) {
+        affordance.setAttribute("data-task-due-date", legacyDueDate);
+      }
+      if (blip.getBodyItemCount() > 0) {
+        affordance.setAttribute("data-blip-doc-size", String.valueOf(blip.getBodyItemCount()));
+      }
+      String legacyWaveId = currentWaveId();
+      if (!legacyWaveId.isEmpty()) {
+        affordance.setAttribute("data-wave-id", legacyWaveId);
+      }
+      list.appendChild(affordance);
+      return list;
+    }
+    HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
+    list.className = "j2cl-read-task-affordances";
+    list.setAttribute("data-task-affordance-list", "");
+    list.setAttribute("slot", "blip-extension");
+    for (J2clTaskItemModel task : tasks) {
+      if (task == null || task.getTaskId().isEmpty()) {
+        continue;
+      }
+      HTMLElement affordance = (HTMLElement) DomGlobal.document.createElement("wavy-task-affordance");
+      affordance.setAttribute("data-blip-id", blip.getBlipId());
+      affordance.setAttribute("data-task-id", task.getTaskId());
+      affordance.setAttribute("data-task-start", String.valueOf(task.getTextOffset()));
+      affordance.setAttribute("data-task-end", String.valueOf(task.getEndOffset()));
+      affordance.setAttribute("data-task-anchor-id", task.getElementAnchorId());
+      if (task.isChecked()) {
+        affordance.setAttribute("data-task-completed", "");
+      }
+      if (!task.getAssigneeAddress().isEmpty()) {
+        affordance.setAttribute("data-task-assignee", task.getAssigneeAddress());
+      }
+      String dueDate = formatDueDate(task.getDueTimestamp());
+      if (!dueDate.isEmpty()) {
+        affordance.setAttribute("data-task-due-date", dueDate);
+      }
+      if (blip.getBodyItemCount() > 0) {
+        affordance.setAttribute("data-blip-doc-size", String.valueOf(blip.getBodyItemCount()));
+      }
+      String waveId = currentWaveId();
+      if (!waveId.isEmpty()) {
+        affordance.setAttribute("data-wave-id", waveId);
+      }
+      setProperty(affordance, "taskId", task.getTaskId());
+      setProperty(affordance, "textStart", task.getTextOffset());
+      setProperty(affordance, "textEnd", task.getEndOffset());
+      list.appendChild(affordance);
+    }
+    return list.childElementCount == 0 ? null : list;
   }
 
   private static void applyInlineReplyAnchorState(
@@ -1890,8 +2001,10 @@ public final class J2clReadSurfaceDomRenderer {
     // data-task-present survives a full DOM rebuild (renderWindow clears host.innerHTML).
     // Without it a reopened task blip with no assignee/due-date would lose the affordance
     // because all three task attributes are absent and _taskPresent stays false on the
-    // freshly-created <wave-blip> element.
-    if (isTask || taskDone) {
+    // freshly-created <wave-blip> element. Also set for metadata-only blips (assignee /
+    // due-date present but no task/done annotation), since isTask() is false for those.
+    String assignee = taskAssignee == null ? "" : taskAssignee.trim();
+    if (isTask || taskDone || !assignee.isEmpty() || taskDueTimestamp > 0) {
       element.setAttribute("data-task-present", "");
     } else {
       element.removeAttribute("data-task-present");
@@ -1901,7 +2014,6 @@ public final class J2clReadSurfaceDomRenderer {
     } else {
       element.removeAttribute("data-task-completed");
     }
-    String assignee = taskAssignee == null ? "" : taskAssignee.trim();
     if (assignee.isEmpty()) {
       element.removeAttribute("data-task-assignee");
     } else {

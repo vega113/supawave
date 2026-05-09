@@ -112,7 +112,8 @@ export class WaveBlip extends LitElement {
     // Renderer sets this whenever a task/done annotation exists (regardless of value).
     // Survives full DOM rebuilds so reopened tasks keep the affordance mounted.
     taskPresent: { type: Boolean, attribute: "data-task-present", reflect: false },
-    bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true }
+    bodySize: { type: Number, attribute: "data-blip-doc-size", reflect: true },
+    authorAvatarUrl: { type: String, attribute: "author-avatar-url" }
   };
 
   static styles = css`
@@ -202,6 +203,19 @@ export class WaveBlip extends LitElement {
       border: 1.5px solid #ffffff;
       padding: 0;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+    .avatar img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .avatar:has(img) {
+      color: transparent;
     }
     :host([data-blip-depth="root"]) .avatar {
       width: var(--wavy-avatar-size-root, 28px);
@@ -341,6 +355,7 @@ export class WaveBlip extends LitElement {
     this.dataBlipTime = "";
     this.dataBlipFocused = null;
     this._participants = [];
+    this.authorAvatarUrl = "";
   }
 
   /**
@@ -607,6 +622,22 @@ export class WaveBlip extends LitElement {
     return url.toString();
   }
 
+  _avatarUrl() {
+    const explicit = String(this.authorAvatarUrl || "").trim();
+    if (explicit) {
+      return explicit;
+    }
+    const address = String(this.authorId || "").trim();
+    return address ? `/userprofile/image/${encodeURIComponent(address).replace(/%40/g, "@")}` : "";
+  }
+
+  _onAvatarImageError(event) {
+    const img = event && event.currentTarget;
+    if (img && img.parentElement) {
+      img.remove();
+    }
+  }
+
   render() {
     const tooltip = this.postedAtIso || this.postedAt;
     const palette = this._palette();
@@ -615,6 +646,7 @@ export class WaveBlip extends LitElement {
     const replyNoun = this.replyCount === 1 ? "reply" : "replies";
     const threadToggleVerb = this.threadCollapsed ? "Expand" : "Collapse";
     const authorLabel = this._authorLabel();
+    const avatarUrl = this._avatarUrl();
     const chevron = hasReplies
       ? html`<button
           type="button"
@@ -647,7 +679,15 @@ export class WaveBlip extends LitElement {
             aria-label=${`Open ${authorLabel} profile`}
             @click=${this._onAvatarClick}
           >
-            ${this._initials()}
+            ${avatarUrl
+              ? html`<img
+                  src=${avatarUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  @error=${this._onAvatarImageError}
+                />${this._initials()}`
+              : this._initials()}
           </button>
           <span class="author">${authorLabel}</span>
           <time
@@ -667,21 +707,6 @@ export class WaveBlip extends LitElement {
             @wave-blip-toolbar-link=${this._onLinkClick}
             @wave-blip-toolbar-delete=${this._onDeleteClick}
           ></wave-blip-toolbar>
-          ${this._hasTaskAffordance()
-            ? html`<span class="task-affordance-slot" data-task-affordance-slot>
-                <wavy-task-affordance
-                  data-blip-id=${this.blipId}
-                  data-wave-id=${this.waveId}
-                  ?data-task-completed=${this.taskCompleted}
-                  data-task-assignee=${this.taskAssignee || ""}
-                  data-task-due-date=${this.taskDueDate || ""}
-                  data-blip-doc-size=${ifDefined(this.bodySize > 0 ? String(this.bodySize) : undefined)}
-                  .bodySize=${this.bodySize || 0}
-                  .participants=${this._participants}
-                  @wave-blip-task-toggled=${this._onTaskToggled}
-                ></wavy-task-affordance>
-              </span>`
-            : ""}
           </span>
         </div>
         <div class="body">

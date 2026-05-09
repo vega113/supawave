@@ -61,7 +61,7 @@ public class J2clOverlayModelTest {
   @Test
   public void taskItemAndFocusTargetNormalizeNullValues() {
     J2clTaskItemModel task =
-        new J2clTaskItemModel(null, -4, null, null, 123L, true, false);
+        new J2clTaskItemModel(null, -4, -2, null, null, 123L, true, false);
     J2clOverlayFocusTarget target = new J2clOverlayFocusTarget(null);
 
     Assert.assertEquals("", task.getTaskId());
@@ -123,6 +123,7 @@ public class J2clOverlayModelTest {
             Arrays.asList(
                 new SidecarAnnotationRange("mention/user", "alice@example.com", 3, 99),
                 new SidecarAnnotationRange("task/id", "task-123", 0, 2),
+                new SidecarAnnotationRange("task/done", "true", 0, 2),
                 null),
             Arrays.asList(
                 new SidecarReactionEntry("tada", Arrays.asList("alice@example.com")),
@@ -137,8 +138,32 @@ public class J2clOverlayModelTest {
     Assert.assertEquals(
         J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
         blip.getTaskItems().get(0).getDueTimestamp());
+    Assert.assertTrue(blip.getTaskItems().get(0).isChecked());
     Assert.assertEquals(1, blip.getReactionSummaries().size());
     Assert.assertEquals("tada", blip.getReactionSummaries().get(0).getEmoji());
+  }
+
+  @Test
+  public void elementBackedTaskWithBodyWideDoneAnnotationIsChecked() {
+    // task/id on element range (text [0,0], doc [5,6]); task/done is body-wide (text [0,10], doc [0,20]).
+    // Exact-range match misses task/done; containment match must find it.
+    J2clInteractionBlipModel blip =
+        new J2clInteractionBlipModel(
+            "b+task",
+            "b+task",
+            "author@example.com",
+            "task text here",
+            Arrays.asList("author@example.com"),
+            true,
+            Arrays.asList(
+                new SidecarAnnotationRange("task/id", "tid-1", 0, 0, 5, 6),
+                new SidecarAnnotationRange("task/done", "true", 0, 10, 0, 20)),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    Assert.assertEquals(1, blip.getTaskItems().size());
+    Assert.assertTrue(
+        "element-backed task with body-wide task/done=true must be checked",
+        blip.getTaskItems().get(0).isChecked());
   }
 
   @Test
@@ -251,7 +276,7 @@ public class J2clOverlayModelTest {
     }
     try {
       blip.getTaskItems().add(
-          new J2clTaskItemModel("task-1", 0, "task-1", "", -1L, false, false));
+          new J2clTaskItemModel("task-1", 0, 4, "task-1", "", -1L, false, false));
       Assert.fail("task items should be immutable");
     } catch (UnsupportedOperationException expected) {
       // Expected immutable-list contract.

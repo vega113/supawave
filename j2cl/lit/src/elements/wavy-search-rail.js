@@ -97,9 +97,9 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
       min-width: 280px;
     }
-      /* GWT-parity (round 2): flat, full-width blue title strip that
-       * mirrors .sidecar-selected-title (sidecar.css) byte-for-byte so the
-       * rail and wave-panel headers sit at the same y / height / color
+      /* GWT-parity (round 2): flat, full-width blue title strip matching
+       * the geometry of .sidecar-selected-title (sidecar.css) so the rail
+       * and wave-panel headers sit at the same y / height / color
        * side-by-side. The visible heading is aria-hidden so the host's
        * aria-label remains the AT label. */
       .panel-title {

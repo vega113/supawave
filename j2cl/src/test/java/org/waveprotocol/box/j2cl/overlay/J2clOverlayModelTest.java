@@ -123,6 +123,7 @@ public class J2clOverlayModelTest {
             Arrays.asList(
                 new SidecarAnnotationRange("mention/user", "alice@example.com", 3, 99),
                 new SidecarAnnotationRange("task/id", "task-123", 0, 2),
+                new SidecarAnnotationRange("task/done", "true", 0, 2),
                 null),
             Arrays.asList(
                 new SidecarReactionEntry("tada", Arrays.asList("alice@example.com")),
@@ -137,6 +138,7 @@ public class J2clOverlayModelTest {
     Assert.assertEquals(
         J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
         blip.getTaskItems().get(0).getDueTimestamp());
+    Assert.assertTrue(blip.getTaskItems().get(0).isChecked());
     Assert.assertEquals(1, blip.getReactionSummaries().size());
     Assert.assertEquals("tada", blip.getReactionSummaries().get(0).getEmoji());
   }

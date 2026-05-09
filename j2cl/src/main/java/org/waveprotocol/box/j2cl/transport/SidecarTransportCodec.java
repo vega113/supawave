@@ -533,6 +533,7 @@ public final class SidecarTransportCodec {
         processAnnotationBoundary(
             getOptionalObject(component, "1"),
             text.length(),
+            bodyItemCount,
             activeAnnotations,
             annotationRanges);
         continue;
@@ -584,7 +585,7 @@ public final class SidecarTransportCodec {
         }
       }
     }
-    closeAllAnnotations(text.length(), activeAnnotations, annotationRanges);
+    closeAllAnnotations(text.length(), bodyItemCount, activeAnnotations, annotationRanges);
     return new DocumentExtraction(
         text.toString(),
         bodyItemCount,
@@ -595,13 +596,15 @@ public final class SidecarTransportCodec {
 
   private static void processAnnotationBoundary(
       Map<String, Object> boundary,
-      int offset,
+      int textOffset,
+      int docOffset,
       Map<String, ActiveAnnotation> activeAnnotations,
       List<SidecarAnnotationRange> annotationRanges) {
     Object rawEnds = boundary.get("2");
     if (rawEnds != null) {
       for (Object rawEnd : asList(rawEnds)) {
-        closeAnnotation(String.valueOf(rawEnd), offset, activeAnnotations, annotationRanges);
+        closeAnnotation(
+            String.valueOf(rawEnd), textOffset, docOffset, activeAnnotations, annotationRanges);
       }
     }
     Object rawChanges = boundary.get("3");
@@ -615,36 +618,40 @@ public final class SidecarTransportCodec {
         continue;
       }
       if (activeAnnotations.containsKey(key)) {
-        closeAnnotation(key, offset, activeAnnotations, annotationRanges);
+        closeAnnotation(key, textOffset, docOffset, activeAnnotations, annotationRanges);
       }
       String newValue = getString(change, "3");
       if (newValue != null) {
-        activeAnnotations.put(key, new ActiveAnnotation(newValue, offset));
+        activeAnnotations.put(key, new ActiveAnnotation(newValue, textOffset, docOffset));
       }
     }
   }
 
   private static void closeAllAnnotations(
-      int offset,
+      int textOffset,
+      int docOffset,
       Map<String, ActiveAnnotation> activeAnnotations,
       List<SidecarAnnotationRange> annotationRanges) {
     List<String> activeKeys = new ArrayList<String>(activeAnnotations.keySet());
     for (String key : activeKeys) {
-      closeAnnotation(key, offset, activeAnnotations, annotationRanges);
+      closeAnnotation(key, textOffset, docOffset, activeAnnotations, annotationRanges);
     }
   }
 
   private static void closeAnnotation(
       String key,
-      int offset,
+      int textOffset,
+      int docOffset,
       Map<String, ActiveAnnotation> activeAnnotations,
       List<SidecarAnnotationRange> annotationRanges) {
     ActiveAnnotation active = activeAnnotations.remove(key);
-    if (active == null || offset <= active.startOffset) {
+    if (active == null || textOffset <= active.startOffset) {
       return;
     }
     annotationRanges.add(
-        new SidecarAnnotationRange(key, active.value, active.startOffset, offset));
+        new SidecarAnnotationRange(
+            key, active.value, active.startOffset, textOffset,
+            active.docStartOffset, docOffset));
   }
 
   private static String getAttribute(Map<String, Object> elementStart, String name) {
@@ -682,10 +689,12 @@ public final class SidecarTransportCodec {
   private static final class ActiveAnnotation {
     private final String value;
     private final int startOffset;
+    private final int docStartOffset;
 
-    ActiveAnnotation(String value, int startOffset) {
+    ActiveAnnotation(String value, int startOffset, int docStartOffset) {
       this.value = value;
       this.startOffset = startOffset;
+      this.docStartOffset = docStartOffset;
     }
   }
 

@@ -1669,7 +1669,7 @@ public final class J2clReadSurfaceDomRenderer {
       affordance.setAttribute("data-task-start", String.valueOf(task.getTextOffset()));
       affordance.setAttribute("data-task-end", String.valueOf(task.getEndOffset()));
       affordance.setAttribute("data-task-anchor-id", task.getElementAnchorId());
-      if (blip.isTaskDone()) {
+      if (task.isChecked()) {
         affordance.setAttribute("data-task-completed", "");
       }
       if (!task.getAssigneeAddress().isEmpty()) {

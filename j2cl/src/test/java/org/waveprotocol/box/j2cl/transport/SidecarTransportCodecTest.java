@@ -325,6 +325,9 @@ public class SidecarTransportCodecTest {
     for (SidecarAnnotationRange range : document.getAnnotationRanges()) {
       Assert.assertEquals(0, range.getStartOffset());
       Assert.assertEquals(13, range.getEndOffset());
+      // DocOp offsets account for the leading body+line element starts (2 items).
+      Assert.assertEquals(2, range.getDocStartOffset());
+      Assert.assertEquals(15, range.getDocEndOffset());
     }
   }
 

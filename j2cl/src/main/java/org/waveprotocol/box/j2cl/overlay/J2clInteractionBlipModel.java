@@ -186,13 +186,13 @@ public final class J2clInteractionBlipModel {
       }
       tasks.add(
           new J2clTaskItemModel(
-                taskId,
-                taskIdRange.getStartOffset(),
-                taskIdRange.getEndOffset(),
-                "task-" + safe(blipId) + "-" + safe(taskId),
+              taskId,
+              taskIdRange.getDocStartOffset(),
+              taskIdRange.getDocEndOffset(),
+              "task-" + safe(blipId) + "-" + safe(taskId),
               findTaskValue(annotationRanges, "task/assignee", taskIdRange),
               parseLong(findTaskValue(annotationRanges, "task/dueTs", taskIdRange)),
-              false,
+              parseBoolean(findTaskValue(annotationRanges, "task/done", taskIdRange)),
               editable));
     }
     return Collections.unmodifiableList(tasks);
@@ -252,6 +252,10 @@ public final class J2clInteractionBlipModel {
     } catch (NumberFormatException e) {
       return J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP;
     }
+  }
+
+  private static boolean parseBoolean(String value) {
+    return "true".equalsIgnoreCase(safe(value).trim());
   }
 
   private static String safe(String value) {

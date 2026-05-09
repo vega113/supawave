@@ -473,6 +473,8 @@ export class WavyProfileOverlay extends LitElement {
     if (this.index >= list.length - 1) return;
     this.index = this.index + 1;
     this._emitChange();
+    const p = list[this.index];
+    if (p) this._fetchProfileDetails(this._profileAddress(p));
   }
 
   _prev() {
@@ -481,6 +483,8 @@ export class WavyProfileOverlay extends LitElement {
     if (this.index <= 0) return;
     this.index = this.index - 1;
     this._emitChange();
+    const p = list[this.index];
+    if (p) this._fetchProfileDetails(this._profileAddress(p));
   }
 
   _emitChange() {

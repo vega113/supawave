@@ -498,6 +498,52 @@ describe("<wavy-profile-overlay>", () => {
     }
   });
 
+  it("navigating to next participant invalidates in-flight fetch for previous participant", async () => {
+    const previousFetch = globalThis.fetch;
+    let resolveA;
+    let fetchCount = 0;
+    let lastFetchedAddress = "";
+    globalThis.fetch = async (url) => {
+      fetchCount++;
+      lastFetchedAddress = url;
+      if (url.includes("alice")) {
+        // Simulate a slow A fetch — caller controls when it resolves.
+        return new Promise((res) => { resolveA = () => res({ ok: true, json: async () => ({ profiles: [{ address: "alice@example.com", name: "Alice Detail" }] }) }); });
+      }
+      return { ok: false };
+    };
+    try {
+      const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+      el.participants = [
+        { id: "alice@example.com", displayName: "Alice" },
+        { id: "bob@example.com", displayName: "Bob" }
+      ];
+      await el.updateComplete;
+      // Open on Alice — triggers fetch for Alice.
+      document.dispatchEvent(
+        new CustomEvent("wave-blip-profile-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { authorId: "alice@example.com" }
+        })
+      );
+      await el.updateComplete;
+      expect(el.index).to.equal(0);
+      // Navigate to Bob before Alice's fetch resolves.
+      el._next();
+      await el.updateComplete;
+      expect(el.index).to.equal(1);
+      // Now let Alice's stale fetch resolve.
+      resolveA();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+      // Index must remain on Bob — stale A response must be dropped.
+      expect(el.index).to.equal(1);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("real keyboard path: host receives Escape after focus moves on open", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = PARTICIPANTS;

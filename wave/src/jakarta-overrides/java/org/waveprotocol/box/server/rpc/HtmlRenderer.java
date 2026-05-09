@@ -5949,7 +5949,7 @@ public final class HtmlRenderer {
 
   /** Globe icon for language selector. */
   private static final String ICON_GLOBE =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
       + "<circle cx=\"12\" cy=\"12\" r=\"10\"/>"
       + "<ellipse cx=\"12\" cy=\"12\" rx=\"4\" ry=\"10\"/>"
       + "<path d=\"M2 12h20\"/>"
@@ -5958,13 +5958,13 @@ public final class HtmlRenderer {
 
   /** Cloud with checkmark icon for saved state — white on dark topbar. */
   private static final String ICON_CLOUD_CHECK =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
       + "<path d=\"M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z\"/>"
       + "<path d=\"M9 15l2 2 4-4\" stroke-width=\"2\"/>"
       + "</svg>";
   /** WiFi/signal icon for connection status (white for contrast on dark topbar). */
   private static final String ICON_WIFI =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
       + "<path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/>"
       + "<path d=\"M5.07 12.5a10 10 0 0 1 13.86 0\"/>"
       + "<path d=\"M8.72 16a6 6 0 0 1 6.56 0\"/>"
@@ -5973,7 +5973,7 @@ public final class HtmlRenderer {
 
   /** WiFi-off icon for disconnected state (white for contrast on dark topbar). */
   private static final String ICON_WIFI_OFF =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
       + "<line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>"
       + "<path d=\"M16.72 11.06A10.94 10.94 0 0 1 19 12.55\"/>"
       + "<path d=\"M5 12.55a10.94 10.94 0 0 1 5.17-2.39\"/>"
@@ -5985,7 +5985,7 @@ public final class HtmlRenderer {
 
   /** Envelope icon for admin contact notification — white on dark topbar. */
   private static final String ICON_MAIL =
-      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+      "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\">"
       + "<path d=\"M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z\"/>"
       + "<polyline points=\"22,6 12,13 2,6\"/>"
       + "</svg>";

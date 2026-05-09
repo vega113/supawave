@@ -192,7 +192,7 @@ public final class J2clInteractionBlipModel {
               "task-" + safe(blipId) + "-" + safe(taskId),
               findTaskValue(annotationRanges, "task/assignee", taskIdRange),
               parseLong(findTaskValue(annotationRanges, "task/dueTs", taskIdRange)),
-              parseBoolean(findTaskValue(annotationRanges, "task/done", taskIdRange)),
+              parseBoolean(findTaskDoneValue(annotationRanges, taskIdRange)),
               editable));
     }
     return Collections.unmodifiableList(tasks);
@@ -233,6 +233,27 @@ public final class J2clInteractionBlipModel {
       }
     }
     return "";
+  }
+
+  // task/done may be a body-wide blip annotation while task/id is on a small element range;
+  // exact-range match misses it. Try exact first, then doc-offset containment.
+  private static String findTaskDoneValue(
+      List<SidecarAnnotationRange> annotationRanges, SidecarAnnotationRange taskIdRange) {
+    String exactMatch = "";
+    String containingMatch = "";
+    for (SidecarAnnotationRange range : annotationRanges) {
+      if (range == null || !"task/done".equals(range.getKey())) {
+        continue;
+      }
+      if (range.getStartOffset() == taskIdRange.getStartOffset()
+          && range.getEndOffset() == taskIdRange.getEndOffset()) {
+        exactMatch = safe(range.getValue());
+      } else if (range.getDocStartOffset() <= taskIdRange.getDocStartOffset()
+          && range.getDocEndOffset() >= taskIdRange.getDocEndOffset()) {
+        containingMatch = safe(range.getValue());
+      }
+    }
+    return exactMatch.isEmpty() ? containingMatch : exactMatch;
   }
 
   private static String sliceText(String text, int startOffset, int endOffset) {

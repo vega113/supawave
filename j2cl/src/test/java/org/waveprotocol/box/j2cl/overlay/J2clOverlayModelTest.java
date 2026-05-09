@@ -144,6 +144,29 @@ public class J2clOverlayModelTest {
   }
 
   @Test
+  public void elementBackedTaskWithBodyWideDoneAnnotationIsChecked() {
+    // task/id on element range (text [0,0], doc [5,6]); task/done is body-wide (text [0,10], doc [0,20]).
+    // Exact-range match misses task/done; containment match must find it.
+    J2clInteractionBlipModel blip =
+        new J2clInteractionBlipModel(
+            "b+task",
+            "b+task",
+            "author@example.com",
+            "task text here",
+            Arrays.asList("author@example.com"),
+            true,
+            Arrays.asList(
+                new SidecarAnnotationRange("task/id", "tid-1", 0, 0, 5, 6),
+                new SidecarAnnotationRange("task/done", "true", 0, 10, 0, 20)),
+            Collections.<SidecarReactionEntry>emptyList());
+
+    Assert.assertEquals(1, blip.getTaskItems().size());
+    Assert.assertTrue(
+        "element-backed task with body-wide task/done=true must be checked",
+        blip.getTaskItems().get(0).isChecked());
+  }
+
+  @Test
   public void interactionBlipRejectsManualLinkAddressAsMentionRange() {
     J2clInteractionBlipModel blip =
         new J2clInteractionBlipModel(

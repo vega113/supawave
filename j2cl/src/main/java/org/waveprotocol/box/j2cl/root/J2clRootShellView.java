@@ -76,13 +76,15 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
 
   @Override
   public void publishLiveStatus(J2clRootLiveSurfaceModel model) {
+    Element rootShell = findRootShell();
+    String connectionState = model == null ? "online" : model.getConnectionState();
+    String saveState = model == null ? "saved" : model.getSaveState();
+    mirrorTopbarStatusChips(rootShell, connectionState, saveState);
+
     HTMLElement statusElement = ensureLiveStatusElement();
     if (statusElement != null) {
       String statusText = model == null ? "" : model.getStatusText();
-      Element rootShell = findRootShell();
       HTMLElement statusStrip = findStatusStrip(rootShell);
-      String connectionState = model == null ? "online" : model.getConnectionState();
-      String saveState = model == null ? "saved" : model.getSaveState();
       String routeState = model == null ? "ready" : model.getRouteState();
       if (statusStrip != null) {
         statusStrip.setAttribute("data-connection-state", connectionState);
@@ -90,7 +92,6 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
         statusStrip.setAttribute("data-route-state", routeState);
         statusStrip.setAttribute("data-live-status-text", statusText);
       }
-      mirrorTopbarStatusChips(rootShell, connectionState, saveState);
       String desiredSeparatorDisplay = statusText.isEmpty() ? "none" : "";
       if (statusText.equals(lastPublishedLiveStatusText)
           && (liveStatusSeparator == null

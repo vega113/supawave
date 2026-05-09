@@ -346,9 +346,9 @@ export class WavyHeader extends LitElement {
   }
 
   _saveLabel() {
-    return this.saveState === "saving" || this.saveState === "unsaved"
-      ? "Saving changes"
-      : "All changes saved";
+    if (this.saveState === "saving") return "Saving changes";
+    if (this.saveState === "unsaved") return "Unsaved changes";
+    return "All changes saved";
   }
 
   _netLabel() {

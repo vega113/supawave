@@ -272,7 +272,7 @@ shell-header wavy-header > .brand {
 /* Hide SSR light-DOM email span before Lit upgrade hoists the element into
  * shadow DOM; the shadow rule (:host([compact-gwt-topbar]) .user-email) only
  * applies post-upgrade, so long addresses would overflow the 40px bar. */
-shell-header[compact-gwt-topbar] wavy-header > .user-email {
+shell-header[compact-gwt-topbar] wavy-header .user-email {
   display: none;
 }
 

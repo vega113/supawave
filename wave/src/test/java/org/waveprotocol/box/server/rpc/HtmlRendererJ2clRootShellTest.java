@@ -57,8 +57,20 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     String html = HtmlRenderer.renderJ2clRootShellPage(
         session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
 
-    assertTrue(html.contains("<shell-header slot=\"header\" signed-in compact-gwt-topbar"));
-    assertTrue(html.contains("<wavy-header slot=\"actions-signed-in\" signed-in no-brand compact-gwt-topbar"));
+    int shIdx = html.indexOf("<shell-header");
+    int shEnd = html.indexOf('>', shIdx);
+    String shTag = html.substring(shIdx, shEnd);
+    assertTrue("shell-header must have slot=\"header\"", shTag.contains("slot=\"header\""));
+    assertTrue("shell-header must carry signed-in", shTag.contains("signed-in"));
+    assertTrue("shell-header must carry compact-gwt-topbar", shTag.contains("compact-gwt-topbar"));
+
+    int whIdx = html.indexOf("<wavy-header");
+    int whEnd = html.indexOf('>', whIdx);
+    String whTag = html.substring(whIdx, whEnd);
+    assertTrue("wavy-header must have slot=\"actions-signed-in\"", whTag.contains("slot=\"actions-signed-in\""));
+    assertTrue("wavy-header must carry signed-in", whTag.contains("signed-in"));
+    assertTrue("wavy-header must carry no-brand", whTag.contains("no-brand"));
+    assertTrue("wavy-header must carry compact-gwt-topbar", whTag.contains("compact-gwt-topbar"));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
   }
@@ -79,7 +91,11 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     String html = HtmlRenderer.renderJ2clRootShellPage(
         session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
 
-    assertTrue(html.contains("<shell-header slot=\"header\" compact-gwt-topbar"));
+    int shIdx2 = html.indexOf("<shell-header");
+    int shEnd2 = html.indexOf('>', shIdx2);
+    String shTag2 = html.substring(shIdx2, shEnd2);
+    assertTrue("shell-header must have slot=\"header\"", shTag2.contains("slot=\"header\""));
+    assertTrue("shell-header must carry compact-gwt-topbar", shTag2.contains("compact-gwt-topbar"));
     assertTrue(html.contains("<span slot=\"actions-signed-out\">Signed out</span>"));
     assertTrue(html.contains("<a slot=\"actions-signed-out\""));
     assertTrue(html.contains("Sign in"));

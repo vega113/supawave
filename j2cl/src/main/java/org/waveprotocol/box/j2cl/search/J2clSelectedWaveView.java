@@ -400,25 +400,26 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             String hostWaveId = contentList.getAttribute("data-wave-id");
             waveId = hostWaveId == null ? "" : hostWaveId;
           }
-          renderer.noteOptimisticTaskState(waveId, blipId, completed);
-          applyOptimisticTaskHostState(evt, blipId, taskId, completed);
+          boolean allTasksCompleted =
+              applyOptimisticTaskHostState(evt, blipId, taskId, completed);
+          renderer.noteOptimisticTaskState(waveId, blipId, allTasksCompleted);
         });
   }
 
-  static void applyOptimisticTaskHostState(
+  static boolean applyOptimisticTaskHostState(
       Event evt, String blipId, String taskId, boolean completed) {
     if (evt == null || !(evt.target instanceof Element)) {
-      return;
+      return completed;
     }
     Element source = (Element) evt.target;
     Element host = source.closest("wave-blip");
     if (!(host instanceof HTMLElement)) {
-      return;
+      return completed;
     }
     HTMLElement blip = (HTMLElement) host;
     String hostBlipId = blip.getAttribute("data-blip-id");
     if (blipId == null || blipId.isEmpty() || !blipId.equals(hostBlipId)) {
-      return;
+      return completed;
     }
 
     boolean allCompleted = true;
@@ -453,6 +454,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     } else {
       blip.removeAttribute("data-task-completed");
     }
+    return allCompleted;
   }
 
   private void bindSelectedWaveRefreshListener(HTMLElement card) {

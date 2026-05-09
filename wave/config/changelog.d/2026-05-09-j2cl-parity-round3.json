@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-09-j2cl-parity-round3",
+  "version": "Issue #1235",
+  "date": "2026-05-09",
+  "title": "J2CL search rail and wave panel toolbars now share the same blue chrome at matching heights.",
+  "summary": "Round 3 parity work: ship sidecar.css next to shell.css so the wave-panel chrome actually loads, and align the wave-nav toolbar with the search rail's action toolbar.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Bundles sidecar.css into war/j2cl/assets so the wave-panel blue title strip, empty-state recipe, and selected-wave chrome render correctly in production (the link tag pointed at a path that was 404ing).",
+        "Repaints the wave-panel nav toolbar (`<wavy-wave-nav-row>`) with the same light-blue gradient as the search rail's action toolbar so both panels read as the same band of chrome side-by-side."
+      ]
+    }
+  ]
+}

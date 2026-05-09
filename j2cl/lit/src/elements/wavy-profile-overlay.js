@@ -242,7 +242,11 @@ export class WavyProfileOverlay extends LitElement {
         participant &&
         previous.id === participant.id &&
         previous.displayName === participant.displayName &&
-        previous.avatarUrl === participant.avatarUrl);
+        previous.avatarUrl === participant.avatarUrl &&
+        previous.bio === participant.bio &&
+        previous.memberSince === participant.memberSince &&
+        previous.profileUrl === participant.profileUrl &&
+        previous.lastSeenTime === participant.lastSeenTime);
     this._fallbackParticipant = participant;
     if (!same) {
       this.requestUpdate("_fallbackParticipant", previous);

@@ -1559,10 +1559,26 @@ public final class J2clReadSurfaceDomRenderer {
     // also consults the optimistic-toggle registry so a self-initiated
     // toggle that is still in flight is preserved across unrelated
     // live updates.
+    // When per-task affordances exist, only mark the host done if ALL tasks
+    // are checked; a single checked task must not apply line-through to the
+    // entire blip body.
+    boolean effectiveTaskDone = blip.isTaskDone();
+    if (taskBinder != null) {
+      List<J2clTaskItemModel> blipTasks = taskBinder.tasksFor(blip.getBlipId());
+      if (blipTasks != null && !blipTasks.isEmpty()) {
+        effectiveTaskDone = true;
+        for (J2clTaskItemModel t : blipTasks) {
+          if (!t.isChecked()) {
+            effectiveTaskDone = false;
+            break;
+          }
+        }
+      }
+    }
     applyTaskState(
         element,
         blip.getBlipId(),
-        blip.isTaskDone(),
+        effectiveTaskDone,
         blip.getTaskAssignee(),
         blip.getTaskDueTimestamp(),
         blip.getBodyItemCount(),

@@ -35,6 +35,7 @@ export class WavyHeader extends LitElement {
     userName: { type: String, attribute: "user-name" },
     unreadCount: { type: Number, attribute: "unread-count" },
     basePath: { type: String, attribute: "base-path" },
+    compactGwtTopbar: { type: Boolean, attribute: "compact-gwt-topbar", reflect: true },
     // V-1 (#1099): when the host carries no-brand the inner SupaWave
     // brand link is suppressed so the J2CL root shell can render the
     // canonical brand from shell-header > [slot="brand"] without
@@ -80,6 +81,11 @@ export class WavyHeader extends LitElement {
     :host([no-brand]) .brand {
       display: none;
     }
+    :host([compact-gwt-topbar]) {
+      gap: 8px;
+      flex-wrap: nowrap;
+      color: #fff;
+    }
     .brand-dot {
       width: 8px;
       height: 8px;
@@ -95,6 +101,20 @@ export class WavyHeader extends LitElement {
       padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
     }
+    :host([compact-gwt-topbar]) .locale {
+      width: 40px;
+      height: 32px;
+      min-width: 40px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 4px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.10);
+      background-image: none;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
     .bell,
     .mail,
     .user-menu {
@@ -108,6 +128,25 @@ export class WavyHeader extends LitElement {
       padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
       border-radius: var(--wavy-radius-pill, 9999px);
       text-decoration: none;
+    }
+    :host([compact-gwt-topbar]) .bell,
+    :host([compact-gwt-topbar]) .mail,
+    :host([compact-gwt-topbar]) .user-menu {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      padding: 0;
+      justify-content: center;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 6px;
+    }
+    :host([compact-gwt-topbar]) .bell:focus-visible,
+    :host([compact-gwt-topbar]) .mail:focus-visible,
+    :host([compact-gwt-topbar]) .user-menu:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.95);
+      outline-offset: 2px;
+      background: rgba(255, 255, 255, 0.18);
     }
     .bell:hover,
     .bell:focus-visible,
@@ -148,6 +187,10 @@ export class WavyHeader extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
     }
+    :host([compact-gwt-topbar]) .user-email {
+      /* GWT topbar parity: compact chrome keeps the avatar chip but hides the long email. */
+      display: none;
+    }
     @media (max-width: 600px) {
       .user-email {
         display: none;
@@ -167,6 +210,7 @@ export class WavyHeader extends LitElement {
     this.userName = "";
     this.unreadCount = 0;
     this.basePath = "/";
+    this.compactGwtTopbar = false;
     this.noBrand = false;
   }
 
@@ -238,7 +282,7 @@ export class WavyHeader extends LitElement {
         ${WavyHeader.LOCALES.map(
           (loc) =>
             html`<option value=${loc.code} ?selected=${loc.code === this.locale}>
-              ${loc.label}
+              ${this.compactGwtTopbar ? loc.code.replace("_", "-").toUpperCase() : loc.label}
             </option>`
         )}
       </select>

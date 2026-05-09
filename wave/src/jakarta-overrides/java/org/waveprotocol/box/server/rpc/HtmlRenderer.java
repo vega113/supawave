@@ -3563,11 +3563,9 @@ public final class HtmlRenderer {
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
           .append("</shell-skip-link>\n");
-      sb.append("  <shell-header slot=\"header\" signed-in>\n");
-      // V-1 (#1099): brand block matches 01-shell-inbox-with-waves.svg —
-      // 36px circular SupaWave mark + bold name + subtle eyebrow. The
-      // SVG mark mirrors the mockup symbol (<symbol id="supawave-mark">)
-      // inline so no asset bump is required for visual parity.
+      sb.append("  <shell-header slot=\"header\" signed-in compact-gwt-topbar>\n");
+      // Compact GWT parity: keep the SupaWave brand in the root shell header
+      // without exposing the J2CL route/debug eyebrow in the user chrome.
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
           .append(safeResolvedReturnTarget)
           .append("\" aria-label=\"SupaWave\">\n");
@@ -3579,7 +3577,6 @@ public final class HtmlRenderer {
           .append("</svg></span>\n");
       sb.append("      <span class=\"j2cl-brand-stack\">")
           .append("<span class=\"j2cl-brand-name\">SupaWave</span>")
-          .append("<span class=\"j2cl-brand-eyebrow\">J2CL · ").append(safeResolvedBasePath).append("?view=j2cl-root</span>")
           .append("</span>\n");
       sb.append("    </a>\n");
       // F-2 slice 3 (#1047): wavy header chrome (A.1, A.2, A.5, A.6,
@@ -3593,7 +3590,9 @@ public final class HtmlRenderer {
       // <wavy-blip-card> server-render contract). The raw address is
       // passed through alongside the safe (HTML-escaped) form so
       // computeUserInitials can run on the unescaped local part.
-      appendWavyHeaderActionsSlot(sb, address, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, safeHtmlLang);
+      appendWavyHeaderActionsSlot(
+          sb, address, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, safeHtmlLang,
+          true);
       // The legacy inline Admin and Sign out links are PRESERVED until
       // the F-0 user-menu sheet ships (A.7 only mounts the trigger;
       // A.8–A.18 are F-0). Removing them now would orphan affordances
@@ -3695,9 +3694,9 @@ public final class HtmlRenderer {
       sb.append("  <shell-skip-link slot=\"skip-link\" target=\"#j2cl-root-shell-workflow\" label=\"Skip to main content\">")
           .append("<a href=\"#j2cl-root-shell-workflow\">Skip to main content</a>")
           .append("</shell-skip-link>\n");
-      sb.append("  <shell-header slot=\"header\">\n");
-      // V-1 (#1099): brand block matches 01-shell-inbox-with-waves.svg
-      // (mirrored from the signed-in branch above).
+      sb.append("  <shell-header slot=\"header\" compact-gwt-topbar>\n");
+      // Compact GWT parity: mirror the signed-in brand treatment without
+      // exposing the J2CL route/debug eyebrow.
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
           .append(safeResolvedReturnTarget)
           .append("\" aria-label=\"SupaWave\">\n");
@@ -3709,7 +3708,6 @@ public final class HtmlRenderer {
           .append("</svg></span>\n");
       sb.append("      <span class=\"j2cl-brand-stack\">")
           .append("<span class=\"j2cl-brand-name\">SupaWave</span>")
-          .append("<span class=\"j2cl-brand-eyebrow\">J2CL · ").append(safeResolvedBasePath).append("?view=j2cl-root</span>")
           .append("</span>\n");
       sb.append("    </a>\n");
       sb.append("    <span slot=\"actions-signed-out\">Signed out</span>\n");
@@ -3871,7 +3869,7 @@ public final class HtmlRenderer {
     sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave Read Surface Preview</span>\n");
     sb.append("    </a>\n");
     appendWavyHeaderActionsSlot(
-        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, "en");
+        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, "en", false);
     sb.append("  </shell-header>\n");
     sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
     appendWavySearchRail(sb, safeInitialQuery, false, false);
@@ -4228,7 +4226,8 @@ public final class HtmlRenderer {
    */
   private static void appendWavyHeaderActionsSlot(
       StringBuilder sb, String rawAddress, String safeAddress,
-      String safeResolvedReturnTarget, String safeBasePath, String safeHtmlLang) {
+      String safeResolvedReturnTarget, String safeBasePath, String safeHtmlLang,
+      boolean compactGwtTopbar) {
     String escapedAddress = safeAddress == null ? "" : safeAddress;
     // computeUserInitials runs on the RAW address so the local-part
     // splitting matches the JS Lit element exactly (the Lit element
@@ -4243,7 +4242,11 @@ public final class HtmlRenderer {
     // still emitted below (parity contract); the shadow render skips
     // it post-upgrade and a CSS rule in shell-tokens.css hides the
     // SSR copy pre-upgrade.
-    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in no-brand locale=\"")
+    sb.append("    <wavy-header slot=\"actions-signed-in\" signed-in no-brand");
+    if (compactGwtTopbar) {
+      sb.append(" compact-gwt-topbar");
+    }
+    sb.append(" locale=\"")
         .append(selectedLocaleOpt)
         .append("\" data-address=\"")
         .append(escapedAddress)
@@ -4258,13 +4261,13 @@ public final class HtmlRenderer {
         .append("<span class=\"brand-dot\" aria-hidden=\"true\"></span>")
         .append("<span class=\"brand-text\">SupaWave</span></a>\n");
     sb.append("      <select class=\"locale\" aria-label=\"Language\">\n");
-    sb.append("        <option value=\"en\"").append("en".equals(selectedLocaleOpt) ? " selected" : "").append(">English</option>\n");
-    sb.append("        <option value=\"de\"").append("de".equals(selectedLocaleOpt) ? " selected" : "").append(">Deutsch</option>\n");
-    sb.append("        <option value=\"es\"").append("es".equals(selectedLocaleOpt) ? " selected" : "").append(">Español</option>\n");
-    sb.append("        <option value=\"fr\"").append("fr".equals(selectedLocaleOpt) ? " selected" : "").append(">Français</option>\n");
-    sb.append("        <option value=\"ru\"").append("ru".equals(selectedLocaleOpt) ? " selected" : "").append(">Русский</option>\n");
-    sb.append("        <option value=\"sl\"").append("sl".equals(selectedLocaleOpt) ? " selected" : "").append(">Slovenščina</option>\n");
-    sb.append("        <option value=\"zh_TW\"").append("zh_TW".equals(selectedLocaleOpt) ? " selected" : "").append(">繁體中文</option>\n");
+    appendLocaleOption(sb, "en", "English", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "de", "Deutsch", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "es", "Español", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "fr", "Français", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "ru", "Русский", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "sl", "Slovenščina", selectedLocaleOpt, compactGwtTopbar);
+    appendLocaleOption(sb, "zh_TW", "繁體中文", selectedLocaleOpt, compactGwtTopbar);
     sb.append("      </select>\n");
     // A.5 notifications bell — server-renders the same SVG glyph the
     // Lit element renders so the icon does not appear empty pre-upgrade.
@@ -4288,6 +4291,23 @@ public final class HtmlRenderer {
         .append(escapedAddress)
         .append("</span></button>\n");
     sb.append("    </wavy-header>\n");
+  }
+
+  private static void appendLocaleOption(
+      StringBuilder sb, String value, String fullLabel, String selectedLocaleOpt,
+      boolean compactGwtTopbar) {
+    String label = compactGwtTopbar ? compactLocaleLabel(value) : fullLabel;
+    sb.append("        <option value=\"")
+        .append(value)
+        .append("\"")
+        .append(value.equals(selectedLocaleOpt) ? " selected" : "")
+        .append(">")
+        .append(label)
+        .append("</option>\n");
+  }
+
+  private static String compactLocaleLabel(String value) {
+    return value.replace('_', '-').toUpperCase(Locale.ROOT);
   }
 
   /**

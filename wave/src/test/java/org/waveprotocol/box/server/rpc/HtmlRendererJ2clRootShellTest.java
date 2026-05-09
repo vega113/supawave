@@ -49,6 +49,20 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("window.__j2clRootShellStat"));
   }
 
+  public void testSignedInTopHeaderUsesGwtCompactChrome() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "admin");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+
+    assertTrue(html.contains("<shell-header slot=\"header\" signed-in compact-gwt-topbar"));
+    assertTrue(html.contains("<wavy-header slot=\"actions-signed-in\" signed-in no-brand compact-gwt-topbar"));
+    assertFalse(html.contains("j2cl-brand-eyebrow"));
+    assertFalse(html.contains("J2CL ·"));
+  }
+
   public void testSignedOutPageUsesSignedOutRoot() {
     JSONObject session = new JSONObject();
 
@@ -57,6 +71,29 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertTrue(html.contains("<shell-root-signed-out"));
     assertFalse(html.contains("<shell-root data-j2cl-root-shell"));
+  }
+
+  public void testSignedOutTopHeaderUsesGwtCompactChrome() {
+    JSONObject session = new JSONObject();
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+
+    assertTrue(html.contains("<shell-header slot=\"header\" compact-gwt-topbar"));
+    assertTrue(html.contains("<span slot=\"actions-signed-out\">Signed out</span>"));
+    assertTrue(html.contains("<a slot=\"actions-signed-out\""));
+    assertTrue(html.contains("Sign in"));
+    assertFalse(html.contains("j2cl-brand-eyebrow"));
+    assertFalse(html.contains("J2CL ·"));
+  }
+
+  public void testReadSurfacePreviewKeepsPreviewHeaderChrome() {
+    String html = HtmlRenderer.renderJ2clReadSurfacePreviewPage(
+        "", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
+
+    assertTrue(html.contains("SupaWave Read Surface Preview"));
+    assertTrue(html.contains(">English</option>"));
+    assertFalse(html.contains("compact-gwt-topbar"));
   }
 
   public void testLegacyShellClassesAreNoLongerEmitted() {

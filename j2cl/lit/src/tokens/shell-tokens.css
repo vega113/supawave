@@ -183,12 +183,27 @@ shell-header {
   box-sizing: border-box;
 }
 
+shell-header[compact-gwt-topbar] {
+  padding: 0 12px;
+  min-height: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #023e6b 0%, #006b9f 62%, #0077a8 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 8px rgba(0, 50, 100, 0.18);
+  color: #fff;
+}
+
 shell-header > [slot="brand"] {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   color: #0b1320;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] {
+  gap: 8px;
+  color: #fff;
 }
 
 shell-header > [slot="brand"] .j2cl-brand-mark {
@@ -199,10 +214,20 @@ shell-header > [slot="brand"] .j2cl-brand-mark {
   height: 36px;
 }
 
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-mark {
+  width: 24px;
+  height: 24px;
+}
+
 shell-header > [slot="brand"] .j2cl-brand-mark svg {
   width: 36px;
   height: 36px;
   display: block;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-mark svg {
+  width: 24px;
+  height: 24px;
 }
 
 shell-header > [slot="brand"] .j2cl-brand-stack {
@@ -218,12 +243,21 @@ shell-header > [slot="brand"] .j2cl-brand-name {
   color: #0b1320;
 }
 
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-name {
+  font-size: 17px;
+  color: #fff;
+}
+
 shell-header > [slot="brand"] .j2cl-brand-eyebrow {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 11px;
   letter-spacing: 0.08em;
   color: rgba(11, 19, 32, 0.55);
   margin-top: 2px;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-eyebrow {
+  display: none;
 }
 
 /* The wavy-header (right cluster) renders its own brand link as part of
@@ -249,14 +283,34 @@ shell-header > [slot="actions-signed-out"] {
   box-sizing: border-box;
 }
 
+shell-header[compact-gwt-topbar] > [slot="actions-signed-in"],
+shell-header[compact-gwt-topbar] > [slot="actions-signed-out"] {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: #fff;
+}
+
 shell-header > span[slot^="actions"] {
   background: var(--shell-color-surface-soft);
   color: var(--shell-color-text-muted);
 }
 
+shell-header[compact-gwt-topbar] > span[slot^="actions"] {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 shell-header > a[slot^="actions"] {
   border: 1px solid rgba(189, 200, 202, 0.75);
   background: #fff;
+}
+
+shell-header[compact-gwt-topbar] > a[slot^="actions"] {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
 }
 
 shell-header > a[data-j2cl-root-signin="true"] {

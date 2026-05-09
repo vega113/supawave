@@ -810,6 +810,56 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void optimisticTaskToggleImmediatelyMarksSingleTaskBlipDone() {
+    assumeBrowserDom();
+    HTMLElement blip = taskBlip("b+task");
+    HTMLElement affordance = taskAffordance("b+task", false);
+    affordance.setAttribute("data-task-id", "task-1");
+    blip.appendChild(affordance);
+
+    dispatchTaskToggle(affordance, "b+task", "task-1", true);
+
+    Assert.assertTrue(blip.hasAttribute("data-task-present"));
+    Assert.assertTrue(blip.hasAttribute("data-task-completed"));
+  }
+
+  @Test
+  public void optimisticTaskToggleOnlyMarksMultiTaskBlipDoneWhenAllTasksDone() {
+    assumeBrowserDom();
+    HTMLElement blip = taskBlip("b+task");
+    HTMLElement first = taskAffordance("b+task", false);
+    HTMLElement second = taskAffordance("b+task", false);
+    first.setAttribute("data-task-id", "task-1");
+    second.setAttribute("data-task-id", "task-2");
+    blip.appendChild(first);
+    blip.appendChild(second);
+
+    dispatchTaskToggle(first, "b+task", "task-1", true);
+    Assert.assertFalse(
+        "A single completed task must not mark the whole multi-task blip done",
+        blip.hasAttribute("data-task-completed"));
+
+    second.setAttribute("data-task-completed", "");
+    dispatchTaskToggle(first, "b+task", "task-1", true);
+    Assert.assertTrue(blip.hasAttribute("data-task-completed"));
+  }
+
+  @Test
+  public void optimisticTaskToggleCanClearCompletedHostState() {
+    assumeBrowserDom();
+    HTMLElement blip = taskBlip("b+task");
+    blip.setAttribute("data-task-completed", "");
+    HTMLElement affordance = taskAffordance("b+task", true);
+    affordance.setAttribute("data-task-id", "task-1");
+    blip.appendChild(affordance);
+
+    dispatchTaskToggle(affordance, "b+task", "task-1", false);
+
+    Assert.assertTrue(blip.hasAttribute("data-task-present"));
+    Assert.assertFalse(blip.hasAttribute("data-task-completed"));
+  }
+
+  @Test
   public void depthNavEventsEmitTelemetry() {
     assumeBrowserDom();
     HTMLElement host = createHost();
@@ -1049,6 +1099,39 @@ public class J2clSelectedWaveViewChromeTest {
     init.setBubbles(true);
     init.setComposed(true);
     target.dispatchEvent(new elemental2.dom.CustomEvent<Object>(eventName, init));
+  }
+
+  private static HTMLElement taskBlip(String blipId) {
+    HTMLElement blip = (HTMLElement) DomGlobal.document.createElement("wave-blip");
+    blip.setAttribute("data-blip-id", blipId);
+    return blip;
+  }
+
+  private static HTMLElement taskAffordance(String blipId, boolean completed) {
+    HTMLElement affordance =
+        (HTMLElement) DomGlobal.document.createElement("wavy-task-affordance");
+    affordance.setAttribute("data-blip-id", blipId);
+    if (completed) {
+      affordance.setAttribute("data-task-completed", "");
+    }
+    return affordance;
+  }
+
+  private static void dispatchTaskToggle(
+      HTMLElement affordance, String blipId, String taskId, boolean completed) {
+    elemental2.dom.CustomEventInit<Object> init = elemental2.dom.CustomEventInit.create();
+    init.setBubbles(true);
+    init.setComposed(true);
+    jsinterop.base.JsPropertyMap<Object> detail = jsinterop.base.JsPropertyMap.of();
+    detail.set("blipId", blipId);
+    detail.set("taskId", taskId);
+    detail.set("completed", completed);
+    init.setDetail(detail);
+    affordance.addEventListener(
+        "wave-blip-task-toggled",
+        evt -> J2clSelectedWaveView.applyOptimisticTaskHostState(evt, blipId, taskId, completed));
+    affordance.dispatchEvent(
+        new elemental2.dom.CustomEvent<Object>("wave-blip-task-toggled", init));
   }
 
   private static void assumeBrowserDom() {

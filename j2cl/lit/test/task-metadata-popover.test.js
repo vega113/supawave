@@ -45,8 +45,12 @@ describe("<task-metadata-popover>", () => {
     expect(getComputedStyle(title).fontSize).to.equal("18px");
     expect(getComputedStyle(label).textTransform).to.equal("uppercase");
     expect(getComputedStyle(input).borderRadius).to.equal("8px");
+    expect(getComputedStyle(input).width).to.equal("284px");
+    expect(input.getBoundingClientRect().top).to.be.greaterThan(label.getBoundingClientRect().top);
     expect(getComputedStyle(cancel).backgroundColor).to.equal("rgb(255, 255, 255)");
     expect(getComputedStyle(save).backgroundColor).to.equal("rgb(26, 115, 232)");
+    expect(getComputedStyle(cancel).width).to.not.equal("284px");
+    expect(cancel.getBoundingClientRect().top).to.equal(save.getBoundingClientRect().top);
   });
 
   it("generates unique heading ids for multiple task dialogs", async () => {

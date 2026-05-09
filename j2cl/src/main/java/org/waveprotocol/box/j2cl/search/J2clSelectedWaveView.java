@@ -5,9 +5,12 @@ import elemental2.core.JsDate;
 import elemental2.dom.CustomEvent;
 import elemental2.dom.CustomEventInit;
 import elemental2.dom.DomGlobal;
+import elemental2.dom.Element;
+import elemental2.dom.Event;
 import elemental2.dom.Element.FocusOptionsType;
 import elemental2.dom.HTMLDivElement;
 import elemental2.dom.HTMLElement;
+import elemental2.dom.NodeList;
 import elemental2.dom.ScrollIntoViewOptions;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -382,6 +385,8 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
           } else {
             completed = "true".equals(String.valueOf(completedValue));
           }
+          Object taskIdValue = jsinterop.base.Js.asPropertyMap(detail).get("taskId");
+          String taskId = taskIdValue == null ? "" : String.valueOf(taskIdValue);
           // PR #1097 review (codex P2): namespace the optimistic-toggle
           // entry by wave id so a stale entry from one wave does not
           // bleed onto another wave that reuses the same blip id.
@@ -395,8 +400,61 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             String hostWaveId = contentList.getAttribute("data-wave-id");
             waveId = hostWaveId == null ? "" : hostWaveId;
           }
-          renderer.noteOptimisticTaskState(waveId, blipId, completed);
+          boolean allTasksCompleted =
+              applyOptimisticTaskHostState(evt, blipId, taskId, completed);
+          renderer.noteOptimisticTaskState(waveId, blipId, allTasksCompleted);
         });
+  }
+
+  static boolean applyOptimisticTaskHostState(
+      Event evt, String blipId, String taskId, boolean completed) {
+    if (evt == null || !(evt.target instanceof Element)) {
+      return completed;
+    }
+    Element source = (Element) evt.target;
+    Element host = source.closest("wave-blip");
+    if (!(host instanceof HTMLElement)) {
+      return completed;
+    }
+    HTMLElement blip = (HTMLElement) host;
+    String hostBlipId = blip.getAttribute("data-blip-id");
+    if (blipId == null || blipId.isEmpty() || !blipId.equals(hostBlipId)) {
+      return completed;
+    }
+
+    boolean allCompleted = true;
+    boolean matchedToggledAffordance = false;
+    String normalizedTaskId = taskId == null ? "" : taskId;
+    NodeList<Element> affordances = blip.querySelectorAll("wavy-task-affordance");
+    for (int index = 0; index < affordances.length; index++) {
+      Element affordance = affordances.item(index);
+      if (affordance == null) {
+        continue;
+      }
+      String affordanceTaskId = affordance.getAttribute("data-task-id");
+      boolean isToggledAffordance =
+          affordance == source
+              || (!normalizedTaskId.isEmpty() && normalizedTaskId.equals(affordanceTaskId));
+      if (isToggledAffordance) {
+        matchedToggledAffordance = true;
+      }
+      boolean affordanceCompleted =
+          isToggledAffordance ? completed : affordance.hasAttribute("data-task-completed");
+      if (!affordanceCompleted) {
+        allCompleted = false;
+        break;
+      }
+    }
+    if (affordances.length == 0 || (!matchedToggledAffordance && affordances.length == 1)) {
+      allCompleted = completed;
+    }
+    blip.setAttribute("data-task-present", "");
+    if (allCompleted) {
+      blip.setAttribute("data-task-completed", "");
+    } else {
+      blip.removeAttribute("data-task-completed");
+    }
+    return allCompleted;
   }
 
   private void bindSelectedWaveRefreshListener(HTMLElement card) {

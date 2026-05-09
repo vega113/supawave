@@ -62,7 +62,8 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     }
     String returnTarget = resolveReturnTarget(routeUrl, shell);
     shell.setAttribute("data-j2cl-root-return-target", returnTarget);
-    updateHref(shell, "j2cl-root-brand-link", returnTarget);
+    // GWT parity (round 2): the brand link is a fixed hop to the marketing
+    // landing page; do not bind it to the J2CL return target.
     updateAuthHrefs(shell, "[data-j2cl-root-signin='true']", "/auth/signin", returnTarget);
     updateAuthHrefs(shell, "[data-j2cl-root-signout='true']", "/auth/signout", returnTarget);
 

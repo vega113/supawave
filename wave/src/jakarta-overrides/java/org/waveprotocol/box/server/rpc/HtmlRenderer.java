@@ -3565,9 +3565,10 @@ public final class HtmlRenderer {
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\" signed-in compact-gwt-topbar>\n");
       // Compact GWT parity: keep the SupaWave brand in the root shell header
-      // without exposing the J2CL route/debug eyebrow in the user chrome.
+      // without exposing the J2CL route/debug eyebrow in the user chrome. The
+      // brand href hops to the landing page (matches GWT topbar parity).
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
-          .append(safeResolvedReturnTarget)
+          .append(safeResolvedBasePath).append("?view=landing")
           .append("\" aria-label=\"SupaWave\">\n");
       sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
           .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
@@ -3697,9 +3698,9 @@ public final class HtmlRenderer {
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\" compact-gwt-topbar>\n");
       // Compact GWT parity: mirror the signed-in brand treatment without
-      // exposing the J2CL route/debug eyebrow.
+      // exposing the J2CL route/debug eyebrow; brand href hops to landing.
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
-          .append(safeResolvedReturnTarget)
+          .append(safeResolvedBasePath).append("?view=landing")
           .append("\" aria-label=\"SupaWave\">\n");
       sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
           .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
@@ -4386,7 +4387,16 @@ public final class HtmlRenderer {
       // single contract J2clSearchPanelView reads on construction.
       sb.append(" data-rail-cards-enabled=\"true\"");
     }
-    sb.append(">\n");
+    sb.append(" aria-label=\"Search\">\n");
+    // GWT-parity (round 2, #1233): blue title strip at the top of the rail.
+    // Mirrors `.sidecar-selected-title` so the rail header and the wave-panel
+    // header sit at identical y / height / color side-by-side. The visible
+    // heading is aria-hidden; aria-label on the host covers pre-upgrade AT
+    // access before WavySearchRail.willUpdate fires.
+    sb.append("      <h2 class=\"panel-title\" id=\"wavy-search-rail-title\""
+        + " data-j2cl-rail-title aria-hidden=\"true\">")
+        .append(safeInitialQuery)
+        .append("</h2>\n");
     sb.append("      <div class=\"search\">\n");
     // F-2 slice 5 (#1055, A.4): explicit width/height on the SVG element.
     // Pre-upgrade, the Lit `:host { display:block }` rule has not attached
@@ -4936,8 +4946,9 @@ public final class HtmlRenderer {
     sb.append("  var encoded=encodeLocalReturnTargetForQuery(target, fallback);\n");
     sb.append("  var shell=document.querySelector('[data-j2cl-root-shell]');\n");
     sb.append("  if(shell){shell.setAttribute('data-j2cl-root-return-target', target);}\n");
-    sb.append("  var brand=document.getElementById('j2cl-root-brand-link');\n");
-    sb.append("  if(brand){brand.href=target;}\n");
+    // Round 2: the brand link is a fixed hop to the marketing landing
+    // page (built from resolvedBasePath at SSR render) and must not be
+    // rewritten by the return-target bootstrap.
     sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
     sb.append("  if(targetText){targetText.className='j2cl-status-live-text';targetText.textContent='Return target: ' + target;}\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");

@@ -643,6 +643,73 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void taskToggleRequestCanTargetSingleTaskRange() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+    String deltaJson =
+        factory
+            .taskToggleRequest(
+                "user@example.com", session, "b+root", true, TEST_BODY_ITEM_COUNT, 2, 5)
+            .getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"5\":2}",
+        "{\"1\":{\"3\":[{\"1\":\"task/done\",\"3\":\"true\"}]}}",
+        "{\"5\":3}",
+        "{\"1\":{\"2\":[\"task/done\"]}}",
+        "{\"5\":" + (TEST_BODY_ITEM_COUNT - 5) + "}");
+    assertRangeAnnotationShape(deltaJson, 2, 3, TEST_BODY_ITEM_COUNT - 5);
+  }
+
+  @Test
+  public void taskToggleRequestCanTargetTaskAtOffsetZero() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+    String deltaJson =
+        factory
+            .taskToggleRequest(
+                "user@example.com", session, "b+root", true, TEST_BODY_ITEM_COUNT, 0, 4)
+            .getDeltaJson();
+    int annotationOpen = deltaJson.indexOf("{\"1\":{\"3\":[");
+    int annotatedRetain = deltaJson.indexOf("{\"5\":4}", annotationOpen);
+    int annotationClose = deltaJson.indexOf("{\"1\":{\"2\":[\"task/done\"]}}", annotatedRetain);
+    Assert.assertTrue("Missing annotation open in JSON: " + deltaJson, annotationOpen >= 0);
+    Assert.assertTrue(
+        "Missing annotated retain after open: " + deltaJson, annotatedRetain > annotationOpen);
+    Assert.assertTrue(
+        "Missing annotation close after retain: " + deltaJson,
+        annotationClose > annotatedRetain);
+    Assert.assertFalse(
+        "Offset-zero range must not emit a leading retain: " + deltaJson,
+        deltaJson.substring(0, annotationOpen).contains("{\"5\":"));
+  }
+
+  @Test
+  public void taskToggleRequestRejectsInvalidTaskRange() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-1", 0L, "ZERO", "b+root");
+    assertThrowsWithMessage(
+        "Invalid task annotation range.",
+        () ->
+            factory.taskToggleRequest(
+                "user@example.com", session, "b+root", true, TEST_BODY_ITEM_COUNT, 5, 2));
+    assertThrowsWithMessage(
+        "Invalid task annotation range.",
+        () ->
+            factory.taskToggleRequest(
+                "user@example.com",
+                session,
+                "b+root",
+                true,
+                TEST_BODY_ITEM_COUNT,
+                0,
+                TEST_BODY_ITEM_COUNT + 1));
+  }
+
+  @Test
   public void taskToggleRequestRejectsBlankBlipId() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =
@@ -831,6 +898,34 @@ public class J2clRichContentDeltaFactoryTest {
         "{\"5\":" + TEST_BODY_ITEM_COUNT + "}",
         "{\"1\":{\"2\":[\"task/assignee\",\"task/dueTs\"]}}");
     assertAnnotationBoundaryRetainShape(deltaJson, TEST_BODY_ITEM_COUNT);
+  }
+
+  @Test
+  public void taskMetadataRequestCanTargetSingleTaskRange() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession("example.com/w+x", "chan-2", 5L, "HASH", "b+root");
+    String deltaJson =
+        factory
+            .taskMetadataRequest(
+                "user@example.com",
+                session,
+                "b+root",
+                "alice@example.com",
+                "2026-05-15",
+                TEST_BODY_ITEM_COUNT,
+                1,
+                4)
+            .getDeltaJson();
+    assertContains(
+        deltaJson,
+        "{\"5\":1}",
+        "{\"1\":\"task/assignee\",\"3\":\"alice@example.com\"}",
+        "{\"1\":\"task/dueTs\",\"3\":\"1778803200000\"}",
+        "{\"5\":3}",
+        "{\"1\":{\"2\":[\"task/assignee\",\"task/dueTs\"]}}",
+        "{\"5\":" + (TEST_BODY_ITEM_COUNT - 4) + "}");
+    assertRangeAnnotationShape(deltaJson, 1, 3, TEST_BODY_ITEM_COUNT - 4);
   }
 
   // PR #1066 review thread PRRT_kwDOBwxLXs593gTP — explicit
@@ -1185,6 +1280,20 @@ public class J2clRichContentDeltaFactoryTest {
     Assert.assertFalse(
         "Annotation boundaries must not remain adjacent: " + deltaJson,
         betweenOpenAndClose.endsWith("]}}},"));
+  }
+
+  private static void assertRangeAnnotationShape(
+      String deltaJson, int leadingRetain, int annotatedRetain, int trailingRetain) {
+    int leading = deltaJson.indexOf("{\"5\":" + leadingRetain + "}");
+    int annotationOpen = deltaJson.indexOf("{\"1\":{\"3\":[", leading);
+    int annotated = deltaJson.indexOf("{\"5\":" + annotatedRetain + "}", annotationOpen);
+    int annotationClose = deltaJson.indexOf("{\"1\":{\"2\":[", annotated);
+    int trailing = deltaJson.indexOf("{\"5\":" + trailingRetain + "}", annotationClose);
+    Assert.assertTrue("Missing leading retain in JSON: " + deltaJson, leading >= 0);
+    Assert.assertTrue("Missing annotation open after leading retain: " + deltaJson, annotationOpen > leading);
+    Assert.assertTrue("Missing annotated retain after open: " + deltaJson, annotated > annotationOpen);
+    Assert.assertTrue("Missing annotation close after retain: " + deltaJson, annotationClose > annotated);
+    Assert.assertTrue("Missing trailing retain after close: " + deltaJson, trailing > annotationClose);
   }
 
   private static void assertInvalidSessionDoesNotAdvanceReplyBlipCounter(

@@ -61,7 +61,7 @@ public class J2clOverlayModelTest {
   @Test
   public void taskItemAndFocusTargetNormalizeNullValues() {
     J2clTaskItemModel task =
-        new J2clTaskItemModel(null, -4, null, null, 123L, true, false);
+        new J2clTaskItemModel(null, -4, -2, null, null, 123L, true, false);
     J2clOverlayFocusTarget target = new J2clOverlayFocusTarget(null);
 
     Assert.assertEquals("", task.getTaskId());
@@ -251,7 +251,7 @@ public class J2clOverlayModelTest {
     }
     try {
       blip.getTaskItems().add(
-          new J2clTaskItemModel("task-1", 0, "task-1", "", -1L, false, false));
+          new J2clTaskItemModel("task-1", 0, 4, "task-1", "", -1L, false, false));
       Assert.fail("task items should be immutable");
     } catch (UnsupportedOperationException expected) {
       // Expected immutable-list contract.

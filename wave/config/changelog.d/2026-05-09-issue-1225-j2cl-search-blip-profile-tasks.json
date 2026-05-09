@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-05-09-issue-1225-j2cl-search-blip-profile-tasks",
+  "version": "Issue #1225",
+  "date": "2026-05-09",
+  "title": "J2CL search, blip, profile, and task controls now match the legacy wave view more closely.",
+  "summary": "The J2CL root view restores legacy-style search panel chrome, keeps root content inside the read surface, uses profile images in blip headers, expands profile popup details, and moves task actions toward per-task controls.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Adds the legacy blue search-panel title strip above the J2CL search toolbar.",
+        "Stops rendering selected-wave snippet text above the root blip content.",
+        "Uses profile image avatars for blip authors with initials fallback and aligns blip action glyph color with the legacy toolbar.",
+        "Fetches and renders profile bio, online status, and profile links in the J2CL profile popup when profile data is available.",
+        "Removes blip-level task controls from the blip toolbar and emits task identity/range details from per-task affordances."
+      ]
+    }
+  ]
+}

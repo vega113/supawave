@@ -186,9 +186,10 @@ public final class J2clInteractionBlipModel {
       }
       tasks.add(
           new J2clTaskItemModel(
-              taskId,
-              taskIdRange.getStartOffset(),
-              "task-" + safe(blipId) + "-" + safe(taskId),
+                taskId,
+                taskIdRange.getStartOffset(),
+                taskIdRange.getEndOffset(),
+                "task-" + safe(blipId) + "-" + safe(taskId),
               findTaskValue(annotationRanges, "task/assignee", taskIdRange),
               parseLong(findTaskValue(annotationRanges, "task/dueTs", taskIdRange)),
               false,

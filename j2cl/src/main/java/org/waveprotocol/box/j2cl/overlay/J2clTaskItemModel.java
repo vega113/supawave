@@ -5,6 +5,7 @@ public final class J2clTaskItemModel {
 
   private final String taskId;
   private final int textOffset;
+  private final int endOffset;
   private final String elementAnchorId;
   private final String assigneeAddress;
   private final long dueTimestamp;
@@ -14,6 +15,7 @@ public final class J2clTaskItemModel {
   public J2clTaskItemModel(
       String taskId,
       int textOffset,
+      int endOffset,
       String elementAnchorId,
       String assigneeAddress,
       long dueTimestamp,
@@ -21,6 +23,7 @@ public final class J2clTaskItemModel {
       boolean editable) {
     this.taskId = taskId == null ? "" : taskId;
     this.textOffset = Math.max(0, textOffset);
+    this.endOffset = Math.max(this.textOffset, endOffset);
     this.elementAnchorId = elementAnchorId == null ? "" : elementAnchorId;
     this.assigneeAddress = assigneeAddress == null ? "" : assigneeAddress;
     this.dueTimestamp = dueTimestamp;
@@ -34,6 +37,10 @@ public final class J2clTaskItemModel {
 
   public int getTextOffset() {
     return textOffset;
+  }
+
+  public int getEndOffset() {
+    return endOffset;
   }
 
   public String getElementAnchorId() {

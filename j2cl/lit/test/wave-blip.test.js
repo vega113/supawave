@@ -447,45 +447,19 @@ describe("<wave-blip>", () => {
     expect(el.renderRoot.textContent).to.not.include("Task");
   });
 
-  it("mounts <wavy-task-affordance> only when task state is present", async () => {
+  it("does not mount blip-level task controls when only blip task attributes are present", async () => {
     const el = await fixture(html`
       <wave-blip
         data-blip-id="b20"
         data-wave-id="w20"
         author-name="A"
         data-task-assignee="alice@example.com"
-      ></wave-blip>
-    `);
-    await el.updateComplete;
-    const slot = el.renderRoot.querySelector('[data-task-affordance-slot]');
-    expect(slot).to.exist;
-    const affordance = slot.querySelector("wavy-task-affordance");
-    expect(affordance).to.exist;
-    expect(affordance.getAttribute("data-blip-id")).to.equal("b20");
-    expect(affordance.getAttribute("data-wave-id")).to.equal("w20");
-  });
-
-  it("keeps task affordances out of visible focus flow until the blip is active", async () => {
-    const el = await fixture(html`
-      <wave-blip
-        data-blip-id="b20a"
-        data-wave-id="w20a"
-        author-name="A"
         data-task-completed
       ></wave-blip>
     `);
     await el.updateComplete;
-    const slot = el.renderRoot.querySelector('[data-task-affordance-slot]');
-    expect(getComputedStyle(slot).visibility).to.equal("hidden");
-
-    el.setAttribute("focused", "");
-    await el.updateComplete;
-    expect(getComputedStyle(slot).visibility).to.equal("visible");
-
-    el.removeAttribute("focused");
-    el.setAttribute("tabindex", "0");
-    await el.updateComplete;
-    expect(getComputedStyle(slot).visibility).to.equal("visible");
+    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.equal(null);
+    expect(el.renderRoot.querySelector("wavy-task-affordance")).to.equal(null);
   });
 
   it("reflects taskCompleted as data-task-completed on the host", async () => {
@@ -500,59 +474,6 @@ describe("<wave-blip>", () => {
     expect(el.hasAttribute("data-task-completed")).to.equal(false);
   });
 
-  it("keeps task affordance mounted after an optimistic reopen toggle", async () => {
-    const el = await fixture(html`
-      <wave-blip data-blip-id="b21b" data-wave-id="w21b" data-task-completed></wave-blip>
-    `);
-    await el.updateComplete;
-    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
-    el.taskCompleted = false;
-    await el.updateComplete;
-    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
-  });
-
-  it("keeps task affordance mounted after DOM rebuild via data-task-present (reopened task)", async () => {
-    // Simulate the renderWindow DOM-rebuild path: the renderer emits data-task-present
-    // so a reopened task with no assignee/due-date keeps its affordance visible even
-    // though _taskPresent is lost when the old <wave-blip> node was destroyed.
-    const el = await fixture(html`
-      <wave-blip
-        data-blip-id="b21c"
-        data-wave-id="w21c"
-        data-task-present
-      ></wave-blip>
-    `);
-    await el.updateComplete;
-    expect(el.renderRoot.querySelector('[data-task-affordance-slot]')).to.exist;
-  });
-
-  it("re-emits wave-blip-task-toggled from the inner affordance with full detail", async () => {
-    const el = await fixture(html`
-      <wave-blip
-        data-blip-id="b22"
-        data-wave-id="w22"
-        data-blip-doc-size="17"
-        data-task-assignee="alice@example.com"
-      ></wave-blip>
-    `);
-    await el.updateComplete;
-    const affordance = el.renderRoot.querySelector("wavy-task-affordance");
-    await affordance.updateComplete;
-    const toggle = affordance.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
-    let captured = null;
-    el.addEventListener("wave-blip-task-toggled", (e) => {
-      captured = e.detail;
-    });
-    toggle.click();
-    await el.updateComplete;
-    expect(captured).to.deep.equal({
-      blipId: "b22",
-      waveId: "w22",
-      completed: true,
-      bodySize: 17
-    });
-  });
-
   it("does not strike through the whole body when data-task-completed is set", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b30" data-wave-id="w30" data-task-completed>
@@ -564,26 +485,6 @@ describe("<wave-blip>", () => {
     expect(body).to.exist;
     const style = getComputedStyle(body);
     expect(style.textDecorationLine || style.textDecoration).to.not.contain("line-through");
-  });
-
-  it("propagates taskAssignee + taskDueDate to the inner affordance", async () => {
-    const el = await fixture(html`
-      <wave-blip
-        data-blip-id="b31"
-        data-wave-id="w31"
-        data-task-assignee="bob@example.com"
-        data-task-due-date="2026-05-01"
-      ></wave-blip>
-    `);
-    await el.updateComplete;
-    const affordance = el.renderRoot.querySelector("wavy-task-affordance");
-    expect(affordance).to.exist;
-    expect(affordance.getAttribute("data-task-assignee")).to.equal(
-      "bob@example.com"
-    );
-    expect(affordance.getAttribute("data-task-due-date")).to.equal(
-      "2026-05-01"
-    );
   });
 
   // V-4 (#1102): per-blip chrome on the open wave.

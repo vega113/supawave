@@ -67,8 +67,37 @@ describe("<wavy-task-affordance>", () => {
     const event = await eventPromise;
     expect(event.detail.blipId).to.equal("b42");
     expect(event.detail.waveId).to.equal("w7");
+    expect(event.detail.taskId).to.equal("b42");
+    expect(event.detail.textStart).to.equal(-1);
+    expect(event.detail.textEnd).to.equal(-1);
     expect(event.detail.completed).to.equal(true);
     expect(event.detail.bodySize).to.equal(17);
+  });
+
+  it("emits task range details for per-task affordances", async () => {
+    const el = await fixture(html`
+      <wavy-task-affordance
+        data-blip-id="b42"
+        data-wave-id="w7"
+        data-task-id="task-a"
+        data-task-start="5"
+        data-task-end="17"
+        data-blip-doc-size="22"
+      ></wavy-task-affordance>
+    `);
+    const toggle = el.renderRoot.querySelector('[data-task-toggle-trigger="true"]');
+    const eventPromise = oneEvent(el, "wave-blip-task-toggled");
+    toggle.click();
+    const event = await eventPromise;
+    expect(event.detail).to.include({
+      blipId: "b42",
+      waveId: "w7",
+      taskId: "task-a",
+      textStart: 5,
+      textEnd: 17,
+      completed: true,
+      bodySize: 22
+    });
   });
 
   it("flips aria-checked and the data-task-completed attribute on toggle", async () => {

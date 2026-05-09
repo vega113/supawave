@@ -378,6 +378,126 @@ describe("<wavy-profile-overlay>", () => {
     expect(initials).to.equal("Q");
   });
 
+  it("fetches and renders profile bio, online status, and profile URL on open", async () => {
+    const previousFetch = globalThis.fetch;
+    let requestedUrl = "";
+    globalThis.fetch = async (url) => {
+      requestedUrl = String(url);
+      return {
+        ok: true,
+        json: async () => ({
+          profiles: [
+            {
+              address: "gpt-bot@supawave.ai",
+              name: "GPT Bot",
+              imageUrl: "/bot.png",
+              profileUrl: "https://supawave.ai/bots/gpt",
+              bio: "Answers questions in waves",
+              lastSeenTime: new Date().toISOString(),
+              memberSince: Date.UTC(2026, 2, 1)
+            }
+          ]
+        })
+      };
+    };
+    try {
+      const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+      el.participants = [{ id: "gpt-bot@supawave.ai", displayName: "gpt-bot@supawave.ai" }];
+      await el.updateComplete;
+      document.dispatchEvent(
+        new CustomEvent("wave-blip-profile-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { authorId: "gpt-bot@supawave.ai" }
+        })
+      );
+      await el.updateComplete;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(requestedUrl).to.contain("/profile/?addresses=gpt-bot%40supawave.ai");
+      expect(el.renderRoot.querySelector(".name").textContent.trim()).to.equal("GPT Bot");
+      expect(el.renderRoot.querySelector("[data-profile-bio]").textContent.trim()).to.equal(
+        "Answers questions in waves"
+      );
+      expect(el.renderRoot.querySelector("[data-profile-status]").textContent.trim()).to.equal(
+        "Online"
+      );
+      expect(
+        el.renderRoot.querySelector("[data-profile-member-since]").textContent.trim()
+      ).to.contain("Member since");
+      expect(el.renderRoot.querySelector("[data-profile-url]").textContent.trim()).to.equal(
+        "Bot profile"
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  it("keeps profile open and avoids invalid last-seen text when detail fetch fails", async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error("offline");
+    };
+    try {
+      const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+      el.participants = [
+        { id: "alice@example.com", displayName: "Alice", lastSeenTime: "not-a-date" }
+      ];
+      await el.updateComplete;
+      document.dispatchEvent(
+        new CustomEvent("wave-blip-profile-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { authorId: "alice@example.com" }
+        })
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(el.open).to.equal(true);
+      expect(el.renderRoot.querySelector(".name").textContent.trim()).to.equal("Alice");
+      expect(el.renderRoot.querySelector("[data-profile-status]")).to.equal(null);
+      expect(el.renderRoot.textContent).not.to.contain("Invalid Date");
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  it("does not render unsafe profile URLs from fetched profile details", async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        profiles: [
+          {
+            address: "bot@example.com",
+            name: "Bot",
+            profileUrl: "javascript:alert(1)"
+          }
+        ]
+      })
+    });
+    try {
+      const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
+      el.participants = [{ id: "bot@example.com", displayName: "Bot" }];
+      await el.updateComplete;
+      document.dispatchEvent(
+        new CustomEvent("wave-blip-profile-requested", {
+          bubbles: true,
+          composed: true,
+          detail: { authorId: "bot@example.com" }
+        })
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await el.updateComplete;
+
+      expect(el.renderRoot.querySelector("[data-profile-url]")).to.equal(null);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("real keyboard path: host receives Escape after focus moves on open", async () => {
     const el = await fixture(html`<wavy-profile-overlay></wavy-profile-overlay>`);
     el.participants = PARTICIPANTS;

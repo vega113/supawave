@@ -126,6 +126,11 @@ public final class J2clReadSurfaceDomRenderer {
     List<J2clMentionRange> mentionsFor(String blipId);
   }
 
+  @FunctionalInterface
+  public interface TaskBinder {
+    List<J2clTaskItemModel> tasksFor(String blipId);
+  }
+
   /** Test seam for the dwell-timer scheduler so unit tests can swap a fake clock. */
   public interface DwellTimerScheduler {
     /**
@@ -161,6 +166,7 @@ public final class J2clReadSurfaceDomRenderer {
   // wiring yet" — the row is still mounted as an empty add-only state.
   private ReactionBinder reactionBinder;
   private MentionBinder mentionBinder;
+  private TaskBinder taskBinder;
   // J-UI-4 (#1082, R-3.1): conversation manifest for the current wave.
   // Set by the view layer before each render call. The renderer uses
   // this to graft parent-blip-id / thread-id onto each blip in the
@@ -261,6 +267,10 @@ public final class J2clReadSurfaceDomRenderer {
 
   public void setMentionBinder(MentionBinder binder) {
     this.mentionBinder = binder;
+  }
+
+  public void setTaskBinder(TaskBinder binder) {
+    this.taskBinder = binder;
   }
 
   /**
@@ -1580,6 +1590,11 @@ public final class J2clReadSurfaceDomRenderer {
         blip.getInlineReplyAnchors());
     element.appendChild(content);
 
+    HTMLElement taskList = renderTaskAffordances(blip);
+    if (taskList != null) {
+      element.appendChild(taskList);
+    }
+
     if (!blip.getAttachments().isEmpty()) {
       HTMLElement attachments = (HTMLElement) DomGlobal.document.createElement("div");
       attachments.className = "j2cl-read-attachments";
@@ -1602,6 +1617,52 @@ public final class J2clReadSurfaceDomRenderer {
     setProperty(reactionRow, "reactions", buildReactionsArray(blip.getBlipId()));
     element.appendChild(reactionRow);
     return element;
+  }
+
+  private HTMLElement renderTaskAffordances(J2clReadBlip blip) {
+    List<J2clTaskItemModel> tasks = taskBinder == null
+        ? Collections.<J2clTaskItemModel>emptyList()
+        : taskBinder.tasksFor(blip.getBlipId());
+    if (tasks == null || tasks.isEmpty()) {
+      return null;
+    }
+    HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
+    list.className = "j2cl-read-task-affordances";
+    list.setAttribute("data-task-affordance-list", "");
+    list.setAttribute("slot", "blip-extension");
+    for (J2clTaskItemModel task : tasks) {
+      if (task == null || task.getTaskId().isEmpty()) {
+        continue;
+      }
+      HTMLElement affordance = (HTMLElement) DomGlobal.document.createElement("wavy-task-affordance");
+      affordance.setAttribute("data-blip-id", blip.getBlipId());
+      affordance.setAttribute("data-task-id", task.getTaskId());
+      affordance.setAttribute("data-task-start", String.valueOf(task.getTextOffset()));
+      affordance.setAttribute("data-task-end", String.valueOf(task.getEndOffset()));
+      affordance.setAttribute("data-task-anchor-id", task.getElementAnchorId());
+      if (task.isChecked()) {
+        affordance.setAttribute("data-task-completed", "");
+      }
+      if (!task.getAssigneeAddress().isEmpty()) {
+        affordance.setAttribute("data-task-assignee", task.getAssigneeAddress());
+      }
+      String dueDate = formatDueDate(task.getDueTimestamp());
+      if (!dueDate.isEmpty()) {
+        affordance.setAttribute("data-task-due-date", dueDate);
+      }
+      if (blip.getBodyItemCount() > 0) {
+        affordance.setAttribute("data-blip-doc-size", String.valueOf(blip.getBodyItemCount()));
+      }
+      String waveId = currentWaveId();
+      if (!waveId.isEmpty()) {
+        affordance.setAttribute("data-wave-id", waveId);
+      }
+      setProperty(affordance, "taskId", task.getTaskId());
+      setProperty(affordance, "textStart", task.getTextOffset());
+      setProperty(affordance, "textEnd", task.getEndOffset());
+      list.appendChild(affordance);
+    }
+    return list.childElementCount == 0 ? null : list;
   }
 
   private static void applyInlineReplyAnchorState(

@@ -1,0 +1,19 @@
+{
+  "releaseId": "2026-05-09-j2cl-root-parity-five-gaps",
+  "version": "Issue #1232",
+  "date": "2026-05-09",
+  "title": "J2CL root surface aligns with GWT for topbar, search rail, tasks, blip, and status icons.",
+  "summary": "Closes five user-reported parity gaps so the J2CL root shell mirrors the legacy SupaWave chrome end-to-end.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Aligns the compact J2CL topbar gradient and brand font with the GWT topbar.",
+        "Drops the framed search-rail title strip so the search input sits flush to the rail top.",
+        "Restores the legacy task metadata popup chrome on the J2CL task overlay.",
+        "Paints the unread metabar background on J2CL root blips to match the GWT unread cue.",
+        "Surfaces save and connection status icons inside the compact J2CL topbar."
+      ]
+    }
+  ]
+}

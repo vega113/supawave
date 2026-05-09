@@ -1642,7 +1642,12 @@ public final class J2clReadSurfaceDomRenderer {
     if (tasks == null || tasks.isEmpty()) {
       // Legacy task blip: has task/done annotation but no task/id ranges. Render a
       // single affordance without task-id so the toggle button remains usable.
-      if (!blip.isTask()) {
+      // Also preserve affordance for blips that only carry legacy task metadata
+      // (task/assignee or task/dueTs) without a task/done annotation — isTask()
+      // only returns true when task/done is present, so we must also check metadata.
+      boolean hasLegacyMetadata = !blip.getTaskAssignee().isEmpty()
+          || blip.getTaskDueTimestamp() != 0;
+      if (!blip.isTask() && !hasLegacyMetadata) {
         return null;
       }
       HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
@@ -1996,8 +2001,10 @@ public final class J2clReadSurfaceDomRenderer {
     // data-task-present survives a full DOM rebuild (renderWindow clears host.innerHTML).
     // Without it a reopened task blip with no assignee/due-date would lose the affordance
     // because all three task attributes are absent and _taskPresent stays false on the
-    // freshly-created <wave-blip> element.
-    if (isTask || taskDone) {
+    // freshly-created <wave-blip> element. Also set for metadata-only blips (assignee /
+    // due-date present but no task/done annotation), since isTask() is false for those.
+    String assignee = taskAssignee == null ? "" : taskAssignee.trim();
+    if (isTask || taskDone || !assignee.isEmpty() || taskDueTimestamp != 0) {
       element.setAttribute("data-task-present", "");
     } else {
       element.removeAttribute("data-task-present");
@@ -2007,7 +2014,6 @@ public final class J2clReadSurfaceDomRenderer {
     } else {
       element.removeAttribute("data-task-completed");
     }
-    String assignee = taskAssignee == null ? "" : taskAssignee.trim();
     if (assignee.isEmpty()) {
       element.removeAttribute("data-task-assignee");
     } else {

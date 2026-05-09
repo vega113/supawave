@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-09-issue-1225-j2cl-task-parity-followup",
+  "version": "Issue #1225",
+  "date": "2026-05-09",
+  "title": "J2CL task controls keep completion state and task details aligned with the legacy wave view.",
+  "summary": "The J2CL read surface now updates task completion state immediately when a task is toggled and tightens the task details dialog layout toward the legacy GWT popup.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Keeps the parent blip's task-completed marker in sync with per-task toggles while preserving multi-task blip behavior.",
+        "Adjusts the J2CL task details dialog spacing and controls to better match the GWT task metadata popup."
+      ]
+    }
+  ]
+}

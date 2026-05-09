@@ -20,8 +20,6 @@ export class TaskMetadataPopover extends LitElement {
     }
 
     .dialog {
-      display: grid;
-      gap: 10px;
       width: 320px;
       max-width: 92vw;
       border: 0;
@@ -36,7 +34,7 @@ export class TaskMetadataPopover extends LitElement {
 
     h2 {
       display: block;
-      margin: 0 0 5px;
+      margin: 0 0 14px;
       font-size: 18px;
       font-weight: 600;
       line-height: 1.2;
@@ -44,9 +42,8 @@ export class TaskMetadataPopover extends LitElement {
     }
 
     label {
-      display: grid;
-      gap: 6px;
-      margin: 2px 0;
+      display: block;
+      margin: 12px 0 6px;
       color: #5f6368;
       font-size: 12px;
       font-weight: 600;
@@ -68,6 +65,12 @@ export class TaskMetadataPopover extends LitElement {
       font-weight: 400;
     }
 
+    select,
+    input {
+      display: block;
+      width: 100%;
+    }
+
     select:focus,
     input:focus,
     button:focus {
@@ -77,13 +80,12 @@ export class TaskMetadataPopover extends LitElement {
     }
 
     .actions {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      margin-top: 8px;
+      margin-top: 18px;
+      text-align: right;
     }
 
     button[type="button"] {
+      margin-right: 8px;
       padding: 8px 12px;
       background: #ffffff;
       color: #3c4043;

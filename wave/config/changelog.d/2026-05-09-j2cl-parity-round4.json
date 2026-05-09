@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-09-j2cl-parity-round4",
+  "version": "Issue #1236",
+  "date": "2026-05-09",
+  "title": "J2CL search rail title strip aligns with the wave-panel title strip on the same row.",
+  "summary": "Round 4 parity work: drop the 12 px nav-inset padding and 8 px slotted-pill padding when the rail wraps a wavy-search-rail panel so the rail header does not float ~20 px below the wave-panel header.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Reset shell-nav-rail's nav-inset padding and slotted-pill chrome when it wraps wavy-search-rail so the rail's blue title strip lines up with the wave-panel title strip across panels."
+      ]
+    }
+  ]
+}

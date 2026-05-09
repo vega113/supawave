@@ -39,6 +39,8 @@ export class WavyHeader extends LitElement {
     unreadCount: { type: Number, attribute: "unread-count" },
     basePath: { type: String, attribute: "base-path" },
     compactGwtTopbar: { type: Boolean, attribute: "compact-gwt-topbar", reflect: true },
+    connectionState: { type: String, attribute: "data-connection-state", reflect: true },
+    saveState: { type: String, attribute: "data-save-state", reflect: true },
     // V-1 (#1099): when the host carries no-brand the inner SupaWave
     // brand link is suppressed so the J2CL root shell can render the
     // canonical brand from shell-header > [slot="brand"] without
@@ -144,12 +146,91 @@ export class WavyHeader extends LitElement {
       background: rgba(255, 255, 255, 0.10);
       border-radius: 6px;
     }
+    .savestatus,
+    .netstatus {
+      display: none;
+    }
+    :host([compact-gwt-topbar]) .savestatus,
+    :host([compact-gwt-topbar]) .netstatus {
+      position: relative;
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      padding: 0;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.10);
+      cursor: default;
+    }
+    :host([compact-gwt-topbar]) .savestatus svg,
+    :host([compact-gwt-topbar]) .netstatus svg {
+      width: 20px;
+      height: 20px;
+      stroke: #fff;
+      color: #fff;
+    }
+    :host([compact-gwt-topbar]) .savestatus::after,
+    :host([compact-gwt-topbar]) .netstatus::after {
+      content: "";
+      display: none;
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    :host([compact-gwt-topbar]) .savestatus[data-state="saved"]::after {
+      display: block;
+      background: #48bb78;
+      box-shadow: 0 0 4px #48bb78;
+    }
+    :host([compact-gwt-topbar]) .savestatus[data-state="saving"]::after,
+    :host([compact-gwt-topbar]) .savestatus[data-state="unsaved"]::after {
+      display: block;
+      background: #ecc94b;
+      box-shadow: 0 0 4px #ecc94b;
+    }
+    :host([compact-gwt-topbar]) .netstatus[data-state="online"]::after {
+      display: block;
+      background: #48bb78;
+      box-shadow: 0 0 4px #48bb78;
+    }
+    :host([compact-gwt-topbar]) .netstatus[data-state="connecting"]::after {
+      display: block;
+      background: #ecc94b;
+      box-shadow: 0 0 4px #ecc94b;
+    }
+    :host([compact-gwt-topbar]) .netstatus[data-state="offline"]::after {
+      display: block;
+      background: #fc8181;
+      box-shadow: 0 0 4px #fc8181;
+    }
+    :host([compact-gwt-topbar]) .savestatus:hover,
+    :host([compact-gwt-topbar]) .netstatus:hover {
+      background: rgba(255, 255, 255, 0.18);
+      transform: scale(1.05);
+    }
     :host([compact-gwt-topbar]) .bell:focus-visible,
     :host([compact-gwt-topbar]) .mail:focus-visible,
     :host([compact-gwt-topbar]) .user-menu:focus-visible {
       outline: 2px solid rgba(255, 255, 255, 0.95);
       outline-offset: 2px;
       background: rgba(255, 255, 255, 0.18);
+    }
+    :host([compact-gwt-topbar]) .bell:hover,
+    :host([compact-gwt-topbar]) .mail:hover,
+    :host([compact-gwt-topbar]) .user-menu:hover {
+      color: #fff;
+      outline: none;
+      background: rgba(255, 255, 255, 0.18);
+      transform: scale(1.05);
     }
     .bell:hover,
     .bell:focus-visible,
@@ -215,6 +296,8 @@ export class WavyHeader extends LitElement {
     this.basePath = "/";
     this.compactGwtTopbar = false;
     this.noBrand = false;
+    this.connectionState = "online";
+    this.saveState = "saved";
   }
 
   _normalizedBasePath() {
@@ -262,10 +345,23 @@ export class WavyHeader extends LitElement {
     );
   }
 
+  _saveLabel() {
+    return this.saveState === "saving" || this.saveState === "unsaved"
+      ? "Saving changes"
+      : "All changes saved";
+  }
+
+  _netLabel() {
+    if (this.connectionState === "offline") return "Offline";
+    if (this.connectionState === "connecting") return "Connecting";
+    return "Online";
+  }
+
   render() {
     const initials = this._initials();
     const hasUnread = (this.unreadCount || 0) > 0;
     const base = this._normalizedBasePath();
+    const compact = this.compactGwtTopbar;
     return html`
       ${this.noBrand
         ? null
@@ -289,6 +385,48 @@ export class WavyHeader extends LitElement {
             </option>`
         )}
       </select>
+
+      ${compact
+        ? html`
+            <span
+              class="savestatus"
+              role="img"
+              data-state=${this.saveState || "saved"}
+              title=${this._saveLabel()}
+              aria-label=${this._saveLabel()}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                <path d="M9 15l2 2 4-4" stroke-width="2"/>
+              </svg>
+            </span>
+            <span
+              class="netstatus"
+              role="img"
+              data-state=${this.connectionState || "online"}
+              title=${this._netLabel()}
+              aria-label=${this._netLabel()}
+              aria-live="polite"
+            >
+              ${this.connectionState === "offline"
+                ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+                    <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                    <circle cx="12" cy="19.5" r="1"/>
+                  </svg>`
+                : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                    <path d="M5.07 12.5a10 10 0 0 1 13.86 0"/>
+                    <path d="M8.72 16a6 6 0 0 1 6.56 0"/>
+                    <circle cx="12" cy="19.5" r="1"/>
+                  </svg>`}
+            </span>
+          `
+        : null}
 
       ${this.signedIn
         ? html`

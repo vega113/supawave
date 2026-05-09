@@ -278,6 +278,26 @@ public class J2clRootShellViewTest {
   }
 
   @Test
+  public void publishLiveStatusMirrorsConnectionAndSaveStateToCompactWavyHeader() {
+    assumeBrowserDom();
+    host = (HTMLDivElement) DomGlobal.document.createElement("div");
+    DomGlobal.document.body.appendChild(host);
+    HTMLElement rootShell = createRootShell();
+    appendStatusStrip(rootShell);
+    HTMLElement compactHeader =
+        (HTMLElement) DomGlobal.document.createElement("wavy-header");
+    compactHeader.setAttribute("compact-gwt-topbar", "");
+    rootShell.appendChild(compactHeader);
+    HTMLElement workflowHost = appendWorkflowHost(rootShell);
+    J2clRootShellView view = new J2clRootShellView(workflowHost);
+
+    view.publishLiveStatus(J2clRootLiveSurfaceModel.starting());
+
+    Assert.assertEquals("online", compactHeader.getAttribute("data-connection-state"));
+    Assert.assertEquals("saved", compactHeader.getAttribute("data-save-state"));
+  }
+
+  @Test
   public void publishLiveStatusRepublishesWhenSeparatorDisplayMutatedExternally() {
     assumeBrowserDom();
     J2clRootShellView view = createViewWithStatusStrip();

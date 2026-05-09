@@ -109,26 +109,6 @@ export class WavySearchRail extends LitElement {
       background: #ffffff;
         box-sizing: border-box;
       }
-      .panel-title {
-        display: flex;
-        align-items: center;
-        min-height: 24px;
-        padding: 3px 8px;
-        box-sizing: border-box;
-        color: #ffffff;
-        background: linear-gradient(180deg, #5ba3e0 0%, #2d6fa8 100%);
-        border: 1px solid #5b8fc1;
-        border-bottom-color: #2c5f91;
-        border-radius: 3px 3px 0 0;
-        font: 700 13px / 1.25 Arial, sans-serif;
-        text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.18);
-      }
-      .panel-title-text {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
     .query {
       flex: 1 1 auto;
       box-sizing: border-box;
@@ -1107,9 +1087,6 @@ export class WavySearchRail extends LitElement {
     const effectiveSort = explicitSort || defaultSort;
     const pinnedSearches = this.savedSearches.filter((item) => item.pinned);
     return html`
-      <div class="panel-title" data-search-panel-title>
-        <span class="panel-title-text">${this._panelTitle()}</span>
-      </div>
       <div class="search">
         <span class="waveform" aria-hidden="true">
           <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">

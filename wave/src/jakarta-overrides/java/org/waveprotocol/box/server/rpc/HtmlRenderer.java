@@ -4253,7 +4253,8 @@ public final class HtmlRenderer {
         .append(escapedAddress)
         .append("\" user-name=\"")
         .append(escapedAddress)
-        .append("\" unread-count=\"0\" base-path=\"")
+        .append("\" unread-count=\"0\" data-connection-state=\"online\""
+            + " data-save-state=\"saved\" base-path=\"")
         .append(safeBasePath)
         .append("\">\n");
     sb.append("      <a class=\"brand\" href=\"")
@@ -4270,6 +4271,22 @@ public final class HtmlRenderer {
     appendLocaleOption(sb, "sl", "Slovenščina", selectedLocaleOpt, compactGwtTopbar);
     appendLocaleOption(sb, "zh_TW", "繁體中文", selectedLocaleOpt, compactGwtTopbar);
     sb.append("      </select>\n");
+    if (compactGwtTopbar) {
+      // GWT topbar parity: emit savestatus + netstatus chips so the icons
+      // are visible before Lit upgrades the element. The compact-mode
+      // shadow render mirrors these and the J2clRootShellView updates the
+      // data-state attributes from the live save/connection model.
+      sb.append("      <span class=\"savestatus\" role=\"img\""
+          + " data-state=\"saved\" title=\"All changes saved\""
+          + " aria-label=\"All changes saved\">")
+          .append(ICON_CLOUD_CHECK)
+          .append("</span>\n");
+      sb.append("      <span class=\"netstatus\" role=\"img\""
+          + " data-state=\"online\" title=\"Online\""
+          + " aria-label=\"Online\" aria-live=\"polite\">")
+          .append(ICON_WIFI)
+          .append("</span>\n");
+    }
     // A.5 notifications bell — server-renders the same SVG glyph the
     // Lit element renders so the icon does not appear empty pre-upgrade.
     sb.append("      <button type=\"button\" class=\"bell\" aria-label=\"Notifications\">")

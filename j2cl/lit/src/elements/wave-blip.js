@@ -297,6 +297,10 @@ export class WaveBlip extends LitElement {
       font-weight: 600;
       box-shadow: inset 3px 0 0 var(--wavy-signal-cyan, #0077b6);
     }
+    :host([unread]) .header {
+      color: #1a202c;
+      background-color: rgba(0, 180, 216, 0.12);
+    }
     :host([focused]) .body,
     :host([tabindex="0"]) .body {
       border-color: #d9e2ec;

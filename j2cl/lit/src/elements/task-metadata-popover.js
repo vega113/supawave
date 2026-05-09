@@ -23,10 +23,12 @@ export class TaskMetadataPopover extends LitElement {
       width: 320px;
       max-width: 92vw;
       border: 0;
-      border-radius: 0;
+      border-radius: 10px;
       padding: 18px;
       background: #ffffff;
-      box-shadow: none;
+      box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.12),
+        0 1px 4px rgba(0, 0, 0, 0.06);
       box-sizing: border-box;
       color: #202124;
       font: 13px Arial, sans-serif;

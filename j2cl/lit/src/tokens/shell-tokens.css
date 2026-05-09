@@ -186,7 +186,7 @@ shell-header {
 shell-header[compact-gwt-topbar] {
   padding: 0 12px;
   min-height: 40px;
-  background: linear-gradient(135deg, #023e6b 0%, #006b9f 62%, #0077a8 100%);
+  background: linear-gradient(135deg, #023e6b 0%, #006b9f 60%, #0077a8 100%);
   border-bottom: none;
   box-shadow: 0 2px 8px rgba(0, 50, 100, 0.18);
   color: #fff;
@@ -243,7 +243,11 @@ shell-header > [slot="brand"] .j2cl-brand-name {
 }
 
 shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-name {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, "Helvetica Neue", Arial, sans-serif;
   font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
   color: #fff;
 }
 
@@ -323,6 +327,69 @@ shell-header[compact-gwt-topbar] wavy-header .mail svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+}
+
+/* GWT topbar parity (#1232): savestatus + netstatus chips inside the
+ * compact wavy-header. SSR emits these as light-DOM <span> children so
+ * they render on the 40px topbar before Lit upgrades. The shadow render
+ * applies the same geometry post-upgrade. */
+shell-header[compact-gwt-topbar] wavy-header .savestatus,
+shell-header[compact-gwt-topbar] wavy-header .netstatus {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+shell-header[compact-gwt-topbar] wavy-header .savestatus svg,
+shell-header[compact-gwt-topbar] wavy-header .netstatus svg {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .savestatus::after,
+shell-header[compact-gwt-topbar] wavy-header .netstatus::after {
+  content: "";
+  display: none;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .savestatus[data-state="saved"]::after,
+shell-header[compact-gwt-topbar] wavy-header .netstatus[data-state="online"]::after {
+  display: block;
+  background: #48bb78;
+  box-shadow: 0 0 4px #48bb78;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .savestatus[data-state="saving"]::after,
+shell-header[compact-gwt-topbar] wavy-header .savestatus[data-state="unsaved"]::after,
+shell-header[compact-gwt-topbar] wavy-header .netstatus[data-state="connecting"]::after {
+  display: block;
+  background: #ecc94b;
+  box-shadow: 0 0 4px #ecc94b;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .netstatus[data-state="offline"]::after {
+  display: block;
+  background: #fc8181;
+  box-shadow: 0 0 4px #fc8181;
 }
 
 shell-header > [slot="actions-signed-in"],

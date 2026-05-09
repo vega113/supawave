@@ -185,6 +185,47 @@ describe("<wavy-header>", () => {
     // first="john" → J, last="public" → P (not second segment "q")
     expect(avatar.textContent.trim()).to.equal("JP");
   });
+
+  it("compact GWT topbar emits savestatus + netstatus chips with default state", async () => {
+    const el = await fixture(html`<wavy-header signed-in compact-gwt-topbar></wavy-header>`);
+    await el.updateComplete;
+    const save = el.renderRoot.querySelector(".savestatus");
+    const net = el.renderRoot.querySelector(".netstatus");
+    expect(save).to.exist;
+    expect(net).to.exist;
+    expect(save.getAttribute("data-state")).to.equal("saved");
+    expect(net.getAttribute("data-state")).to.equal("online");
+    expect(save.querySelector("svg")).to.exist;
+    expect(net.querySelector("svg")).to.exist;
+  });
+
+  it("non-compact wavy-header omits savestatus + netstatus", async () => {
+    const el = await fixture(html`<wavy-header signed-in></wavy-header>`);
+    await el.updateComplete;
+    expect(el.renderRoot.querySelector(".savestatus")).to.be.null;
+    expect(el.renderRoot.querySelector(".netstatus")).to.be.null;
+  });
+
+  it("compact savestatus reflects data-save-state attribute", async () => {
+    const el = await fixture(
+      html`<wavy-header signed-in compact-gwt-topbar data-save-state="saving"></wavy-header>`
+    );
+    await el.updateComplete;
+    const save = el.renderRoot.querySelector(".savestatus");
+    expect(save.getAttribute("data-state")).to.equal("saving");
+  });
+
+  it("compact netstatus reflects data-connection-state and swaps SVG glyph for offline", async () => {
+    const el = await fixture(
+      html`<wavy-header signed-in compact-gwt-topbar data-connection-state="offline"></wavy-header>`
+    );
+    await el.updateComplete;
+    const net = el.renderRoot.querySelector(".netstatus");
+    expect(net.getAttribute("data-state")).to.equal("offline");
+    // Offline glyph contains the slashed-line element distinguishing wifi-off from wifi.
+    const svgHtml = net.querySelector("svg").outerHTML;
+    expect(svgHtml).to.include('x1="1"');
+  });
 });
 
 function WavyHeader_styleText() {

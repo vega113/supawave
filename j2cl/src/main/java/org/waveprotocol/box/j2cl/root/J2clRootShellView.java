@@ -79,16 +79,18 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
     HTMLElement statusElement = ensureLiveStatusElement();
     if (statusElement != null) {
       String statusText = model == null ? "" : model.getStatusText();
-      HTMLElement statusStrip = findStatusStrip(findRootShell());
+      Element rootShell = findRootShell();
+      HTMLElement statusStrip = findStatusStrip(rootShell);
+      String connectionState = model == null ? "online" : model.getConnectionState();
+      String saveState = model == null ? "saved" : model.getSaveState();
+      String routeState = model == null ? "ready" : model.getRouteState();
       if (statusStrip != null) {
-        String connectionState = model == null ? "online" : model.getConnectionState();
-        String saveState = model == null ? "saved" : model.getSaveState();
-        String routeState = model == null ? "ready" : model.getRouteState();
         statusStrip.setAttribute("data-connection-state", connectionState);
         statusStrip.setAttribute("data-save-state", saveState);
         statusStrip.setAttribute("data-route-state", routeState);
         statusStrip.setAttribute("data-live-status-text", statusText);
       }
+      mirrorTopbarStatusChips(rootShell, connectionState, saveState);
       String desiredSeparatorDisplay = statusText.isEmpty() ? "none" : "";
       if (statusText.equals(lastPublishedLiveStatusText)
           && (liveStatusSeparator == null
@@ -101,6 +103,20 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       }
       lastPublishedLiveStatusText = statusText;
     }
+  }
+
+  private static void mirrorTopbarStatusChips(
+      Element rootShell, String connectionState, String saveState) {
+    if (rootShell == null) {
+      return;
+    }
+    HTMLElement compactHeader =
+        firstElementOwnedByRootShell(rootShell, "wavy-header[compact-gwt-topbar]");
+    if (compactHeader == null) {
+      return;
+    }
+    compactHeader.setAttribute("data-connection-state", connectionState);
+    compactHeader.setAttribute("data-save-state", saveState);
   }
 
   private HTMLElement ensureLiveStatusElement() {

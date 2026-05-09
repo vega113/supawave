@@ -110,9 +110,6 @@ export function taskOverlayRegionJ2cl(page: Page): Locator {
 }
 
 export function taskOverlayRegionGwt(page: Page): Locator {
-  // GWT renderer: TaskMetadataPopup inside DesktopUniversalPopup chrome.
-  return page
-    .getByText("Task details", { exact: true })
-    .last()
-    .locator("xpath=ancestor::*[.//select and .//*[normalize-space()='Due date']][1]");
+  // GWT renderer: TaskMetadataPopup panel inside DesktopUniversalPopup chrome.
+  return page.locator("[data-e2e='gwt-task-metadata-popup']:visible").last();
 }

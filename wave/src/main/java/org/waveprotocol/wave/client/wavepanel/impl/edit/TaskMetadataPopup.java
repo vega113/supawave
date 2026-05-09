@@ -134,6 +134,7 @@ public final class TaskMetadataPopup extends Composite {
 
     FlowPanel panel = new FlowPanel();
     panel.addStyleName(style.self());
+    panel.getElement().setAttribute("data-e2e", "gwt-task-metadata-popup");
 
     titleLabel = new Label("Task details");
     titleLabel.addStyleName(style.title());

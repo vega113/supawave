@@ -23,6 +23,21 @@ export class ShellNavRail extends LitElement {
       padding: 8px 10px;
       border-radius: 8px;
     }
+
+    /* Round 4 (#1236): when the nav rail wraps a full search-rail panel,
+     * the panel manages its own header strip / search input gutters and
+     * the GWT-parity contract requires it sit flush at y=0 so the blue
+     * title strip aligns with the wave-panel title across panels.
+     * Override the inset-panel padding and the ::slotted pill geometry
+     * for this specific child. */
+    :host(:has(> wavy-search-rail)) nav {
+      padding: 0;
+    }
+
+    ::slotted(wavy-search-rail) {
+      padding: 0;
+      border-radius: 0;
+    }
   `;
 
   constructor() {

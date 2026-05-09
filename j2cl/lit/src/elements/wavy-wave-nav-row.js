@@ -67,9 +67,12 @@ export class WavyWaveNavRow extends LitElement {
       container-name: wave-nav-row;
       min-height: 36px;
       box-sizing: border-box;
-      background: var(--wavy-toolbar-pill-bg, #f0f4f8);
-      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
-      padding: 3px 4px;
+      /* Round 3 (#1235): match the search-rail's .action-row gradient so
+       * the wave-panel toolbar reads as the same band of chrome on the
+       * y-coordinate just below the blue title strip. */
+      background: linear-gradient(180deg, #eef7ff 0%, #dcecff 100%);
+      border-bottom: 1px solid rgba(120, 170, 220, 0.35);
+      padding: 4px;
     }
     nav {
       display: flex;

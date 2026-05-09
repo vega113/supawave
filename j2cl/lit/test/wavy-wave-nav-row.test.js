@@ -240,7 +240,10 @@ describe("<wavy-wave-nav-row>", () => {
     const el = await fixture(html`<wavy-wave-nav-row></wavy-wave-nav-row>`);
     await el.updateComplete;
     const host = getComputedStyle(el);
-    expect(host.backgroundColor).to.equal("rgb(240, 244, 248)");
+    // Round 3 (#1235): match the search-rail .action-row gradient so the
+    // wave-panel toolbar reads as the same band as the search panel's.
+    expect(host.backgroundImage).to.contain("linear-gradient");
+    expect(host.backgroundImage).to.contain("238, 247, 255");
     expect(parseInt(host.minHeight, 10)).to.equal(36);
     const button = el.renderRoot.querySelector('button[data-action="recent"]');
     const buttonStyle = getComputedStyle(button);

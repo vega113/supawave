@@ -560,6 +560,9 @@ export class WavySearchRail extends LitElement {
     if (changed.has("query")) {
       this.activeFolder = this._deriveActiveFolder(this.query);
     }
+    if (changed.has("query") || changed.has("resultCount")) {
+      this.setAttribute("aria-label", this._panelTitle());
+    }
   }
 
   _deriveActiveFolder(q) {

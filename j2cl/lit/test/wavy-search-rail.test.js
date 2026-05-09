@@ -17,6 +17,16 @@ describe("<wavy-search-rail>", () => {
     expect(inbox.getAttribute("aria-current")).to.equal("page");
   });
 
+  it("host aria-label tracks query + result count (panel-title a11y replacement)", async () => {
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    await el.updateComplete;
+    expect(el.getAttribute("aria-label")).to.equal("in:inbox");
+    el.query = "is:starred";
+    el.resultCount = "12";
+    await el.updateComplete;
+    expect(el.getAttribute("aria-label")).to.equal("is:starred (12)");
+  });
+
   it("renders all six saved-search folders with canonical query strings (B.5–B.10)", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;

@@ -4283,7 +4283,7 @@ public final class HtmlRenderer {
           .append("</span>\n");
       sb.append("      <span class=\"netstatus\" role=\"img\""
           + " data-state=\"online\" title=\"Online\""
-          + " aria-label=\"Online\" aria-live=\"polite\">")
+          + " aria-label=\"Online\">")
           .append(ICON_WIFI)
           .append("</span>\n");
     }

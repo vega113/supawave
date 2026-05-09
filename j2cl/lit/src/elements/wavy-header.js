@@ -406,7 +406,6 @@ export class WavyHeader extends LitElement {
               data-state=${this.connectionState || "online"}
               title=${this._netLabel()}
               aria-label=${this._netLabel()}
-              aria-live="polite"
             >
               ${this.connectionState === "offline"
                 ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

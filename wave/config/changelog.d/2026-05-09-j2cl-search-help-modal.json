@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-09-j2cl-search-help-modal",
+  "version": "Issue #1227",
+  "date": "2026-05-09",
+  "title": "J2CL search help opens from the search rail",
+  "summary": "The J2CL search rail help button now displays the Search Help modal instead of toggling an unrendered shell child.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Render the singleton search-help modal through the J2CL shell modal slot so the help overlay appears when the search rail question-mark button is clicked."
+      ]
+    }
+  ]
+}

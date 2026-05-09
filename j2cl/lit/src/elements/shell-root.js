@@ -47,6 +47,12 @@ export class ShellRoot extends LitElement {
       min-height: 0;
     }
 
+    /* Modal overlays are fixed-position hosts. The slot only projects
+     * them through the shell shadow tree and must not create a grid item. */
+    slot[name="modal"] {
+      display: contents;
+    }
+
     /* F-4 (#1039 / R-4.7): production rail-extension landing zone. The
      * slotted <wavy-rail-panel> ships hidden on the user route. When a
      * plugin un-hides it, it lands in its own grid row beneath the
@@ -372,6 +378,7 @@ export class ShellRoot extends LitElement {
       <slot name="nav"></slot>
       <slot name="splitter"></slot>
       <slot name="main"></slot>
+      <slot name="modal"></slot>
       <slot name="rail-extension"></slot>
       <slot name="status"></slot>
     `;

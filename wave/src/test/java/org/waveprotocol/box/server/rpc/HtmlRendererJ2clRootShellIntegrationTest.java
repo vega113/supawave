@@ -107,6 +107,14 @@ public final class HtmlRendererJ2clRootShellIntegrationTest extends TestCase {
         countOccurrences(html, "<wavy-search-rail"));
   }
 
+  public void testSearchHelpModalIsSlottedIntoShellRootModalLayer() {
+    String html = renderSignedInPage();
+    assertTrue(
+        "Search-help modal must be assigned to shell-root's modal slot so it renders"
+            + " after the Lit shadow root upgrades",
+        html.contains("<wavy-search-help slot=\"modal\" id=\"wavy-search-help\" hidden>"));
+  }
+
   public void testExactlyOneWavyWaveNavRow() {
     String html = renderSignedInPage();
     assertEquals(

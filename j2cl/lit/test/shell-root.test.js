@@ -1,5 +1,7 @@
 import { fixture, expect, html } from "@open-wc/testing";
 import "../src/elements/shell-root.js";
+import "../src/elements/wavy-search-help.js";
+import "../src/elements/wavy-search-rail.js";
 
 describe("<shell-root>", () => {
   it("renders the signed-in layout slots", async () => {
@@ -9,6 +11,7 @@ describe("<shell-root>", () => {
     expect(el.renderRoot.querySelector("slot[name='nav']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='splitter']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='main']")).to.exist;
+    expect(el.renderRoot.querySelector("slot[name='modal']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='status']")).to.exist;
   });
 
@@ -29,6 +32,40 @@ describe("<shell-root>", () => {
       .filter((n) => n.nodeType === Node.ELEMENT_NODE)
       .map((n) => n.id);
     expect(ids).to.include("plugin-mount");
+  });
+
+  it("projects modal light-DOM children without creating a shell grid item", async () => {
+    const el = await fixture(html`
+      <shell-root>
+        <wavy-search-help slot="modal" id="wavy-search-help"></wavy-search-help>
+      </shell-root>
+    `);
+    const slot = el.renderRoot.querySelector("slot[name='modal']");
+    expect(getComputedStyle(slot).display).to.equal("contents");
+    const assigned = slot.assignedElements({ flatten: true });
+    expect(assigned.map((node) => node.id)).to.include("wavy-search-help");
+  });
+
+  it("opens the projected search-help modal from the rail help trigger", async () => {
+    const el = await fixture(html`
+      <shell-root>
+        <wavy-search-rail slot="nav"></wavy-search-rail>
+        <wavy-search-help slot="modal" id="wavy-search-help"></wavy-search-help>
+      </shell-root>
+    `);
+    const rail = el.querySelector("wavy-search-rail");
+    const help = el.querySelector("wavy-search-help");
+    await rail.updateComplete;
+    await help.updateComplete;
+
+    rail.renderRoot.querySelector(".help-trigger").click();
+    await help.updateComplete;
+
+    expect(help.open).to.equal(true);
+    const assigned = el.renderRoot
+      .querySelector("slot[name='modal']")
+      .assignedElements({ flatten: true });
+    expect(assigned).to.include(help);
   });
 
   it("projects a resize splitter between nav and main", async () => {

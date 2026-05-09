@@ -3619,9 +3619,10 @@ public final class HtmlRenderer {
       // Single document-level <wavy-search-help> instance. The rail's
       // help-trigger emits wavy-search-help-toggle (composed +
       // bubbles); a connectedCallback-installed listener on this
-      // element flips the open attribute. Mounted as a direct child
-      // of <shell-root> (NOT inside any slot) so its open-state/CSS
-      // overlay can render above the rest of the shell.
+      // element flips the open attribute. Mounted into <shell-root>'s
+      // modal slot so the SSR'd light DOM projects through the shell
+      // shadow tree; the host remains position:fixed, so the slot is a
+      // projection target rather than a grid placement.
       appendWavySearchHelpModal(sb);
       sb.append("  <shell-main-region slot=\"main\">\n");
       sb.append("    <section id=\"j2cl-root-shell-workflow\" data-j2cl-root-shell-workflow=\"true\">\n");
@@ -4430,7 +4431,7 @@ public final class HtmlRenderer {
 
   /**
    * F-2 slice 3 (#1047): emit the singleton {@code <wavy-search-help>}
-   * modal as a direct child of {@code <shell-root>}. SSR'd inner
+   * modal into {@code <shell-root>}'s {@code modal} slot. SSR'd inner
    * light DOM contains every one of the 22 token literals (C.1–C.22)
    * the GWT search-help panel advertises today; the parser fixture
    * {@code J2clSearchHelpTokenParseTest} pins the token contract.
@@ -4442,7 +4443,7 @@ public final class HtmlRenderer {
     // browsers that have not yet executed the J2CL bundle. The Lit
     // element drops `hidden` (the `open` reflection takes over) when
     // the user toggles the modal.
-    sb.append("  <wavy-search-help id=\"wavy-search-help\" hidden>\n");
+    sb.append("  <wavy-search-help slot=\"modal\" id=\"wavy-search-help\" hidden>\n");
     sb.append("    <div class=\"sheet\" role=\"dialog\" aria-modal=\"true\">\n");
     sb.append("      <header><h2>Search Help</h2><button type=\"button\" class=\"dismiss\" aria-label=\"Close search help\">Got it</button></header>\n");
     sb.append("      <div class=\"columns\">\n");

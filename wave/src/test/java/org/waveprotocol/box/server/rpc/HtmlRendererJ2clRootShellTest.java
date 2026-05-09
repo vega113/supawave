@@ -49,6 +49,32 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("window.__j2clRootShellStat"));
   }
 
+  public void testSignedInTopHeaderUsesGwtCompactChrome() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "admin");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+
+    int shIdx = html.indexOf("<shell-header");
+    int shEnd = html.indexOf('>', shIdx);
+    String shTag = html.substring(shIdx, shEnd);
+    assertTrue("shell-header must have slot=\"header\"", shTag.contains("slot=\"header\""));
+    assertTrue("shell-header must carry signed-in", shTag.contains("signed-in"));
+    assertTrue("shell-header must carry compact-gwt-topbar", shTag.contains("compact-gwt-topbar"));
+
+    int whIdx = html.indexOf("<wavy-header");
+    int whEnd = html.indexOf('>', whIdx);
+    String whTag = html.substring(whIdx, whEnd);
+    assertTrue("wavy-header must have slot=\"actions-signed-in\"", whTag.contains("slot=\"actions-signed-in\""));
+    assertTrue("wavy-header must carry signed-in", whTag.contains("signed-in"));
+    assertTrue("wavy-header must carry no-brand", whTag.contains("no-brand"));
+    assertTrue("wavy-header must carry compact-gwt-topbar", whTag.contains("compact-gwt-topbar"));
+    assertFalse(html.contains("j2cl-brand-eyebrow"));
+    assertFalse(html.contains("J2CL ·"));
+  }
+
   public void testSignedOutPageUsesSignedOutRoot() {
     JSONObject session = new JSONObject();
 
@@ -57,6 +83,33 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
 
     assertTrue(html.contains("<shell-root-signed-out"));
     assertFalse(html.contains("<shell-root data-j2cl-root-shell"));
+  }
+
+  public void testSignedOutTopHeaderUsesGwtCompactChrome() {
+    JSONObject session = new JSONObject();
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root", "ws.example:443");
+
+    int shIdx2 = html.indexOf("<shell-header");
+    int shEnd2 = html.indexOf('>', shIdx2);
+    String shTag2 = html.substring(shIdx2, shEnd2);
+    assertTrue("shell-header must have slot=\"header\"", shTag2.contains("slot=\"header\""));
+    assertTrue("shell-header must carry compact-gwt-topbar", shTag2.contains("compact-gwt-topbar"));
+    assertTrue(html.contains("<span slot=\"actions-signed-out\">Signed out</span>"));
+    assertTrue(html.contains("<a slot=\"actions-signed-out\""));
+    assertTrue(html.contains("Sign in"));
+    assertFalse(html.contains("j2cl-brand-eyebrow"));
+    assertFalse(html.contains("J2CL ·"));
+  }
+
+  public void testReadSurfacePreviewKeepsPreviewHeaderChrome() {
+    String html = HtmlRenderer.renderJ2clReadSurfacePreviewPage(
+        "", "commit", 0L, "rel", "alice@example.com", "ws.example:443");
+
+    assertTrue(html.contains("SupaWave Read Surface Preview"));
+    assertTrue(html.contains(">English</option>"));
+    assertFalse(html.contains("compact-gwt-topbar"));
   }
 
   public void testLegacyShellClassesAreNoLongerEmitted() {

@@ -18,4 +18,13 @@ describe("<shell-header>", () => {
     expect(el.renderRoot.querySelector("slot[name='actions-signed-out']")).to.exist;
     expect(el.renderRoot.querySelector("slot[name='actions-signed-in']")).to.not.exist;
   });
+
+  it("uses compact GWT topbar layout classes", async () => {
+    const el = await fixture(html`<shell-header signed-in compact-gwt-topbar></shell-header>`);
+    const header = el.renderRoot.querySelector("header");
+
+    expect(header.classList.contains("gwt-topbar-panel")).to.be.true;
+    expect(header.classList.contains("is-signed-in")).to.be.true;
+    expect(getComputedStyle(header).minHeight).to.equal("40px");
+  });
 });

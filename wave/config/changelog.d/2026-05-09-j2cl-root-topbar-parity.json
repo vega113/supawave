@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-09-j2cl-root-topbar-parity",
+  "version": "Issue #1223",
+  "date": "2026-05-09",
+  "title": "J2CL root header now matches the compact legacy SupaWave top bar.",
+  "summary": "The J2CL root shell uses the same compact blue header treatment as the GWT client and no longer shows a J2CL route eyebrow next to the SupaWave brand.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Restyles the J2CL root-shell header as a compact GWT-style top bar.",
+        "Removes the visible J2CL route eyebrow from the SupaWave brand area."
+      ]
+    }
+  ]
+}

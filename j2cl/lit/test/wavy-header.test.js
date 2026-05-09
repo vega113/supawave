@@ -34,6 +34,33 @@ describe("<wavy-header>", () => {
     expect(options).to.deep.equal(["en", "de", "es", "fr", "ru", "sl", "zh_TW"]);
   });
 
+  it("compact GWT topbar mode keeps locale labels short", async () => {
+    const el = await fixture(html`<wavy-header compact-gwt-topbar></wavy-header>`);
+    await el.updateComplete;
+    const labels = Array.from(el.renderRoot.querySelectorAll("select.locale option"))
+      .map((option) => option.textContent.trim());
+
+    expect(labels).to.deep.equal(["EN", "DE", "ES", "FR", "RU", "SL", "ZH-TW"]);
+  });
+
+  it("compact GWT topbar mode preserves selected locale", async () => {
+    const el = await fixture(html`<wavy-header compact-gwt-topbar locale="zh_TW"></wavy-header>`);
+    await el.updateComplete;
+    const selected = el.renderRoot.querySelector("select.locale option:checked");
+
+    expect(selected.value).to.equal("zh_TW");
+    expect(selected.textContent.trim()).to.equal("ZH-TW");
+  });
+
+  it("compact GWT topbar mode uses compact action controls", async () => {
+    const el = await fixture(html`<wavy-header compact-gwt-topbar signed-in></wavy-header>`);
+    await el.updateComplete;
+    const bell = el.renderRoot.querySelector("button.bell");
+
+    expect(getComputedStyle(bell).width).to.equal("32px");
+    expect(getComputedStyle(bell).height).to.equal("32px");
+  });
+
   it("change on locale picker emits wavy-locale-changed (A.2)", async () => {
     const el = await fixture(html`<wavy-header></wavy-header>`);
     await el.updateComplete;
@@ -104,6 +131,19 @@ describe("<wavy-header>", () => {
     const email = userMenu.querySelector(".user-email");
     expect(email).to.exist;
     expect(email.textContent.trim()).to.equal("alice.smith@example.com");
+  });
+
+  it("compact GWT topbar mode hides long email while keeping avatar initials", async () => {
+    const el = await fixture(
+      html`<wavy-header compact-gwt-topbar signed-in data-address="alice.smith@example.com"></wavy-header>`
+    );
+    await el.updateComplete;
+    const userMenu = el.renderRoot.querySelector("button.user-menu");
+    const avatar = userMenu.querySelector(".avatar");
+    const email = userMenu.querySelector(".user-email");
+
+    expect(avatar.textContent.trim()).to.equal("AS");
+    expect(getComputedStyle(email).display).to.equal("none");
   });
 
   it("user-menu click emits wavy-user-menu-requested with the address (A.7)", async () => {

@@ -183,12 +183,26 @@ shell-header {
   box-sizing: border-box;
 }
 
+shell-header[compact-gwt-topbar] {
+  padding: 0 12px;
+  min-height: 40px;
+  background: linear-gradient(135deg, #023e6b 0%, #006b9f 62%, #0077a8 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 8px rgba(0, 50, 100, 0.18);
+  color: #fff;
+}
+
 shell-header > [slot="brand"] {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   color: #0b1320;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] {
+  gap: 8px;
+  color: #fff;
 }
 
 shell-header > [slot="brand"] .j2cl-brand-mark {
@@ -199,10 +213,20 @@ shell-header > [slot="brand"] .j2cl-brand-mark {
   height: 36px;
 }
 
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-mark {
+  width: 24px;
+  height: 24px;
+}
+
 shell-header > [slot="brand"] .j2cl-brand-mark svg {
   width: 36px;
   height: 36px;
   display: block;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-mark svg {
+  width: 24px;
+  height: 24px;
 }
 
 shell-header > [slot="brand"] .j2cl-brand-stack {
@@ -218,12 +242,21 @@ shell-header > [slot="brand"] .j2cl-brand-name {
   color: #0b1320;
 }
 
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-name {
+  font-size: 17px;
+  color: #fff;
+}
+
 shell-header > [slot="brand"] .j2cl-brand-eyebrow {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 11px;
   letter-spacing: 0.08em;
   color: rgba(11, 19, 32, 0.55);
   margin-top: 2px;
+}
+
+shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-eyebrow {
+  display: none;
 }
 
 /* The wavy-header (right cluster) renders its own brand link as part of
@@ -234,6 +267,62 @@ shell-header > [slot="actions-signed-in"] > .brand,
 shell-header > [slot="actions-signed-out"] > .brand,
 shell-header wavy-header > .brand {
   display: none;
+}
+
+/* Hide SSR light-DOM email span before Lit upgrade hoists the element into
+ * shadow DOM; the shadow rule (:host([compact-gwt-topbar]) .user-email) only
+ * applies post-upgrade, so long addresses would overflow the 40px bar. */
+shell-header[compact-gwt-topbar] wavy-header .user-email {
+  display: none;
+}
+
+/* Mirror wavy-header compact shadow-DOM styles onto SSR light-DOM children
+ * before shell.js upgrades the element.  Without these, browser-default
+ * form/link controls appear on the 40px compact bar until upgrade — the
+ * shadow rules (:host([compact-gwt-topbar]) .locale / .bell / …) only
+ * fire after customElements.define() runs. */
+shell-header[compact-gwt-topbar] wavy-header .locale {
+  box-sizing: border-box;
+  width: 40px;
+  height: 32px;
+  min-width: 40px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 4px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  background-image: none;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  appearance: none;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .bell,
+shell-header[compact-gwt-topbar] wavy-header .mail,
+shell-header[compact-gwt-topbar] wavy-header .user-menu {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .bell svg,
+shell-header[compact-gwt-topbar] wavy-header .mail svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 shell-header > [slot="actions-signed-in"],
@@ -249,14 +338,34 @@ shell-header > [slot="actions-signed-out"] {
   box-sizing: border-box;
 }
 
+shell-header[compact-gwt-topbar] > [slot="actions-signed-in"],
+shell-header[compact-gwt-topbar] > [slot="actions-signed-out"] {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: #fff;
+}
+
 shell-header > span[slot^="actions"] {
   background: var(--shell-color-surface-soft);
   color: var(--shell-color-text-muted);
 }
 
+shell-header[compact-gwt-topbar] > span[slot^="actions"] {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 shell-header > a[slot^="actions"] {
   border: 1px solid rgba(189, 200, 202, 0.75);
   background: #fff;
+}
+
+shell-header[compact-gwt-topbar] > a[slot^="actions"] {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
 }
 
 shell-header > a[data-j2cl-root-signin="true"] {
@@ -363,6 +472,11 @@ shell-status-strip {
   shell-header {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  shell-header[compact-gwt-topbar] {
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   shell-nav-rail {

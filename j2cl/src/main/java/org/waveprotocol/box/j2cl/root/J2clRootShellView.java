@@ -76,14 +76,17 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
 
   @Override
   public void publishLiveStatus(J2clRootLiveSurfaceModel model) {
+    Element rootShell = findRootShell();
+    String connectionState = model == null ? "online" : model.getConnectionState();
+    String saveState = model == null ? "saved" : model.getSaveState();
+    mirrorTopbarStatusChips(rootShell, connectionState, saveState);
+
     HTMLElement statusElement = ensureLiveStatusElement();
     if (statusElement != null) {
       String statusText = model == null ? "" : model.getStatusText();
-      HTMLElement statusStrip = findStatusStrip(findRootShell());
+      HTMLElement statusStrip = findStatusStrip(rootShell);
+      String routeState = model == null ? "ready" : model.getRouteState();
       if (statusStrip != null) {
-        String connectionState = model == null ? "online" : model.getConnectionState();
-        String saveState = model == null ? "saved" : model.getSaveState();
-        String routeState = model == null ? "ready" : model.getRouteState();
         statusStrip.setAttribute("data-connection-state", connectionState);
         statusStrip.setAttribute("data-save-state", saveState);
         statusStrip.setAttribute("data-route-state", routeState);
@@ -101,6 +104,20 @@ public final class J2clRootShellView implements J2clRootLiveSurfaceController.Sh
       }
       lastPublishedLiveStatusText = statusText;
     }
+  }
+
+  private static void mirrorTopbarStatusChips(
+      Element rootShell, String connectionState, String saveState) {
+    if (rootShell == null) {
+      return;
+    }
+    HTMLElement compactHeader =
+        firstElementOwnedByRootShell(rootShell, "wavy-header[compact-gwt-topbar]");
+    if (compactHeader == null) {
+      return;
+    }
+    compactHeader.setAttribute("data-connection-state", connectionState);
+    compactHeader.setAttribute("data-save-state", saveState);
   }
 
   private HTMLElement ensureLiveStatusElement() {

@@ -39,8 +39,8 @@ describe("<task-metadata-popover>", () => {
     expect(dialogStyle.width).to.equal("320px");
     expect(dialogStyle.padding).to.equal("18px");
     expect(dialogStyle.backgroundColor).to.equal("rgb(255, 255, 255)");
-    expect(dialogStyle.borderRadius).to.equal("0px");
-    expect(dialogStyle.boxShadow).to.equal("none");
+    expect(dialogStyle.borderRadius).to.equal("10px");
+    expect(dialogStyle.boxShadow).to.not.equal("none");
 
     expect(getComputedStyle(title).fontSize).to.equal("18px");
     expect(getComputedStyle(label).textTransform).to.equal("uppercase");

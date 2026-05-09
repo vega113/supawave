@@ -71,6 +71,18 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue("wavy-header must carry signed-in", whTag.contains("signed-in"));
     assertTrue("wavy-header must carry no-brand", whTag.contains("no-brand"));
     assertTrue("wavy-header must carry compact-gwt-topbar", whTag.contains("compact-gwt-topbar"));
+    assertTrue(
+        "wavy-header must carry default data-connection-state",
+        whTag.contains("data-connection-state=\"online\""));
+    assertTrue(
+        "wavy-header must carry default data-save-state",
+        whTag.contains("data-save-state=\"saved\""));
+    assertTrue(
+        "compact wavy-header must SSR a savestatus chip",
+        html.contains("class=\"savestatus\""));
+    assertTrue(
+        "compact wavy-header must SSR a netstatus chip",
+        html.contains("class=\"netstatus\""));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
   }

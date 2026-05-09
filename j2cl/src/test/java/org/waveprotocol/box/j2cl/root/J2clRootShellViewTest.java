@@ -98,8 +98,8 @@ public class J2clRootShellViewTest {
     Assert.assertEquals(
         "/?view=j2cl-root&q=in%3Ainbox",
         secondRoot.getAttribute("data-j2cl-root-return-target"));
-    Assert.assertEquals(
-        "/?view=j2cl-root&q=in%3Ainbox",
+    // Round 2: brand link href is no longer driven by the return target.
+    Assert.assertNull(
         ((HTMLElement) secondRoot.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
     Assert.assertEquals(
         "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Din%253Ainbox",
@@ -136,8 +136,8 @@ public class J2clRootShellViewTest {
 
     view.syncReturnTarget("?view=j2cl-root&q=in%3Ainbox");
 
-    Assert.assertEquals(
-        "/?view=j2cl-root&q=in%3Ainbox",
+    // Round 2: brand link href is no longer driven by the return target.
+    Assert.assertNull(
         ((HTMLElement) outerRoot.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
     Assert.assertEquals(
         "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Din%253Ainbox",
@@ -329,8 +329,8 @@ public class J2clRootShellViewTest {
     Assert.assertEquals(
         "/app/?view=j2cl-root&q=in%3Ainbox",
         rootShell.getAttribute("data-j2cl-root-return-target"));
-    Assert.assertEquals(
-        "/app/?view=j2cl-root&q=in%3Ainbox",
+    // Round 2: brand link href is no longer driven by the return target.
+    Assert.assertNull(
         ((HTMLElement) rootShell.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
   }
 
@@ -350,8 +350,8 @@ public class J2clRootShellViewTest {
     Assert.assertEquals(
         "/app?view=j2cl-root&q=in%3Ainbox",
         rootShell.getAttribute("data-j2cl-root-return-target"));
-    Assert.assertEquals(
-        "/app?view=j2cl-root&q=in%3Ainbox",
+    // Round 2: brand link href is no longer driven by the return target.
+    Assert.assertNull(
         ((HTMLElement) rootShell.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
   }
 
@@ -371,8 +371,8 @@ public class J2clRootShellViewTest {
     Assert.assertEquals(
         "/?view=j2cl-root&q=in%3Ainbox",
         rootShell.getAttribute("data-j2cl-root-return-target"));
-    Assert.assertEquals(
-        "/?view=j2cl-root&q=in%3Ainbox",
+    // Round 2: brand link href is no longer driven by the return target.
+    Assert.assertNull(
         ((HTMLElement) rootShell.querySelector("#j2cl-root-brand-link")).getAttribute("href"));
   }
 

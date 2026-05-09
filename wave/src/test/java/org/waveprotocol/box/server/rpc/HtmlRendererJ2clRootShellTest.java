@@ -83,6 +83,12 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(
         "compact wavy-header must SSR a netstatus chip",
         html.contains("class=\"netstatus\""));
+    assertTrue(
+        "signed-in J2CL brand must hop to the GWT-style landing target",
+        html.contains("id=\"j2cl-root-brand-link\" href=\"/?view=landing\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR the blue panel-title strip",
+        html.contains("<h2 class=\"panel-title\" id=\"wavy-search-rail-title\""));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
   }
@@ -111,6 +117,9 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(html.contains("<span slot=\"actions-signed-out\">Signed out</span>"));
     assertTrue(html.contains("<a slot=\"actions-signed-out\""));
     assertTrue(html.contains("Sign in"));
+    assertTrue(
+        "signed-out J2CL brand must hop to the GWT-style landing target",
+        html.contains("id=\"j2cl-root-brand-link\" href=\"/?view=landing\""));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
   }

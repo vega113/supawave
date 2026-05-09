@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-09-j2cl-parity-round2",
+  "version": "Issue #1233",
+  "date": "2026-05-09",
+  "title": "J2CL search rail and wave-panel headers align with the GWT chrome side-by-side.",
+  "summary": "Round 2 parity work: restore the rail's blue title strip at GWT geometry, hop the brand link to the landing page, and tighten the topbar right cluster.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Restores a flat full-width blue title strip on the J2CL search rail that mirrors the wave-panel header so both panels' headers sit at the same y / height / color.",
+        "Sends the SupaWave brand link to the marketing landing page from the J2CL shell, matching the legacy GWT topbar.",
+        "Tightens the J2CL topbar right cluster so status and user-menu chips hug the viewport edge."
+      ]
+    }
+  ]
+}

@@ -97,6 +97,25 @@ export class WavySearchRail extends LitElement {
       font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
       min-width: 280px;
     }
+      /* GWT-parity (round 2): flat, full-width blue title strip that
+       * mirrors .sidecar-selected-title (sidecar.css) byte-for-byte so the
+       * rail and wave-panel headers sit at the same y / height / color
+       * side-by-side. The visible heading is aria-hidden so the host's
+       * aria-label remains the AT label. */
+      .panel-title {
+        box-sizing: border-box;
+        display: block;
+        min-height: 22px;
+        margin: 0;
+        padding: 3px 8px;
+        border-bottom: 1px solid #7aa7d9;
+        background: linear-gradient(180deg, #69a9ec 0%, #2f80d1 100%);
+        color: #ffffff;
+        font: 700 12px / 16px Arial, Helvetica, sans-serif;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .search {
       position: relative;
       display: flex;
@@ -1090,6 +1109,12 @@ export class WavySearchRail extends LitElement {
     const effectiveSort = explicitSort || defaultSort;
     const pinnedSearches = this.savedSearches.filter((item) => item.pinned);
     return html`
+      <h2
+        class="panel-title"
+        id="wavy-search-rail-title"
+        data-j2cl-rail-title
+        aria-hidden="true"
+      >${this._panelTitle()}</h2>
       <div class="search">
         <span class="waveform" aria-hidden="true">
           <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">

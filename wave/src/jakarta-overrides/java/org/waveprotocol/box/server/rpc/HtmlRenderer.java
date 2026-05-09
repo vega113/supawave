@@ -63,6 +63,11 @@ public final class HtmlRenderer {
   private static final String WAVE_FONT =
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif";
   private static final String J2CL_ROOT_RETURN_TARGET = "/?view=j2cl-root";
+  // GWT-parity: clicking the SupaWave brand link returns to the marketing
+  // landing page, matching the legacy GWT topbar (HtmlRenderer.java:5874
+  // emits "/?view=landing" for the GWT brand). Hardcoded to a path so the
+  // J2CL shell does not bounce inside its own route.
+  private static final String J2CL_BRAND_HOME_HREF = "/?view=landing";
 
   // =========================================================================
   // User-menu CSS shared by the wave-client page and the standalone topbar
@@ -3565,9 +3570,10 @@ public final class HtmlRenderer {
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\" signed-in compact-gwt-topbar>\n");
       // Compact GWT parity: keep the SupaWave brand in the root shell header
-      // without exposing the J2CL route/debug eyebrow in the user chrome.
+      // without exposing the J2CL route/debug eyebrow in the user chrome. The
+      // brand href hops to the landing page (matches GWT topbar parity).
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
-          .append(safeResolvedReturnTarget)
+          .append(J2CL_BRAND_HOME_HREF)
           .append("\" aria-label=\"SupaWave\">\n");
       sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
           .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
@@ -3697,9 +3703,9 @@ public final class HtmlRenderer {
           .append("</shell-skip-link>\n");
       sb.append("  <shell-header slot=\"header\" compact-gwt-topbar>\n");
       // Compact GWT parity: mirror the signed-in brand treatment without
-      // exposing the J2CL route/debug eyebrow.
+      // exposing the J2CL route/debug eyebrow; brand href hops to landing.
       sb.append("    <a slot=\"brand\" id=\"j2cl-root-brand-link\" href=\"")
-          .append(safeResolvedReturnTarget)
+          .append(J2CL_BRAND_HOME_HREF)
           .append("\" aria-label=\"SupaWave\">\n");
       sb.append("      <span class=\"j2cl-brand-mark\" aria-hidden=\"true\">")
           .append("<svg viewBox=\"0 0 48 48\" width=\"36\" height=\"36\" aria-hidden=\"true\">")
@@ -4387,6 +4393,15 @@ public final class HtmlRenderer {
       sb.append(" data-rail-cards-enabled=\"true\"");
     }
     sb.append(">\n");
+    // GWT-parity (round 2, #1233): blue title strip at the top of the rail.
+    // Mirrors `.sidecar-selected-title` so the rail header and the wave-panel
+    // header sit at identical y / height / color side-by-side. The visible
+    // heading is aria-hidden because the host's aria-label is the AT label
+    // (set by WavySearchRail.willUpdate).
+    sb.append("      <h2 class=\"panel-title\" id=\"wavy-search-rail-title\""
+        + " data-j2cl-rail-title aria-hidden=\"true\">")
+        .append(safeInitialQuery)
+        .append("</h2>\n");
     sb.append("      <div class=\"search\">\n");
     // F-2 slice 5 (#1055, A.4): explicit width/height on the SVG element.
     // Pre-upgrade, the Lit `:host { display:block }` rule has not attached

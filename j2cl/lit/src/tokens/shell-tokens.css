@@ -405,11 +405,40 @@ shell-header > [slot="actions-signed-out"] {
   box-sizing: border-box;
 }
 
+/* GWT-parity (round 2, #1233): pre-upgrade light-DOM mirror of the rail
+ * title strip and the topbar right-cluster container. Without these
+ * rules, the SSR <h2 class="panel-title"> renders as plain heading
+ * styling until shell.js upgrades the element. The shadow-DOM rule in
+ * wavy-search-rail.js carries identical values. */
+wavy-search-rail > .panel-title {
+  box-sizing: border-box;
+  display: block;
+  min-height: 22px;
+  margin: 0;
+  padding: 3px 8px;
+  border-bottom: 1px solid #7aa7d9;
+  background: linear-gradient(180deg, #69a9ec 0%, #2f80d1 100%);
+  color: #ffffff;
+  font: 700 12px / 16px Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+shell-header[compact-gwt-topbar] wavy-header {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
 shell-header[compact-gwt-topbar] > [slot="actions-signed-in"],
 shell-header[compact-gwt-topbar] > [slot="actions-signed-out"] {
   min-height: 32px;
   height: 32px;
-  padding: 0 8px;
+  padding: 0 4px 0 8px;
+  margin-left: auto;
   border-radius: 6px;
   color: #fff;
 }

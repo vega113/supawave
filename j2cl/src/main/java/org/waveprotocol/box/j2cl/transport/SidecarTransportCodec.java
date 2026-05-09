@@ -645,7 +645,7 @@ public final class SidecarTransportCodec {
       Map<String, ActiveAnnotation> activeAnnotations,
       List<SidecarAnnotationRange> annotationRanges) {
     ActiveAnnotation active = activeAnnotations.remove(key);
-    if (active == null || textOffset <= active.startOffset) {
+    if (active == null || (textOffset <= active.startOffset && docOffset <= active.docStartOffset)) {
       return;
     }
     annotationRanges.add(

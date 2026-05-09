@@ -332,6 +332,42 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
+  public void decodeSelectedWaveUpdatePreservesElementOnlyTaskAnnotation() {
+    // task/id applied to a checkbox element (no text chars): textOffset doesn't advance
+    // but docOffset does, so the annotation must not be dropped.
+    String json =
+        "{\"sequenceNumber\":22,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"b+checkbox\","
+            + "\"2\":{\"1\":[{\"3\":{\"1\":\"body\",\"2\":[]}},"
+            + "{\"3\":{\"1\":\"line\",\"2\":[]}},"
+            + "{\"1\":{\"3\":[{\"1\":\"task/id\",\"3\":\"task-abc\"}]}},"
+            + "{\"3\":{\"1\":\"checkbox\",\"2\":[]}},"
+            + "{\"4\":true},"
+            + "{\"1\":{\"2\":[\"task/id\"]}},"
+            + "{\"2\":\"Task text\"},"
+            + "{\"4\":true},{\"4\":true}]},"
+            + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch7\"}}";
+
+    SidecarSelectedWaveUpdate update = SidecarTransportCodec.decodeSelectedWaveUpdate(json);
+
+    SidecarSelectedWaveDocument document = update.getDocuments().get(0);
+    Assert.assertEquals("Task text", document.getTextContent());
+    Assert.assertEquals(15, document.getBodyItemCount());
+    Assert.assertEquals(1, document.getAnnotationRanges().size());
+    SidecarAnnotationRange range = document.getAnnotationRanges().get(0);
+    Assert.assertEquals("task/id", range.getKey());
+    Assert.assertEquals("task-abc", range.getValue());
+    Assert.assertEquals(0, range.getStartOffset());
+    Assert.assertEquals(0, range.getEndOffset());
+    // body+line element starts = 2 doc items before annotation opens; checkbox element = 1 item
+    Assert.assertEquals(2, range.getDocStartOffset());
+    Assert.assertEquals(4, range.getDocEndOffset());
+  }
+
+  @Test
   public void decodeSelectedWaveUpdateTreatsAnnotationChangeWithoutNewValueAsRemoval() {
     String json =
         "{\"sequenceNumber\":20,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"

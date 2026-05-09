@@ -438,7 +438,6 @@ shell-header[compact-gwt-topbar] > [slot="actions-signed-out"] {
   min-height: 32px;
   height: 32px;
   padding: 0 4px 0 8px;
-  margin-left: auto;
   border-radius: 6px;
   color: #fff;
 }

@@ -4951,8 +4951,9 @@ public final class HtmlRenderer {
     sb.append("  var encoded=encodeLocalReturnTargetForQuery(target, fallback);\n");
     sb.append("  var shell=document.querySelector('[data-j2cl-root-shell]');\n");
     sb.append("  if(shell){shell.setAttribute('data-j2cl-root-return-target', target);}\n");
-    sb.append("  var brand=document.getElementById('j2cl-root-brand-link');\n");
-    sb.append("  if(brand){brand.href=target;}\n");
+    // Round 2: the brand link is a fixed hop to the marketing landing
+    // page (set at SSR render via J2CL_BRAND_HOME_HREF) and must not be
+    // rewritten by the return-target bootstrap.
     sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
     sb.append("  if(targetText){targetText.className='j2cl-status-live-text';targetText.textContent='Return target: ' + target;}\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");

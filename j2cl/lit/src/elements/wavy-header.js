@@ -16,12 +16,15 @@ import { LitElement, css, html } from "lit";
  *       NOT mounted by this slice — only the trigger is)
  *
  * Public API:
- * - signedIn      — boolean (controls visibility of A.5/A.6/A.7)
- * - locale        — current locale code (defaults to "en")
- * - address       — user's email address (data-address; reflected so
- *                   server-side templates can pass it through)
- * - userName      — display name fallback for initials (defaults to address)
- * - unreadCount   — number; A.5 dot becomes visible when > 0
+ * - signedIn          — boolean (controls visibility of A.5/A.6/A.7)
+ * - locale            — current locale code (defaults to "en")
+ * - address           — user's email address (data-address; reflected so
+ *                       server-side templates can pass it through)
+ * - userName          — display name fallback for initials (defaults to address)
+ * - unreadCount       — number; A.5 dot becomes visible when > 0
+ * - compact-gwt-topbar — boolean; activates GWT-parity compact mode: hides the
+ *                        full email span, shortens locale labels, and reduces
+ *                        icon sizing to match the 40px GWT root topbar
  *
  * Events:
  * - wavy-locale-changed     — `{detail: {locale}}` on <select> change

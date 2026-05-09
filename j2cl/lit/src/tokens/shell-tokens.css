@@ -186,7 +186,6 @@ shell-header {
 shell-header[compact-gwt-topbar] {
   padding: 0 12px;
   min-height: 40px;
-  height: 40px;
   background: linear-gradient(135deg, #023e6b 0%, #006b9f 62%, #0077a8 100%);
   border-bottom: none;
   box-shadow: 0 2px 8px rgba(0, 50, 100, 0.18);
@@ -267,6 +266,13 @@ shell-header[compact-gwt-topbar] > [slot="brand"] .j2cl-brand-eyebrow {
 shell-header > [slot="actions-signed-in"] > .brand,
 shell-header > [slot="actions-signed-out"] > .brand,
 shell-header wavy-header > .brand {
+  display: none;
+}
+
+/* Hide SSR light-DOM email span before Lit upgrade hoists the element into
+ * shadow DOM; the shadow rule (:host([compact-gwt-topbar]) .user-email) only
+ * applies post-upgrade, so long addresses would overflow the 40px bar. */
+shell-header[compact-gwt-topbar] wavy-header > .user-email {
   display: none;
 }
 
@@ -417,6 +423,11 @@ shell-status-strip {
   shell-header {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  shell-header[compact-gwt-topbar] {
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   shell-nav-rail {

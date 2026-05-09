@@ -1624,7 +1624,36 @@ public final class J2clReadSurfaceDomRenderer {
         ? Collections.<J2clTaskItemModel>emptyList()
         : taskBinder.tasksFor(blip.getBlipId());
     if (tasks == null || tasks.isEmpty()) {
-      return null;
+      // Legacy task blip: has task/done annotation but no task/id ranges. Render a
+      // single affordance without task-id so the toggle button remains usable.
+      if (!blip.isTask()) {
+        return null;
+      }
+      HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
+      list.className = "j2cl-read-task-affordances";
+      list.setAttribute("data-task-affordance-list", "");
+      list.setAttribute("slot", "blip-extension");
+      HTMLElement affordance = (HTMLElement) DomGlobal.document.createElement("wavy-task-affordance");
+      affordance.setAttribute("data-blip-id", blip.getBlipId());
+      if (blip.isTaskDone()) {
+        affordance.setAttribute("data-task-completed", "");
+      }
+      if (!blip.getTaskAssignee().isEmpty()) {
+        affordance.setAttribute("data-task-assignee", blip.getTaskAssignee());
+      }
+      String legacyDueDate = formatDueDate(blip.getTaskDueTimestamp());
+      if (!legacyDueDate.isEmpty()) {
+        affordance.setAttribute("data-task-due-date", legacyDueDate);
+      }
+      if (blip.getBodyItemCount() > 0) {
+        affordance.setAttribute("data-blip-doc-size", String.valueOf(blip.getBodyItemCount()));
+      }
+      String legacyWaveId = currentWaveId();
+      if (!legacyWaveId.isEmpty()) {
+        affordance.setAttribute("data-wave-id", legacyWaveId);
+      }
+      list.appendChild(affordance);
+      return list;
     }
     HTMLElement list = (HTMLElement) DomGlobal.document.createElement("div");
     list.className = "j2cl-read-task-affordances";
@@ -1640,7 +1669,7 @@ public final class J2clReadSurfaceDomRenderer {
       affordance.setAttribute("data-task-start", String.valueOf(task.getTextOffset()));
       affordance.setAttribute("data-task-end", String.valueOf(task.getEndOffset()));
       affordance.setAttribute("data-task-anchor-id", task.getElementAnchorId());
-      if (task.isChecked()) {
+      if (blip.isTaskDone()) {
         affordance.setAttribute("data-task-completed", "");
       }
       if (!task.getAssigneeAddress().isEmpty()) {

@@ -211,6 +211,7 @@ export class WavyProfileOverlay extends LitElement {
     this.currentUserId = "";
     this.editProfileUrl = "/userprofile/edit";
     this._fallbackParticipant = null;
+    this._activeFetchAddress = "";
     this._onAvatarRequest = this._onAvatarRequest.bind(this);
     this._onKeyDown = this._onKeyDown.bind(this);
   }
@@ -376,6 +377,7 @@ export class WavyProfileOverlay extends LitElement {
     if (!address || typeof fetch !== "function") {
       return;
     }
+    this._activeFetchAddress = address;
     try {
       const response = await fetch(`/profile/?addresses=${encodeURIComponent(address)}`, {
         credentials: "same-origin",
@@ -389,7 +391,7 @@ export class WavyProfileOverlay extends LitElement {
       const profile =
         profiles.find((item) => item && String(item.address || item.id || "") === address) ||
         profiles[0];
-      if (!profile) {
+      if (!profile || this._activeFetchAddress !== address) {
         return;
       }
       this._mergeProfileDetails(address, profile);

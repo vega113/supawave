@@ -214,6 +214,9 @@ export class WaveBlip extends LitElement {
       object-fit: cover;
       display: block;
     }
+    .avatar:has(img) {
+      color: transparent;
+    }
     :host([data-blip-depth="root"]) .avatar {
       width: var(--wavy-avatar-size-root, 28px);
       height: var(--wavy-avatar-size-root, 28px);

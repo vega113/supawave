@@ -228,7 +228,9 @@ public final class J2clInteractionBlipModel {
         continue;
       }
       if (range.getStartOffset() == taskIdRange.getStartOffset()
-          && range.getEndOffset() == taskIdRange.getEndOffset()) {
+          && range.getEndOffset() == taskIdRange.getEndOffset()
+          && range.getDocStartOffset() == taskIdRange.getDocStartOffset()
+          && range.getDocEndOffset() == taskIdRange.getDocEndOffset()) {
         return safe(range.getValue());
       }
     }

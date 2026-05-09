@@ -1646,7 +1646,7 @@ public final class J2clReadSurfaceDomRenderer {
       // (task/assignee or task/dueTs) without a task/done annotation — isTask()
       // only returns true when task/done is present, so we must also check metadata.
       boolean hasLegacyMetadata = !blip.getTaskAssignee().isEmpty()
-          || blip.getTaskDueTimestamp() != 0;
+          || blip.getTaskDueTimestamp() > 0;
       if (!blip.isTask() && !hasLegacyMetadata) {
         return null;
       }
@@ -2004,7 +2004,7 @@ public final class J2clReadSurfaceDomRenderer {
     // freshly-created <wave-blip> element. Also set for metadata-only blips (assignee /
     // due-date present but no task/done annotation), since isTask() is false for those.
     String assignee = taskAssignee == null ? "" : taskAssignee.trim();
-    if (isTask || taskDone || !assignee.isEmpty() || taskDueTimestamp != 0) {
+    if (isTask || taskDone || !assignee.isEmpty() || taskDueTimestamp > 0) {
       element.setAttribute("data-task-present", "");
     } else {
       element.removeAttribute("data-task-present");

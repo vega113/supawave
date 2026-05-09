@@ -318,6 +318,13 @@ shell-header[compact-gwt-topbar] wavy-header .user-menu {
   text-decoration: none;
 }
 
+shell-header[compact-gwt-topbar] wavy-header .bell svg,
+shell-header[compact-gwt-topbar] wavy-header .mail svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 shell-header > [slot="actions-signed-in"],
 shell-header > [slot="actions-signed-out"] {
   display: inline-flex;

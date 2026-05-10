@@ -254,6 +254,21 @@ public final class J2clComposeSurfaceController {
     }
 
     /**
+     * Returns the participant addresses for the currently selected wave so
+     * a freshly mounted inline {@code <wavy-composer>} can populate the
+     * mention popover candidate list at mount time. Without this direct
+     * read, the view has to pick the list off the legacy
+     * {@code <composer-inline-reply>} element's expando, which is empty
+     * until the controller's first participants-bearing render — so a
+     * user who types {@code @} between mount and that render sees an
+     * empty popover. Default returns an empty list so existing test
+     * doubles compile unchanged.
+     */
+    default List<String> getCurrentParticipantAddresses() {
+      return Collections.<String>emptyList();
+    }
+
+    /**
      * F-3.S4 (#1038, R-5.6 step 1): the user dropped files into the
      * composer body. The controller routes through the same plumbing
      * as {@link #onAttachmentFilesSelected} (default delegates) so
@@ -1016,6 +1031,11 @@ public final class J2clComposeSurfaceController {
             List<SidecarReactionEntry> s = reactionSnapshotsByBlip.get(blipId.trim());
             return s != null ? new ArrayList<SidecarReactionEntry>(s)
                 : Collections.<SidecarReactionEntry>emptyList();
+          }
+
+          @Override
+          public List<String> getCurrentParticipantAddresses() {
+            return J2clComposeSurfaceController.this.participantsForCurrentSelection();
           }
 
           @Override

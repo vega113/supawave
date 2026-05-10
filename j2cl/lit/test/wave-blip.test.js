@@ -233,6 +233,52 @@ describe("<wave-blip>", () => {
     expect(el._currentSelectionItemOffsetWithinBody()).to.equal(9);
   });
 
+  // GWT parity: when the user has a text selection inside the parent
+  // blip body and clicks the toolbar Reply button, the browser collapses
+  // the selection on mousedown (the button receives focus). We capture
+  // the offset on the toolbar button's mousedown — *before* the focus
+  // shift — and use that captured value at click time, so the resulting
+  // wave-blip-reply-requested event still carries the correct anchor.
+  it(
+    "uses the mousedown-captured offset on click even when selection is cleared",
+    async () => {
+      const el = await fixture(html`<wave-blip
+        data-blip-id="b7"
+        data-wave-id="w7"
+        author-name="A"
+        data-blip-doc-size="50"
+      ></wave-blip>`);
+      await el.updateComplete;
+      const span = attachBlipContent(el, "Hello world");
+      const textNode = span.firstChild;
+      // Place a caret at DOM offset 5 → wave-doc item offset 6.
+      const range = document.createRange();
+      range.setStart(textNode, 5);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+      await toolbar.updateComplete;
+      const replyBtn = toolbar.renderRoot.querySelector(
+        "[data-toolbar-action='reply']"
+      );
+
+      // Simulate the real browser sequence: mousedown captures offset,
+      // then the browser collapses the selection (we clear it manually
+      // here), then click fires.
+      replyBtn.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, composed: true })
+      );
+      window.getSelection().removeAllRanges();
+      setTimeout(() => replyBtn.click(), 0);
+      const ev = await oneEvent(el, "wave-blip-reply-requested");
+      expect(ev.detail.anchorItemOffset).to.equal(6);
+      expect(ev.detail.parentBodyItemCount).to.equal(50);
+    }
+  );
+
   // No selection / caret outside the blip body → -1, telling the
   // controller to fall back to the legacy "no anchor" path.
   it("returns -1 when no caret lies inside the blip body", async () => {

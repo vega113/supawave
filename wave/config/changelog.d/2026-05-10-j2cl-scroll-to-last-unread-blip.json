@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-10-j2cl-scroll-to-last-unread-blip",
+  "version": "PR #1244",
+  "date": "2026-05-10",
+  "title": "J2CL parity: scroll to last unread blip on wave open",
+  "summary": "Opening a wave in the J2CL client now focuses and scrolls to the last unread blip (falling back to the last rendered blip when everything is read), matching GWT's FocusBlipSelector.selectInitialBlip behavior.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "J2clSelectedWaveView tracks the wave-id transition already used to clear viewport scroll memory, and after the first render that produces content scans rendered blips right-to-left for the `unread` DOM marker, focusing that blip (or the last rendered blip if none are unread) and scrolling it into view via the existing focusBlip path.",
+        "Skips the immediate mark-read side effect on auto-focus — GWT's Reader marks via dwell observers — so on wave open J2CL positions only and leaves read-marking to the user's first interaction."
+      ]
+    }
+  ]
+}

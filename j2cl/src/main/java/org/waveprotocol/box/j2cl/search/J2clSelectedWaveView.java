@@ -91,6 +91,11 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   private String serverFirstMode;
   private double serverFirstMountedAtMs;
   private String lastRenderedWaveId = "";
+  // GWT parity (FocusBlipSelector.selectInitialBlip): when a wave is opened,
+  // scroll/focus to the last unread blip, falling back to the last blip.
+  // Set when lastRenderedWaveId transitions to a new (non-empty) wave; cleared
+  // once initial focus has been applied to a non-empty rendered surface.
+  private String pendingInitialFocusWaveId = "";
   // F-3.S3 (#1038, R-5.5): publisher installed by the root shell to
   // forward per-blip reaction snapshots to the compose controller.
   private ReactionSnapshotPublisher reactionSnapshotPublisher;
@@ -638,6 +643,10 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   }
 
   private void focusBlip(HTMLElement target) {
+    focusBlip(target, /* markRead= */ true);
+  }
+
+  private void focusBlip(HTMLElement target, boolean markRead) {
     if (target == null) {
       return;
     }
@@ -659,7 +668,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     FocusOptionsType focusOptions = FocusOptionsType.create();
     focusOptions.setPreventScroll(true);
     target.focus(focusOptions);
-    readSurface.markFocusedBlipReadNow(target);
+    if (markRead) {
+      readSurface.markFocusedBlipReadNow(target);
+    }
     ScrollIntoViewOptions scrollOptions = ScrollIntoViewOptions.create();
     scrollOptions.setBlock("center");
     scrollOptions.setInline("nearest");
@@ -721,6 +732,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (!renderedWaveId.equals(lastRenderedWaveId)) {
       readSurface.clearViewportScrollMemory();
       lastRenderedWaveId = renderedWaveId;
+      if (!renderedWaveId.isEmpty()) {
+        pendingInitialFocusWaveId = renderedWaveId;
+      }
     }
     publishReactionState(model);
     // F-2 (#1037, R-3.1) — surface the wave id on the content host so the
@@ -756,6 +770,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     }
     if (shouldPreserveServerFirstCard(model)) {
       renderPreservedServerFirstState(model);
+      maybeApplyInitialFocus(renderedWaveId, model);
       return;
     }
 
@@ -835,6 +850,47 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             model.getSelectedWaveId() != null && !model.getSelectedWaveId().isEmpty());
       }
     }
+
+    if (hasRenderedReadSurface) {
+      maybeApplyInitialFocus(renderedWaveId, model);
+    }
+  }
+
+  /**
+   * GWT parity: on the first render of a freshly-opened wave, scroll/focus to
+   * the last unread blip (matching {@code FocusBlipSelector.selectLastUnread}).
+   * If every loaded blip is read, fall back to the last rendered blip
+   * ({@code FocusBlipSelector.selectInitialBlip} step 3). On a no-op render
+   * with no loaded blips yet, the pending flag is preserved so a subsequent
+   * render can apply the focus once content lands.
+   */
+  private void maybeApplyInitialFocus(String renderedWaveId, J2clSelectedWaveModel model) {
+    if (pendingInitialFocusWaveId.isEmpty()
+        || !pendingInitialFocusWaveId.equals(renderedWaveId)
+        || !model.hasSelection()) {
+      return;
+    }
+    List<HTMLElement> blips = renderedBlips();
+    if (blips.isEmpty()) {
+      return;
+    }
+    HTMLElement target = null;
+    for (int i = blips.size() - 1; i >= 0; i--) {
+      HTMLElement blip = blips.get(i);
+      if (blip.hasAttribute("unread")) {
+        target = blip;
+        break;
+      }
+    }
+    if (target == null) {
+      target = blips.get(blips.size() - 1);
+    }
+    pendingInitialFocusWaveId = "";
+    // Auto-focus on wave-open mirrors GWT's selectInitialBlip + FocusFramePresenter.focus.
+    // GWT marks blips read via dwell-based Reader observers, not on focus, so the
+    // J2CL parity path skips the immediate mark-read side effect; the first user
+    // action (next-unread key, click, or scroll dwell) takes that responsibility.
+    focusBlip(target, /* markRead= */ false);
   }
 
   private void publishTaskBinder(J2clSelectedWaveModel model) {

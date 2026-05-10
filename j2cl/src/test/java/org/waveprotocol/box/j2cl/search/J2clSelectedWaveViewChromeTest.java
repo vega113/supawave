@@ -788,6 +788,41 @@ public class J2clSelectedWaveViewChromeTest {
   }
 
   @Test
+  public void initialRenderFocusesLastUnreadBlip() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    view.render(navigationModel());
+
+    // navigationModel has b+1 (read), b+2 (unread), b+3 (read). The last unread is b+2.
+    HTMLElement expected = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+2']");
+    Assert.assertNotNull("Unread blip b+2 must be in the DOM", expected);
+    Assert.assertEquals(
+        "Initial wave open must focus the last unread blip",
+        expected,
+        DomGlobal.document.activeElement);
+  }
+
+  @Test
+  public void initialRenderDoesNotMarkUnreadBlipRead() {
+    assumeBrowserDom();
+    HTMLElement host = createHost();
+    J2clSelectedWaveView view = new J2clSelectedWaveView(host);
+    final List<String> markedRead = new ArrayList<String>();
+    view.setMarkBlipReadHandler((blipId, onError) -> markedRead.add(blipId));
+    view.render(navigationModel());
+
+    Assert.assertTrue(
+        "Auto-focus on wave open must not trigger mark-read (GWT defers read to dwell observers)",
+        markedRead.isEmpty());
+    HTMLElement unreadBlip = (HTMLElement) host.querySelector("wave-blip[data-blip-id='b+2']");
+    Assert.assertNotNull("Unread blip b+2 must be in the DOM", unreadBlip);
+    Assert.assertTrue(
+        "Auto-focus on wave open must not clear the unread attribute",
+        unreadBlip.hasAttribute("unread"));
+  }
+
+  @Test
   public void selectedWaveRefreshEventInvokesRefreshHandler() {
     assumeBrowserDom();
     HTMLElement host = createHost();

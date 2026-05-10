@@ -126,6 +126,7 @@ export class WavyFloatingScrollToNew extends LitElement {
   render() {
     const c = this.count || 0;
     const label = t("scrollToNew.label", "Scroll to new messages");
+    const newSuffix = t("scrollToNew.newSuffix", "new");
     return html`
       <button
         type="button"
@@ -133,7 +134,7 @@ export class WavyFloatingScrollToNew extends LitElement {
         title=${label}
         @click=${this._onClick}
       >
-        <span aria-hidden="true">↓ ${c} new</span>
+        <span aria-hidden="true">↓ ${c} ${newSuffix}</span>
       </button>
     `;
   }

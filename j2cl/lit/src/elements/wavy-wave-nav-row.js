@@ -384,7 +384,7 @@ export class WavyWaveNavRow extends LitElement {
           data-action="version-history"
           aria-label=${t("waveNav.versionHistoryShortcut", "Open version history (h)")}
           aria-keyshortcuts="h H"
-          title=${t("waveNav.versionHistory", "Open version history")}
+          title=${t("waveNav.versionHistoryShortcut", "Open version history (h)")}
           @click=${this._onClick("version-history")}
         >
           ${getWaveActionIcon("version-history")}
@@ -397,7 +397,7 @@ export class WavyWaveNavRow extends LitElement {
           aria-haspopup="menu"
           aria-expanded=${this._overflowOpen ? "true" : "false"}
           aria-label=${t("waveNav.overflow", "More wave navigation actions")}
-          title=${t("toolbar.overflowMenu", "More actions")}
+          title=${t("waveNav.overflow", "More wave navigation actions")}
           @click=${this._onOverflowToggle}
         >
           <span aria-hidden="true">⋯</span>

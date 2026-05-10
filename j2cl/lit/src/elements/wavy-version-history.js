@@ -616,8 +616,8 @@ export class WavyVersionHistory extends LitElement {
     const version = snapshot.version == null ? "selected" : snapshot.version;
     return html`
       <section class="snapshot-preview" aria-label=${t("versionHistory.preview", "Read-only version preview")}>
-        <h3>Version ${version}</h3>
-        <p>${participants} participants · ${docs.length} documents</p>
+        <h3>${t("versionHistory.version", "Version")} ${version}</h3>
+        <p>${participants} ${t("versionHistory.participants", "participants")} · ${docs.length} ${t("versionHistory.documents", "documents")}</p>
         <ul class="snapshot-documents">
           ${docs.slice(0, 5).map((doc) => html`
             <li>

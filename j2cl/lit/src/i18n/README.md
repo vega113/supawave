@@ -38,7 +38,7 @@ Add those when a real translator workflow lands.
 
 Per-source-file namespaces, lowerCamel keys:
 
-```
+```text
 waveActions.addParticipant        // wavy-wave-header-actions.js
 formatToolbar.bold                // wavy-format-toolbar.js
 searchRail.refresh                // wavy-search-rail.js
@@ -66,8 +66,8 @@ keep accidental `undefined` strings out of the UI.
 `getLocale()` resolves once, in this order:
 
 1. `window.__bootstrap.session.locale` — the canonical server-supplied
-   value, set by `J2clBootstrapServlet#getSessionJson` from the user's
-   `HumanAccountData#getLocale()`.
+   value, written by `WaveClientServlet.buildSessionJson(...)` from the
+   user's `HumanAccountData#getLocale()`.
 2. `<html lang>` — keeps SSR-only previews sensible.
 3. `"en"`.
 

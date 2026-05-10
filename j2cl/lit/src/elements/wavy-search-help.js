@@ -337,10 +337,10 @@ export class WavySearchHelp extends LitElement {
             type="button"
             class="dismiss"
             @click=${this._dismiss}
-            aria-label=${t("searchHelp.close", "Close search help")}
+            aria-label=${t("searchHelp.gotIt", "Got it")}
             title=${t("searchHelp.close", "Close search help")}
           >
-            Got it
+            ${t("searchHelp.gotIt", "Got it")}
           </button>
         </header>
         <div class="columns">

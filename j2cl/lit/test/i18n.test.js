@@ -103,8 +103,8 @@ describe("i18n / t", () => {
 
   it("falls back to en when the active locale lacks the key", () => {
     setLocale("de");
-    // Synthetic key only present in en.
-    expect(t("waveActions.addParticipant", "FALLBACK")).to.not.equal("FALLBACK");
+    // scrollToNew.newSuffix is in en but intentionally absent from de.
+    expect(t("scrollToNew.newSuffix", "FALLBACK")).to.equal("new");
   });
 
   it("falls back to the supplied English when the key is absent everywhere", () => {

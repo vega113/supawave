@@ -35,7 +35,7 @@ export class ShellSkipLink extends LitElement {
   constructor() {
     super();
     this.target = "#j2cl-root-shell-workflow";
-    this.label = t("skipLink.label", "Skip to main content");
+    this.label = "";
   }
 
   connectedCallback() {
@@ -58,7 +58,7 @@ export class ShellSkipLink extends LitElement {
       this.appendChild(anchor);
     }
     anchor.setAttribute("href", this.target);
-    anchor.textContent = this.label;
+    anchor.textContent = this.label || t("skipLink.label", "Skip to main content");
   }
 }
 

@@ -1,8 +1,9 @@
 // Catalog registry for the J2CL Lit shell.
 //
-// esbuild inlines JSON imports at build time, so each locale ships as part
-// of the shell.js bundle. New locales are added by dropping `xx.json` next
-// to the existing catalogs and importing it here. See ./README.md.
+// Each locale catalog is a plain ES module exporting a named object.
+// esbuild bundles them into shell.js at build time. New locales are added
+// by dropping `xx.js` next to the existing catalogs and importing it here.
+// See ./README.md.
 
 import { en } from "./catalogs/en.js";
 import { de } from "./catalogs/de.js";

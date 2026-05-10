@@ -68,6 +68,7 @@ export const en = {
 
   // wavy-floating-scroll-to-new.js
   "scrollToNew.label": "Scroll to new messages",
+  "scrollToNew.newSuffix": "new",
 
   // wavy-nav-drawer-toggle.js
   "navDrawer.open": "Open navigation drawer",
@@ -93,6 +94,7 @@ export const en = {
   // wavy-search-help.js
   "searchHelp.title": "Search help",
   "searchHelp.close": "Close search help",
+  "searchHelp.gotIt": "Got it",
 
   // wavy-profile-overlay.js
   "profileOverlay.title": "Profile",
@@ -383,6 +385,9 @@ export const en = {
   "versionHistory.previewOnly": "Preview only — restore not available",
   "versionHistory.confirmExplanation": "This rewrites the wave to this point.",
   "versionHistory.preview": "Read-only version preview",
+  "versionHistory.version": "Version",
+  "versionHistory.participants": "participants",
+  "versionHistory.documents": "documents",
 
   // wave-actions popover extras
   "waveActions.addContactPrefix": "Add",

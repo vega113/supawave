@@ -94,6 +94,7 @@ export const de = {
 
   "searchHelp.title": "Suchhilfe",
   "searchHelp.close": "Suchhilfe schließen",
+  "searchHelp.gotIt": "Verstanden",
 
   "profileOverlay.title": "Profil",
   "profileOverlay.close": "Profil schließen",
@@ -352,6 +353,9 @@ export const de = {
   "versionHistory.previewOnly": "Nur Vorschau — Wiederherstellen nicht verfügbar",
   "versionHistory.confirmExplanation": "Dies setzt die Wave auf diesen Stand zurück.",
   "versionHistory.preview": "Schreibgeschützte Versionsvorschau",
+  "versionHistory.version": "Version",
+  "versionHistory.participants": "Teilnehmer",
+  "versionHistory.documents": "Dokumente",
 
   "waveActions.addContactPrefix": "Hinzufügen:",
 

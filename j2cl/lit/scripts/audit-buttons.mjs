@@ -136,8 +136,8 @@ for (const file of listJs(elementsDir)) {
     const close = findCloseAngle(src, open);
     if (close === -1) break;
     const opener = src.slice(open, close + 1);
-    const hasAria = /\baria-label\s*=/.test(opener);
-    const hasTitle = /\btitle\s*=/.test(opener);
+    const hasAria = /(?:^|[\s<])aria-label\s*=/.test(opener);
+    const hasTitle = /(?:^|[\s<])title\s*=/.test(opener);
     if (hasAria && hasTitle) continue;
     violations.push({
       file,

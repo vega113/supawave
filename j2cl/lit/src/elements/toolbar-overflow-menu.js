@@ -41,7 +41,7 @@ export class ToolbarOverflowMenu extends LitElement {
 
   constructor() {
     super();
-    this.label = t("toolbar.overflowMenu", "More actions");
+    this.label = "";
     this.open = false;
     this.addEventListener("keydown", this.onKeyDown);
     this.addEventListener("click", this.onLightDomClick);
@@ -49,17 +49,18 @@ export class ToolbarOverflowMenu extends LitElement {
   }
 
   render() {
+    const label = this.label || t("toolbar.overflowMenu", "More actions");
     return html`
       <button
         type="button"
         aria-haspopup="true"
         aria-expanded=${this.open ? "true" : "false"}
-        aria-label=${this.label}
-        title=${this.label}
+        aria-label=${label}
+        title=${label}
         @click=${this.toggle}
         @keydown=${this.onTriggerKeyDown}
       >
-        ${this.label}
+        ${label}
       </button>
       <div class="menu"><slot></slot></div>
     `;

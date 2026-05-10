@@ -21,8 +21,10 @@ export function normalizeLocale(raw) {
   // language code unless it's zh_TW (the only region-qualified locale we ship).
   const parts = trimmed.replace(/-/g, "_").split("_");
   const lang = parts[0].toLowerCase();
-  const region = parts[1] ? parts[1].toUpperCase() : "";
-  const candidate = region && lang === "zh" ? `${lang}_${region}` : lang;
+  // For zh (Chinese), derive the region from the last subtag so that
+  // zh-Hant-TW and zh_TW both normalize to zh_TW correctly.
+  const lastPart = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : "";
+  const candidate = lastPart && lang === "zh" ? `${lang}_${lastPart}` : lang;
   return SUPPORTED_LOCALES.includes(candidate) ? candidate : null;
 }
 

@@ -412,6 +412,8 @@ export class WaveBlip extends LitElement {
     this.dataBlipFocused = null;
     this._participants = [];
     this.authorAvatarUrl = "";
+    this._capturedReplyAnchorOffset = undefined;
+    this._capturedReplyAnchorCapturedAt = undefined;
   }
 
   /**
@@ -591,7 +593,10 @@ export class WaveBlip extends LitElement {
     // with preventDefault on some engines — so the click-time selection
     // may already be gone. The mousedown capture runs *before* any
     // selection mutation and is the authoritative anchor.
-    let anchorItemOffset = this._capturedReplyAnchorOffset;
+    const hasFreshCapture =
+      typeof this._capturedReplyAnchorCapturedAt === "number" &&
+      Date.now() - this._capturedReplyAnchorCapturedAt < 1000;
+    let anchorItemOffset = hasFreshCapture ? this._capturedReplyAnchorOffset : undefined;
     if (
       typeof anchorItemOffset !== "number" ||
       !Number.isFinite(anchorItemOffset)
@@ -599,6 +604,7 @@ export class WaveBlip extends LitElement {
       anchorItemOffset = this._currentSelectionItemOffsetWithinBody();
     }
     this._capturedReplyAnchorOffset = undefined;
+    this._capturedReplyAnchorCapturedAt = undefined;
     this.dispatchEvent(
       new CustomEvent("wave-blip-reply-requested", {
         bubbles: true,
@@ -622,7 +628,8 @@ export class WaveBlip extends LitElement {
     // ignores the preventDefault on cross-shadow buttons.
     event.stopPropagation();
     this._capturedReplyAnchorOffset =
-        this._currentSelectionItemOffsetWithinBody();
+      this._currentSelectionItemOffsetWithinBody();
+    this._capturedReplyAnchorCapturedAt = Date.now();
   }
 
   /**

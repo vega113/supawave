@@ -51,6 +51,27 @@ public final class HtmlRendererChangelogTest {
   }
 
   @Test
+  public void j2clRootShellPageUsesVersionPayloadForUpgradeBanner() {
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        new JSONObject("{\"address\":\"alice@example.com\"}"),
+        "",
+        "abc123build",
+        1700000000000L,
+        "2026-03-27-unread-only-search-filter",
+        "/?view=j2cl-root",
+        "localhost:9898");
+
+    assertTrue(html.contains("var currentBuildCommit = \"abc123build\";"));
+    assertTrue(html.contains("var currentBuildTime = 1700000000000;"));
+    assertTrue(html.contains("var currentReleaseId = \"2026-03-27-unread-only-search-filter\";"));
+    assertTrue(html.contains("fetch('/version?since=' + encodeURIComponent(currentReleaseId || '')"));
+    assertTrue(html.contains("showUpgradeBanner(data.releaseNotesStatus, data.releaseNotes || []);"));
+    assertTrue(html.contains("setInterval(checkVersion, 60000);"));
+    assertTrue(html.contains("upgrade-banner"));
+    assertTrue(html.contains("What's New \\u2192"));
+  }
+
+  @Test
   public void j2clRootShellNormalizesLegacyHashDeepLinksBeforeMount() {
     String html = HtmlRenderer.renderJ2clRootShellPage(
         new JSONObject("{\"address\":\"alice@example.com\"}"),

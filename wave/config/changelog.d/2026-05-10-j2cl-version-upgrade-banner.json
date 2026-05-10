@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-10-j2cl-version-upgrade-banner",
+  "version": "J2CL parity",
+  "date": "2026-05-10",
+  "title": "J2CL root shell now shows the deploy upgrade banner just like GWT.",
+  "summary": "The J2CL root shell page now polls /version every 60 seconds and shows the same upgrade banner GWT shows when the deployed build commit or build time changes, so users on the J2CL client get notified to reload after a deploy.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Server now injects the same /version polling + upgrade-banner script into the J2CL root shell page, mirroring the GWT wave client."
+      ]
+    }
+  ]
+}

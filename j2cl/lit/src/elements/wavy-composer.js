@@ -444,14 +444,18 @@ export class WavyComposer extends LitElement {
       min-height: 32px;
       padding: 6px 8px;
       border-radius: var(--wavy-radius-card, 4px);
-      border: 1px solid var(--wavy-border-hairline, #e2e8f0);
+      /* Transparent placeholder so the drag-drop state below can paint a
+       * cyan outline without shifting layout. The static hairline that
+       * used to live here drew a redundant line across the middle of the
+       * compose card — wavy-compose-card already supplies the focus
+       * envelope. */
+      border: 1px solid transparent;
       background: #f8fafc;
       color: var(--wavy-text-body, #1a202c);
       outline: none;
       font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
     }
     [data-composer-body]:focus-visible {
-      border-color: #90cdf4;
       box-shadow: none;
       background: #ffffff;
     }

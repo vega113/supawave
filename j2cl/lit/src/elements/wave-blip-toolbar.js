@@ -115,6 +115,24 @@ export class WaveBlipToolbar extends LitElement {
         data-toolbar-action="reply"
         aria-label=${replyAction}
         title=${replyAction}
+        @mousedown=${(e) => {
+          // Preserve the user's text selection in the parent blip body
+          // so _onReplyClick can read it via window.getSelection(). Without
+          // preventDefault the button takes focus on mousedown and the
+          // browser collapses the selection, defeating caret-anchored
+          // inline reply (#1243).
+          e.preventDefault();
+          // Bubble a pre-click signal so wave-blip can capture the caret
+          // offset *before* the click handler runs, even on browsers that
+          // mutate the selection despite preventDefault.
+          this.dispatchEvent(
+            new CustomEvent("wave-blip-toolbar-reply-mousedown", {
+              bubbles: true,
+              composed: true,
+              detail: { blipId: this.blipId, waveId: this.waveId }
+            })
+          );
+        }}
         @click=${() => this._emit("wave-blip-toolbar-reply")}
       >
         <span class="glyph" aria-hidden="true">↩</span><span class="label">${t("blipToolbar.reply", "Reply")}</span>

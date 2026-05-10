@@ -584,7 +584,21 @@ export class WaveBlip extends LitElement {
     // wave op still creates the child thread in the manifest, but no
     // anchor is inserted, so the reply renders as a flat child below
     // the body (legacy J2CL behavior).
-    const anchorItemOffset = this._currentSelectionItemOffsetWithinBody();
+    //
+    // Prefer the offset captured on the toolbar Reply button's mousedown
+    // (see _onReplyToolbarMouseDown). The browser collapses non-editable
+    // text selections when a button receives focus on mousedown — even
+    // with preventDefault on some engines — so the click-time selection
+    // may already be gone. The mousedown capture runs *before* any
+    // selection mutation and is the authoritative anchor.
+    let anchorItemOffset = this._capturedReplyAnchorOffset;
+    if (
+      typeof anchorItemOffset !== "number" ||
+      !Number.isFinite(anchorItemOffset)
+    ) {
+      anchorItemOffset = this._currentSelectionItemOffsetWithinBody();
+    }
+    this._capturedReplyAnchorOffset = undefined;
     this.dispatchEvent(
       new CustomEvent("wave-blip-reply-requested", {
         bubbles: true,
@@ -597,6 +611,18 @@ export class WaveBlip extends LitElement {
         }
       })
     );
+  }
+
+  _onReplyToolbarMouseDown(event) {
+    // Capture the caret/selection offset the instant the user presses the
+    // toolbar Reply button — *before* the browser shifts focus and
+    // potentially collapses the selection. The toolbar's mousedown handler
+    // calls preventDefault to discourage the focus shift, but we still
+    // capture defensively so this works even if a future browser change
+    // ignores the preventDefault on cross-shadow buttons.
+    event.stopPropagation();
+    this._capturedReplyAnchorOffset =
+        this._currentSelectionItemOffsetWithinBody();
   }
 
   /**
@@ -952,6 +978,7 @@ export class WaveBlip extends LitElement {
             data-blip-id=${this.blipId}
             data-wave-id=${this.waveId}
             data-variant=${visuallyFocused ? "focused" : "default"}
+            @wave-blip-toolbar-reply-mousedown=${this._onReplyToolbarMouseDown}
             @wave-blip-toolbar-reply=${this._onReplyClick}
             @wave-blip-toolbar-edit=${this._onEditClick}
             @wave-blip-toolbar-link=${this._onLinkClick}

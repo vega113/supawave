@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-10-j2cl-toolbar-reply-preserve-selection",
+  "version": "J2CL parity",
+  "date": "2026-05-10",
+  "title": "J2CL toolbar Reply now preserves the text selection so caret-anchored inline replies actually land at the caret.",
+  "summary": "PR #1243 wired the caret-anchor plumbing end-to-end (wave-blip captures the offset, the controller forwards it, the factory emits the body op), but the toolbar Reply button only had an @click handler. The blip body is not contenteditable, so when the user pressed the button the browser's default mousedown moved focus to the button and collapsed the text selection BEFORE @click ran — making _currentSelectionItemOffsetWithinBody return -1 every time and routing through the legacy \"no anchor\" fallback (the blip rendered at the bottom of the thread instead of inline at \"draw\"). The toolbar Reply now calls preventDefault on mousedown to keep the selection alive, and wave-blip captures the caret offset on mousedown as defense-in-depth for browsers that ignore preventDefault on cross-shadow buttons.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "wave-blip-toolbar's Reply button calls event.preventDefault() on mousedown so the user's text selection in the (non-contenteditable) parent blip body is preserved across the click — matching the well-established rich-text-editor toolbar pattern. The button still receives the click event normally.",
+        "wave-blip captures the caret's wave-doc item offset on mousedown (via a new wave-blip-toolbar-reply-mousedown event) and uses that captured value at click time, falling back to the live selection only when the mousedown capture didn't fire. This keeps caret-anchored inline reply working even on engines that mutate the selection despite preventDefault."
+      ]
+    }
+  ]
+}

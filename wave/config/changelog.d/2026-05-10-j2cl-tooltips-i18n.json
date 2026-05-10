@@ -1,0 +1,18 @@
+{
+  "releaseId": "2026-05-10-j2cl-tooltips-i18n",
+  "version": "PR #1240",
+  "date": "2026-05-10",
+  "title": "J2CL shell: tooltips and i18n for all action buttons",
+  "summary": "Every interactive button in the J2CL Lit shell now carries both aria-label and title attributes, localized via a lightweight i18n primitive with English and German catalogs.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added t()/setLocale()/subscribe() i18n primitive for the J2CL Lit shell with English and German catalogs",
+        "All <button> elements in j2cl/lit/src/elements/ now have aria-label and title attributes for accessibility and tooltip support",
+        "User locale is surfaced from HumanAccountData through J2clBootstrapContract.SESSION_LOCALE to window.__bootstrap.session.locale",
+        "Added scripts/audit-buttons.mjs prebuild check that rejects any button missing aria-label or title"
+      ]
+    }
+  ]
+}

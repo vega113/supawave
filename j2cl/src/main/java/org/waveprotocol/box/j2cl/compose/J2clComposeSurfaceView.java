@@ -216,7 +216,22 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     if (inlineRichComposerEnabled) {
       DomGlobal.document.body.addEventListener(
           "wave-blip-reply-requested",
-          event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
+          event -> {
+            // GWT parity: wave-blip captures the caret/selection's
+            // wave-doc item offset inside the parent body so the next
+            // reply submit can insert a `<reply id="...">` anchor at
+            // that exact position. anchorItemOffset == -1 means the
+            // user had no caret inside this blip — fall back to the
+            // legacy J2CL "manifest-only" inline reply (no anchor).
+            String blipId = eventDetailString(event, "blipId");
+            int anchorItemOffset = eventDetailInt(event, "anchorItemOffset", -1);
+            int parentBodyItemCount = eventDetailInt(event, "parentBodyItemCount", 0);
+            if (listener != null) {
+              listener.onInlineReplyAnchorRequested(
+                  blipId, anchorItemOffset, parentBodyItemCount);
+            }
+            openInlineComposer(blipId, "reply");
+          });
       // GWT parity (continuation reply): wave-blip's hover-revealed
       // indicator below the body creates a SIBLING reply at the same
       // thread level. Open the inline composer in "continuation" mode so

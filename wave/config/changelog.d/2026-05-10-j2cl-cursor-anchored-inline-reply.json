@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-10-j2cl-cursor-anchored-inline-reply",
+  "version": "J2CL parity",
+  "date": "2026-05-10",
+  "title": "J2CL inline replies now anchor at the user's caret inside the parent blip — matching the GWT client.",
+  "summary": "Clicking the toolbar Reply icon while the caret is inside a blip's body now creates an INLINE reply anchored at the caret's exact position, mirroring the GWT wave client. PR #1242 restored the per-blip continuation indicator (sibling reply) but the toolbar Reply still produced an unanchored child thread that rendered as a flat blip below the parent body. Now wave-blip captures the caret's wave-doc item offset (DOM text offset + leading <body> + line-tag items + existing anchor items), forwards it through the compose surface controller into J2clRichContentDeltaFactory, which emits an additional parent-blip body op inserting a <reply id=\"…\"> anchor element at that offset — exactly what GWT's WaveletBasedConversationBlip.addReplyThread(int location) does. Replies with no caret inside the blip body fall back to the legacy \"no anchor\" path so existing flows keep working.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "wave-blip's toolbar Reply now captures the caret's wave-doc item offset inside the parent body and forwards it on the wave-blip-reply-requested event detail (alongside parentBodyItemCount).",
+        "J2clRichContentDeltaFactory.createReplyRequest gains a 6-arg overload that emits a parent-blip body op inserting a <reply id=\"threadId\"> anchor element at the captured offset, paired with the existing manifest <thread> insert. Continuation (sibling) replies still suppress the anchor op since they have no thread to point at."
+      ]
+    }
+  ]
+}

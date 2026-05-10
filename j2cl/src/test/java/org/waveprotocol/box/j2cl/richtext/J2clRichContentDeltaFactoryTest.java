@@ -189,6 +189,123 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void cursorAnchoredInlineReplyEmitsParentBlipBodyOpInsertingReplyElement() {
+    // GWT parity: when wave-blip captures the user's caret inside the
+    // parent body, the delta carries an additional document op that
+    // inserts a `<reply id="threadId">` element at the captured
+    // wave-doc item offset, so the new thread renders inline at that
+    // position instead of as a flat child below the body.
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply", "chan-7", 44L, "ABCD", "b+parent", 6, 8);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Inline at caret").build();
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest(
+            "user@example.com",
+            session,
+            document,
+            /* inlineAnchorItemOffset= */ 4,
+            /* parentBodyItemCount= */ 12);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertEquals("b+seedA", request.getClientCreatedBlipId());
+    // Manifest op still inserts the new <thread>+<blip>.
+    assertContains(
+        deltaJson,
+        "{\"3\":{\"1\":\"thread\",\"2\":[{\"1\":\"id\",\"2\":\"t+seedB\"}]}}",
+        "{\"3\":{\"1\":\"blip\",\"2\":[{\"1\":\"id\",\"2\":\"b+seedA\"}]}}");
+    // Parent-blip body op: retain 4, insert <reply id=t+seedB>, end, retain 8.
+    assertContains(
+        deltaJson,
+        "\"1\":\"b+parent\"",
+        "{\"5\":4}",
+        "{\"3\":{\"1\":\"reply\",\"2\":[{\"1\":\"id\",\"2\":\"t+seedB\"}]}}",
+        "{\"4\":true}",
+        "{\"5\":8}");
+    // The reply thread id appears in BOTH the manifest <thread> and
+    // the parent-body <reply> anchor — so the two ops point at the
+    // same thread, mirroring GWT's createInlineReplyAnchor + manifest
+    // append pair.
+    Assert.assertTrue(
+        "reply thread id must appear in both manifest and parent body op",
+        countOccurrences(deltaJson, "t+seedB") >= 2);
+  }
+
+  @Test
+  public void cursorAnchoredInlineReplyOmitsBodyOpForContinuationReply() {
+    // Continuation (sibling) replies do not produce a new <thread>, so
+    // there is nothing for a parent-body <reply> anchor to point at —
+    // the anchor op MUST be suppressed even when the caller passes a
+    // valid offset (defense-in-depth: the Java controller already
+    // guards against this, but the factory must not silently emit a
+    // dangling <reply id=…> referring to a non-existent thread).
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession baseSession =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply",
+            "chan-7",
+            44L,
+            "ABCD",
+            "b+root",
+            Collections.<String>emptyList(),
+            6,
+            10,
+            7,
+            1,
+            Collections.singletonMap("b+root", Integer.valueOf(6)),
+            Collections.singletonMap("b+root", Integer.valueOf(7)),
+            Collections.singletonMap("b+root", Integer.valueOf(1)));
+    J2clSidecarWriteSession session = baseSession.forContinuationTarget("b+root");
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Continuation").build();
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest(
+            "user@example.com",
+            session,
+            document,
+            /* inlineAnchorItemOffset= */ 4,
+            /* parentBodyItemCount= */ 12);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertFalse(
+        "continuation reply must not insert a <reply id=…> anchor in the parent body",
+        deltaJson.contains("\"1\":\"reply\""));
+  }
+
+  @Test
+  public void cursorAnchoredInlineReplyFallsBackToNoAnchorWhenOffsetMissing() {
+    // Legacy behavior: when wave-blip had no caret in the parent body
+    // (anchorItemOffset == -1), the factory must not emit a body op —
+    // the inline thread is created in the manifest only, mirroring the
+    // pre-anchor J2CL implementation. This keeps existing flows (e.g.
+    // keyboard-only reply with no selection) working.
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+reply", "chan-7", 44L, "ABCD", "b+parent", 6, 8);
+    J2clComposerDocument document = J2clComposerDocument.builder().text("No anchor").build();
+
+    SidecarSubmitRequest request =
+        factory.createReplyRequest(
+            "user@example.com",
+            session,
+            document,
+            /* inlineAnchorItemOffset= */ -1,
+            /* parentBodyItemCount= */ 0);
+    String deltaJson = request.getDeltaJson();
+
+    Assert.assertFalse(
+        "no anchor → no parent-body <reply> element",
+        deltaJson.contains("\"1\":\"reply\""));
+    // Manifest op still creates the inline thread.
+    assertContains(deltaJson, "\"1\":\"thread\"");
+  }
+
+  @Test
   public void replyRequestAtInlineDepthLimitFallsBackToRegularSiblingReply() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

@@ -572,20 +572,180 @@ export class WaveBlip extends LitElement {
 
   _onReplyClick(event) {
     event.stopPropagation();
-    // GWT parity: the toolbar reply icon creates an INLINE reply (a
-    // child thread under the parent blip). The compose surface routes
-    // this through `onReplySubmitted`, which uses the session's
-    // `replyManifestInsertPosition` to insert a new `<thread>` in the
-    // conversation manifest under the parent blip — matching GWT's
-    // `actions.reply(blipView)` "fallback to blip end" path when no
-    // editor selection is captured.
+    // GWT parity: the toolbar reply icon creates an INLINE reply anchored
+    // at the user's caret/selection inside the blip body. We capture the
+    // wave-doc item offset of the caret here so the compose surface can
+    // emit a parent-blip body op that inserts a `<reply id="...">` anchor
+    // at that exact position — matching GWT's
+    // `WaveletBasedConversationBlip.addReplyThread(int location)`.
+    //
+    // When no caret/selection lies inside this blip we send `-1`, which
+    // the controller treats as the GWT "fallback to blip end" path: the
+    // wave op still creates the child thread in the manifest, but no
+    // anchor is inserted, so the reply renders as a flat child below
+    // the body (legacy J2CL behavior).
+    const anchorItemOffset = this._currentSelectionItemOffsetWithinBody();
     this.dispatchEvent(
       new CustomEvent("wave-blip-reply-requested", {
         bubbles: true,
         composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId }
+        detail: {
+          blipId: this.blipId,
+          waveId: this.waveId,
+          anchorItemOffset,
+          parentBodyItemCount: this.bodySize || 0
+        }
       })
     );
+  }
+
+  /**
+   * Returns the wave-doc item offset of the user's current caret /
+   * selection inside this blip's rendered body, or -1 when there is no
+   * caret/selection inside this blip's body.
+   *
+   * The conversion from DOM text offset to wave-doc item offset accounts
+   * for:
+   * - The leading `<body>` element_start (1 item).
+   * - Each rendered `\n` representing a `<line/>` tag, which is 2
+   *   wave-doc items but 1 DOM character.
+   * - Each pre-existing inline-reply anchor (`<reply>` element) before
+   *   the caret, which is 2 wave-doc items but 0 DOM characters.
+   */
+  _currentSelectionItemOffsetWithinBody() {
+    if (typeof window === "undefined" || !this.shadowRoot) {
+      return -1;
+    }
+    // The blip body's rendered text lives in light-DOM children
+    // slotted into the shadow body's `<slot>`. Walking the shadow
+    // body div directly would also pick up the template's static
+    // whitespace text nodes (Lit preserves indentation between
+    // `<slot>` and `</div>`), inflating the offset by ~20 items.
+    // Walk the slot's flattened assigned nodes instead so the offset
+    // reflects only the rendered text the user can actually click.
+    const slot = this.shadowRoot.querySelector(".body slot");
+    const roots =
+        slot && typeof slot.assignedNodes === "function"
+            ? slot.assignedNodes({ flatten: true })
+            : [];
+    if (!roots || roots.length === 0) {
+      return -1;
+    }
+    // The blip body content is slotted from the light DOM, so the
+    // user's caret lives in light-DOM text nodes. `window.getSelection`
+    // is the right entry point — `ShadowRoot.getSelection()` (Chrome
+    // experimental) only sees selections inside the shadow root and
+    // would miss the slotted caret. Try it as a defense-in-depth
+    // fallback for browsers that proxy slotted ranges into the shadow.
+    let selection = null;
+    try {
+      const w = window.getSelection ? window.getSelection() : null;
+      if (w && w.rangeCount > 0) selection = w;
+    } catch (_e) {}
+    if (!selection && this.shadowRoot && this.shadowRoot.getSelection) {
+      try {
+        const s = this.shadowRoot.getSelection();
+        if (s && s.rangeCount > 0) selection = s;
+      } catch (_e) {}
+    }
+    if (!selection || selection.rangeCount === 0) {
+      return -1;
+    }
+    const range = selection.getRangeAt(0);
+    // For non-collapsed selections use focusNode/focusOffset (the active/caret
+    // end) rather than range.start*, which equals the anchor end when the user
+    // drags forward but the focus end when dragging backward.
+    const anchor = selection.focusNode || range.startContainer;
+    const anchorOffset =
+        typeof selection.focusOffset === "number"
+            ? selection.focusOffset
+            : range.startOffset;
+    if (!anchor) return -1;
+    // Caret must be inside (or equal to) one of the slotted roots.
+    let inSlotted = false;
+    for (const root of roots) {
+      if (root === anchor || (root.contains && root.contains(anchor))) {
+        inSlotted = true;
+        break;
+      }
+    }
+    if (!inSlotted) return -1;
+
+    let domOffset = 0;
+    let lineCount = 0;
+    let crossedReplyAnchors = 0;
+    // Count all text chars and newlines in a subtree unconditionally.
+    const countSubtree = (n) => {
+      if (n.nodeType === Node.TEXT_NODE) {
+        const t = n.nodeValue || "";
+        for (let i = 0; i < t.length; i++) {
+          if (t.charCodeAt(i) === 10) lineCount++;
+        }
+        domOffset += t.length;
+      } else if (n.nodeType === Node.ELEMENT_NODE) {
+        if (n.tagName.toLowerCase() === "reply") {
+          crossedReplyAnchors++;
+        } else {
+          for (const child of n.childNodes) countSubtree(child);
+        }
+      }
+    };
+    for (const root of roots) {
+      const visit = (node) => {
+        if (node === anchor) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // startOffset is a child-node index, not a character offset.
+            const stopAt = Math.min(anchorOffset || 0, node.childNodes.length);
+            for (let i = 0; i < stopAt; i++) countSubtree(node.childNodes[i]);
+          } else {
+            const text = node.nodeValue || "";
+            const localOffset = Math.max(
+              0,
+              Math.min(anchorOffset || 0, text.length)
+            );
+            for (let i = 0; i < localOffset; i++) {
+              if (text.charCodeAt(i) === 10) lineCount++;
+            }
+            domOffset += localOffset;
+          }
+          return true;
+        }
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.nodeValue || "";
+          for (let i = 0; i < text.length; i++) {
+            if (text.charCodeAt(i) === 10) lineCount++;
+          }
+          domOffset += text.length;
+          return false;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return false;
+        if (node.tagName.toLowerCase() === "reply") {
+          crossedReplyAnchors++;
+          return false;
+        }
+        for (const child of node.childNodes) {
+          if (visit(child)) return true;
+        }
+        return false;
+      };
+      if (visit(root)) {
+        return 1 + domOffset + lineCount + 2 * crossedReplyAnchors;
+      }
+    }
+    return -1;
+  }
+
+  _countExistingReplyAnchorsBefore(domOffset) {
+    const raw = this.getAttribute("data-inline-reply-anchors") || "";
+    if (!raw) return 0;
+    let n = 0;
+    for (const entry of raw.split(",")) {
+      const at = entry.lastIndexOf("@");
+      if (at < 0) continue;
+      const off = parseInt(entry.substring(at + 1), 10);
+      if (Number.isFinite(off) && off < domOffset) n++;
+    }
+    return n;
   }
 
   _onContinuationClick(event) {

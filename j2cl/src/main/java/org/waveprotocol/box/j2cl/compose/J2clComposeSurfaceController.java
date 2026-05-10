@@ -2413,7 +2413,10 @@ public final class J2clComposeSurfaceController {
       // Reuse the controller so reply batches do not rebuild attachment lifecycle state.
       attachmentController.cancelAndReset();
     }
-    replyStatusText = "Reply submitted. Waiting for the opened wave to update.";
+    // GWT does not surface a "Reply submitted" status — the open wave just
+    // refreshes when the new blip lands. Mirror that by clearing the line
+    // instead of leaving it stamped on the closing composer.
+    replyStatusText = "";
     replyErrorText = "";
     replyStaleBasis = false;
     replyStaleWaveId = null;

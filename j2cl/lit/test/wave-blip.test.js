@@ -145,13 +145,27 @@ describe("<wave-blip>", () => {
     expect(ev.detail.waveId).to.equal("w4");
   });
 
-  it("does not render a redundant below-blip continuation + beside the Reply action", async () => {
+  // GWT parity: the toolbar Reply icon creates an INLINE reply (nested
+  // child thread under the parent blip via replyManifestInsertPosition);
+  // a separate hover-revealed indicator BELOW the blip body creates a
+  // SIBLING reply at the same thread level via
+  // replyManifestSiblingInsertPosition. Both affordances coexist — they
+  // map to two different wave-model operations and PR #1220's removal of
+  // the below-blip indicator left the J2CL UI without any way to start
+  // a same-level continuation.
+  it("renders a hover-revealed continuation trigger that emits wave-blip-continuation-requested", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b4" data-wave-id="w4" author-name="A"></wave-blip>
     `);
     await el.updateComplete;
     const button = el.renderRoot.querySelector("[data-blip-continuation-trigger]");
-    expect(button).to.not.exist;
+    expect(button).to.exist;
+    expect(button.getAttribute("aria-label")).to.equal(
+      "Reply on the same level as this blip"
+    );
+    setTimeout(() => button.click(), 0);
+    const ev = await oneEvent(el, "wave-blip-continuation-requested");
+    expect(ev.detail).to.deep.equal({ blipId: "b4", waveId: "w4" });
   });
 
   it("re-emits wave-blip-edit-requested when toolbar Edit fires", async () => {

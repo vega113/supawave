@@ -1785,6 +1785,14 @@ export class WavyComposer extends LitElement {
     if (this.mode === "edit") return t("composer.editBlip", "Edit blip");
     if (this.mode === "wave-root") return t("composer.replyToWave", "Reply to wave");
     if (this.mode === "create") return t("composer.newWave", "New wave");
+    // GWT parity: a continuation reply lands as a sibling at the same
+    // thread level (not a nested child), so the SR label clarifies the
+    // placement.
+    if (this.mode === "continuation") {
+      return this.targetLabel
+        ? `${t("composer.replyOnSameLevelPrefix", "Reply on the same level as")} ${this.targetLabel}`
+        : t("composer.replyOnSameLevelGeneric", "Reply on the same thread level");
+    }
     return this.targetLabel
       ? `${t("composer.replyToPrefix", "Reply to")} ${this.targetLabel}`
       : t("composer.replyLabel", "Reply");
@@ -2866,6 +2874,8 @@ export class WavyComposer extends LitElement {
     const verb =
       this.mode === "edit"
         ? "Editing"
+        : this.mode === "continuation"
+        ? "Replying after"
         : "Replying to";
     const label = this._replyHeaderLabel();
     const time = this._replyHeaderTime();

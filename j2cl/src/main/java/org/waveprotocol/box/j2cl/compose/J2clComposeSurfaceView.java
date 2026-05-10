@@ -217,6 +217,13 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       DomGlobal.document.body.addEventListener(
           "wave-blip-reply-requested",
           event -> openInlineComposer(eventDetailString(event, "blipId"), "reply"));
+      // GWT parity (continuation reply): wave-blip's hover-revealed
+      // indicator below the body creates a SIBLING reply at the same
+      // thread level. Open the inline composer in "continuation" mode so
+      // the reply-submit handler routes through onContinuationSubmitted.
+      DomGlobal.document.body.addEventListener(
+          "wave-blip-continuation-requested",
+          event -> openInlineComposer(eventDetailString(event, "blipId"), "continuation"));
       DomGlobal.document.body.addEventListener(
           "wave-blip-edit-requested",
           event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
@@ -519,12 +526,33 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           // non-empty, route through onReplySubmittedWithComponents so
           // the controller preserves the user's formatting; otherwise
           // fall through to the plain-text path.
+          //
+          // GWT parity for continuation reply: when the composer is in
+          // "continuation" mode (mounted by the per-blip continuation
+          // indicator) the submit must route to onContinuationSubmitted
+          // so the delta factory uses replyManifestSiblingInsertPosition
+          // and the new blip lands as a same-level sibling instead of
+          // an inline child thread.
+          String currentMode = propertyString(composer, "mode");
+          if (currentMode == null || currentMode.isEmpty()) {
+            currentMode = composer.getAttribute("mode");
+          }
+          boolean continuation = "continuation".equals(currentMode);
           List<J2clComposeSurfaceController.SubmittedComponent> components =
               decodeSubmittedComponents(event);
           if (components.isEmpty()) {
-            listener.onReplySubmitted(propertyString(composer, "draft"), key);
+            String draft = propertyString(composer, "draft");
+            if (continuation) {
+              listener.onContinuationSubmitted(draft, key);
+            } else {
+              listener.onReplySubmitted(draft, key);
+            }
           } else {
-            listener.onReplySubmittedWithComponents(components, key);
+            if (continuation) {
+              listener.onContinuationSubmittedWithComponents(components, key);
+            } else {
+              listener.onReplySubmittedWithComponents(components, key);
+            }
           }
         });
     composer.addEventListener(

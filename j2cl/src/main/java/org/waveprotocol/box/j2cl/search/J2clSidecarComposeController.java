@@ -323,7 +323,8 @@ public final class J2clSidecarComposeController {
     }
     replySubmitting = false;
     replyDraft = "";
-    replyStatusText = "Reply submitted. Waiting for the opened wave to update.";
+    // GWT shows no "Reply submitted" line — the wave just refreshes. Match that.
+    replyStatusText = "";
     replyErrorText = "";
     render();
     if (replySuccessHandler != null

@@ -161,6 +161,17 @@ public final class J2clReadSurfaceDomRenderer {
   private final Map<String, Object> dwellTimers = new HashMap<String, Object>();
   private final Set<String> markBlipReadInFlight = new HashSet<String>();
   private boolean postLayoutPlaceholderCheckPending;
+  // GWT-parity (round 5, #1237): on a fresh wave open, GWT's
+  // FocusBlipSelector.selectInitialBlip picks the last unread blip and
+  // falls back to the last blip overall (StagesProvider.java line 561).
+  // The J2CL renderer used to default to the FIRST visible blip via
+  // ensureSingleTabStop, so users opening a wave with many blips
+  // landed on the oldest message instead of the newest. Track the
+  // wave whose initial focus we have already applied so we only
+  // perform the latest-blip seek once per wave switch — subsequent
+  // re-renders on the same wave preserve whatever the user has since
+  // focused.
+  private String initialFocusAppliedForWaveId = null;
   // F-3.S3 (#1038, R-5.5): per-blip reaction summaries injected by the
   // view layer (J2clSelectedWaveView). Null binder means "no reactions
   // wiring yet" — the row is still mounted as an empty add-only state.
@@ -730,6 +741,20 @@ public final class J2clReadSurfaceDomRenderer {
     // a new update is always a different object reference).
     if (matchesRenderedWindowEntries(effectiveEntries)
         && conversationManifest == renderedConversationManifest) {
+      restoreFocusedBlipById(focusedBlipId);
+      evaluateDwellTimers();
+      return true;
+    }
+    // GWT-parity (round 5, #1237): when the only thing that changed is
+    // task state on one or more blips (the dominant case for "click
+    // mark-as-done" + server-confirmed live update), apply the new task
+    // attributes surgically onto the existing wave-blip elements
+    // instead of clearing host.innerHTML and rebuilding. Rebuilding
+    // detaches every wave-blip and re-creates it, which makes Lit
+    // upgrade each new host on a microtask boundary — users see the
+    // entire blip stream flash and reflow even though only one
+    // attribute changed. The surgical path is silent.
+    if (applyTaskOnlyDiffIfPossible(effectiveEntries)) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -3610,7 +3635,64 @@ public final class J2clReadSurfaceDomRenderer {
       restored.focus();
       return;
     }
+    // GWT-parity (round 5, #1237): on the FIRST render for this wave
+    // with no remembered focus, scroll to the last unread blip and fall
+    // back to the last blip overall — matching FocusBlipSelector.
+    // selectInitialBlip in the GWT path. Subsequent renders for the
+    // same wave (live updates, task-state mutations, etc.) keep the
+    // legacy fallback so an in-flight focus is not nuked by a
+    // rebuild.
+    String wave = currentWaveId();
+    boolean firstRenderForWave = !wave.isEmpty() && !wave.equals(initialFocusAppliedForWaveId);
+    if (firstRenderForWave && (blipId == null || blipId.isEmpty())) {
+      HTMLElement initial = lastUnreadOrLastVisibleBlip();
+      if (initial != null) {
+        initialFocusAppliedForWaveId = wave;
+        focusBlip(initial);
+        scrollBlipIntoView(initial);
+        return;
+      }
+    }
     restoreFocusedBlip(null);
+  }
+
+  /**
+   * GWT-parity (round 5, #1237): mirrors {@code FocusBlipSelector.
+   * selectInitialBlip} from the GWT path. Picks the LAST unread visible
+   * blip; falls back to the last visible blip overall when nothing is
+   * unread. Returns {@code null} if the surface has no visible blips.
+   */
+  private HTMLElement lastUnreadOrLastVisibleBlip() {
+    List<HTMLElement> visible = visibleBlips();
+    if (visible.isEmpty()) {
+      return null;
+    }
+    for (int i = visible.size() - 1; i >= 0; i--) {
+      HTMLElement blip = visible.get(i);
+      if (blip != null && blip.hasAttribute("unread")) {
+        return blip;
+      }
+    }
+    return visible.get(visible.size() - 1);
+  }
+
+  /**
+   * GWT-parity (round 5, #1237): bring a blip into the viewport on
+   * initial wave open. Uses native scrollIntoView with block: "nearest"
+   * so the chosen blip appears without forcing the surface to jump if
+   * it is already visible. Wrapped in try/catch because some test
+   * environments (mocked Element prototypes) lack scrollIntoView.
+   */
+  private void scrollBlipIntoView(HTMLElement blip) {
+    if (blip == null) {
+      return;
+    }
+    try {
+      blip.scrollIntoView(false);
+    } catch (Throwable ignored) {
+      // Test fixtures sometimes stub scrollIntoView; never let a missing
+      // browser API turn a successful render into an exception.
+    }
   }
 
   private String currentFocusedBlipId() {
@@ -3755,6 +3837,102 @@ public final class J2clReadSurfaceDomRenderer {
         && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
         && left.getBodyItemCount() == right.getBodyItemCount()
         && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
+  }
+
+  /**
+   * GWT-parity (round 5, #1237): "task-only diff" fast path. Returns
+   * true when every entry matches the previously-rendered entry on
+   * everything except {@code isTaskDone}, {@code getTaskAssignee},
+   * {@code getTaskDueTimestamp}, and {@code getBodyItemCount} — the
+   * fields {@link #applyTaskState} writes. Identity comparisons cover
+   * length, blip identity, parent/thread linkage, text, attachments,
+   * unread, mention, and inline reply anchors so any structural
+   * change still falls through to the rebuild path.
+   */
+  private static boolean sameWindowEntryExceptTask(
+      J2clReadWindowEntry left, J2clReadWindowEntry right) {
+    return left.isLoaded() == right.isLoaded()
+        && left.getFromVersion() == right.getFromVersion()
+        && left.getToVersion() == right.getToVersion()
+        && left.getSegment().equals(right.getSegment())
+        && left.getBlipId().equals(right.getBlipId())
+        && left.getText().equals(right.getText())
+        && left.getAttachments().equals(right.getAttachments())
+        && left.getAuthorId().equals(right.getAuthorId())
+        && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
+        && left.isUnread() == right.isUnread()
+        && left.hasMention() == right.hasMention()
+        && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
+  }
+
+  /**
+   * GWT-parity (round 5, #1237): when the only differences between the
+   * incoming entries and the rendered entries are task-related
+   * (taskDone / assignee / due-date / body-item-count), surgically
+   * update the corresponding wave-blip elements via
+   * {@link #applyTaskState} and refresh {@link #renderedWindowEntries}
+   * without touching the surface. Returns true when the fast path
+   * applied. Returns false if any non-task field differs OR there is
+   * no rendered surface — the caller falls back to the rebuild path.
+   *
+   * <p>This is the difference between "click mark-done → blip stream
+   * flashes" and "click mark-done → strikethrough appears silently"
+   * that users observe in GWT.
+   */
+  private boolean applyTaskOnlyDiffIfPossible(List<J2clReadWindowEntry> entries) {
+    if (renderedSurface == null || renderedSurface.parentElement != host) {
+      return false;
+    }
+    if (renderedWindowEntries.size() != entries.size()) {
+      return false;
+    }
+    if (conversationManifest != renderedConversationManifest) {
+      return false;
+    }
+    boolean anyTaskDiff = false;
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry next = entries.get(i);
+      J2clReadWindowEntry prev = renderedWindowEntries.get(i);
+      if (!sameWindowEntryExceptTask(prev, next)) {
+        return false;
+      }
+      if (prev.isTaskDone() != next.isTaskDone()
+          || !prev.getTaskAssignee().equals(next.getTaskAssignee())
+          || prev.getTaskDueTimestamp() != next.getTaskDueTimestamp()
+          || prev.getBodyItemCount() != next.getBodyItemCount()) {
+        anyTaskDiff = true;
+      }
+    }
+    if (!anyTaskDiff) {
+      // Nothing to do: matchesRenderedWindowEntries should have caught
+      // this already, but be defensive — never claim "fast-path
+      // applied" when there's no actual diff to apply.
+      return false;
+    }
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
+      if (!entry.isLoaded()) {
+        continue;
+      }
+      HTMLElement element = renderedBlipById(entry.getBlipId());
+      if (element == null) {
+        // The cached entries are out of sync with the live DOM (the
+        // user / a plugin may have removed the host). Bail out and let
+        // the rebuild path resync.
+        return false;
+      }
+      applyTaskState(
+          element,
+          entry.getBlipId(),
+          entry.isTaskDone(),
+          entry.getTaskAssignee(),
+          entry.getTaskDueTimestamp(),
+          entry.getBodyItemCount(),
+          entry.isTask());
+    }
+    renderedWindowEntries =
+        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
+    return true;
   }
 
   private HTMLElement renderedBlipById(String blipId) {

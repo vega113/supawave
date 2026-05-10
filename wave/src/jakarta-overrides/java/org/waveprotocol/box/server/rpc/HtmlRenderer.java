@@ -3728,6 +3728,10 @@ public final class HtmlRenderer {
       sb.append("</shell-root-signed-out>\n");
       appendJ2clRootShellBootstrap(sb, resolvedReturnTarget, resolvedBasePath, false);
     }
+    // Mirrors the renderWaveClientPage version-check script injection: poll
+    // /version every 60s and surface the upgrade banner when the deployed
+    // build changes while the J2CL root shell page is still open.
+    appendVersionCheckScript(sb, buildCommit, serverBuildTime, currentReleaseId);
     sb.append("</body>\n</html>\n");
     return sb.toString();
   }

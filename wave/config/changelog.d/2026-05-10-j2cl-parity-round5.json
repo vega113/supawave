@@ -3,15 +3,15 @@
   "version": "Issue #1237",
   "date": "2026-05-10",
   "title": "J2CL parity round 5: fix toolbar alignment, blip render flicker, initial scroll, and task-toggle rebuild.",
-  "summary": "Round 5 parity work after user testing of rounds 1–4. Fixes a runtime-broken :host(:has()) selector (blue toolbar still ~12 px lower in the search rail than in the wave panel), eliminates the 'blips appear as plain text → flicker → reflow' on big-wave open via pre-upgrade light-DOM styling for <wave-blip>, scrolls to the latest unread / latest blip on initial wave open (matching GWT FocusBlipSelector.selectInitialBlip), and adds a task-only diff fast-path so marking a reply done no longer rebuilds the entire blip stream.",
+  "summary": "Round 5 parity work after user testing of rounds 1–4. Fixes a runtime-broken :host(:has()) selector (blue toolbar still ~12 px lower in the search rail than in the wave panel), scrolls to the latest unread / latest blip on initial wave open (matching GWT FocusBlipSelector.selectInitialBlip), adds a task-only diff fast-path so marking a reply done no longer rebuilds the entire blip stream, and adds a CSS containment hint so per-blip re-renders do not invalidate layout for the rest of the stream.",
   "sections": [
     {
       "type": "fix",
       "items": [
         "Replace the runtime-broken :host(:has(> wavy-search-rail)) selector in <shell-nav-rail> with a slotchange-driven data-flush attribute so the rail blue title strip actually sits on the same baseline as the wave-panel title.",
-        "Add pre-upgrade light-DOM CSS for <wave-blip> in shell-tokens.css so blip content paints inside its card geometry before Lit upgrades the custom element — eliminates the flash of unstyled blip text users saw on big-wave open.",
         "Scroll to the last unread blip (or the last blip overall) on the initial render of each wave, matching GWT's FocusBlipSelector.selectInitialBlip; subsequent re-renders preserve the user's current focus.",
-        "Add a task-only diff fast-path to J2clReadSurfaceDomRenderer.renderWindow so marking a blip / reply as done updates the existing wave-blip attributes silently instead of clearing host.innerHTML and rebuilding every blip — closes the visible blip-stream flicker users observed on every mark-as-done."
+        "Add a task-only diff fast-path to J2clReadSurfaceDomRenderer.renderWindow so marking a blip / reply as done updates the existing wave-blip attributes silently instead of clearing host.innerHTML and rebuilding every blip — closes the visible blip-stream flicker users observed on every mark-as-done.",
+        "Add `contain: layout style` to <wave-blip> in shell-tokens.css so a per-blip Lit re-render does not invalidate layout / paint for the entire blip stream."
       ]
     }
   ]

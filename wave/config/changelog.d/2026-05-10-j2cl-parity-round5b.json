@@ -1,0 +1,17 @@
+{
+  "releaseId": "2026-05-10-j2cl-parity-round5b",
+  "version": "Issue #1239",
+  "date": "2026-05-10",
+  "title": "J2CL parity round 5 follow-up: drop unconditional <wave-blip> padding, reset initial-focus marker on empty entries, correct scrollIntoView javadoc.",
+  "summary": "Round 5 (#1238) shipped before a self-review caught three issues. The unconditional `wave-blip { padding: 3px; margin: 0; position: relative }` declaration leaked into post-upgrade rendering for every blip; `initialFocusAppliedForWaveId` was not reset when the wave went empty, so re-population (loading state, retry) would skip the seek-to-latest path; and the `scrollBlipIntoView` Javadoc described a different scroll alignment than the code performed.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Trim the new wave-blip rule in shell-tokens.css down to `contain: layout style` only — drop padding / margin / position which were unconditionally applied post-upgrade and would have changed layout for every blip in the stream.",
+        "Reset initialFocusAppliedForWaveId in J2clReadSurfaceDomRenderer's empty-entries branch so a re-populated wave triggers the seek-to-latest path again instead of dropping the user back at the first blip.",
+        "Update scrollBlipIntoView Javadoc to describe the actual `scrollIntoView(false)` bottom-aligned behavior (matches the GWT pin-to-bottom-on-open pattern)."
+      ]
+    }
+  ]
+}

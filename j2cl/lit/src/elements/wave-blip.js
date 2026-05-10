@@ -666,18 +666,36 @@ export class WaveBlip extends LitElement {
 
     let domOffset = 0;
     let lineCount = 0;
+    // Count all text chars and newlines in a subtree unconditionally.
+    const countSubtree = (n) => {
+      if (n.nodeType === Node.TEXT_NODE) {
+        const t = n.nodeValue || "";
+        for (let i = 0; i < t.length; i++) {
+          if (t.charCodeAt(i) === 10) lineCount++;
+        }
+        domOffset += t.length;
+      } else if (n.nodeType === Node.ELEMENT_NODE) {
+        for (const child of n.childNodes) countSubtree(child);
+      }
+    };
     for (const root of roots) {
       const visit = (node) => {
         if (node === anchor) {
-          const text = node.nodeValue || "";
-          const localOffset = Math.max(
-            0,
-            Math.min(range.startOffset || 0, text.length)
-          );
-          for (let i = 0; i < localOffset; i++) {
-            if (text.charCodeAt(i) === 10) lineCount++;
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // startOffset is a child-node index, not a character offset.
+            const stopAt = Math.min(range.startOffset || 0, node.childNodes.length);
+            for (let i = 0; i < stopAt; i++) countSubtree(node.childNodes[i]);
+          } else {
+            const text = node.nodeValue || "";
+            const localOffset = Math.max(
+              0,
+              Math.min(range.startOffset || 0, text.length)
+            );
+            for (let i = 0; i < localOffset; i++) {
+              if (text.charCodeAt(i) === 10) lineCount++;
+            }
+            domOffset += localOffset;
           }
-          domOffset += localOffset;
           return true;
         }
         if (node.nodeType === Node.TEXT_NODE) {

@@ -338,7 +338,7 @@ export class WavySearchHelp extends LitElement {
             class="dismiss"
             @click=${this._dismiss}
             aria-label=${t("searchHelp.gotIt", "Got it")}
-            title=${t("searchHelp.close", "Close search help")}
+            title=${t("searchHelp.gotIt", "Got it")}
           >
             ${t("searchHelp.gotIt", "Got it")}
           </button>

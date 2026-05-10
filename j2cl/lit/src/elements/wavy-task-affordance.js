@@ -144,8 +144,8 @@ export class WavyTaskAffordance extends LitElement {
     this.labelAriaCheck = "";
     this.labelAriaUncheck = "";
     this.labelDetails = "";
-    this.labelAnnounceDone = "Task completed";
-    this.labelAnnounceOpen = "Task reopened";
+    this.labelAnnounceDone = "";
+    this.labelAnnounceOpen = "";
   }
 
   _toggle() {
@@ -155,7 +155,9 @@ export class WavyTaskAffordance extends LitElement {
     // overwrites this with the persisted value; if the server rejects
     // the toggle the model snaps back.
     this.completed = next;
-    this._announceText = next ? this.labelAnnounceDone : this.labelAnnounceOpen;
+    this._announceText = next
+      ? (this.labelAnnounceDone || t("taskAffordance.announceDone", "Task completed"))
+      : (this.labelAnnounceOpen || t("taskAffordance.announceOpen", "Task reopened"));
     this.requestUpdate();
     this.dispatchEvent(
       new CustomEvent("wave-blip-task-toggled", {

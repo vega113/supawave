@@ -363,6 +363,8 @@ export const en = {
 
   // task affordance
   "taskAffordance.editDetails": "Edit task details",
+  "taskAffordance.announceDone": "Task completed",
+  "taskAffordance.announceOpen": "Task reopened",
 
   // task metadata
   "taskMetadata.assignee": "Assignee",

@@ -652,7 +652,14 @@ export class WaveBlip extends LitElement {
       return -1;
     }
     const range = selection.getRangeAt(0);
-    const anchor = range.startContainer;
+    // For non-collapsed selections use focusNode/focusOffset (the active/caret
+    // end) rather than range.start*, which equals the anchor end when the user
+    // drags forward but the focus end when dragging backward.
+    const anchor = selection.focusNode || range.startContainer;
+    const anchorOffset =
+        typeof selection.focusOffset === "number"
+            ? selection.focusOffset
+            : range.startOffset;
     if (!anchor) return -1;
     // Caret must be inside (or equal to) one of the slotted roots.
     let inSlotted = false;
@@ -688,13 +695,13 @@ export class WaveBlip extends LitElement {
         if (node === anchor) {
           if (node.nodeType === Node.ELEMENT_NODE) {
             // startOffset is a child-node index, not a character offset.
-            const stopAt = Math.min(range.startOffset || 0, node.childNodes.length);
+            const stopAt = Math.min(anchorOffset || 0, node.childNodes.length);
             for (let i = 0; i < stopAt; i++) countSubtree(node.childNodes[i]);
           } else {
             const text = node.nodeValue || "";
             const localOffset = Math.max(
               0,
-              Math.min(range.startOffset || 0, text.length)
+              Math.min(anchorOffset || 0, text.length)
             );
             for (let i = 0; i < localOffset; i++) {
               if (text.charCodeAt(i) === 10) lineCount++;

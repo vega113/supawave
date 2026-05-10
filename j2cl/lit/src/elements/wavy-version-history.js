@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-version-history> — F-2.S4 (#1048, K.1–K.6) full-bleed version
@@ -304,7 +305,7 @@ export class WavyVersionHistory extends LitElement {
       this.removeAttribute("hidden");
       this.setAttribute("role", "dialog");
       this.setAttribute("aria-modal", "true");
-      this.setAttribute("aria-label", "Version history");
+      this.setAttribute("aria-label", t("versionHistory.title", "Version history"));
       this.removeAttribute("aria-hidden");
       // Make the host focusable so Escape delivered via real keyboard
       // (not synthetic dispatch) reaches the host's keydown handler.
@@ -499,8 +500,15 @@ export class WavyVersionHistory extends LitElement {
     const max = versions.length > 0 ? versions.length - 1 : 0;
     const idx = Math.min(Math.max(this.value || 0, 0), max);
     const current = versions[idx] || null;
-    const restoreLabel = current ? `Restore version ${current.label}` : "Restore version";
-    const statusText = this.error || (this.loading ? "Loading…" : "");
+    const restoreLabel = current
+      ? `${t("versionHistory.restorePrefix", "Restore version")} ${current.label}`
+      : t("versionHistory.restore", "Restore version");
+    const statusText = this.error || (this.loading ? t("versionHistory.loading", "Loading…") : "");
+    const exitLabel = t("versionHistory.exit", "Exit version history");
+    const showChangesLabel = t("versionHistory.showChanges", "Show changes");
+    const textOnlyLabel = t("versionHistory.textOnly", "Text only");
+    const restoreShort = t("versionHistory.restoreShort", "Restore");
+    const cancelLabel = t("common.cancel", "Cancel");
 
     return html`
       <div class="backdrop" @click=${this._onExitClick}></div>
@@ -508,12 +516,13 @@ export class WavyVersionHistory extends LitElement {
         <button
           class="exit"
           type="button"
-          aria-label="Exit version history"
+          aria-label=${exitLabel}
+          title=${exitLabel}
           @click=${this._onExitClick}
         >
           <span aria-hidden="true">×</span>
         </button>
-        <h2>Version history</h2>
+        <h2>${t("versionHistory.title", "Version history")}</h2>
         ${statusText
           ? html`<p
               class="history-status"
@@ -521,7 +530,9 @@ export class WavyVersionHistory extends LitElement {
             >${statusText}</p>`
           : null}
         <p class="current-version-label">
-          ${current ? `Current preview: ${current.label}` : "No versions loaded yet"}
+          ${current
+            ? `${t("versionHistory.currentPreviewPrefix", "Current preview:")} ${current.label}`
+            : t("versionHistory.empty", "No versions loaded yet")}
         </p>
         <div class="slider-row">
           <input
@@ -529,7 +540,7 @@ export class WavyVersionHistory extends LitElement {
             min="0"
             max=${String(max)}
             .value=${String(idx)}
-            aria-label="Version history time slider"
+            aria-label=${t("versionHistory.slider", "Version history time slider")}
             aria-valuemin="0"
             aria-valuemax=${String(max)}
             aria-valuenow=${String(idx)}
@@ -540,13 +551,17 @@ export class WavyVersionHistory extends LitElement {
           <button
             type="button"
             aria-pressed=${this.showChanges ? "true" : "false"}
+            aria-label=${showChangesLabel}
+            title=${showChangesLabel}
             @click=${this._onShowChangesClick}
-          >Show changes</button>
+          >${showChangesLabel}</button>
           <button
             type="button"
             aria-pressed=${this.textOnly ? "true" : "false"}
+            aria-label=${textOnlyLabel}
+            title=${textOnlyLabel}
             @click=${this._onTextOnlyClick}
-          >Text only</button>
+          >${textOnlyLabel}</button>
         </div>
         ${this._renderSnapshotPreview()}
         <div class="actions">
@@ -555,20 +570,36 @@ export class WavyVersionHistory extends LitElement {
             type="button"
             ?disabled=${!this.restoreEnabled}
             aria-disabled=${this.restoreEnabled ? "false" : "true"}
+            aria-label=${restoreShort}
+            title=${restoreShort}
             @click=${this._onRestoreClick}
-          >Restore</button>
+          >${restoreShort}</button>
           ${this.restoreEnabled
             ? null
-            : html`<span class="restore-hint">Preview only — restore not available</span>`}
+            : html`<span class="restore-hint">${t(
+                "versionHistory.previewOnly",
+                "Preview only — restore not available"
+              )}</span>`}
           ${this.restoreStatus
             ? html`<span class="restore-status" role="status">${this.restoreStatus}</span>`
             : null}
         </div>
         <dialog class="confirm">
-          <p>${restoreLabel}? This rewrites the wave to this point.</p>
+          <p>${restoreLabel}? ${t("versionHistory.confirmExplanation", "This rewrites the wave to this point.")}</p>
           <div class="confirm-actions">
-            <button type="button" @click=${this._onCancelRestore}>Cancel</button>
-            <button class="confirm-restore" type="button" @click=${this._onConfirmRestore}>Restore</button>
+            <button
+              type="button"
+              aria-label=${cancelLabel}
+              title=${cancelLabel}
+              @click=${this._onCancelRestore}
+            >${cancelLabel}</button>
+            <button
+              class="confirm-restore"
+              type="button"
+              aria-label=${restoreShort}
+              title=${restoreShort}
+              @click=${this._onConfirmRestore}
+            >${restoreShort}</button>
           </div>
         </dialog>
       </div>
@@ -584,9 +615,9 @@ export class WavyVersionHistory extends LitElement {
       : 0;
     const version = snapshot.version == null ? "selected" : snapshot.version;
     return html`
-      <section class="snapshot-preview" aria-label="Read-only version preview">
-        <h3>Version ${version}</h3>
-        <p>${participants} participants · ${docs.length} documents</p>
+      <section class="snapshot-preview" aria-label=${t("versionHistory.preview", "Read-only version preview")}>
+        <h3>${t("versionHistory.version", "Version")} ${version}</h3>
+        <p>${participants} ${t("versionHistory.participants", "participants")} · ${docs.length} ${t("versionHistory.documents", "documents")}</p>
         <ul class="snapshot-documents">
           ${docs.slice(0, 5).map((doc) => html`
             <li>

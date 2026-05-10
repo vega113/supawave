@@ -1,6 +1,7 @@
 import { LitElement, css, html } from "lit";
 import { getWaveActionIcon } from "../icons/wave-action-bar-icons.js";
 import { isEditableTarget } from "../shortcuts/keybindings.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-wave-nav-row> — F-2 (#1037, R-3.4; slice 2 #1046) wave-level nav
@@ -265,11 +266,13 @@ export class WavyWaveNavRow extends LitElement {
   }
 
   _pinAriaLabel() {
-    return this.pinned ? "Unpin wave" : "Pin wave";
+    return this.pinned ? t("waveNav.unpin", "Unpin wave") : t("waveNav.pin", "Pin wave");
   }
 
   _archiveAriaLabel() {
-    return this.archived ? "Restore from archive" : "Move wave to archive";
+    return this.archived
+      ? t("waveNav.unarchive", "Restore from archive")
+      : t("waveNav.archive", "Move wave to archive");
   }
 
   _nextUnreadEmphasis() {
@@ -288,12 +291,12 @@ export class WavyWaveNavRow extends LitElement {
     const archiveLabel = this._archiveAriaLabel();
     const pinLabel = this._pinAriaLabel();
     return html`
-      <nav aria-label="Wave navigation">
+      <nav aria-label=${t("waveNav.label", "Wave navigation")}>
         <button
           type="button"
           data-action="recent"
-          aria-label="Jump to recent activity"
-          title="Jump to recent activity"
+          aria-label=${t("waveNav.recent", "Jump to recent activity")}
+          title=${t("waveNav.recent", "Jump to recent activity")}
           @click=${this._onClick("recent")}
         >
           ${getWaveActionIcon("recent")}
@@ -302,8 +305,8 @@ export class WavyWaveNavRow extends LitElement {
           type="button"
           data-action="next-unread"
           data-emphasis=${this._nextUnreadEmphasis()}
-          aria-label="Jump to next unread blip"
-          title="Jump to next unread blip"
+          aria-label=${t("waveNav.nextUnread", "Jump to next unread blip")}
+          title=${t("waveNav.nextUnread", "Jump to next unread blip")}
           @click=${this._onClick("next-unread")}
         >
           ${getWaveActionIcon("next-unread")}
@@ -311,8 +314,8 @@ export class WavyWaveNavRow extends LitElement {
         <button
           type="button"
           data-action="previous"
-          aria-label="Jump to previous blip"
-          title="Jump to previous blip"
+          aria-label=${t("waveNav.previous", "Jump to previous blip")}
+          title=${t("waveNav.previous", "Jump to previous blip")}
           @click=${this._onClick("previous")}
         >
           ${getWaveActionIcon("previous")}
@@ -320,8 +323,8 @@ export class WavyWaveNavRow extends LitElement {
         <button
           type="button"
           data-action="next"
-          aria-label="Jump to next blip"
-          title="Jump to next blip"
+          aria-label=${t("waveNav.next", "Jump to next blip")}
+          title=${t("waveNav.next", "Jump to next blip")}
           @click=${this._onClick("next")}
         >
           ${getWaveActionIcon("next")}
@@ -329,8 +332,8 @@ export class WavyWaveNavRow extends LitElement {
         <button
           type="button"
           data-action="end"
-          aria-label="Jump to last blip"
-          title="Jump to last blip"
+          aria-label=${t("waveNav.end", "Jump to last blip")}
+          title=${t("waveNav.end", "Jump to last blip")}
           @click=${this._onClick("end")}
         >
           ${getWaveActionIcon("end")}
@@ -339,8 +342,8 @@ export class WavyWaveNavRow extends LitElement {
           type="button"
           data-action="prev-mention"
           data-emphasis=${this._mentionEmphasis()}
-          aria-label="Jump to previous mention"
-          title="Jump to previous mention"
+          aria-label=${t("waveNav.prevMention", "Jump to previous mention")}
+          title=${t("waveNav.prevMention", "Jump to previous mention")}
           @click=${this._onClick("prev-mention")}
         >
           ${getWaveActionIcon("prev-mention")}
@@ -349,8 +352,8 @@ export class WavyWaveNavRow extends LitElement {
           type="button"
           data-action="next-mention"
           data-emphasis=${this._mentionEmphasis()}
-          aria-label="Jump to next mention"
-          title="Jump to next mention"
+          aria-label=${t("waveNav.nextMention", "Jump to next mention")}
+          title=${t("waveNav.nextMention", "Jump to next mention")}
           @click=${this._onClick("next-mention")}
         >
           ${getWaveActionIcon("next-mention")}
@@ -379,9 +382,9 @@ export class WavyWaveNavRow extends LitElement {
         <button
           type="button"
           data-action="version-history"
-          aria-label="Open version history (h)"
+          aria-label=${t("waveNav.versionHistoryShortcut", "Open version history (h)")}
           aria-keyshortcuts="h H"
-          title="Open version history"
+          title=${t("waveNav.versionHistoryShortcut", "Open version history (h)")}
           @click=${this._onClick("version-history")}
         >
           ${getWaveActionIcon("version-history")}
@@ -393,8 +396,8 @@ export class WavyWaveNavRow extends LitElement {
           data-action="overflow"
           aria-haspopup="menu"
           aria-expanded=${this._overflowOpen ? "true" : "false"}
-          aria-label="More wave navigation actions"
-          title="More actions"
+          aria-label=${t("waveNav.overflow", "More wave navigation actions")}
+          title=${t("waveNav.overflow", "More wave navigation actions")}
           @click=${this._onOverflowToggle}
         >
           <span aria-hidden="true">⋯</span>
@@ -410,8 +413,8 @@ export class WavyWaveNavRow extends LitElement {
               role="menuitem"
               data-action="prev-mention"
               data-overflow="true"
-              aria-label="Jump to previous mention"
-              title="Jump to previous mention"
+              aria-label=${t("waveNav.prevMention", "Jump to previous mention")}
+              title=${t("waveNav.prevMention", "Jump to previous mention")}
               @click=${this._onClick("prev-mention")}
             >
               ${getWaveActionIcon("prev-mention")}
@@ -423,8 +426,8 @@ export class WavyWaveNavRow extends LitElement {
               role="menuitem"
               data-action="next-mention"
               data-overflow="true"
-              aria-label="Jump to next mention"
-              title="Jump to next mention"
+              aria-label=${t("waveNav.nextMention", "Jump to next mention")}
+              title=${t("waveNav.nextMention", "Jump to next mention")}
               @click=${this._onClick("next-mention")}
             >
               ${getWaveActionIcon("next-mention")}
@@ -436,8 +439,8 @@ export class WavyWaveNavRow extends LitElement {
               role="menuitem"
               data-action="version-history"
               data-overflow="true"
-              aria-label="Open version history (h)"
-              title="Open version history"
+              aria-label=${t("waveNav.versionHistoryShortcut", "Open version history (h)")}
+              title=${t("waveNav.versionHistory", "Open version history")}
               @click=${this._onClick("version-history")}
             >
               ${getWaveActionIcon("version-history")}

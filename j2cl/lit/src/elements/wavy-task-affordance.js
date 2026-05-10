@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import "./task-metadata-popover.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-task-affordance> — F-3.S2 (#1038, R-5.4) per-blip task toggle
@@ -140,9 +141,9 @@ export class WavyTaskAffordance extends LitElement {
     this._popoverOpen = false;
     this.labelToggleOpen = "☐";
     this.labelToggleDone = "☑";
-    this.labelAriaCheck = "Mark task complete";
-    this.labelAriaUncheck = "Mark task open";
-    this.labelDetails = "Edit task details";
+    this.labelAriaCheck = "";
+    this.labelAriaUncheck = "";
+    this.labelDetails = "";
     this.labelAnnounceDone = "Task completed";
     this.labelAnnounceOpen = "Task reopened";
   }
@@ -231,14 +232,17 @@ export class WavyTaskAffordance extends LitElement {
   };
 
   render() {
+    const labelAriaCheck = this.labelAriaCheck || t("taskAffordance.markComplete", "Mark task complete");
+    const labelAriaUncheck = this.labelAriaUncheck || t("taskAffordance.markIncomplete", "Mark task open");
+    const labelDetails = this.labelDetails || t("taskAffordance.editDetails", "Edit task details");
     return html`
       <button
         type="button"
         data-task-toggle-trigger="true"
         role="checkbox"
         aria-checked=${this.completed ? "true" : "false"}
-        aria-label=${this.completed ? this.labelAriaUncheck : this.labelAriaCheck}
-        title=${this.completed ? this.labelAriaUncheck : this.labelAriaCheck}
+        aria-label=${this.completed ? labelAriaUncheck : labelAriaCheck}
+        title=${this.completed ? labelAriaUncheck : labelAriaCheck}
         @click=${this._toggle}
       >
         ${this.completed ? this.labelToggleDone : this.labelToggleOpen}
@@ -246,8 +250,8 @@ export class WavyTaskAffordance extends LitElement {
       <button
         type="button"
         data-task-details-trigger="true"
-        aria-label=${this.labelDetails}
-        title=${this.labelDetails}
+        aria-label=${labelDetails}
+        title=${labelDetails}
         aria-haspopup="dialog"
         aria-expanded=${this._popoverOpen ? "true" : "false"}
         @click=${this._openDetails}

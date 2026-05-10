@@ -244,12 +244,16 @@ export class WavyConfirmDialog extends LitElement {
               type="button"
               data-confirm-action="cancel"
               data-confirm-tone="default"
+              aria-label=${this.cancelLabel}
+              title=${this.cancelLabel}
               @click=${() => this._resolve(false)}
             >${this.cancelLabel}</button>
             <button
               type="button"
               data-confirm-action="confirm"
               data-confirm-tone=${this.tone}
+              aria-label=${this.confirmLabel}
+              title=${this.confirmLabel}
               @click=${() => this._resolve(true)}
             >${this.confirmLabel}</button>
           </div>

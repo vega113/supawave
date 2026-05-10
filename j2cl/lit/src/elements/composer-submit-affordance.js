@@ -78,6 +78,7 @@ export class ComposerSubmitAffordance extends LitElement {
       <button
         type="button"
         aria-label=${this.label}
+        title=${this.label}
         aria-busy=${this.busy ? "true" : "false"}
         ?disabled=${disabled}
         @click=${this.onClick}

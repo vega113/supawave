@@ -1,6 +1,7 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import "../design/wavy-compose-card.js";
+import { t } from "../i18n/t.js";
 import "./composer-submit-affordance.js";
 import "./mention-suggestion-popover.js";
 import "./wavy-link-modal.js";
@@ -1781,10 +1782,12 @@ export class WavyComposer extends LitElement {
   }
 
   _composeBodyAriaLabel() {
-    if (this.mode === "edit") return "Edit blip";
-    if (this.mode === "wave-root") return "Reply to wave";
-    if (this.mode === "create") return "New wave";
-    return this.targetLabel ? `Reply to ${this.targetLabel}` : "Reply";
+    if (this.mode === "edit") return t("composer.editBlip", "Edit blip");
+    if (this.mode === "wave-root") return t("composer.replyToWave", "Reply to wave");
+    if (this.mode === "create") return t("composer.newWave", "New wave");
+    return this.targetLabel
+      ? `${t("composer.replyToPrefix", "Reply to")} ${this.targetLabel}`
+      : t("composer.replyLabel", "Reply");
   }
 
   _serializeBodyText() {
@@ -2883,7 +2886,8 @@ export class WavyComposer extends LitElement {
           type="button"
           class="reply-chip-close"
           data-reply-chip-close="true"
-          aria-label="Cancel"
+          aria-label=${t("common.cancel", "Cancel")}
+          title=${t("common.cancel", "Cancel")}
           @click=${this._onCloseClick}
         >×</button>
       </span>

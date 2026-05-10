@@ -1,4 +1,6 @@
 import { LitElement, css, html } from "lit";
+import { getLocale, setLocale, subscribe } from "../i18n/locale.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-header> — F-2 (#1037, #1047 slice 3) header end-region chrome.
@@ -53,15 +55,19 @@ export class WavyHeader extends LitElement {
   };
 
   // Locale set re-derived from the GWT locale build set; matches the
-  // SearchWidgetMessages_*.properties files in the resources tree.
+  // SearchWidgetMessages_*.properties files in the resources tree. Each
+  // entry carries `shipped: true` if a JS catalog is registered (see
+  // `SHIPPED_LOCALES` in ../i18n/locale.js); unshipped entries render as
+  // disabled options in the picker so we don't advertise locales whose
+  // catalogs have not yet landed.
   static LOCALES = [
-    { code: "en", label: "English" },
-    { code: "de", label: "Deutsch" },
-    { code: "es", label: "Español" },
-    { code: "fr", label: "Français" },
-    { code: "ru", label: "Русский" },
-    { code: "sl", label: "Slovenščina" },
-    { code: "zh_TW", label: "繁體中文" }
+    { code: "en", label: "English", shipped: true },
+    { code: "de", label: "Deutsch", shipped: true },
+    { code: "es", label: "Español", shipped: false },
+    { code: "fr", label: "Français", shipped: false },
+    { code: "ru", label: "Русский", shipped: false },
+    { code: "sl", label: "Slovenščina", shipped: false },
+    { code: "zh_TW", label: "繁體中文", shipped: false }
   ];
 
   static styles = css`
@@ -289,7 +295,7 @@ export class WavyHeader extends LitElement {
   constructor() {
     super();
     this.signedIn = false;
-    this.locale = "en";
+    this.locale = getLocale();
     this.address = "";
     this.userName = "";
     this.unreadCount = 0;
@@ -298,6 +304,25 @@ export class WavyHeader extends LitElement {
     this.noBrand = false;
     this.connectionState = "online";
     this.saveState = "saved";
+    this._unsubscribeLocale = null;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._unsubscribeLocale = subscribe((next) => {
+      if (this.locale !== next) {
+        this.locale = next;
+      }
+      this.requestUpdate();
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._unsubscribeLocale) {
+      this._unsubscribeLocale();
+      this._unsubscribeLocale = null;
+    }
   }
 
   _normalizedBasePath() {
@@ -326,6 +351,7 @@ export class WavyHeader extends LitElement {
   _onLocaleChange(evt) {
     const next = evt.target.value;
     this.locale = next;
+    setLocale(next);
     this.dispatchEvent(
       new CustomEvent("wavy-locale-changed", {
         bubbles: true,
@@ -346,15 +372,15 @@ export class WavyHeader extends LitElement {
   }
 
   _saveLabel() {
-    if (this.saveState === "saving") return "Saving changes";
-    if (this.saveState === "unsaved") return "Unsaved changes";
-    return "All changes saved";
+    if (this.saveState === "saving") return t("header.saveSaving", "Saving changes");
+    if (this.saveState === "unsaved") return t("header.saveUnsaved", "Unsaved changes");
+    return t("header.saveSaved", "All changes saved");
   }
 
   _netLabel() {
-    if (this.connectionState === "offline") return "Offline";
-    if (this.connectionState === "connecting") return "Connecting";
-    return "Online";
+    if (this.connectionState === "offline") return t("header.netOffline", "Offline");
+    if (this.connectionState === "connecting") return t("header.netConnecting", "Connecting");
+    return t("header.netOnline", "Online");
   }
 
   render() {
@@ -366,7 +392,7 @@ export class WavyHeader extends LitElement {
       ${this.noBrand
         ? null
         : html`
-            <a class="brand" href=${base} aria-label="SupaWave home">
+            <a class="brand" href=${base} aria-label=${t("header.brand", "SupaWave home")} title=${t("header.brand", "SupaWave home")}>
               <span class="brand-dot" aria-hidden="true"></span>
               <span class="brand-text">SupaWave</span>
             </a>
@@ -374,13 +400,18 @@ export class WavyHeader extends LitElement {
 
       <select
         class="locale"
-        aria-label="Language"
+        aria-label=${t("header.localePicker", "Language")}
+        title=${t("header.localePicker", "Language")}
         .value=${this.locale}
         @change=${this._onLocaleChange}
       >
         ${WavyHeader.LOCALES.map(
           (loc) =>
-            html`<option value=${loc.code} ?selected=${loc.code === this.locale}>
+            html`<option
+              value=${loc.code}
+              ?selected=${loc.code === this.locale}
+              ?disabled=${loc.shipped === false}
+            >
               ${this.compactGwtTopbar ? loc.code.replace("_", "-").toUpperCase() : loc.label}
             </option>`
         )}
@@ -432,7 +463,8 @@ export class WavyHeader extends LitElement {
             <button
               type="button"
               class="bell"
-              aria-label="Notifications"
+              aria-label=${t("header.notifications", "Notifications")}
+              title=${t("header.notifications", "Notifications")}
             >
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
                 <path d="M3 12h10l-1.4-1.4A2 2 0 0 1 11 9.2V7a3 3 0 0 0-6 0v2.2a2 2 0 0 1-.6 1.4L3 12z" stroke-linecap="round" stroke-linejoin="round"/>
@@ -441,7 +473,7 @@ export class WavyHeader extends LitElement {
               <span class="dot violet" ?hidden=${!hasUnread} aria-hidden="true"></span>
             </button>
 
-            <a class="mail" href=${`${base}?view=j2cl-root&q=in:inbox`} aria-label="Inbox">
+            <a class="mail" href=${`${base}?view=j2cl-root&q=in:inbox`} aria-label=${t("header.inbox", "Inbox")} title=${t("header.inbox", "Inbox")}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
                 <rect x="2" y="3.5" width="12" height="9" rx="1.4"/>
                 <path d="M2.5 4.5l5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -452,7 +484,8 @@ export class WavyHeader extends LitElement {
               type="button"
               class="user-menu"
               aria-haspopup="menu"
-              aria-label="Open user menu"
+              aria-label=${t("header.userMenu", "Open user menu")}
+              title=${t("header.userMenu", "Open user menu")}
               @click=${this._onUserMenuClick}
             >
               <span class="avatar" aria-hidden="true">${initials}</span>

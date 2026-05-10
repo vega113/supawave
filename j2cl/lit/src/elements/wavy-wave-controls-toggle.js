@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-wave-controls-toggle> — F-2.S4 (#1048, J.3) toggle button that
@@ -104,12 +105,15 @@ export class WavyWaveControlsToggle extends LitElement {
     // (Enter / Space). The host carries no role/tabindex so AT does
     // not announce a nested-button antipattern; the toggle's
     // pressed/label state lives on the inner button.
-    const label = this.pressed ? "Show wave controls" : "Hide wave controls";
+    const label = this.pressed
+      ? t("waveControls.open", "Show wave controls")
+      : t("waveControls.close", "Hide wave controls");
     return html`
       <button
         type="button"
         aria-pressed=${this.pressed ? "true" : "false"}
         aria-label=${label}
+        title=${label}
         @click=${this._onClick}
       >
         ${this.pressed ? this._showIcon() : this._hideIcon()}

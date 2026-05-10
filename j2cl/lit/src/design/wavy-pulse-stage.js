@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-pulse-stage> — F-0 (#1035) demo helper that drives a single
@@ -85,7 +86,12 @@ export class WavyPulseStage extends LitElement {
 
   render() {
     return html`
-      <button type="button" @click=${this.firePulse}>Fire pulse</button>
+      <button
+        type="button"
+        aria-label=${t("pulseStage.fire", "Fire pulse")}
+        title=${t("pulseStage.fire", "Fire pulse")}
+        @click=${this.firePulse}
+      >${t("pulseStage.fire", "Fire pulse")}</button>
       <slot></slot>
     `;
   }

@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 export class ReactionAuthorsPopover extends LitElement {
   static properties = {
@@ -40,16 +41,17 @@ export class ReactionAuthorsPopover extends LitElement {
       return "";
     }
     const authors = this.safeAuthors();
-    const label = this.reactionLabel || this.emoji || "this reaction";
+    const label = this.reactionLabel || this.emoji || t("reactions.thisReaction", "this reaction");
+    const heading = `${t("reactions.authorsForPrefix", "Authors for")} ${label}`;
     return html`
       <section
         class="popover"
         role="region"
         tabindex="-1"
-        aria-label=${`Authors for ${label}`}
+        aria-label=${heading}
       >
         ${authors.length === 0
-          ? html`<p>No reactions yet</p>`
+          ? html`<p>${t("reactions.noneYet", "No reactions yet")}</p>`
           : html`
               <ul>
                 ${authors.map(author => html`<li>${author}</li>`)}

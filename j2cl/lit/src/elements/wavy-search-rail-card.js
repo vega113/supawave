@@ -1,4 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-search-rail-card> — G-PORT-2 (#1111) per-digest card. Cloned
@@ -327,7 +328,7 @@ export class WavySearchRailCard extends LitElement {
         aria-current=${this.selected ? "true" : nothing}
       >
         <div class="inner">
-          <div class="avatars" data-digest-avatars aria-label="Authors">
+          <div class="avatars" data-digest-avatars aria-label=${t("searchRail.cardAuthors", "Authors")}>
             ${visible.map(
               (name) =>
                 html`<span class="avatar" data-initials=${this._initials(name)} title=${name}
@@ -335,12 +336,12 @@ export class WavySearchRailCard extends LitElement {
                 >`
             )}
             ${overflow > 0
-              ? html`<span class="avatar more" title="and ${overflow} more">+${overflow}</span>`
+              ? html`<span class="avatar more" title="${t("searchRail.cardAndMorePrefix", "and")} ${overflow} ${t("searchRail.cardMoreSuffix", "more")}">+${overflow}</span>`
               : null}
           </div>
           <div class="info">
             ${this.pinned
-              ? html`<span class="pin" aria-label="Pinned" title="Pinned">📌</span>`
+              ? html`<span class="pin" aria-label=${t("searchRail.cardPinned", "Pinned")} title=${t("searchRail.cardPinned", "Pinned")}>📌</span>`
               : null}
             ${this.postedAtIso
               ? html`<time
@@ -351,14 +352,14 @@ export class WavySearchRailCard extends LitElement {
                   >${this.postedAt || ""}</time
                 >`
               : html`<time class="ts" data-digest-time>${this.postedAt || ""}</time>`}
-            <span class="msgs" data-digest-msg-count aria-label="Message count">
+            <span class="msgs" data-digest-msg-count aria-label=${t("searchRail.cardMessageCount", "Message count")}>
               <span class="msg-total">${this.msgCount}</span>
               ${unread > 0
-                ? html`<span class="badge unread" aria-label="${unread} unread">${unread}</span>`
+                ? html`<span class="badge unread" aria-label="${unread} ${t("searchRail.cardUnread", "unread")}">${unread}</span>`
                 : null}
             </span>
           </div>
-          <h3 class="title" data-digest-title>${this.title || "(no title)"}</h3>
+          <h3 class="title" data-digest-title>${this.title || t("searchRail.cardNoTitle", "(no title)")}</h3>
           <p class="snippet" data-digest-snippet>${this.snippet || ""}</p>
         </div>
       </article>

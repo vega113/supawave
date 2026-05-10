@@ -27,6 +27,7 @@ export function createInlineShellInput(win) {
         address,
         role: normalizeRole(session.role),
         domain: typeof session.domain === "string" ? session.domain : "",
+        locale: typeof session.locale === "string" ? session.locale : "",
         idSeed: typeof session.idSeed === "string" ? session.idSeed : "",
         features: Array.isArray(session.features) ? [...session.features] : [],
         websocketAddress: wsAddress

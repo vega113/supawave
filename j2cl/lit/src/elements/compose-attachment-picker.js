@@ -1,6 +1,7 @@
 import { LitElement, css, html } from "lit";
 import "./interaction-overlay-layer.js";
 import { DISPLAY_SIZES } from "./attachment-display-sizes.js";
+import { t } from "../i18n/t.js";
 
 export class ComposeAttachmentPicker extends LitElement {
   static properties = {
@@ -118,21 +119,23 @@ export class ComposeAttachmentPicker extends LitElement {
         aria-haspopup="dialog"
         aria-expanded=${this.open ? "true" : "false"}
         aria-controls="attachment-picker-overlay"
+        aria-label=${t("attachments.attachFile", "Attach file")}
+        title=${t("attachments.attachFile", "Attach file")}
         @click=${this.openPicker}
       >
-        Attach file
+        ${t("attachments.attachFile", "Attach file")}
       </button>
       <interaction-overlay-layer
         id="attachment-picker-overlay"
         ?open=${this.open}
         modal
-        label="Attach a file"
+        label=${t("attachments.dialogLabel", "Attach a file")}
         focus-target-id="attachment-picker-trigger"
         @overlay-close=${this.onOverlayClose}
       >
         <div class="panel">
           <label>
-            File
+            ${t("attachments.fileLabel", "File")}
             <input
               type="file"
               multiple
@@ -140,16 +143,16 @@ export class ComposeAttachmentPicker extends LitElement {
             />
           </label>
           <label>
-            Caption
+            ${t("attachments.captionLabel", "Caption")}
             <textarea
               name="attachment-caption"
-              aria-label="Attachment caption"
+              aria-label=${t("attachments.captionLabel", "Caption")}
               .value=${this.caption}
               @input=${this.onCaptionInput}
             ></textarea>
           </label>
           <fieldset @keydown=${this.onSizeKeyDown}>
-            <legend>Display size</legend>
+            <legend>${t("attachments.displaySize", "Display size")}</legend>
             <div class="sizes">
               ${DISPLAY_SIZES.map(size => html`
                 <label>
@@ -167,8 +170,14 @@ export class ComposeAttachmentPicker extends LitElement {
           </fieldset>
           ${this.renderUploadState()}
           <div class="actions">
-            <button type="button" data-action="attachment-cancel" @click=${this.cancel}>
-              Cancel
+            <button
+              type="button"
+              data-action="attachment-cancel"
+              aria-label=${t("common.cancel", "Cancel")}
+              title=${t("common.cancel", "Cancel")}
+              @click=${this.cancel}
+            >
+              ${t("common.cancel", "Cancel")}
             </button>
           </div>
         </div>
@@ -183,7 +192,7 @@ export class ComposeAttachmentPicker extends LitElement {
           role="alert"
           aria-live="assertive"
           data-state="attachment-error-state"
-        >${this.uploadError || "Attachment upload failed."}</p>
+        >${this.uploadError || t("attachments.uploadFailed", "Attachment upload failed.")}</p>
       `;
     }
     if (!this.uploadState) {
@@ -196,7 +205,7 @@ export class ComposeAttachmentPicker extends LitElement {
           ? html`
               <progress
                 role="progressbar"
-                aria-label="Attachment upload progress"
+                aria-label=${t("attachments.uploadProgress", "Attachment upload progress")}
                 max="100"
                 value=${this.normalizedProgress()}
                 aria-valuemin="0"

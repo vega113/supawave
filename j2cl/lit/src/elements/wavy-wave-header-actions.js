@@ -1,5 +1,7 @@
 import { LitElement, css, html, svg } from "lit";
 import { ensureWavyConfirmDialogMounted } from "./wavy-confirm-dialog.js";
+import { subscribe } from "../i18n/locale.js";
+import { t } from "../i18n/t.js";
 
 const LOCK_CYCLE = {
   unlocked: "root",
@@ -299,16 +301,22 @@ export class WavyWaveHeaderActions extends LitElement {
     this._contactsLoading = false;
     this._pendingConfirm = null;
     this._onConfirmResolved = this._onConfirmResolved.bind(this);
+    this._unsubscribeLocale = null;
   }
 
   connectedCallback() {
     super.connectedCallback();
     document.body.addEventListener("wavy-confirm-resolved", this._onConfirmResolved);
+    this._unsubscribeLocale = subscribe(() => this.requestUpdate());
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     document.body.removeEventListener("wavy-confirm-resolved", this._onConfirmResolved);
+    if (this._unsubscribeLocale) {
+      this._unsubscribeLocale();
+      this._unsubscribeLocale = null;
+    }
   }
 
   willUpdate(changedProperties) {
@@ -325,49 +333,64 @@ export class WavyWaveHeaderActions extends LitElement {
   render() {
     const unavailable = this._unavailable();
     const lockState = normalizeLockState(this.lockState);
+    const addLabel = t("waveActions.addParticipant", "Add participant");
+    const newLabel = t("waveActions.newWithParticipants", "New wave with current participants");
+    const newShort = t("waveActions.newWithParticipantsShort", "New with participants");
+    const publicityLabel = this.public
+      ? t("waveActions.makePrivate", "Make wave private")
+      : t("waveActions.makePublic", "Make wave public");
+    const publicityState = this.public
+      ? t("waveActions.public", "Public")
+      : t("waveActions.private", "Private");
+    const lockLabel = this._lockLabel(lockState);
+    const lockText = this._lockText(lockState);
     return html`
-      <div class="row" role="toolbar" aria-label="Wave header actions">
+      <div class="row" role="toolbar" aria-label=${t("waveActions.toolbarLabel", "Wave header actions")}>
         <button
           type="button"
           data-action="add-participant"
-          aria-label="Add participant"
+          aria-label=${addLabel}
+          title=${addLabel}
           ?disabled=${unavailable}
           @click=${this._openAddParticipant}
         >
           ${actionIcon("addParticipant")}
-          <span class="action-label">Add participant</span>
+          <span class="action-label">${addLabel}</span>
         </button>
         <button
           type="button"
           data-action="new-with-participants"
-          aria-label="New wave with current participants"
+          aria-label=${newLabel}
+          title=${newLabel}
           ?disabled=${unavailable}
           @click=${this._newWithParticipants}
         >
           ${actionIcon("newWave")}
-          <span class="action-label">New with participants</span>
+          <span class="action-label">${newShort}</span>
         </button>
         <button
           type="button"
           data-action="publicity-toggle"
-          aria-label=${this.public ? "Make wave private" : "Make wave public"}
+          aria-label=${publicityLabel}
+          title=${publicityLabel}
           aria-pressed=${this.public ? "true" : "false"}
           ?disabled=${unavailable}
           @click=${this._confirmPublicityToggle}
         >
           ${actionIcon("public")}
-          <span class="action-label">${this.public ? "Public" : "Private"}</span>
+          <span class="action-label">${publicityState}</span>
         </button>
         <button
           type="button"
           data-action="lock-toggle"
           data-lock-state=${lockState}
-          aria-label=${this._lockLabel(lockState)}
+          aria-label=${lockLabel}
+          title=${lockLabel}
           ?disabled=${unavailable}
           @click=${this._confirmLockToggle}
         >
           ${actionIcon("lock")}
-          <span class="action-label">${this._lockText(lockState)}</span>
+          <span class="action-label">${lockText}</span>
         </button>
       </div>
       ${this._addDialogOpen ? this._renderAddParticipantDialog() : ""}
@@ -375,14 +398,19 @@ export class WavyWaveHeaderActions extends LitElement {
   }
 
   _renderAddParticipantDialog() {
+    const cancelLabel = t("waveActions.cancel", "Cancel");
+    const addLabel = t("waveActions.add", "Add");
     return html`
       <form class="add-popover" @submit=${this._submitAddParticipant}>
         <label>
-          Participant addresses
+          ${t("waveActions.participantAddresses", "Participant addresses")}
           <input
             name="participant-addresses"
             autocomplete="off"
-            placeholder="alice@example.com, bob@example.com"
+            placeholder=${t(
+              "waveActions.participantPlaceholder",
+              "alice@example.com, bob@example.com"
+            )}
             .value=${this._participantDraft}
             @input=${this._onParticipantDraftInput}
           />
@@ -392,16 +420,20 @@ export class WavyWaveHeaderActions extends LitElement {
           <button
             type="button"
             data-action="add-participant-cancel"
+            aria-label=${cancelLabel}
+            title=${cancelLabel}
             @click=${this._closeAddParticipant}
           >
-            Cancel
+            ${cancelLabel}
           </button>
           <button
             type="submit"
             data-action="add-participant-submit"
+            aria-label=${addLabel}
+            title=${addLabel}
             ?disabled=${this._addParticipantAddresses().length === 0}
           >
-            Add
+            ${addLabel}
           </button>
         </div>
       </form>
@@ -430,20 +462,26 @@ export class WavyWaveHeaderActions extends LitElement {
   _renderContactSuggestions() {
     const suggestions = this._availableContactSuggestions();
     if (this._contactsLoading) {
-      return html`<div class="suggestions" aria-live="polite">Loading frequent contacts...</div>`;
+      return html`<div class="suggestions" aria-live="polite">${t(
+        "waveActions.loadingFrequentContacts",
+        "Loading frequent contacts..."
+      )}</div>`;
     }
     if (suggestions.length === 0) {
       return "";
     }
+    const frequent = t("waveActions.frequentContacts", "Frequent contacts");
     return html`
-      <div class="suggestions" aria-label="Frequent contacts">
-        <span class="suggestions-label">Frequent contacts</span>
+      <div class="suggestions" aria-label=${frequent}>
+        <span class="suggestions-label">${frequent}</span>
         ${suggestions.map(
           (address) => html`
             <button
               type="button"
               class="suggestion"
               data-contact-suggestion=${address}
+              aria-label=${`${t("waveActions.addContactPrefix", "Add")} ${address}`}
+              title=${`${t("waveActions.addContactPrefix", "Add")} ${address}`}
               @click=${() => this._appendSuggestedParticipant(address)}
             >
               ${address}
@@ -545,8 +583,12 @@ export class WavyWaveHeaderActions extends LitElement {
     const nextPublic = !currentlyPublic;
     this._requestConfirmation(
       "publicity",
-      currentlyPublic ? "Make this wave private?" : "Make this wave public?",
-      currentlyPublic ? "Make private" : "Make public",
+      currentlyPublic
+        ? t("waveActions.confirmPrivate", "Make this wave private?")
+        : t("waveActions.confirmPublic", "Make this wave public?"),
+      currentlyPublic
+        ? t("waveActions.confirmLabelMakePrivate", "Make private")
+        : t("waveActions.confirmLabelMakePublic", "Make public"),
       "wave-publicity-toggle-requested",
       { currentlyPublic, nextPublic }
     );
@@ -584,7 +626,7 @@ export class WavyWaveHeaderActions extends LitElement {
           requestId,
           message,
           confirmLabel,
-          cancelLabel: "Cancel",
+          cancelLabel: t("waveActions.cancel", "Cancel"),
           tone: kind === "lock" || detail.nextPublic === false ? "destructive" : "default"
         }
       })
@@ -613,27 +655,27 @@ export class WavyWaveHeaderActions extends LitElement {
   }
 
   _lockLabel(lockState) {
-    if (lockState === "root") return "Lock full wave";
-    if (lockState === "all") return "Unlock wave";
-    return "Lock root blip";
+    if (lockState === "root") return t("waveActions.lockFull", "Lock full wave");
+    if (lockState === "all") return t("waveActions.unlock", "Unlock wave");
+    return t("waveActions.lockRoot", "Lock root blip");
   }
 
   _lockText(lockState) {
-    if (lockState === "root") return "Root locked";
-    if (lockState === "all") return "Wave locked";
-    return "Unlocked";
+    if (lockState === "root") return t("waveActions.lockedRoot", "Root locked");
+    if (lockState === "all") return t("waveActions.lockedAll", "Wave locked");
+    return t("waveActions.unlocked", "Unlocked");
   }
 
   _lockConfirmLabel(nextLockState) {
-    if (nextLockState === "root") return "Lock root";
-    if (nextLockState === "all") return "Lock all";
-    return "Unlock";
+    if (nextLockState === "root") return t("waveActions.confirmLabelLockRoot", "Lock root");
+    if (nextLockState === "all") return t("waveActions.confirmLabelLockAll", "Lock all");
+    return t("waveActions.confirmLabelUnlock", "Unlock");
   }
 
   _lockConfirmMessage(currentLockState, nextLockState) {
-    if (nextLockState === "root") return "Lock the root blip?";
-    if (nextLockState === "all") return "Lock the full wave?";
-    return `Unlock this wave from ${currentLockState} lock?`;
+    if (nextLockState === "root") return t("waveActions.confirmLockRoot", "Lock the root blip?");
+    if (nextLockState === "all") return t("waveActions.confirmLockAll", "Lock the full wave?");
+    return t("waveActions.confirmUnlock", "Unlock this wave?");
   }
 }
 

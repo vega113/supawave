@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wave-blip-toolbar> — F-2 (#1037, R-3.1) per-blip action toolbar that
@@ -104,42 +105,46 @@ export class WaveBlipToolbar extends LitElement {
   }
 
   render() {
+    const replyAction = t("blipToolbar.replyAction", "Reply to this blip");
+    const editAction = t("blipToolbar.editAction", "Edit this blip");
+    const deleteAction = t("blipToolbar.deleteAction", "Delete this blip");
+    const linkAction = t("blipToolbar.linkAction", "Copy permalink to this blip");
     return html`
       <button
         type="button"
         data-toolbar-action="reply"
-        aria-label="Reply to this blip"
-        title="Reply to this blip"
+        aria-label=${replyAction}
+        title=${replyAction}
         @click=${() => this._emit("wave-blip-toolbar-reply")}
       >
-        <span class="glyph" aria-hidden="true">↩</span><span class="label">Reply</span>
+        <span class="glyph" aria-hidden="true">↩</span><span class="label">${t("blipToolbar.reply", "Reply")}</span>
       </button>
       <button
         type="button"
         data-toolbar-action="edit"
-        aria-label="Edit this blip"
-        title="Edit this blip"
+        aria-label=${editAction}
+        title=${editAction}
         @click=${() => this._emit("wave-blip-toolbar-edit")}
       >
-        <span class="glyph" aria-hidden="true">✎</span><span class="label">Edit</span>
+        <span class="glyph" aria-hidden="true">✎</span><span class="label">${t("blipToolbar.edit", "Edit")}</span>
       </button>
       <button
         type="button"
         data-toolbar-action="delete"
-        aria-label="Delete this blip"
-        title="Delete this blip"
+        aria-label=${deleteAction}
+        title=${deleteAction}
         @click=${() => this._emit("wave-blip-toolbar-delete")}
       >
-        <span class="glyph" aria-hidden="true">⌫</span><span class="label">Delete</span>
+        <span class="glyph" aria-hidden="true">⌫</span><span class="label">${t("blipToolbar.deleteShort", "Delete")}</span>
       </button>
       <button
         type="button"
         data-toolbar-action="link"
-        aria-label="Copy permalink to this blip"
-        title="Copy permalink to this blip"
+        aria-label=${linkAction}
+        title=${linkAction}
         @click=${() => this._emit("wave-blip-toolbar-link")}
       >
-        <span class="glyph" aria-hidden="true">↗</span><span class="label">Link</span>
+        <span class="glyph" aria-hidden="true">↗</span><span class="label">${t("blipToolbar.linkShort", "Link")}</span>
       </button>
     `;
   }

@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import "./composer-submit-affordance.js";
+import { t } from "../i18n/t.js";
 
 export class ComposerInlineReply extends LitElement {
   static properties = {
@@ -95,7 +96,7 @@ export class ComposerInlineReply extends LitElement {
           ? html`<p class="target">Reply target: ${this.targetLabel || "No current wave"}</p>`
           : ""}
         <textarea
-          aria-label="Reply"
+          aria-label=${t("composer.replyLabel", "Reply")}
           .value=${this.draft}
           ?disabled=${textareaDisabled}
           @input=${this.onInput}

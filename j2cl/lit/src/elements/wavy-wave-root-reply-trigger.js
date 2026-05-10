@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5) compact
@@ -75,8 +76,8 @@ export class WavyWaveRootReplyTrigger extends LitElement {
       <button
         type="button"
         data-wave-root-reply-trigger
-        aria-label="Reply to the wave"
-        title="Reply to the wave"
+        aria-label=${t("rootReply.aria", "Reply to the wave")}
+        title=${t("rootReply.aria", "Reply to the wave")}
         @click=${this._onClick}
       >
         +

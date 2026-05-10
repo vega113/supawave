@@ -4,6 +4,7 @@ import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS } from "../format/font-options.j
 import "./toolbar-button.js";
 import "./toolbar-group.js";
 import "./wavy-colorpicker-popover.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-format-toolbar> — F-3.S1 (#1038, R-5.2) selection-driven floating
@@ -74,16 +75,20 @@ const ACTIVE_ANNOTATION_MAP = {
  * controller, etc.) see the same `actionId` payload. This is purely a
  * visual structural change.
  */
+// English labels are kept inline as fallbacks; the visible label is resolved
+// at render time via t(`formatToolbar.${id}`, fallback) so locale changes
+// re-render cleanly.
 const DAILY_RICH_EDIT_ACTIONS = [
-  { id: "bold", label: "Bold", group: "text", toggle: true },
-  { id: "italic", label: "Italic", group: "text", toggle: true },
-  { id: "underline", label: "Underline", group: "text", toggle: true },
-  { id: "strikethrough", label: "Strikethrough", group: "text", toggle: true },
-  { id: "superscript", label: "Superscript", group: "text", toggle: true },
-  { id: "subscript", label: "Subscript", group: "text", toggle: true },
+  { id: "bold", labelKey: "formatToolbar.bold", labelDefault: "Bold", group: "text", toggle: true },
+  { id: "italic", labelKey: "formatToolbar.italic", labelDefault: "Italic", group: "text", toggle: true },
+  { id: "underline", labelKey: "formatToolbar.underline", labelDefault: "Underline", group: "text", toggle: true },
+  { id: "strikethrough", labelKey: "formatToolbar.strikethrough", labelDefault: "Strikethrough", group: "text", toggle: true },
+  { id: "superscript", labelKey: "formatToolbar.superscript", labelDefault: "Superscript", group: "text", toggle: true },
+  { id: "subscript", labelKey: "formatToolbar.subscript", labelDefault: "Subscript", group: "text", toggle: true },
   {
     id: "font-family",
-    label: "Font",
+    labelKey: "formatToolbar.fontFamily",
+    labelDefault: "Font",
     group: "text",
     toggle: false,
     kind: "select",
@@ -91,39 +96,37 @@ const DAILY_RICH_EDIT_ACTIONS = [
   },
   {
     id: "font-size",
-    label: "Size",
+    labelKey: "formatToolbar.fontSize",
+    labelDefault: "Size",
     group: "text",
     toggle: false,
     kind: "select",
     options: FONT_SIZE_OPTIONS
   },
-  { id: "text-color", label: "Text color", group: "text", toggle: false },
-  { id: "highlight-color", label: "Highlight color", group: "text", toggle: false },
-  { id: "heading", label: "Heading", group: "block", toggle: false },
-  { id: "unordered-list", label: "Bulleted list", group: "block", toggle: true },
-  { id: "ordered-list", label: "Numbered list", group: "block", toggle: true },
-  { id: "indent", label: "Indent", group: "block", toggle: false },
-  { id: "outdent", label: "Outdent", group: "block", toggle: false },
-  { id: "align-left", label: "Align left", group: "align", toggle: false },
-  { id: "align-center", label: "Align center", group: "align", toggle: false },
-  { id: "align-right", label: "Align right", group: "align", toggle: false },
-  { id: "rtl", label: "Right-to-left", group: "align", toggle: false },
-  { id: "link", label: "Insert link", group: "link", toggle: false },
-  { id: "unlink", label: "Remove link", group: "link", toggle: false },
-  { id: "clear-formatting", label: "Clear formatting", group: "clear", toggle: false },
-  // F-3.S2 (#1038, R-5.4 step 6 + H.20): inline task list insert.
-  // Display-only inside the body (the `<input type="checkbox">` is
-  // disabled — the per-blip task affordance owns model state).
-  { id: "insert-task", label: "Insert task", group: "insert", toggle: false },
-  // F-3.S4 (#1038, R-5.6 H.19): attachment paperclip. Clicking emits
-  // wavy-format-toolbar-action with actionId "attachment-insert"; the
-  // controller maps that to view.openAttachmentPicker() via the
-  // existing handleAttachmentToolbarAction path.
-  { id: "attachment-insert", label: "Attach file", group: "insert", toggle: false }
+  { id: "text-color", labelKey: "formatToolbar.textColor", labelDefault: "Text color", group: "text", toggle: false },
+  { id: "highlight-color", labelKey: "formatToolbar.highlightColor", labelDefault: "Highlight color", group: "text", toggle: false },
+  { id: "heading", labelKey: "formatToolbar.heading", labelDefault: "Heading", group: "block", toggle: false },
+  { id: "unordered-list", labelKey: "formatToolbar.bulletList", labelDefault: "Bulleted list", group: "block", toggle: true },
+  { id: "ordered-list", labelKey: "formatToolbar.numberedList", labelDefault: "Numbered list", group: "block", toggle: true },
+  { id: "indent", labelKey: "formatToolbar.indent", labelDefault: "Indent", group: "block", toggle: false },
+  { id: "outdent", labelKey: "formatToolbar.outdent", labelDefault: "Outdent", group: "block", toggle: false },
+  { id: "align-left", labelKey: "formatToolbar.alignLeft", labelDefault: "Align left", group: "align", toggle: false },
+  { id: "align-center", labelKey: "formatToolbar.alignCenter", labelDefault: "Align center", group: "align", toggle: false },
+  { id: "align-right", labelKey: "formatToolbar.alignRight", labelDefault: "Align right", group: "align", toggle: false },
+  { id: "rtl", labelKey: "formatToolbar.rtl", labelDefault: "Right-to-left", group: "align", toggle: false },
+  { id: "link", labelKey: "formatToolbar.link", labelDefault: "Insert link", group: "link", toggle: false },
+  { id: "unlink", labelKey: "formatToolbar.unlink", labelDefault: "Remove link", group: "link", toggle: false },
+  { id: "clear-formatting", labelKey: "formatToolbar.clearFormatting", labelDefault: "Clear formatting", group: "clear", toggle: false },
+  { id: "insert-task", labelKey: "formatToolbar.insertTask", labelDefault: "Insert task", group: "insert", toggle: false },
+  { id: "attachment-insert", labelKey: "formatToolbar.attachFile", labelDefault: "Attach file", group: "insert", toggle: false }
 ];
 
+function actionLabel(action) {
+  return t(action.labelKey, action.labelDefault);
+}
+
 const GROUP_ORDER = ["text", "block", "align", "link", "clear", "insert"];
-const GROUP_LABELS = {
+const GROUP_LABEL_DEFAULTS = {
   text: "Text formatting",
   block: "Block formatting",
   align: "Alignment",
@@ -131,6 +134,11 @@ const GROUP_LABELS = {
   clear: "Clear formatting",
   insert: "Insert"
 };
+
+function groupLabel(groupId) {
+  const fallback = GROUP_LABEL_DEFAULTS[groupId] || groupId;
+  return t(`formatToolbar.group.${groupId}`, fallback);
+}
 
 export class WavyFormatToolbar extends LitElement {
   static properties = {
@@ -362,14 +370,16 @@ export class WavyFormatToolbar extends LitElement {
   }
 
   _renderAction(action) {
+    const label = actionLabel(action);
     if (action.kind === "select") {
       return html`<select
         class="toolbar-select"
         data-toolbar-action=${action.id}
-        aria-label=${action.label}
+        aria-label=${label}
+        title=${label}
         @change=${(event) => this._onSelectAction(action, event)}
       >
-        <option value="">${action.label}</option>
+        <option value="">${label}</option>
         ${action.options.map((option) => html`<option value=${option}>${option}</option>`)}
       </select>`;
     }
@@ -377,7 +387,7 @@ export class WavyFormatToolbar extends LitElement {
       data-toolbar-action=${action.id}
       action=${action.id}
       icon=${action.id}
-      label=${action.label}
+      label=${label}
       ?toggle=${action.toggle}
       ?pressed=${this._isActionActive(action)}
     ></toolbar-button>`;
@@ -386,7 +396,7 @@ export class WavyFormatToolbar extends LitElement {
   _renderGroup(groupId) {
     const actions = DAILY_RICH_EDIT_ACTIONS.filter((a) => a.group === groupId);
     if (actions.length === 0) return null;
-    return html`<toolbar-group label=${GROUP_LABELS[groupId] || groupId}>
+    return html`<toolbar-group label=${groupLabel(groupId)}>
       ${actions.map((action) => this._renderAction(action))}
     </toolbar-group>`;
   }

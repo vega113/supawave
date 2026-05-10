@@ -1,6 +1,7 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import "./wavy-task-affordance.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wave-blip> — F-2 (#1037, R-3.1) read-surface wrapper around the F-0
@@ -647,17 +648,25 @@ export class WaveBlip extends LitElement {
     const palette = this._palette();
     const hasReplies = this.replyCount > 0;
     const visuallyFocused = this._visuallyFocused();
-    const replyNoun = this.replyCount === 1 ? "reply" : "replies";
-    const threadToggleVerb = this.threadCollapsed ? "Expand" : "Collapse";
+    const replyNoun = this.replyCount === 1
+      ? t("blip.reply", "reply")
+      : t("blip.replies", "replies");
+    const threadToggleVerb = this.threadCollapsed
+      ? t("blip.expand", "Expand")
+      : t("blip.collapse", "Collapse");
     const authorLabel = this._authorLabel();
     const avatarUrl = this._avatarUrl();
+    const threadLabel = `${threadToggleVerb} ${this.replyCount} ${replyNoun} ${t(
+      "blip.underThisBlipSuffix",
+      "under this blip"
+    )}`;
     const chevron = hasReplies
       ? html`<button
           type="button"
           class="thread-chevron"
           data-thread-chevron="true"
-          aria-label=${`${threadToggleVerb} ${this.replyCount} ${replyNoun} under this blip`}
-          title=${`${threadToggleVerb} ${this.replyCount} ${replyNoun} under this blip`}
+          aria-label=${threadLabel}
+          title=${threadLabel}
           @click=${this._onThreadChevronClick}
         >${this._chevronGlyph()}</button>`
       : html`<span class="thread-chevron" hidden></span>`;
@@ -680,7 +689,8 @@ export class WaveBlip extends LitElement {
             class="avatar"
             data-blip-avatar="true"
             data-palette=${String(palette)}
-            aria-label=${`Open ${authorLabel} profile`}
+            aria-label=${t("blip.openAuthorProfile", "Open {name} profile").replace("{name}", authorLabel)}
+            title=${t("blip.openAuthorProfile", "Open {name} profile").replace("{name}", authorLabel)}
             @click=${this._onAvatarClick}
           >
             ${avatarUrl

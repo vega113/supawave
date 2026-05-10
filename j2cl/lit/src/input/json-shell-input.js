@@ -21,6 +21,7 @@ export function createJsonShellInput(win) {
         address,
         role: normalizeRole(session.role),
         domain: typeof session.domain === "string" ? session.domain : "",
+        locale: typeof session.locale === "string" ? session.locale : "",
         // /bootstrap.json intentionally does not provide a client ID seed.
         idSeed: "",
         features: Array.isArray(session.features) ? [...session.features] : [],

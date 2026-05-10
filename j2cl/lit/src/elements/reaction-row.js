@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 export class ReactionRow extends LitElement {
   static properties = {
@@ -90,13 +91,13 @@ export class ReactionRow extends LitElement {
 
   render() {
     return html`
-      <div class="row" role="group" aria-label="Reactions">
+      <div class="row" role="group" aria-label=${t("reactions.rowLabel", "Reactions")}>
         ${this.safeReactions().map(reaction => this.renderReaction(reaction))}
         <button
           type="button"
           data-reaction-add
-          aria-label="Add reaction"
-          title="Add reaction"
+          aria-label=${t("reactions.add", "Add reaction")}
+          title=${t("reactions.add", "Add reaction")}
           @click=${this.onAdd}
         >
           ☺
@@ -150,16 +151,25 @@ export class ReactionRow extends LitElement {
     const glyph = reaction.glyph || emoji;
     const name = reaction.accessibleName || reaction.label || this.humanizeName(emoji);
     const count = this.safeCount(reaction.count);
+    const groupLabel = `${name} ${t("reactions.reactionSuffix", "reaction")}`;
+    const peopleLabel = count === 1
+      ? t("reactions.person", "person")
+      : t("reactions.people", "people");
+    const toggleLabel = `${t("reactions.toggle", "Toggle")} ${name} ${t(
+      "reactions.reactionSuffix",
+      "reaction"
+    )}, ${count} ${peopleLabel}`;
+    const inspectLabel = reaction.inspectLabel
+      || `${t("reactions.inspectPrefix", "Inspect")} ${name} ${t("reactions.reactionsSuffix", "reactions")}`;
     return html`
-      <span role="group" aria-label=${`${name} reaction`}>
+      <span role="group" aria-label=${groupLabel}>
         <button
           type="button"
           data-reaction-chip
           data-emoji=${emoji}
           aria-pressed=${reaction.active ? "true" : "false"}
-          aria-label=${`Toggle ${name} reaction, ${count} ${
-            count === 1 ? "person" : "people"
-          }`}
+          aria-label=${toggleLabel}
+          title=${toggleLabel}
           @click=${() => this.emit("reaction-toggle", emoji)}
         >
           ${glyph} ${count}
@@ -168,10 +178,11 @@ export class ReactionRow extends LitElement {
           type="button"
           data-reaction-inspect
           data-emoji=${emoji}
-          aria-label=${reaction.inspectLabel || `Inspect ${name} reactions`}
+          aria-label=${inspectLabel}
+          title=${inspectLabel}
           @click=${() => this.emit("reaction-inspect", emoji)}
         >
-          authors
+          ${t("reactions.authorsShort", "authors")}
         </button>
       </span>
     `;

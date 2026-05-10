@@ -4,6 +4,7 @@
  * @property {string} address
  * @property {"admin"|"owner"|"user"} role
  * @property {string} domain
+ * @property {string} locale
  * @property {string} idSeed
  * @property {string[]} features
  * @property {string} websocketAddress
@@ -17,6 +18,7 @@ export const EMPTY_SNAPSHOT = Object.freeze({
   address: "",
   role: "user",
   domain: "",
+  locale: "",
   idSeed: "",
   features: Object.freeze([]),
   websocketAddress: ""

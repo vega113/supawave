@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { WAVY_COLOR_PALETTE } from "../format/color-options.js";
+import { t } from "../i18n/t.js";
 
 const COLS = 10;
 const VIEWPORT_MARGIN_PX = 8;
@@ -130,7 +131,9 @@ export class WavyColorpickerPopover extends LitElement {
 
   render() {
     if (!this.open) return nothing;
-    const label = this.mode === "highlight" ? "Highlight color palette" : "Text color palette";
+    const label = this.mode === "highlight"
+      ? t("colorPicker.highlightPalette", "Highlight color palette")
+      : t("colorPicker.textPalette", "Text color palette");
     return html`<div
       class="panel"
       role="grid"
@@ -143,6 +146,7 @@ export class WavyColorpickerPopover extends LitElement {
         role="gridcell"
         data-color=${color}
         aria-label=${color}
+        title=${color}
         aria-selected=${String(index === this.activeIndex)}
         style=${`background: ${color}`}
         @click=${() => this._select(index)}

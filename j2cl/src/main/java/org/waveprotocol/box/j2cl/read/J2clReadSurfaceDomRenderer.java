@@ -668,6 +668,7 @@ public final class J2clReadSurfaceDomRenderer {
       renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
       renderedSurface = null;
       focusedBlip = null;
+      initialFocusAppliedForWaveId = null;
       return false;
     }
 
@@ -728,6 +729,11 @@ public final class J2clReadSurfaceDomRenderer {
       renderedConversationManifest = SidecarConversationManifest.empty();
       renderedSurface = null;
       focusedBlip = null;
+      // Round 5 (#1237): reset the initial-focus marker so that if the
+      // wave is re-populated (loading state, retry, server reload) the
+      // seek-to-latest path runs again instead of dropping the user
+      // back at the first visible blip.
+      initialFocusAppliedForWaveId = null;
       return false;
     }
     List<J2clReadWindowEntry> effectiveEntries = orderWindowEntriesForRender(entries);
@@ -3678,10 +3684,11 @@ public final class J2clReadSurfaceDomRenderer {
 
   /**
    * GWT-parity (round 5, #1237): bring a blip into the viewport on
-   * initial wave open. Uses native scrollIntoView with block: "nearest"
-   * so the chosen blip appears without forcing the surface to jump if
-   * it is already visible. Wrapped in try/catch because some test
-   * environments (mocked Element prototypes) lack scrollIntoView.
+   * initial wave open. Calls {@code scrollIntoView(false)} which
+   * aligns the blip with the BOTTOM of the visible area — matches
+   * GWT's behavior of pinning the latest blip to the viewport bottom
+   * on open. Wrapped in try/catch because some test environments
+   * (mocked Element prototypes) lack {@code scrollIntoView}.
    */
   private void scrollBlipIntoView(HTMLElement blip) {
     if (blip == null) {

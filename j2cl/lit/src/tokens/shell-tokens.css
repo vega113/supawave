@@ -447,69 +447,14 @@ shell-header > span[slot^="actions"] {
   color: var(--shell-color-text-muted);
 }
 
-/* GWT-parity (round 5, #1237): pre-upgrade light-DOM styling for
- * <wave-blip>. The Java renderer (J2clReadSurfaceDomRenderer) creates
- * <wave-blip> hosts with a plain <div class="j2cl-read-blip-content
- * blip-content"> child of unstyled text and appends them to the read
- * surface BEFORE Lit upgrades the custom element. Until the upgrade
- * runs, the slotted .blip-content has no margin / padding / border, so
- * users see naked text that shifts and re-paints when the shadow root
- * attaches and the .body styling kicks in. The result is the visible
- * "blips appear as plain text, then flicker, then resize" effect users
- * report on big-wave open and on every renderWindow rebuild (e.g.
- * after marking a reply as done).
- *
- * These rules mirror the post-upgrade .body geometry from wave-blip.js
- * so the slotted content already paints inside a card before the
- * shadow root takes over. The :not(:defined) guard scopes them to the
- * pre-upgrade window only — once Lit upgrades wave-blip, the slot
- * pulls .blip-content into the shadow .body and these rules no longer
- * match (the child becomes a slot assignee, not a direct light-DOM
- * descendant rendered inline). */
+/* GWT-parity (round 5, #1237): scope wave-blip layout effects so a
+ * Lit re-render of one blip does not invalidate layout / style for
+ * the entire stream. Pure perf hint — no visual change.
+ * The pre-upgrade skeleton (wavy-thread-collapse.css `wave-blip:not
+ * (:defined)`) and the post-upgrade shadow `.body` continue to own
+ * the visual envelope. */
 wave-blip {
-  display: block;
-  position: relative;
-  margin: 0;
-  padding: 3px;
   contain: layout style;
-}
-
-wave-blip:not(:defined) > .j2cl-read-blip-content,
-wave-blip:not(:defined) > .blip-content {
-  display: block;
-  margin-left: 3.35em;
-  min-height: 1.5em;
-  padding: 6px 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  background: #f8fafc;
-  color: #1a202c;
-  font: 13px / 1.35 Arial, Helvetica, sans-serif;
-  overflow-wrap: break-word;
-  word-break: normal;
-  white-space: pre-wrap;
-}
-
-wave-blip:not(:defined)[unread] > .j2cl-read-blip-content,
-wave-blip:not(:defined)[unread] > .blip-content {
-  border-color: rgba(0, 119, 182, 0.5);
-  background: rgba(0, 180, 216, 0.1);
-  color: #0f3f5f;
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 #0077b6;
-}
-
-/* Reserve the metadata-strip space so the body does not jump up when
- * the shadow header materialises post-upgrade. Matches .header
- * min-height (32px) + margin-bottom (0.3em ≈ 4px) from wave-blip.js. */
-wave-blip:not(:defined)::before {
-  content: "";
-  display: block;
-  height: 32px;
-  margin-bottom: 0.3em;
-  margin-left: 3.35em;
-  background: #f0f4f8;
-  border-radius: 6px;
 }
 
 shell-header[compact-gwt-topbar] > span[slot^="actions"] {

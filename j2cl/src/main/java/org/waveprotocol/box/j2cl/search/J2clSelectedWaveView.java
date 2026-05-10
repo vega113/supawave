@@ -732,7 +732,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
     if (!renderedWaveId.equals(lastRenderedWaveId)) {
       readSurface.clearViewportScrollMemory();
       lastRenderedWaveId = renderedWaveId;
-      pendingInitialFocusWaveId = renderedWaveId;
+      if (!renderedWaveId.isEmpty()) {
+        pendingInitialFocusWaveId = renderedWaveId;
+      }
     }
     publishReactionState(model);
     // F-2 (#1037, R-3.1) — surface the wave id on the content host so the

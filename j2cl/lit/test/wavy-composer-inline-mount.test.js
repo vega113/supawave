@@ -133,13 +133,25 @@ describe("F-3.S1 inline composer mount integration", () => {
     }
   });
 
-  it("does not expose the redundant continuation + affordance", async () => {
+  // GWT parity: the toolbar Reply icon creates an INLINE reply (nested
+  // child thread); the per-blip continuation trigger below the body
+  // creates a SIBLING reply at the same thread level. PR #1220 dropped
+  // the continuation trigger as "redundant", but it is the only J2CL UI
+  // for same-level replies — the wave-model already exposes
+  // onContinuationSubmitted on the controller. Restore the affordance
+  // and assert it is present and aria-labeled.
+  it("renders the per-blip continuation trigger for same-level (sibling) replies", async () => {
     const blip = await fixture(html`
       <wave-blip data-blip-id="b99" data-wave-id="w1" author-name="A" posted-at="1m">
       </wave-blip>
     `);
     await blip.updateComplete;
-    expect(blip.renderRoot.querySelector("[data-blip-continuation-trigger]")).to.not.exist;
+    const trigger =
+        blip.renderRoot.querySelector("[data-blip-continuation-trigger]");
+    expect(trigger).to.exist;
+    expect(trigger.getAttribute("aria-label")).to.equal(
+      "Reply on the same level as this blip"
+    );
   });
 
   it("removes the composer on wavy-composer-cancelled (R-5.1 step 7)", async () => {

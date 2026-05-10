@@ -332,6 +332,52 @@ export class WaveBlip extends LitElement {
       pointer-events: auto;
       visibility: visible;
     }
+    /* GWT parity: a per-blip continuation indicator below the blip body
+     * that reveals on hover or focus. Click creates a sibling reply at
+     * the same thread level (continuation), distinct from the toolbar
+     * reply icon which creates an inline (nested) reply. Mirrors GWT's
+     * ContinuationIndicator { opacity: 0; } + :hover { opacity: 1.0; }. */
+    .continuation-row {
+      display: flex;
+      margin: 4px 0 2px 3.35em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--wavy-motion-focus-duration, 180ms)
+        var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+    }
+    :host(:hover) .continuation-row,
+    :host(:focus-within) .continuation-row,
+    :host([focused]) .continuation-row,
+    :host([tabindex="0"]) .continuation-row,
+    .continuation-row:focus-within {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .continuation-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      color: #4a5568;
+      background: transparent;
+      border: 1px dashed #cbd5e0;
+      border-radius: var(--wavy-radius-sm, 4px);
+      cursor: pointer;
+    }
+    .continuation-trigger:hover {
+      background: #f0f4f8;
+      border-color: #90cdf4;
+      color: #2b6cb0;
+    }
+    .continuation-trigger:focus-visible {
+      outline: none;
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+    }
+    .continuation-trigger .glyph {
+      font-size: 12px;
+      line-height: 1;
+    }
   `;
 
   constructor() {
@@ -521,8 +567,33 @@ export class WaveBlip extends LitElement {
 
   _onReplyClick(event) {
     event.stopPropagation();
+    // GWT parity: the toolbar reply icon creates an INLINE reply (a
+    // child thread under the parent blip). The compose surface routes
+    // this through `onReplySubmitted`, which uses the session's
+    // `replyManifestInsertPosition` to insert a new `<thread>` in the
+    // conversation manifest under the parent blip — matching GWT's
+    // `actions.reply(blipView)` "fallback to blip end" path when no
+    // editor selection is captured.
     this.dispatchEvent(
       new CustomEvent("wave-blip-reply-requested", {
+        bubbles: true,
+        composed: true,
+        detail: { blipId: this.blipId, waveId: this.waveId }
+      })
+    );
+  }
+
+  _onContinuationClick(event) {
+    event.stopPropagation();
+    // GWT parity: the per-blip continuation indicator (rendered below the
+    // blip body and revealed on hover) creates a SIBLING reply at the
+    // same thread level — the wave op appends a new <blip> directly to
+    // the parent thread. The compose surface routes this into
+    // `onContinuationSubmitted` so the delta factory uses
+    // `replyManifestSiblingInsertPosition` instead of the inline thread
+    // insert position.
+    this.dispatchEvent(
+      new CustomEvent("wave-blip-continuation-requested", {
         bubbles: true,
         composed: true,
         detail: { blipId: this.blipId, waveId: this.waveId }
@@ -729,6 +800,19 @@ export class WaveBlip extends LitElement {
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>
       </wavy-blip-card>
+      <div class="continuation-row" data-blip-continuation-host="true">
+        <button
+          type="button"
+          class="continuation-trigger"
+          data-blip-continuation-trigger="true"
+          aria-label="Reply on the same level as this blip"
+          title="Reply on the same level as this blip"
+          @click=${this._onContinuationClick}
+        >
+          <span class="glyph" aria-hidden="true">↩</span>
+          <span class="label">Reply</span>
+        </button>
+      </div>
     `;
   }
 }

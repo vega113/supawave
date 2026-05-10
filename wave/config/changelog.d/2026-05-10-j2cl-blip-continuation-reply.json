@@ -1,0 +1,21 @@
+{
+  "releaseId": "2026-05-10-j2cl-blip-continuation-reply",
+  "version": "J2CL parity",
+  "date": "2026-05-10",
+  "title": "Restore the per-blip continuation reply indicator and drop the bogus \"Reply submitted\" status in the J2CL client.",
+  "summary": "The J2CL read surface now renders a hover-revealed \"Reply\" indicator below each blip — clicking it opens an inline composer that submits as a same-level (sibling) continuation, matching the GWT wave client. The toolbar Reply icon continues to create an inline (nested) child thread, so both GWT-style affordances coexist. The J2CL inline composer also no longer surfaces a \"Reply submitted. Waiting for the opened wave to update.\" status after submit (GWT showed nothing here — the wave just refreshes when the blip lands).",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Per-blip continuation indicator below the blip body in the J2CL read surface emits wave-blip-continuation-requested and routes through onContinuationSubmitted so the wave op uses replyManifestSiblingInsertPosition (sibling reply), distinct from the toolbar Reply icon which creates an inline (nested) reply."
+      ]
+    },
+    {
+      "type": "fix",
+      "items": [
+        "J2CL inline composer no longer leaves the \"Reply submitted. Waiting for the opened wave to update.\" status stamped on the closing composer after a successful reply or continuation."
+      ]
+    }
+  ]
+}

@@ -116,6 +116,25 @@ shell-root-signed-out > [slot="main"] {
   overflow: hidden;
 }
 
+/* GWT parity (round 6, #1240): restore the 8px vertical gap between
+ * the outer dark-blue compact topbar (shell-header[compact-gwt-topbar])
+ * and the inner blue toolbar strips of the search rail
+ * (wavy-search-rail .panel-title) and the wave panel
+ * (.sidecar-selected-title). The legacy GWT WebClient.ui.xml uses
+ * `margin: 8px 0 0` on .searchPanel/.wavePanel against the page
+ * background; the J2CL grid has row-gap 0 so the inner blue strips
+ * butted directly against the dark-blue topbar. Scope to
+ * compact-gwt-topbar mode so the signed-out / future non-compact
+ * modes (which already render against a flat white shell) are
+ * unaffected. The splitter is the visible col-resize affordance and
+ * keeps its full-height stretch — only the panel content rows pick
+ * up the top inset. */
+shell-root:has(> shell-header[compact-gwt-topbar]) > [slot="nav"],
+shell-root:has(> shell-header[compact-gwt-topbar]) > [slot="main"] {
+  box-sizing: border-box;
+  padding-top: 8px;
+}
+
 .j2cl-shell-splitter {
   box-sizing: border-box;
   align-self: stretch;

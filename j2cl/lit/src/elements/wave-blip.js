@@ -342,8 +342,10 @@ export class WaveBlip extends LitElement {
       margin: 4px 0 2px 3.35em;
       opacity: 0;
       pointer-events: none;
+      visibility: hidden;
       transition: opacity var(--wavy-motion-focus-duration, 180ms)
-        var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
+          var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1)),
+        visibility 0ms var(--wavy-motion-focus-duration, 180ms);
     }
     :host(:hover) .continuation-row,
     :host(:focus-within) .continuation-row,
@@ -352,6 +354,9 @@ export class WaveBlip extends LitElement {
     .continuation-row:focus-within {
       opacity: 1;
       pointer-events: auto;
+      visibility: visible;
+      transition: opacity var(--wavy-motion-focus-duration, 180ms)
+        var(--wavy-easing-focus, cubic-bezier(0.2, 0, 0.2, 1));
     }
     .continuation-trigger {
       display: inline-flex;

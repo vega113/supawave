@@ -1206,8 +1206,11 @@ public final class J2clComposeSurfaceController {
   public void onInlineReplyAnchorRequested(
       String blipId, int anchorItemOffset, int parentBodyItemCount) {
     pendingInlineAnchorBlipId = blipId == null ? "" : blipId;
-    pendingInlineAnchorItemOffset = anchorItemOffset;
-    pendingInlineAnchorParentBodyItemCount = Math.max(0, parentBodyItemCount);
+    // Reject out-of-range offsets (>= bodyItemCount would place anchor after </body>).
+    int normalizedBodyItemCount = Math.max(0, parentBodyItemCount);
+    boolean valid = anchorItemOffset >= 1 && anchorItemOffset < normalizedBodyItemCount;
+    pendingInlineAnchorItemOffset = valid ? anchorItemOffset : -1;
+    pendingInlineAnchorParentBodyItemCount = valid ? normalizedBodyItemCount : 0;
   }
 
   private void clearPendingInlineAnchor() {
@@ -3256,6 +3259,9 @@ public final class J2clComposeSurfaceController {
     // state; sign-out and wave-change resets must drop them so a
     // mention picked on wave A cannot leak into a reply on wave B.
     pendingMentions.clear();
+    // Same lifecycle as mention picks: a caret anchor captured on wave A
+    // must not leak into a reply on wave B.
+    clearPendingInlineAnchor();
     // J-UI-5 (#1083, coderabbit thread PRRT_kwDOBwxLXs5-Gun6): the
     // structured component list mirrors the same lifecycle as the
     // reply draft — when `onWriteSessionChanged` decides to PRESERVE

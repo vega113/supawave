@@ -1056,14 +1056,14 @@ public final class J2clRichContentDeltaFactory {
         && parentBodyItemCount > 0) {
       String parentBlipId = session.getReplyTargetBlipId();
       if (parentBlipId != null && !parentBlipId.isEmpty()) {
-        operationsJson =
-            operationsJson
-                + ","
-                + buildInlineReplyAnchorOperation(
-                    parentBlipId,
-                    inlineAnchorItemOffset,
-                    parentBodyItemCount,
-                    replyThreadId);
+        String anchorOp = buildInlineReplyAnchorOperation(
+            parentBlipId,
+            inlineAnchorItemOffset,
+            parentBodyItemCount,
+            replyThreadId);
+        if (anchorOp != null) {
+          operationsJson = operationsJson + "," + anchorOp;
+        }
       }
     }
     String deltaJson =
@@ -1152,8 +1152,7 @@ public final class J2clRichContentDeltaFactory {
   private String buildInlineReplyAnchorOperation(
       String parentBlipId, int insertItemOffset, int bodyItemCount, String threadId) {
     if (insertItemOffset < 1 || insertItemOffset >= bodyItemCount) {
-      throw new IllegalArgumentException(
-          "Reply failed: the inline anchor offset is outside the parent body.");
+      return null;
     }
     StringBuilder components = new StringBuilder();
     appendRetain(components, insertItemOffset);

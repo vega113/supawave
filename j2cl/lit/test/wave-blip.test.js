@@ -171,14 +171,6 @@ describe("<wave-blip>", () => {
     expect(ev.detail.parentBodyItemCount).to.equal(42);
   });
 
-  // GWT parity: with a caret placed inside a text node of the blip
-  // body, _currentSelectionItemOffsetWithinBody must convert the DOM
-  // text offset into a wave-doc item offset, accounting for the
-  // leading <body> element_start (1 item) plus any line-break items
-  // (\n in DOM text → 2 items in wave-doc) before the caret. The
-  // walker only counts text in slotted (rendered) light-DOM children
-  // — Lit's template whitespace around the body's `<slot>` element
-  // is excluded.
   // GWT parity: with a caret placed inside a slotted text node of
   // the blip body, _currentSelectionItemOffsetWithinBody must convert
   // the DOM text offset into a wave-doc item offset, accounting for:

@@ -1151,7 +1151,7 @@ public final class J2clRichContentDeltaFactory {
    */
   private String buildInlineReplyAnchorOperation(
       String parentBlipId, int insertItemOffset, int bodyItemCount, String threadId) {
-    if (insertItemOffset < 1 || insertItemOffset > bodyItemCount) {
+    if (insertItemOffset < 1 || insertItemOffset >= bodyItemCount) {
       throw new IllegalArgumentException(
           "Reply failed: the inline anchor offset is outside the parent body.");
     }

@@ -669,15 +669,27 @@ export class WaveBlip extends LitElement {
     for (const root of roots) {
       const visit = (node) => {
         if (node === anchor) {
-          const text = node.nodeValue || "";
-          const localOffset = Math.max(
-            0,
-            Math.min(range.startOffset || 0, text.length)
-          );
-          for (let i = 0; i < localOffset; i++) {
-            if (text.charCodeAt(i) === 10) lineCount++;
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // range.startOffset is a child index, not a char offset.
+            const limit = Math.min(range.startOffset || 0, node.childNodes.length);
+            for (let i = 0; i < limit; i++) {
+              const childText = node.childNodes[i].nodeValue || "";
+              for (let j = 0; j < childText.length; j++) {
+                if (childText.charCodeAt(j) === 10) lineCount++;
+              }
+              domOffset += childText.length;
+            }
+          } else {
+            const text = node.nodeValue || "";
+            const localOffset = Math.max(
+              0,
+              Math.min(range.startOffset || 0, text.length)
+            );
+            for (let i = 0; i < localOffset; i++) {
+              if (text.charCodeAt(i) === 10) lineCount++;
+            }
+            domOffset += localOffset;
           }
-          domOffset += localOffset;
           return true;
         }
         if (node.nodeType === Node.TEXT_NODE) {

@@ -977,6 +977,35 @@ public final class J2clRichContentDeltaFactory {
 
   public SidecarSubmitRequest createReplyRequest(
       String address, J2clSidecarWriteSession session, J2clComposerDocument document) {
+    return createReplyRequest(address, session, document, -1, 0);
+  }
+
+  /**
+   * GWT parity (cursor-anchored inline reply): when
+   * {@code inlineAnchorItemOffset >= 1} and the request targets a
+   * specific parent blip, emit a third document op that inserts a
+   * {@code <reply id="threadId">} element at that wave-doc item
+   * offset inside the parent blip's body, mirroring GWT's
+   * {@code WaveletBasedConversationBlip.addReplyThread(int location)}.
+   *
+   * <p>The anchor op is only emitted for the inline-thread path
+   * (i.e. when {@code shouldCreateRegularReply == false} so a new
+   * {@code <thread>} is being inserted in the manifest). Continuation
+   * (sibling) replies and depth-limited replies do not use a body
+   * anchor — they live as siblings in the parent thread, so a body
+   * anchor would not have a thread to point at.
+   *
+   * <p>{@code inlineAnchorItemOffset == -1} or
+   * {@code parentBodyItemCount <= 0} disables the anchor op, falling
+   * back to the legacy "manifest-only" inline reply that the previous
+   * J2CL implementation produced.
+   */
+  public SidecarSubmitRequest createReplyRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      J2clComposerDocument document,
+      int inlineAnchorItemOffset,
+      int parentBodyItemCount) {
     requirePresent(session, "Missing write session.");
     requirePresent(document, "Missing composer document.");
     String normalizedAddress = normalizeAddress(address);
@@ -997,6 +1026,7 @@ public final class J2clRichContentDeltaFactory {
           "Unable to submit continuation reply: missing insert position for blip "
               + session.getReplyTargetBlipId() + ".");
     }
+    String replyThreadId = null;
     if (shouldCreateRegularReply(session)) {
       operationsJson =
           buildConversationRegularReplyOperation(
@@ -1006,7 +1036,7 @@ public final class J2clRichContentDeltaFactory {
               + ","
               + operationsJson;
     } else if (session.getReplyManifestInsertPosition() >= 0) {
-      String replyThreadId = nextToken("t+");
+      replyThreadId = nextToken("t+");
       operationsJson =
           buildConversationReplyThreadOperation(
                   session.getReplyManifestInsertPosition(),
@@ -1015,6 +1045,26 @@ public final class J2clRichContentDeltaFactory {
                   replyBlipId)
               + ","
               + operationsJson;
+    }
+    // GWT parity: when an inline thread is being created AND the user
+    // had a caret in the parent body, also insert a `<reply id=…>`
+    // anchor element at the captured wave-doc offset so the read
+    // surface renders the new thread inline at that exact position
+    // rather than as a flat child below the parent body.
+    if (replyThreadId != null
+        && inlineAnchorItemOffset >= 1
+        && parentBodyItemCount > 0) {
+      String parentBlipId = session.getReplyTargetBlipId();
+      if (parentBlipId != null && !parentBlipId.isEmpty()) {
+        operationsJson =
+            operationsJson
+                + ","
+                + buildInlineReplyAnchorOperation(
+                    parentBlipId,
+                    inlineAnchorItemOffset,
+                    parentBodyItemCount,
+                    replyThreadId);
+      }
     }
     String deltaJson =
         buildDeltaJson(
@@ -1090,6 +1140,33 @@ public final class J2clRichContentDeltaFactory {
       appendRetain(components, trailingRetain);
     }
     return buildRawDocumentOperation("conversation", components.toString());
+  }
+
+  /**
+   * Builds the parent-blip body op that inserts a
+   * {@code <reply id="threadId">…</reply>} anchor element at
+   * {@code insertItemOffset} in a body of {@code bodyItemCount} items.
+   * The anchor is an empty element (start + end, 2 items), so the
+   * post-insert document grows by 2 items.
+   */
+  private String buildInlineReplyAnchorOperation(
+      String parentBlipId, int insertItemOffset, int bodyItemCount, String threadId) {
+    if (insertItemOffset < 1 || insertItemOffset > bodyItemCount) {
+      throw new IllegalArgumentException(
+          "Reply failed: the inline anchor offset is outside the parent body.");
+    }
+    StringBuilder components = new StringBuilder();
+    appendRetain(components, insertItemOffset);
+    appendComponentSeparator(components);
+    appendElementStartWithAttr(components, "reply", "id", threadId);
+    appendComponentSeparator(components);
+    appendElementEnd(components);
+    int trailingRetain = bodyItemCount - insertItemOffset;
+    if (trailingRetain > 0) {
+      appendComponentSeparator(components);
+      appendRetain(components, trailingRetain);
+    }
+    return buildRawDocumentOperation(parentBlipId, components.toString());
   }
 
   private String buildDocumentOperation(String documentId, J2clComposerDocument document) {

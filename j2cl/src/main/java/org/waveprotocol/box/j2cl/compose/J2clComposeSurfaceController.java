@@ -156,6 +156,24 @@ public final class J2clComposeSurfaceController {
       onContinuationSubmitted(builder.toString(), replyTargetBlipId);
     }
 
+    /**
+     * GWT parity (cursor-anchored inline reply): wave-blip captured the
+     * caret's wave-doc item offset inside the parent body before the
+     * reply request was dispatched. The controller stashes it (and the
+     * parent's body item count) until the next reply submit so the
+     * delta factory can emit a parent-blip body op that inserts a
+     * {@code <reply id="...">} anchor at that exact position — matching
+     * GWT's {@code WaveletBasedConversationBlip.addReplyThread(int location)}.
+     *
+     * <p>{@code anchorItemOffset == -1} means "no caret inside this
+     * blip" — fall back to the legacy "no anchor" inline reply (the
+     * child thread is created in the manifest, but no anchor element
+     * is inserted in the parent body, so the reply renders as a flat
+     * child below the parent body).
+     */
+    default void onInlineReplyAnchorRequested(
+        String blipId, int anchorItemOffset, int parentBodyItemCount) {}
+
     void onAttachmentFilesSelected(List<AttachmentFileSelection> selections);
 
     void onPastedImage(Object imagePayload);
@@ -409,6 +427,31 @@ public final class J2clComposeSurfaceController {
         J2clSidecarWriteSession session,
         String draftText,
         J2clComposerDocument document);
+
+    /**
+     * GWT-parity overload that carries the cursor-anchored inline-reply
+     * position captured by wave-blip. {@code inlineAnchorItemOffset >= 1}
+     * (i.e. inside the parent body) tells the rich-content factory to
+     * emit an additional parent-blip body op inserting a
+     * {@code <reply id="...">} element at that wave-doc item offset, so
+     * the resulting reply renders inline at the caret's position —
+     * matching GWT's
+     * {@code WaveletBasedConversationBlip.addReplyThread(int location)}.
+     *
+     * <p>The default implementation forwards to the legacy 4-arg
+     * overload, ignoring the anchor params, so plain-text factories
+     * and unit-test doubles keep compiling. Production wiring goes
+     * through the rich-content factory which overrides this method.
+     */
+    default SidecarSubmitRequest createReplyRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String draftText,
+        J2clComposerDocument document,
+        int inlineAnchorItemOffset,
+        int parentBodyItemCount) {
+      return createReplyRequest(address, session, draftText, document);
+    }
 
     /**
      * F-3.S2 (#1038, R-5.4): build a stand-alone toggle request for a
@@ -673,6 +716,20 @@ public final class J2clComposeSurfaceController {
   // components instead of the legacy single-annotation-on-whole-draft
   // path. Cleared on submit success / failure / wave change.
   private List<SubmittedComponent> pendingSubmittedComponents;
+  // GWT parity (cursor-anchored inline reply): wave-blip captured the
+  // caret's wave-doc item offset inside the parent body before
+  // dispatching the reply request. Stash it (and the parent's body
+  // item count) here so the next submitReply call passes both to the
+  // delta factory, which emits an additional parent-blip body op
+  // inserting a `<reply id="...">` element at the offset — matching
+  // GWT's WaveletBasedConversationBlip.addReplyThread(int location).
+  // -1 means "no caret captured" → fall back to legacy "no anchor".
+  // The triple is bound to a single blip id; if the user clicks Reply
+  // on a different blip, the offset captured for the previous blip is
+  // discarded by onInlineReplyAnchorRequested overwriting it.
+  private String pendingInlineAnchorBlipId = "";
+  private int pendingInlineAnchorItemOffset = -1;
+  private int pendingInlineAnchorParentBodyItemCount = 0;
   private String commandStatusText = "";
   private String commandErrorText = "";
   private J2clAttachmentComposerController attachmentController;
@@ -883,6 +940,13 @@ public final class J2clComposeSurfaceController {
               List<SubmittedComponent> components, String replyTargetBlipId) {
             J2clComposeSurfaceController.this.onContinuationSubmittedWithComponents(
                 components, replyTargetBlipId);
+          }
+
+          @Override
+          public void onInlineReplyAnchorRequested(
+              String blipId, int anchorItemOffset, int parentBodyItemCount) {
+            J2clComposeSurfaceController.this.onInlineReplyAnchorRequested(
+                blipId, anchorItemOffset, parentBodyItemCount);
           }
 
           @Override
@@ -1129,6 +1193,27 @@ public final class J2clComposeSurfaceController {
     replyStaleBasis = false;
     replyStaleWaveId = null;
     render();
+  }
+
+  /**
+   * GWT parity (cursor-anchored inline reply): record the caret's
+   * wave-doc item offset captured by wave-blip when the user clicked
+   * the toolbar Reply icon, so the next reply submit emits a
+   * parent-blip body op inserting a {@code <reply id="...">} anchor
+   * at that exact position. {@code anchorItemOffset == -1} clears any
+   * prior pending anchor (no caret was inside the blip).
+   */
+  public void onInlineReplyAnchorRequested(
+      String blipId, int anchorItemOffset, int parentBodyItemCount) {
+    pendingInlineAnchorBlipId = blipId == null ? "" : blipId;
+    pendingInlineAnchorItemOffset = anchorItemOffset;
+    pendingInlineAnchorParentBodyItemCount = Math.max(0, parentBodyItemCount);
+  }
+
+  private void clearPendingInlineAnchor() {
+    pendingInlineAnchorBlipId = "";
+    pendingInlineAnchorItemOffset = -1;
+    pendingInlineAnchorParentBodyItemCount = 0;
   }
 
   public void onReplySubmitted(String draft) {
@@ -2336,6 +2421,20 @@ public final class J2clComposeSurfaceController {
     final String submittedAnnotationCommandId = annotationCommandId;
     final int generation = ++replyGeneration;
     final J2clSidecarWriteSession capturedSubmitSession = submitSession;
+    // GWT parity: only forward the cursor anchor when this submit
+    // targets the same blip the caret was captured for, AND we're
+    // creating an inline (non-continuation) reply. Otherwise the wave-
+    // model still needs the inline-thread or sibling op without a
+    // body-anchor element.
+    final boolean useAnchor =
+        !continuation
+            && pendingInlineAnchorItemOffset >= 1
+            && pendingInlineAnchorParentBodyItemCount > 0
+            && replyTargetBlipId != null
+            && replyTargetBlipId.equals(pendingInlineAnchorBlipId);
+    final int submittedAnchorItemOffset = useAnchor ? pendingInlineAnchorItemOffset : -1;
+    final int submittedAnchorParentBodyItemCount =
+        useAnchor ? pendingInlineAnchorParentBodyItemCount : 0;
     render();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {
@@ -2350,7 +2449,9 @@ public final class J2clComposeSurfaceController {
                     bootstrap.getAddress(),
                     capturedSubmitSession,
                     submittedDraft,
-                    buildDocument(submittedDraft, true, submittedAnnotationCommandId, true));
+                    buildDocument(submittedDraft, true, submittedAnnotationCommandId, true),
+                    submittedAnchorItemOffset,
+                    submittedAnchorParentBodyItemCount);
           } catch (RuntimeException e) {
             handleReplyFailure(generation, messageOrDefault(e, "Unable to build the reply request."));
             return;
@@ -2403,6 +2504,10 @@ public final class J2clComposeSurfaceController {
     // forwarded by the inline composer; failures preserve it so a
     // retry submits the same formatting.
     pendingSubmittedComponents = null;
+    // GWT parity: a successful submit consumes the cursor-anchor
+    // (mirroring the mention/component lists) so the next reply on a
+    // different blip starts from a clean slate.
+    clearPendingInlineAnchor();
     // A sent reply closes the attachment batch; failures preserve size and attachments for retry.
     attachmentDisplaySize = J2clAttachmentComposerController.DisplaySize.MEDIUM;
     activeCommandId = "";
@@ -2806,6 +2911,18 @@ public final class J2clComposeSurfaceController {
           String draftText,
           J2clComposerDocument document) {
         return factory.createReplyRequest(address, session, document);
+      }
+
+      @Override
+      public SidecarSubmitRequest createReplyRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String draftText,
+          J2clComposerDocument document,
+          int inlineAnchorItemOffset,
+          int parentBodyItemCount) {
+        return factory.createReplyRequest(
+            address, session, document, inlineAnchorItemOffset, parentBodyItemCount);
       }
 
       @Override

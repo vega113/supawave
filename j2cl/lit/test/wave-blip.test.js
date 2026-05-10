@@ -145,6 +145,116 @@ describe("<wave-blip>", () => {
     expect(ev.detail.waveId).to.equal("w4");
   });
 
+  // GWT parity: when the user has no caret/selection inside the blip
+  // body, anchorItemOffset is -1 (legacy "no anchor" inline reply
+  // path); parentBodyItemCount is forwarded from the host attribute
+  // so the controller can compute the trailing retain in the
+  // parent-blip body op.
+  it("includes anchorItemOffset and parentBodyItemCount on wave-blip-reply-requested", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b4"
+        data-wave-id="w4"
+        author-name="A"
+        data-blip-doc-size="42"
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+    await toolbar.updateComplete;
+    const replyBtn = toolbar.renderRoot.querySelector("[data-toolbar-action='reply']");
+    setTimeout(() => replyBtn.click(), 0);
+    const ev = await oneEvent(el, "wave-blip-reply-requested");
+    // No caret was placed inside the body in this fixture, so the
+    // offset is -1 (the wave-doc anchor op is suppressed downstream).
+    expect(ev.detail.anchorItemOffset).to.equal(-1);
+    expect(ev.detail.parentBodyItemCount).to.equal(42);
+  });
+
+  // GWT parity: with a caret placed inside a text node of the blip
+  // body, _currentSelectionItemOffsetWithinBody must convert the DOM
+  // text offset into a wave-doc item offset, accounting for the
+  // leading <body> element_start (1 item) plus any line-break items
+  // (\n in DOM text → 2 items in wave-doc) before the caret. The
+  // walker only counts text in slotted (rendered) light-DOM children
+  // — Lit's template whitespace around the body's `<slot>` element
+  // is excluded.
+  // GWT parity: with a caret placed inside a slotted text node of
+  // the blip body, _currentSelectionItemOffsetWithinBody must convert
+  // the DOM text offset into a wave-doc item offset, accounting for:
+  //   - 1 leading <body> element_start item.
+  //   - Each \n in DOM text → 1 extra item (the <line/> tag is 2
+  //     wave-doc items but 1 DOM char).
+  //   - 2 items per existing inline-reply anchor before the caret.
+  //
+  // The production J2CL renderer creates blip content via
+  // `document.createElement` and appends directly, with no template
+  // whitespace between wave-blip and its slotted children. We mirror
+  // that here so the offset matches what the wave-doc actually has.
+  function attachBlipContent(blip, text) {
+    const span = document.createElement("span");
+    span.setAttribute("data-blip-content", "true");
+    span.appendChild(document.createTextNode(text));
+    blip.appendChild(span);
+    return span;
+  }
+
+  it("computes the wave-doc item offset of a caret placed inside the blip body", async () => {
+    const el = await fixture(html`<wave-blip
+      data-blip-id="b4"
+      data-wave-id="w4"
+      author-name="A"
+    ></wave-blip>`);
+    await el.updateComplete;
+    const span = attachBlipContent(el, "Hello world");
+    const textNode = span.firstChild;
+    // Place the caret between "Hello" and " world" → DOM offset 5.
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    // 1 (body element_start) + 5 (DOM offset, no \n before) + 0 (no
+    // existing reply anchors) = 6.
+    expect(el._currentSelectionItemOffsetWithinBody()).to.equal(6);
+  });
+
+  it("accounts for line breaks before the caret when computing the item offset", async () => {
+    const el = await fixture(html`<wave-blip
+      data-blip-id="b5"
+      data-wave-id="w5"
+      author-name="A"
+    ></wave-blip>`);
+    await el.updateComplete;
+    const span = attachBlipContent(el, "Hi\nthere");
+    const textNode = span.firstChild;
+    // Caret right after "there" → DOM offset 7 ("Hi\nthere" is 7 chars),
+    // 1 newline before.
+    const range = document.createRange();
+    range.setStart(textNode, 7);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    // 1 (body start) + 7 (DOM) + 1 (one line tag = 1 extra item) = 9.
+    expect(el._currentSelectionItemOffsetWithinBody()).to.equal(9);
+  });
+
+  // No selection / caret outside the blip body → -1, telling the
+  // controller to fall back to the legacy "no anchor" path.
+  it("returns -1 when no caret lies inside the blip body", async () => {
+    const el = await fixture(html`<wave-blip
+      data-blip-id="b6"
+      data-wave-id="w6"
+      author-name="A"
+    ></wave-blip>`);
+    await el.updateComplete;
+    attachBlipContent(el, "Body");
+    window.getSelection().removeAllRanges();
+    expect(el._currentSelectionItemOffsetWithinBody()).to.equal(-1);
+  });
+
   // GWT parity: the toolbar Reply icon creates an INLINE reply (nested
   // child thread under the parent blip via replyManifestInsertPosition);
   // a separate hover-revealed indicator BELOW the blip body creates a

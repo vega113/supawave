@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-10-j2cl-composer-border",
+  "version": "PR #1245",
+  "date": "2026-05-10",
+  "title": "J2CL: cleaner new-blip edit surface",
+  "summary": "Removed a redundant inner border on the J2CL inline composer that visually read as a horizontal line across the middle of a new blip in edit mode.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Drop the static hairline border on the contenteditable composer body; the surrounding compose card already provides the focus envelope, and the drop-target outline still renders on drag-over."
+      ]
+    }
+  ]
+}

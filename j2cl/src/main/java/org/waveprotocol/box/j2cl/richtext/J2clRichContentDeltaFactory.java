@@ -1053,7 +1053,8 @@ public final class J2clRichContentDeltaFactory {
     // rather than as a flat child below the parent body.
     if (replyThreadId != null
         && inlineAnchorItemOffset >= 1
-        && parentBodyItemCount > 0) {
+        && parentBodyItemCount > 0
+        && inlineAnchorItemOffset < parentBodyItemCount) {
       String parentBlipId = session.getReplyTargetBlipId();
       if (parentBlipId != null && !parentBlipId.isEmpty()) {
         operationsJson =

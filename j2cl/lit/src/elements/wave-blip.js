@@ -666,6 +666,7 @@ export class WaveBlip extends LitElement {
 
     let domOffset = 0;
     let lineCount = 0;
+    let crossedReplyAnchors = 0;
     // Count all text chars and newlines in a subtree unconditionally.
     const countSubtree = (n) => {
       if (n.nodeType === Node.TEXT_NODE) {
@@ -675,7 +676,11 @@ export class WaveBlip extends LitElement {
         }
         domOffset += t.length;
       } else if (n.nodeType === Node.ELEMENT_NODE) {
-        for (const child of n.childNodes) countSubtree(child);
+        if (n.tagName.toLowerCase() === "reply") {
+          crossedReplyAnchors++;
+        } else {
+          for (const child of n.childNodes) countSubtree(child);
+        }
       }
     };
     for (const root of roots) {
@@ -707,15 +712,17 @@ export class WaveBlip extends LitElement {
           return false;
         }
         if (node.nodeType !== Node.ELEMENT_NODE) return false;
+        if (node.tagName.toLowerCase() === "reply") {
+          crossedReplyAnchors++;
+          return false;
+        }
         for (const child of node.childNodes) {
           if (visit(child)) return true;
         }
         return false;
       };
       if (visit(root)) {
-        const existingAnchors =
-          this._countExistingReplyAnchorsBefore(domOffset);
-        return 1 + domOffset + lineCount + 2 * existingAnchors;
+        return 1 + domOffset + lineCount + 2 * crossedReplyAnchors;
       }
     }
     return -1;

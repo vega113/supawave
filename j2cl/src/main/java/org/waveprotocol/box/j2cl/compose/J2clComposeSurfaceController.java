@@ -1062,6 +1062,7 @@ public final class J2clComposeSurfaceController {
     commandStatusText = "";
     commandErrorText = "";
     resetAttachmentState();
+    clearPendingInlineAnchor();
     // F-3.S3 (#1038, R-5.5): drop cached reaction snapshots so a
     // post-sign-out toggle cannot project against the prior session's
     // state. Clear the published user address so the view's aria-pressed
@@ -1205,9 +1206,12 @@ public final class J2clComposeSurfaceController {
    */
   public void onInlineReplyAnchorRequested(
       String blipId, int anchorItemOffset, int parentBodyItemCount) {
+    int normalizedBodyItemCount = Math.max(0, parentBodyItemCount);
     pendingInlineAnchorBlipId = blipId == null ? "" : blipId;
-    pendingInlineAnchorItemOffset = anchorItemOffset;
-    pendingInlineAnchorParentBodyItemCount = Math.max(0, parentBodyItemCount);
+    pendingInlineAnchorItemOffset =
+        (anchorItemOffset >= 1 && anchorItemOffset < normalizedBodyItemCount)
+            ? anchorItemOffset : -1;
+    pendingInlineAnchorParentBodyItemCount = normalizedBodyItemCount;
   }
 
   private void clearPendingInlineAnchor() {
@@ -3249,6 +3253,7 @@ public final class J2clComposeSurfaceController {
   }
 
   private void resetAttachmentState() {
+    clearPendingInlineAnchor();
     J2clAttachmentComposerController previousController = attachmentController;
     attachmentController = null;
     insertedAttachments.clear();

@@ -666,6 +666,10 @@ export class WaveBlip extends LitElement {
 
     let domOffset = 0;
     let lineCount = 0;
+    // Counts zero-width <reply> elements crossed when startContainer is an
+    // ELEMENT_NODE. _countExistingReplyAnchorsBefore only uses text-char
+    // offsets, so it cannot distinguish "before" vs "after" a zero-width node.
+    let crossedReplyAnchors = 0;
     for (const root of roots) {
       const visit = (node) => {
         if (node === anchor) {
@@ -673,11 +677,16 @@ export class WaveBlip extends LitElement {
             // range.startOffset is a child index, not a char offset.
             const limit = Math.min(range.startOffset || 0, node.childNodes.length);
             for (let i = 0; i < limit; i++) {
-              const childText = node.childNodes[i].nodeValue || "";
-              for (let j = 0; j < childText.length; j++) {
-                if (childText.charCodeAt(j) === 10) lineCount++;
+              const child = node.childNodes[i];
+              if (child.nodeName.toLowerCase() === "reply") {
+                crossedReplyAnchors++;
+              } else {
+                const childText = child.nodeValue || "";
+                for (let j = 0; j < childText.length; j++) {
+                  if (childText.charCodeAt(j) === 10) lineCount++;
+                }
+                domOffset += childText.length;
               }
-              domOffset += childText.length;
             }
           } else {
             const text = node.nodeValue || "";
@@ -708,7 +717,7 @@ export class WaveBlip extends LitElement {
       };
       if (visit(root)) {
         const existingAnchors =
-          this._countExistingReplyAnchorsBefore(domOffset);
+          this._countExistingReplyAnchorsBefore(domOffset) + crossedReplyAnchors;
         return 1 + domOffset + lineCount + 2 * existingAnchors;
       }
     }

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-10-j2cl-mention-popover-participants",
+  "version": "J2CL parity",
+  "date": "2026-05-10",
+  "title": "J2CL @-mention popover now lists the wave's participants on every inline composer surface.",
+  "summary": "Typing @ inside a freshly-opened J2CL inline composer (toolbar-Reply, wave-root reply, per-blip Edit, or per-blip continuation) now opens the mention suggestion popover with the wave's participant list — matching the GWT client. The view used to read the participants list off the legacy <composer-inline-reply> element's expando, which was empty until the controller's first participants-bearing render(); a user who clicked Reply and immediately typed @ saw an empty popover. The view now reads from a new Listener.getCurrentParticipantAddresses() accessor that returns the controller's authoritative participantsForCurrentSelection() value, so the popover is mention-ready from the very first paint.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "J2clComposeSurfaceController.Listener gains a default getCurrentParticipantAddresses() returning the empty list; the controller's anonymous Listener overrides it to return participantsForCurrentSelection().",
+        "J2clComposeSurfaceView.mirrorComposerStateFromReplyElement now prefers the listener's participants list and falls back to the legacy <composer-inline-reply> expando only when the listener is not bound or returns nothing."
+      ]
+    }
+  ]
+}

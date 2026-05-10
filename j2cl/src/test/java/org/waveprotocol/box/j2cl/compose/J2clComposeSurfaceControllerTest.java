@@ -133,6 +133,29 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void listenerExposesCurrentParticipantsToFreshlyMountedInlineComposer() {
+    // Regression for the @-mention popover failing on the wave-root /
+    // toolbar-Reply / per-blip continuation surfaces. When the inline
+    // <wavy-composer> mounts via openInlineComposer, the view used to
+    // pull participants off the legacy <composer-inline-reply> expando.
+    // That expando is empty until the controller's first participants-
+    // bearing render(), so a user clicking Reply and immediately typing
+    // `@` saw an empty popover. The view now reads from this listener
+    // method, which returns the controller's authoritative selection.
+    FakeView view = new FakeView();
+    J2clComposeSurfaceController controller =
+        newController(new FakeGateway(), view, new FakeFactory(), new ArrayList<String>(), new ArrayList<String>());
+
+    controller.start();
+    controller.onSelectedWaveComposeContextChanged(
+        "example.com/w+1", null, Arrays.asList("alice@example.com", "bob@example.com"));
+
+    Assert.assertEquals(
+        Arrays.asList("alice@example.com", "bob@example.com"),
+        view.listener.getCurrentParticipantAddresses());
+  }
+
+  @Test
   public void selectedWaveParticipantsClearOnDifferentSelectedWave() {
     FakeView view = new FakeView();
     J2clComposeSurfaceController controller =
@@ -4774,6 +4797,7 @@ public class J2clComposeSurfaceControllerTest {
 
   private static final class FakeView implements J2clComposeSurfaceController.View {
     private J2clComposeSurfaceModel model;
+    private J2clComposeSurfaceController.Listener listener;
     private int openAttachmentPickerCalls;
     private int focusReplyComposerCalls;
     private int focusCreateSurfaceCalls;
@@ -4782,6 +4806,7 @@ public class J2clComposeSurfaceControllerTest {
 
     @Override
     public void bind(J2clComposeSurfaceController.Listener listener) {
+      this.listener = listener;
     }
 
     @Override

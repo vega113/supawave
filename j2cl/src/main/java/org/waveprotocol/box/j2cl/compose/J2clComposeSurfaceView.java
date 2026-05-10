@@ -694,17 +694,23 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     setProperty(composer, "activeCommand", propertyString(replyElement, "activeCommand"));
     setProperty(composer, "commandStatus", propertyString(replyElement, "commandStatus"));
     setProperty(composer, "commandError", propertyString(replyElement, "commandError"));
-    // G-PORT-5 (#1114): participants must mirror onto a freshly mounted
-    // inline composer at construction time, otherwise the user sees an
-    // empty popover when typing `@` in the gap between mount and the
-    // controller's next full render() — the gap most users notice
-    // because the inline composer is opened mid-render. The reply
-    // element carries the canonical participants list (set in render()
-    // above); forwarding it here makes the inline composer mention-
-    // ready from its first paint.
-    Object participants = property(replyElement, "participants");
-    if (participants != null) {
-      setProperty(composer, "participants", participants);
+    // Read participants directly from the controller. The legacy
+    // <composer-inline-reply> expando (set in render() above) is empty
+    // until the controller has projected its first participants-bearing
+    // render, so a user who clicks Reply and immediately types `@` saw
+    // an empty popover even though the wave's participants were known.
+    // The controller's own selection state is authoritative; fall back
+    // to the legacy element only if the listener is not bound or
+    // returns nothing.
+    List<String> direct =
+        listener == null ? null : listener.getCurrentParticipantAddresses();
+    if (direct != null && !direct.isEmpty()) {
+      setProperty(composer, "participants", buildParticipantsArray(direct));
+    } else {
+      Object participants = property(replyElement, "participants");
+      if (participants != null) {
+        setProperty(composer, "participants", participants);
+      }
     }
   }
 

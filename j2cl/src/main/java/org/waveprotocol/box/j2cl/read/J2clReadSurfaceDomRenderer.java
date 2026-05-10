@@ -668,6 +668,7 @@ public final class J2clReadSurfaceDomRenderer {
       renderedWindowEntries = Collections.<J2clReadWindowEntry>emptyList();
       renderedSurface = null;
       focusedBlip = null;
+      initialFocusAppliedForWaveId = null;
       return false;
     }
 

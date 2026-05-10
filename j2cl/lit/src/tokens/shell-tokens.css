@@ -448,8 +448,8 @@ shell-header > span[slot^="actions"] {
 }
 
 /* GWT-parity (round 5, #1237): scope wave-blip layout effects so a
- * Lit re-render of one blip does not invalidate layout / paint /
- * style for the entire stream. Pure perf hint — no visual change.
+ * Lit re-render of one blip does not invalidate layout / style for
+ * the entire stream. Pure perf hint — no visual change.
  * The pre-upgrade skeleton (wavy-thread-collapse.css `wave-blip:not
  * (:defined)`) and the post-upgrade shadow `.body` continue to own
  * the visual envelope. */

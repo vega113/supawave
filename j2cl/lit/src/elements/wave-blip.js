@@ -810,12 +810,12 @@ export class WaveBlip extends LitElement {
           type="button"
           class="continuation-trigger"
           data-blip-continuation-trigger="true"
-          aria-label="Reply on the same level as this blip"
-          title="Reply on the same level as this blip"
+          aria-label=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
+          title=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
           @click=${this._onContinuationClick}
         >
           <span class="glyph" aria-hidden="true">↩</span>
-          <span class="label">Reply</span>
+          <span class="label">${t("blip.reply", "Reply")}</span>
         </button>
       </div>
     `;

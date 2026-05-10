@@ -254,8 +254,7 @@ export const en = {
   "blip.reply": "reply",
   "blip.replies": "replies",
   "blip.underThisBlipSuffix": "under this blip",
-  "blip.openProfilePrefix": "Open",
-  "blip.profileSuffix": "profile",
+  "blip.openAuthorProfile": "Open {name} profile",
 
   // wave-blip-toolbar
   "blipToolbar.replyAction": "Reply to this blip",
@@ -278,8 +277,7 @@ export const en = {
 
   // depth-nav
   "depthNav.upOneLevel": "Up one level",
-  "depthNav.upOneLevelTo": "Up one level to",
-  "depthNav.upOneLevelThreadSuffix": "'s thread",
+  "depthNav.upOneLevelToNameThread": "Up one level to {name}'s thread",
   "depthNav.backToTop": "Back to top of wave",
   "depthNav.upToWave": "Up to wave",
 

@@ -55,15 +55,19 @@ export class WavyHeader extends LitElement {
   };
 
   // Locale set re-derived from the GWT locale build set; matches the
-  // SearchWidgetMessages_*.properties files in the resources tree.
+  // SearchWidgetMessages_*.properties files in the resources tree. Each
+  // entry carries `shipped: true` if a JS catalog is registered (see
+  // `SHIPPED_LOCALES` in ../i18n/locale.js); unshipped entries render as
+  // disabled options in the picker so we don't advertise locales whose
+  // catalogs have not yet landed.
   static LOCALES = [
-    { code: "en", label: "English" },
-    { code: "de", label: "Deutsch" },
-    { code: "es", label: "Español" },
-    { code: "fr", label: "Français" },
-    { code: "ru", label: "Русский" },
-    { code: "sl", label: "Slovenščina" },
-    { code: "zh_TW", label: "繁體中文" }
+    { code: "en", label: "English", shipped: true },
+    { code: "de", label: "Deutsch", shipped: true },
+    { code: "es", label: "Español", shipped: false },
+    { code: "fr", label: "Français", shipped: false },
+    { code: "ru", label: "Русский", shipped: false },
+    { code: "sl", label: "Slovenščina", shipped: false },
+    { code: "zh_TW", label: "繁體中文", shipped: false }
   ];
 
   static styles = css`
@@ -403,7 +407,11 @@ export class WavyHeader extends LitElement {
       >
         ${WavyHeader.LOCALES.map(
           (loc) =>
-            html`<option value=${loc.code} ?selected=${loc.code === this.locale}>
+            html`<option
+              value=${loc.code}
+              ?selected=${loc.code === this.locale}
+              ?disabled=${loc.shipped === false}
+            >
               ${this.compactGwtTopbar ? loc.code.replace("_", "-").toUpperCase() : loc.label}
             </option>`
         )}

@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-rail-panel> — F-0 (#1035) recipe for a right-rail panel
@@ -121,7 +122,8 @@ export class WavyRailPanel extends LitElement {
           <button
             class="toggle"
             type="button"
-            aria-label=${this.collapsed ? "Expand panel" : "Collapse panel"}
+            aria-label=${this.collapsed ? t("railPanel.expand", "Expand panel") : t("railPanel.collapse", "Collapse panel")}
+            title=${this.collapsed ? t("railPanel.expand", "Expand panel") : t("railPanel.collapse", "Collapse panel")}
             @click=${this.toggleCollapsed}
           >
             ${this.collapsed ? "+" : "–"}

@@ -67,6 +67,10 @@ public final class J2clBootstrapServletTest {
     assertEquals("alice@example.com", session.getString(J2clBootstrapContract.SESSION_ADDRESS));
     assertEquals("example.com", session.getString(J2clBootstrapContract.SESSION_DOMAIN));
     assertEquals(HumanAccountData.ROLE_USER, session.getString(J2clBootstrapContract.SESSION_ROLE));
+    // J2CL i18n contract: the session payload always carries a locale code so
+    // window.__bootstrap.session.locale is the J2CL shell's source of truth.
+    assertTrue(session.has(J2clBootstrapContract.SESSION_LOCALE));
+    assertEquals("en", session.getString(J2clBootstrapContract.SESSION_LOCALE));
     assertFalse(session.has(SessionConstants.ID_SEED));
     assertTrue(session.has(J2clBootstrapContract.SESSION_FEATURES));
     assertFalse(session.isNull(J2clBootstrapContract.SESSION_FEATURES));
@@ -75,6 +79,7 @@ public final class J2clBootstrapServletTest {
             J2clBootstrapContract.SESSION_ADDRESS,
             J2clBootstrapContract.SESSION_DOMAIN,
             J2clBootstrapContract.SESSION_ROLE,
+            J2clBootstrapContract.SESSION_LOCALE,
             J2clBootstrapContract.SESSION_FEATURES),
         session.keySet());
 
@@ -126,11 +131,17 @@ public final class J2clBootstrapServletTest {
     JSONObject session = json.getJSONObject(J2clBootstrapContract.KEY_SESSION);
     assertEquals("example.com", session.getString(J2clBootstrapContract.SESSION_DOMAIN));
     assertEquals(HumanAccountData.ROLE_USER, session.getString(J2clBootstrapContract.SESSION_ROLE));
+    // Signed-out callers still get a locale (defaulted to "en") so the J2CL
+    // sign-in / sign-out chrome can localize without a second round-trip.
+    assertEquals("en", session.getString(J2clBootstrapContract.SESSION_LOCALE));
     assertFalse(session.has(SessionConstants.ID_SEED));
     assertFalse(session.has(J2clBootstrapContract.SESSION_ADDRESS));
     assertFalse(session.has(J2clBootstrapContract.SESSION_FEATURES));
     assertEquals(
-        Set.of(J2clBootstrapContract.SESSION_DOMAIN, J2clBootstrapContract.SESSION_ROLE),
+        Set.of(
+            J2clBootstrapContract.SESSION_DOMAIN,
+            J2clBootstrapContract.SESSION_ROLE,
+            J2clBootstrapContract.SESSION_LOCALE),
         session.keySet());
     assertEquals(
         "127.0.0.1:9898",

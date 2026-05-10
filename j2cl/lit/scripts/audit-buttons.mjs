@@ -10,9 +10,14 @@
 // - Pair it with the first ">" that closes the opening tag (skipping any
 //   nested template-literal expressions ${...} that would otherwise look
 //   like ">" inside JS code).
-// - Within that opener, require BOTH `aria-label=` and `title=` (or
-//   confirm the button is rendered through a helper that we know provides
-//   both: <toolbar-button>, <composer-submit-affordance>, <wavy-task-affordance>).
+// - Within that opener, require BOTH `aria-label=…` and `title=…`,
+//   *and* require their values to be syntactically non-empty (no
+//   `aria-label=""` or `title=${nothing}` slipping through).
+//
+// We do NOT special-case wrapper custom elements like <toolbar-button>;
+// audit only inspects raw `<button>` openers found in source. Wrappers
+// that internally render <button> are caught when their own source is
+// scanned. Audit covers `src/{elements,design,input,controllers}`.
 //
 // If a violation is found, the audit prints the file + offending line and
 // exits non-zero so `npm prebuild` (and CI) refuses to ship.
@@ -22,10 +27,21 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const elementsDir = resolve(here, "..", "src", "elements");
+const SCAN_DIRS = [
+  resolve(here, "..", "src", "elements"),
+  resolve(here, "..", "src", "design"),
+  resolve(here, "..", "src", "input"),
+  resolve(here, "..", "src", "controllers")
+];
 
 function listJs(dir) {
-  return readdirSync(dir)
+  let entries;
+  try {
+    entries = readdirSync(dir);
+  } catch (_err) {
+    return [];
+  }
+  return entries
     .filter((name) => name.endsWith(".js"))
     .map((name) => join(dir, name))
     .filter((path) => statSync(path).isFile());
@@ -118,37 +134,63 @@ function lineNumberAt(src, index) {
   return src.slice(0, index).split("\n").length;
 }
 
-const violations = [];
+// Reject `aria-label=""` (the literal empty string), `aria-label=${nothing}`
+// (the Lit `nothing` sentinel), and `aria-label=${undefined}`. Anything else
+// — string literals, template strings, function calls, ternaries — counts
+// as "non-empty" for the audit; runtime fixtures cover the dynamic case.
+const EMPTY_VALUE_RE = /^(""|''|`\s*`|\$\{\s*(?:nothing|undefined|null)\s*\})/;
 
-for (const file of listJs(elementsDir)) {
-  const raw = readFileSync(file, "utf8");
-  const src = stripJsComments(raw);
-  let cursor = 0;
-  while (true) {
-    const open = src.indexOf("<button", cursor);
-    if (open === -1) break;
-    cursor = open + 1;
-    // Skip e.g. "<button-like" custom names (the `<` followed by "button"
-    // with a hyphen) — only real <button> matches must end with whitespace,
-    // newline, "/", or ">".
-    const next = src[open + 7];
-    if (!/[\s/>]/.test(next || "")) continue;
-    const close = findCloseAngle(src, open);
-    if (close === -1) break;
-    const opener = src.slice(open, close + 1);
-    const hasAria = /(?:^|[\s<])aria-label\s*=/.test(opener);
-    const hasTitle = /(?:^|[\s<])title\s*=/.test(opener);
-    if (hasAria && hasTitle) continue;
-    violations.push({
-      file,
-      line: lineNumberAt(src, open),
-      opener: opener.replace(/\s+/g, " ").slice(0, 160)
-    });
+// Use a stricter word-boundary regex when matching attribute names so a
+// hypothetical `data-aria-label=` or `data-title=` cannot mask a missing
+// real attr. We then fish out the attribute value and reject empty / nothing
+// sentinels so a literal `aria-label=""` or `title=${nothing}` is also a
+// violation, not a free pass.
+function attrValue(opener, attr) {
+  const re = new RegExp(`(?:^|[\\s<])${attr}\\s*=`);
+  const m = re.exec(opener);
+  if (!m) return null;
+  let i = m.index + m[0].length;
+  while (i < opener.length && /\s/.test(opener[i])) i += 1;
+  return opener.slice(i);
+}
+
+const violations = [];
+let scanned = 0;
+
+for (const dir of SCAN_DIRS) {
+  for (const file of listJs(dir)) {
+    scanned += 1;
+    const raw = readFileSync(file, "utf8");
+    const src = stripJsComments(raw);
+    let cursor = 0;
+    while (true) {
+      const open = src.indexOf("<button", cursor);
+      if (open === -1) break;
+      cursor = open + 1;
+      // Skip e.g. "<button-like" custom names (the `<` followed by "button"
+      // with a hyphen) — only real <button> matches must end with whitespace,
+      // newline, "/", or ">".
+      const next = src[open + 7];
+      if (!/[\s/>]/.test(next || "")) continue;
+      const close = findCloseAngle(src, open);
+      if (close === -1) break;
+      const opener = src.slice(open, close + 1);
+      const ariaValue = attrValue(opener, "aria-label");
+      const titleValue = attrValue(opener, "title");
+      const hasAria = ariaValue != null && !EMPTY_VALUE_RE.test(ariaValue);
+      const hasTitle = titleValue != null && !EMPTY_VALUE_RE.test(titleValue);
+      if (hasAria && hasTitle) continue;
+      violations.push({
+        file,
+        line: lineNumberAt(src, open),
+        opener: opener.replace(/\s+/g, " ").slice(0, 160)
+      });
+    }
   }
 }
 
 if (violations.length === 0) {
-  console.log(`audit-buttons: OK (${listJs(elementsDir).length} files scanned)`);
+  console.log(`audit-buttons: OK (${scanned} files scanned)`);
   process.exit(0);
 }
 

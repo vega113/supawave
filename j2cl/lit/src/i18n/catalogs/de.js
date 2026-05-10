@@ -104,8 +104,8 @@ export const de = {
   "versionHistory.title": "Versionsverlauf",
   "versionHistory.close": "Versionsverlauf schließen",
   // GWT ToolbarMessages_de.properties: previous / next
-  "versionHistory.previous": "Vorherig",
-  "versionHistory.next": "Nächster",
+  "versionHistory.previous": "Vorherige Version",
+  "versionHistory.next": "Nächste Version",
 
   "confirmDialog.cancel": "Abbrechen",
   "confirmDialog.confirm": "Bestätigen",
@@ -232,8 +232,7 @@ export const de = {
   "blip.reply": "Antwort",
   "blip.replies": "Antworten",
   "blip.underThisBlipSuffix": "unter diesem Blip",
-  "blip.openProfilePrefix": "Profil öffnen:",
-  "blip.profileSuffix": "",
+  "blip.openAuthorProfile": "Profil von {name} öffnen",
 
   "blipToolbar.replyAction": "Auf diesen Blip antworten",
   "blipToolbar.editAction": "Diesen Blip bearbeiten",
@@ -252,8 +251,7 @@ export const de = {
   "composer.replyLabel": "Antworten",
 
   "depthNav.upOneLevel": "Eine Ebene nach oben",
-  "depthNav.upOneLevelTo": "Eine Ebene nach oben zu",
-  "depthNav.upOneLevelThreadSuffix": "s Thread",
+  "depthNav.upOneLevelToNameThread": "Eine Ebene nach oben zu {name}s Thread",
   "depthNav.backToTop": "Zurück zum Anfang der Wave",
   "depthNav.upToWave": "Zur Wave",
 

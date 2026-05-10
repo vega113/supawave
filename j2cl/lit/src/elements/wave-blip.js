@@ -689,8 +689,8 @@ export class WaveBlip extends LitElement {
             class="avatar"
             data-blip-avatar="true"
             data-palette=${String(palette)}
-            aria-label=${`${t("blip.openProfilePrefix", "Open")} ${authorLabel} ${t("blip.profileSuffix", "profile")}`}
-            title=${`${t("blip.openProfilePrefix", "Open")} ${authorLabel} ${t("blip.profileSuffix", "profile")}`}
+            aria-label=${t("blip.openAuthorProfile", "Open {name} profile").replace("{name}", authorLabel)}
+            title=${t("blip.openAuthorProfile", "Open {name} profile").replace("{name}", authorLabel)}
             @click=${this._onAvatarClick}
           >
             ${avatarUrl

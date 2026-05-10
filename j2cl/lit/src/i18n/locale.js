@@ -6,10 +6,16 @@
 // `t()` should `subscribe()` from `connectedCallback` so they re-render
 // when the user changes the locale via <wavy-header>.
 
+// SUPPORTED_LOCALES is the GWT locale set — what the picker may *advertise*.
+// SHIPPED_LOCALES is the subset we actually have a JS catalog for. setLocale
+// only accepts shipped locales so a bogus picker value can never strand the UI
+// in a state where every t() call falls through to the English fallback.
 export const SUPPORTED_LOCALES = ["en", "de", "es", "fr", "ru", "sl", "zh_TW"];
+export const SHIPPED_LOCALES = ["en", "de"];
 const DEFAULT_LOCALE = "en";
 
 let currentLocale = null;
+let manualOverride = false;
 const listeners = new Set();
 
 export function normalizeLocale(raw) {
@@ -43,23 +49,48 @@ function readDocumentLocale() {
 }
 
 export function getLocale() {
-  if (currentLocale) return currentLocale;
-  currentLocale = readBootstrapLocale() || readDocumentLocale() || DEFAULT_LOCALE;
+  // While the user has not explicitly picked a locale via setLocale(), keep
+  // re-reading the bootstrap surface on every call. This means a deferred
+  // <script> that populates window.__bootstrap *after* the first <wavy-...>
+  // upgrade is still picked up by subsequent t() calls. Once a manual
+  // override has happened, we honor it without re-checking the bootstrap.
+  if (manualOverride && currentLocale) return currentLocale;
+  const bootstrap = readBootstrapLocale();
+  if (bootstrap) {
+    currentLocale = bootstrap;
+    return currentLocale;
+  }
+  if (!currentLocale) {
+    currentLocale = readDocumentLocale() || DEFAULT_LOCALE;
+  }
   return currentLocale;
 }
 
 export function setLocale(code) {
-  const next = normalizeLocale(code) || DEFAULT_LOCALE;
-  if (next === currentLocale) return next;
-  currentLocale = next;
+  const normalized = normalizeLocale(code);
+  if (!normalized) return currentLocale || DEFAULT_LOCALE;
+  // Only commit to a locale we actually have a catalog for; otherwise every
+  // t() call would silently fall through to the English fallback. Returning
+  // the current (or default) locale keeps the picker rerender deterministic.
+  if (!SHIPPED_LOCALES.includes(normalized)) {
+    return currentLocale || DEFAULT_LOCALE;
+  }
+  manualOverride = true;
+  if (normalized === currentLocale) return normalized;
+  currentLocale = normalized;
+  if (typeof document !== "undefined" && document.documentElement) {
+    // Keep <html lang> in sync so CSS :lang() and assistive tech see the
+    // same locale the i18n module is using.
+    document.documentElement.lang = normalized.replace("_", "-");
+  }
   for (const listener of listeners) {
     try {
-      listener(next);
-    } catch (_err) {
-      // Listeners are best-effort; one component throwing must not stop others.
+      listener(normalized);
+    } catch (err) {
+      console.warn("i18n locale listener threw:", err);
     }
   }
-  return next;
+  return normalized;
 }
 
 export function subscribe(listener) {
@@ -71,7 +102,16 @@ export function subscribe(listener) {
 }
 
 // Test-only: drop cached state so each unit test starts from a clean slate.
+// Also clears the side-effects setLocale writes into the document/window so
+// downstream tests cannot inherit a stale locale from an earlier test.
 export function _resetLocaleForTesting() {
   currentLocale = null;
+  manualOverride = false;
   listeners.clear();
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.lang = "";
+  }
+  if (typeof window !== "undefined") {
+    delete window.__bootstrap;
+  }
 }

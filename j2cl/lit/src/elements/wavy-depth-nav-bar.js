@@ -176,12 +176,17 @@ export class WavyDepthNavBar extends LitElement {
   }
 
   _upOneLevelLabel() {
-    return this.parentAuthorName
-      ? `${t("depthNav.upOneLevelTo", "Up one level to")} ${this.parentAuthorName}${t(
-          "depthNav.upOneLevelThreadSuffix",
-          "'s thread"
-        )}`
-      : t("depthNav.upOneLevel", "Up one level");
+    if (!this.parentAuthorName) {
+      return t("depthNav.upOneLevel", "Up one level");
+    }
+    // Single-key template with a `{name}` placeholder so locales that need
+    // a different word order (e.g. German genitive "Alices Thread" vs.
+    // English possessive "Alice's thread") can express the whole sentence.
+    const template = t(
+      "depthNav.upOneLevelToNameThread",
+      "Up one level to {name}'s thread"
+    );
+    return template.replace("{name}", this.parentAuthorName);
   }
 
   render() {

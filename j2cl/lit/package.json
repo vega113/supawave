@@ -5,6 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "audit:buttons": "node scripts/audit-buttons.mjs",
+    "prebuild": "node scripts/audit-buttons.mjs",
     "build": "node esbuild.config.mjs",
     "test": "web-test-runner"
   },

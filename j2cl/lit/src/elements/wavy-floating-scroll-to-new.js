@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-floating-scroll-to-new> — F-2.S4 (#1048, J.2) floating "scroll to
@@ -124,10 +125,12 @@ export class WavyFloatingScrollToNew extends LitElement {
 
   render() {
     const c = this.count || 0;
+    const label = t("scrollToNew.label", "Scroll to new messages");
     return html`
       <button
         type="button"
-        aria-label="Scroll to new messages"
+        aria-label=${label}
+        title=${label}
         @click=${this._onClick}
       >
         <span aria-hidden="true">↓ ${c} new</span>

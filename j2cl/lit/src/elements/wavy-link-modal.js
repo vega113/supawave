@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-link-modal> — F-3.S1 (#1038, R-5.2 step 5) modal dialog used by
@@ -179,13 +180,14 @@ export class WavyLinkModal extends LitElement {
         aria-labelledby="wavy-link-modal-title"
         @click=${(e) => e.stopPropagation()}
       >
-        <h2 id="wavy-link-modal-title">Insert link</h2>
+        <h2 id="wavy-link-modal-title">${t("linkModal.title", "Insert link")}</h2>
         <form @submit=${this._onSubmit}>
           <label>
-            URL
+            ${t("linkModal.urlLabel", "URL")}
             <input
               name="url"
               type="url"
+              aria-label=${t("linkModal.urlLabel", "URL")}
               .value=${this.urlValue}
               autocomplete="off"
               autofocus
@@ -194,10 +196,11 @@ export class WavyLinkModal extends LitElement {
             />
           </label>
           <label>
-            Display text
+            ${t("linkModal.textLabel", "Display text")}
             <input
               name="display"
               type="text"
+              aria-label=${t("linkModal.textLabel", "Display text")}
               .value=${this.displayValue}
               autocomplete="off"
               data-link-modal-display
@@ -207,10 +210,21 @@ export class WavyLinkModal extends LitElement {
             ? html`<p class="error" role="alert" data-link-modal-error>${this._error}</p>`
             : ""}
           <div class="actions">
-            <button type="button" data-link-modal-cancel @click=${this._cancel.bind(this)}>
-              Cancel
+            <button
+              type="button"
+              data-link-modal-cancel
+              aria-label=${t("linkModal.cancel", "Cancel")}
+              title=${t("linkModal.cancel", "Cancel")}
+              @click=${this._cancel.bind(this)}
+            >
+              ${t("linkModal.cancel", "Cancel")}
             </button>
-            <button type="submit" data-link-modal-submit>Insert</button>
+            <button
+              type="submit"
+              data-link-modal-submit
+              aria-label=${t("linkModal.insert", "Insert")}
+              title=${t("linkModal.insert", "Insert")}
+            >${t("linkModal.insert", "Insert")}</button>
           </div>
         </form>
       </div>

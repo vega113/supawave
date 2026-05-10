@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import "../design/wavy-depth-nav.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-depth-nav-bar> — F-2 (#1037, R-3.7-chrome; slice 2 #1046)
@@ -176,23 +177,27 @@ export class WavyDepthNavBar extends LitElement {
 
   _upOneLevelLabel() {
     return this.parentAuthorName
-      ? `Up one level to ${this.parentAuthorName}'s thread`
-      : "Up one level";
+      ? `${t("depthNav.upOneLevelTo", "Up one level to")} ${this.parentAuthorName}${t(
+          "depthNav.upOneLevelThreadSuffix",
+          "'s thread"
+        )}`
+      : t("depthNav.upOneLevel", "Up one level");
   }
 
   render() {
     const items = Array.isArray(this.crumbs) ? this.crumbs : [];
     return html`
-      <div class="bar" role="toolbar" aria-label="Depth navigation">
+      <div class="bar" role="toolbar" aria-label=${t("depthNav.label", "Thread navigation")}>
         <div class="left">
           <button
             type="button"
             data-action="up-one-level"
             aria-label=${this._upOneLevelLabel()}
+            title=${this._upOneLevelLabel()}
             @click=${this._onUpOneLevel}
           >
             <span class="glyph" aria-hidden="true">▲</span>
-            ${this.parentAuthorName || "Up"}
+            ${this.parentAuthorName || t("depthNav.up", "Up")}
           </button>
         </div>
         <div class="center">
@@ -206,11 +211,12 @@ export class WavyDepthNavBar extends LitElement {
           <button
             type="button"
             data-action="up-to-wave"
-            aria-label="Back to top of wave"
+            aria-label=${t("depthNav.backToTop", "Back to top of wave")}
+            title=${t("depthNav.backToTop", "Back to top of wave")}
             @click=${this._onUpToWave}
           >
             <span class="glyph" aria-hidden="true">⌃</span>
-            Up to wave
+            ${t("depthNav.upToWave", "Up to wave")}
           </button>
         </div>
       </div>

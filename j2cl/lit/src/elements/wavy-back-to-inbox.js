@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-back-to-inbox> — F-2.S4 (#1048, J.5) "Back to inbox" header
@@ -76,14 +77,16 @@ export class WavyBackToInbox extends LitElement {
   }
 
   render() {
+    const label = t("backToInbox.label", "Back to inbox");
     return html`
       <a
         href=${this.href || "#inbox"}
-        aria-label="Back to inbox"
+        aria-label=${label}
+        title=${label}
         @click=${this._onClick}
       >
         <span aria-hidden="true">←</span>
-        <span>Inbox</span>
+        <span>${t("header.inbox", "Inbox")}</span>
       </a>
     `;
   }

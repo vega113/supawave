@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { DISPLAY_SIZES } from "./attachment-display-sizes.js";
+import { t } from "../i18n/t.js";
 
 export class ComposeAttachmentCard extends LitElement {
   static properties = {
@@ -123,8 +124,11 @@ export class ComposeAttachmentCard extends LitElement {
     const displaySize = DISPLAY_SIZES.includes(this.displaySize)
       ? this.displaySize
       : "medium";
+    const articleLabel = `${t("attachments.cardLabel", "Attachment")} ${this.filename}`;
+    const openLabel = `${t("attachments.openPrefix", "Open attachment")} ${this.filename}`;
+    const downloadLabel = `${t("attachments.downloadPrefix", "Download attachment")} ${this.filename}`;
     return html`
-      <article class=${`size-${displaySize}`} aria-label=${`Attachment ${this.filename}`}>
+      <article class=${`size-${displaySize}`} aria-label=${articleLabel}>
         <div class="preview">
           ${this.thumbnailUrl
             ? html`<img src=${this.thumbnailUrl} alt=${this.filename} />`
@@ -138,26 +142,28 @@ export class ComposeAttachmentCard extends LitElement {
           ? html`<p role="status" aria-live="polite">${this.status}</p>`
           : ""}
         ${blocked
-          ? html`<p role="alert" aria-live="assertive">${this.error || "Attachment blocked."}</p>`
+          ? html`<p role="alert" aria-live="assertive">${this.error || t("attachments.blocked", "Attachment blocked.")}</p>`
           : ""}
         <div class="actions">
           <button
             type="button"
             data-action="attachment-open"
-            aria-label=${`Open attachment ${this.filename}`}
+            aria-label=${openLabel}
+            title=${openLabel}
             ?disabled=${openDisabled}
             @click=${this.onOpen}
           >
-            Open
+            ${t("attachments.open", "Open")}
           </button>
           <button
             type="button"
             data-action="attachment-download"
-            aria-label=${`Download attachment ${this.filename}`}
+            aria-label=${downloadLabel}
+            title=${downloadLabel}
             ?disabled=${downloadDisabled}
             @click=${this.onDownload}
           >
-            Download
+            ${t("attachments.download", "Download")}
           </button>
         </div>
       </article>

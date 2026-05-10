@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 let activePicker = null;
 
@@ -76,7 +77,7 @@ export class ReactionPickerPopover extends LitElement {
       <div
         class="picker"
         role="menu"
-        aria-label="Choose reaction"
+        aria-label=${t("reactions.pickerTitle", "Choose reaction")}
         aria-orientation="horizontal"
       >
         ${this.safeEmojis().map(
@@ -85,6 +86,8 @@ export class ReactionPickerPopover extends LitElement {
               type="button"
               role="menuitem"
               data-emoji=${emoji}
+              aria-label=${`${t("reactions.pick", "React with")} ${emoji}`}
+              title=${`${t("reactions.pick", "React with")} ${emoji}`}
               @click=${() => this.pick(emoji)}
             >
               ${emoji}

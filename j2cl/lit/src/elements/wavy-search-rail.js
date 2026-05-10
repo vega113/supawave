@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 import {
   SEARCH_RAIL_ICON_REFRESH,
   SEARCH_RAIL_ICON_SORT,
@@ -1125,7 +1126,8 @@ export class WavySearchRail extends LitElement {
           type="search"
           class="query"
           name="q"
-          aria-label="Search waves"
+          aria-label=${t("searchRail.searchWaves", "Search waves")}
+          placeholder=${t("searchRail.placeholder", "Search waves")}
           .value=${this.query}
           @keydown=${this._onQueryKey}
           @input=${this._onQueryInput}
@@ -1133,7 +1135,8 @@ export class WavySearchRail extends LitElement {
         <button
           type="button"
           class="help-trigger"
-          aria-label="Search help"
+          aria-label=${t("searchRail.help", "Search help")}
+          title=${t("searchRail.help", "Search help")}
           aria-haspopup="dialog"
           aria-controls="wavy-search-help"
           @click=${() => this._emit("wavy-search-help-toggle")}
@@ -1142,12 +1145,12 @@ export class WavySearchRail extends LitElement {
         </button>
       </div>
 
-      <div class="action-row" role="group" aria-label="Search actions" data-digest-action-row>
+      <div class="action-row" role="group" aria-label=${t("searchRail.actions", "Search actions")} data-digest-action-row>
         <button
           type="button"
           data-digest-action="refresh"
-          aria-label="Refresh search results"
-          title="Refresh search results"
+          aria-label=${t("searchRail.refresh", "Refresh search results")}
+          title=${t("searchRail.refresh", "Refresh search results")}
           @click=${() => this._emit("wavy-search-refresh-requested")}
         >
           ${SEARCH_RAIL_ICON_REFRESH}
@@ -1156,8 +1159,8 @@ export class WavySearchRail extends LitElement {
           <button
             type="button"
             data-digest-action="sort"
-            aria-label="Sort waves"
-            title="Sort waves"
+            aria-label=${t("searchRail.sort", "Sort waves")}
+            title=${t("searchRail.sort", "Sort waves")}
             aria-haspopup="menu"
             aria-controls="wavy-search-sort-menu"
             aria-expanded=${this.sortOpen ? "true" : "false"}
@@ -1170,7 +1173,7 @@ export class WavySearchRail extends LitElement {
                 class="sort-menu"
                 id="wavy-search-sort-menu"
                 role="menu"
-                aria-label="Sort waves"
+                aria-label=${t("searchRail.sort", "Sort waves")}
                 @keydown=${this._onSortMenuKeydown}
                 @focusout=${this._onSortMenuFocusout}
               >
@@ -1181,6 +1184,8 @@ export class WavySearchRail extends LitElement {
                     role="menuitemradio"
                     aria-checked=${effectiveSort === sort.token.toLowerCase() ? "true" : "false"}
                     data-sort-token=${sort.token}
+                    aria-label=${sort.label}
+                    title=${sort.label}
                     @click=${() => this._applySort(sort)}
                   >
                     <span>${sort.label}</span>
@@ -1193,8 +1198,8 @@ export class WavySearchRail extends LitElement {
         <button
           type="button"
           data-digest-action="filter"
-          aria-label="Filter waves"
-          title="Filter waves"
+          aria-label=${t("searchRail.filter", "Filter waves")}
+          title=${t("searchRail.filter", "Filter waves")}
           aria-pressed=${this.filtersOpen ? "true" : "false"}
           aria-expanded=${this.filtersOpen ? "true" : "false"}
           aria-controls="wavy-search-filter-strip"
@@ -1210,22 +1215,26 @@ export class WavySearchRail extends LitElement {
           class="new-wave"
           data-shortcut="Shift+Cmd+O"
           aria-keyshortcuts="Shift+Meta+O Shift+Control+O"
+          aria-label=${t("searchRail.newWave", "New Wave")}
+          title=${t("searchRail.newWave", "New Wave")}
           @click=${() => this._emit("wavy-new-wave-requested", { source: "button" })}
         >
-          New Wave
+          ${t("searchRail.newWave", "New Wave")}
         </button>
         <button
           type="button"
           class="manage-saved"
           aria-haspopup="dialog"
+          aria-label=${t("searchRail.manageSaved", "Manage saved searches")}
+          title=${t("searchRail.manageSaved", "Manage saved searches")}
           @click=${this._openSavedSearches}
         >
-          Manage saved searches
+          ${t("searchRail.manageSaved", "Manage saved searches")}
         </button>
       </div>
 
       <div class="folders-header">
-        <h2 id="folders-title">Saved searches</h2>
+        <h2 id="folders-title">${t("searchRail.savedSearches", "Saved searches")}</h2>
       </div>
       <ul class="folders" aria-labelledby="folders-title">
         ${WavySearchRail.FOLDERS.map((folder) => {
@@ -1238,20 +1247,22 @@ export class WavySearchRail extends LitElement {
                 data-folder-id=${folder.id}
                 data-query=${folder.query}
                 aria-current=${selected ? "page" : "false"}
+                aria-label=${folder.label}
+                title=${folder.label}
                 @click=${() => this._onFolderClick(folder)}
               >
                 <span class="label">${folder.label}</span>
                 ${folder.id === "mentions"
                   ? html`<span
                       class="dot mentions-dot"
-                      aria-label="${this.mentionsUnread || 0} unread mentions"
+                      aria-label="${this.mentionsUnread || 0} ${t("searchRail.unreadMentions", "unread mentions")}"
                       ?hidden=${!this.mentionsUnread || this.mentionsUnread <= 0}
                     ></span>`
                   : null}
                 ${folder.id === "tasks"
                   ? html`<span
                       class="chip tasks-chip"
-                      aria-label="${this.tasksPending || 0} pending tasks"
+                      aria-label="${this.tasksPending || 0} ${t("searchRail.pendingTasks", "pending tasks")}"
                       ?hidden=${!this.tasksPending || this.tasksPending <= 0}
                       >${this.tasksPending || 0}</span
                     >`
@@ -1263,22 +1274,26 @@ export class WavySearchRail extends LitElement {
       </ul>
       ${pinnedSearches.length > 0
         ? html`
-            <ul class="custom-searches" aria-label="Pinned saved searches">
-              ${pinnedSearches.map((item) => html`
+            <ul class="custom-searches" aria-label=${t("searchRail.pinnedSaved", "Pinned saved searches")}>
+              ${pinnedSearches.map((item) => {
+                const applyLabel = `${t("searchRail.applySavedPrefix", "Apply saved search")} ${item.name} (${item.query})`;
+                return html`
                 <li>
                   <button
                     type="button"
                     class="custom-search"
                     data-saved-search-name=${item.name}
                     data-query=${item.query}
-                    aria-label=${`Apply saved search ${item.name} (${item.query})`}
+                    aria-label=${applyLabel}
+                    title=${applyLabel}
                     @click=${() => this._applySavedSearch(item)}
                   >
                     <span class="custom-name">${item.name}</span>
                     <span class="custom-query">${item.query}</span>
                   </button>
                 </li>
-              `)}
+              `;
+              })}
             </ul>
           `
         : null}
@@ -1293,8 +1308,8 @@ export class WavySearchRail extends LitElement {
           this.filtersOpen = e.target.open;
         }}
       >
-        <summary>Filters</summary>
-        <div class="filter-chips" role="group" aria-label="Search filters">
+        <summary>${t("searchRail.filters", "Filters")}</summary>
+        <div class="filter-chips" role="group" aria-label=${t("searchRail.filtersGroup", "Search filters")}>
           ${WavySearchRail.FILTERS.map((filter) => {
             const active = this._isTokenActive(filter.token);
             return html`
@@ -1304,6 +1319,8 @@ export class WavySearchRail extends LitElement {
                 data-filter-id=${filter.id}
                 data-filter-token=${filter.token}
                 aria-pressed=${active ? "true" : "false"}
+                aria-label=${filter.label}
+                title=${filter.label}
                 @click=${() => this._toggleFilter(filter)}
               >
                 ${filter.label}
@@ -1332,29 +1349,38 @@ export class WavySearchRail extends LitElement {
           @keydown=${this._onSavedDialogKeydown}
         >
           <div class="saved-header">
-            <h3 class="saved-title" id="saved-searches-title">Manage saved searches</h3>
-            <button type="button" class="saved-button" aria-label="Close saved searches" @click=${this._closeSavedSearches}>×</button>
+            <h3 class="saved-title" id="saved-searches-title">${t("searchRail.manageSaved", "Manage saved searches")}</h3>
+            <button
+              type="button"
+              class="saved-button"
+              aria-label=${t("searchRail.closeSaved", "Close saved searches")}
+              title=${t("searchRail.closeSaved", "Close saved searches")}
+              @click=${this._closeSavedSearches}
+            >×</button>
           </div>
           <div class="saved-body">
             ${this.savedSearchesError ? html`<p class="saved-error" role="alert">${this.savedSearchesError}</p>` : null}
             ${this.savedSearchesDirty
-              ? html`<p class="saved-hint" role="status" aria-live="polite">Apply closes this dialog and discards unsaved edits. Use Save to persist them.</p>`
+              ? html`<p class="saved-hint" role="status" aria-live="polite">${t("searchRail.applyDiscardsHint", "Apply closes this dialog and discards unsaved edits. Use Save to persist them.")}</p>`
               : null}
-            ${this.savedSearchesLoading ? html`<p class="saved-empty">Loading saved searches…</p>` : null}
+            ${this.savedSearchesLoading ? html`<p class="saved-empty">${t("searchRail.savedLoading", "Loading saved searches…")}</p>` : null}
             ${!this.savedSearchesLoading && !this.savedSearchesError && this.savedSearchDrafts.length === 0
-              ? html`<p class="saved-empty">No saved searches yet. Add the current query to create one.</p>`
+              ? html`<p class="saved-empty">${t("searchRail.savedEmpty", "No saved searches yet. Add the current query to create one.")}</p>`
               : null}
-            ${this.savedSearchDrafts.map((item, index) => html`
+            ${this.savedSearchDrafts.map((item, index) => {
+              const applyLabel = `${t("searchRail.applyPrefix", "Apply")} ${item.name || item.query || t("searchRail.savedFallback", "saved search")}`;
+              const removeLabel = `${t("searchRail.removePrefix", "Remove")} ${item.name || item.query || t("searchRail.savedFallback", "saved search")}`;
+              return html`
               <div class="saved-row" data-saved-search-row>
                 <input
                   type="text"
-                  aria-label="Saved search name"
+                  aria-label=${t("searchRail.savedName", "Saved search name")}
                   .value=${item.name}
                   @input=${(evt) => this._updateSavedSearch(index, "name", evt.target.value)}
                 />
                 <input
                   type="text"
-                  aria-label="Saved search query"
+                  aria-label=${t("searchRail.savedQuery", "Saved search query")}
                   .value=${item.query}
                   @input=${(evt) => this._updateSavedSearch(index, "query", evt.target.value)}
                 />
@@ -1364,44 +1390,57 @@ export class WavySearchRail extends LitElement {
                     .checked=${item.pinned}
                     @change=${(evt) => this._updateSavedSearch(index, "pinned", evt.target.checked)}
                   />
-                  Pin
+                  ${t("searchRail.pinShort", "Pin")}
                 </label>
                 <button
                   type="button"
                   class="saved-button"
-                  aria-label=${`Apply ${item.name || item.query || "saved search"}`}
+                  aria-label=${applyLabel}
+                  title=${applyLabel}
                   @click=${() => this._applySavedSearch(item)}
                 >
-                  Apply
+                  ${t("searchRail.applyShort", "Apply")}
                 </button>
                 <button
                   type="button"
                   class="saved-button"
-                  aria-label=${`Remove ${item.name || item.query || "saved search"}`}
+                  aria-label=${removeLabel}
+                  title=${removeLabel}
                   @click=${() => this._removeSavedSearch(index)}
                 >
-                  Remove
+                  ${t("common.remove", "Remove")}
                 </button>
               </div>
-            `)}
+              `;
+            })}
           </div>
           <div class="saved-footer">
             <button
               type="button"
               class="saved-button"
+              aria-label=${t("searchRail.addCurrent", "Add current search")}
+              title=${t("searchRail.addCurrent", "Add current search")}
               ?disabled=${this.savedSearchesLoading}
               @click=${this._addCurrentSearch}
             >
-              Add current search
+              ${t("searchRail.addCurrent", "Add current search")}
             </button>
-            <button type="button" class="saved-button" @click=${this._closeSavedSearches}>Cancel</button>
+            <button
+              type="button"
+              class="saved-button"
+              aria-label=${t("common.cancel", "Cancel")}
+              title=${t("common.cancel", "Cancel")}
+              @click=${this._closeSavedSearches}
+            >${t("common.cancel", "Cancel")}</button>
             <button
               type="button"
               class="saved-button primary"
+              aria-label=${t("common.save", "Save")}
+              title=${t("common.save", "Save")}
               ?disabled=${this.savedSearchesLoading}
               @click=${this._saveAndClose}
             >
-              Save
+              ${t("common.save", "Save")}
             </button>
           </div>
         </section>

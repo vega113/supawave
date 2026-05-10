@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 export class ShellStatusStrip extends LitElement {
   static properties = {
@@ -97,23 +98,27 @@ export class ShellStatusStrip extends LitElement {
   }
 
   _connectionLabel() {
-    return this.connectionState === "offline" ? "Offline" : "Online";
+    return this.connectionState === "offline"
+      ? t("statusStrip.offline", "Offline")
+      : t("statusStrip.online", "Online");
   }
 
   _saveLabel() {
-    return this.saveState === "unsaved" || this.saveState === "saving" ? "Saving changes" : "Saved";
+    return this.saveState === "unsaved" || this.saveState === "saving"
+      ? t("statusStrip.saving", "Saving changes")
+      : t("statusStrip.saved", "Saved");
   }
 
   _routeLabel() {
     switch (this.routeState) {
       case "selected-wave":
-        return "Selected wave active";
+        return t("statusStrip.selectedWave", "Selected wave active");
       case "search":
-        return "Search results active";
+        return t("statusStrip.search", "Search results active");
       case "loading":
-        return "Loading workspace";
+        return t("statusStrip.loading", "Loading workspace");
       default:
-        return "Workspace ready";
+        return t("statusStrip.ready", "Workspace ready");
     }
   }
 

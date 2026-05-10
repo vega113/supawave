@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-profile-overlay> — F-2.S4 (#1048, L.1 + L.5) modal that opens
@@ -577,8 +578,8 @@ export class WavyProfileOverlay extends LitElement {
     }
     const ageMs = Date.now() - lastSeen;
     return ageMs >= 0 && ageMs <= 5 * 60 * 1000
-      ? "Online"
-      : "Last seen " + new Date(lastSeen).toLocaleString();
+      ? t("profileOverlay.online", "Online")
+      : `${t("profileOverlay.lastSeenPrefix", "Last seen")} ${new Date(lastSeen).toLocaleString()}`;
   }
 
   _coerceTime(value) {
@@ -640,7 +641,8 @@ export class WavyProfileOverlay extends LitElement {
         <button
           class="exit"
           type="button"
-          aria-label="Close profile"
+          aria-label=${t("profileOverlay.close", "Close profile")}
+          title=${t("profileOverlay.close", "Close profile")}
           @click=${this._onClose}
         >
           <span aria-hidden="true">×</span>
@@ -648,7 +650,8 @@ export class WavyProfileOverlay extends LitElement {
         <button
           class="nav prev"
           type="button"
-          aria-label="Previous participant"
+          aria-label=${t("profileOverlay.previous", "Previous participant")}
+          title=${t("profileOverlay.previous", "Previous participant")}
           ?disabled=${prevDisabled}
           @click=${this._prev}
         >
@@ -657,7 +660,8 @@ export class WavyProfileOverlay extends LitElement {
         <button
           class="nav next"
           type="button"
-          aria-label="Next participant"
+          aria-label=${t("profileOverlay.next", "Next participant")}
+          title=${t("profileOverlay.next", "Next participant")}
           ?disabled=${nextDisabled}
           @click=${this._next}
         >
@@ -675,7 +679,7 @@ export class WavyProfileOverlay extends LitElement {
           ? html`<p
               class="status"
               data-profile-status
-              data-online=${statusLabel === "Online" ? "true" : "false"}
+              data-online=${statusLabel === t("profileOverlay.online", "Online") ? "true" : "false"}
             >${statusLabel}</p>`
           : null}
         ${memberSince
@@ -688,26 +692,32 @@ export class WavyProfileOverlay extends LitElement {
               href=${profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-            >${current && current.isBot ? "Bot profile" : "Profile"}</a>`
+            >${current && current.isBot
+              ? t("profileOverlay.botProfile", "Bot profile")
+              : t("profileOverlay.profile", "Profile")}</a>`
           : null}
         <div class="actions-slot">
           <button
             class="profile-action profile-action-primary"
             type="button"
             data-profile-send-message
+            aria-label=${t("profileOverlay.sendMessage", "Send Message")}
+            title=${t("profileOverlay.sendMessage", "Send Message")}
             ?hidden=${!canSendMessage}
             @click=${() => this._onSendMessage(current)}
           >
-            Send Message
+            ${t("profileOverlay.sendMessage", "Send Message")}
           </button>
           <button
             class="profile-action"
             type="button"
             data-profile-edit
+            aria-label=${t("profileOverlay.editProfile", "Edit Profile")}
+            title=${t("profileOverlay.editProfile", "Edit Profile")}
             ?hidden=${!isSelf}
             @click=${() => this._onEditProfile(current)}
           >
-            Edit Profile
+            ${t("profileOverlay.editProfile", "Edit Profile")}
           </button>
           <slot name="actions"></slot>
         </div>

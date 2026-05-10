@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-nav-drawer-toggle> — F-2.S4 (#1048, J.4) hamburger / close
@@ -91,12 +92,15 @@ export class WavyNavDrawerToggle extends LitElement {
     // element. The host carries no role/tabindex (no nested-button).
     const ariaControls = this.getAttribute("aria-controls") || undefined;
     const glyph = this.open ? "✕" : "☰";
-    const label = this.open ? "Close navigation drawer" : "Open navigation drawer";
+    const label = this.open
+      ? t("navDrawer.close", "Close navigation drawer")
+      : t("navDrawer.open", "Open navigation drawer");
     return html`
       <button
         type="button"
         aria-expanded=${this.open ? "true" : "false"}
         aria-label=${label}
+        title=${label}
         aria-controls=${ifDefined(ariaControls)}
         @click=${this._onClick}
       >

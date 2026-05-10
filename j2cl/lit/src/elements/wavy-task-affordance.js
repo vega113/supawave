@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import "./task-metadata-popover.js";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-task-affordance> — F-3.S2 (#1038, R-5.4) per-blip task toggle
@@ -140,9 +141,9 @@ export class WavyTaskAffordance extends LitElement {
     this._popoverOpen = false;
     this.labelToggleOpen = "☐";
     this.labelToggleDone = "☑";
-    this.labelAriaCheck = "Mark task complete";
-    this.labelAriaUncheck = "Mark task open";
-    this.labelDetails = "Edit task details";
+    this.labelAriaCheck = t("taskAffordance.markComplete", "Mark task complete");
+    this.labelAriaUncheck = t("taskAffordance.markIncomplete", "Mark task open");
+    this.labelDetails = t("taskAffordance.editDetails", "Edit task details");
     this.labelAnnounceDone = "Task completed";
     this.labelAnnounceOpen = "Task reopened";
   }

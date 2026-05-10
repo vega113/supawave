@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { t } from "../i18n/t.js";
 
 export class InteractionOverlayLayer extends LitElement {
   static properties = {
@@ -58,7 +59,7 @@ export class InteractionOverlayLayer extends LitElement {
         role=${this.modal ? "dialog" : "group"}
         tabindex="-1"
         aria-modal=${ifDefined(this.modal ? "true" : undefined)}
-        aria-label=${this.label || "Interaction overlay"}
+        aria-label=${this.label || t("interactionOverlay.defaultLabel", "Interaction overlay")}
       >
         <slot></slot>
       </div>

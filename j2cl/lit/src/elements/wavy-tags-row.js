@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-tags-row> — F-3.S1 (#1038, R-5.1 tags) wave-tag editing affordances.
@@ -153,18 +154,22 @@ export class WavyTagsRow extends LitElement {
   render() {
     const tags = Array.isArray(this.tags) ? this.tags : [];
     return html`
-      <span class="label">Tags:</span>
+      <span class="label">${t("tagsRow.tagsLabel", "Tags:")}</span>
       ${tags.map(
-        (tag) => html`<span class="chip" data-tag-chip=${tag}>
-          ${tag}
-          <button
-            type="button"
-            class="chip-remove"
-            data-tag-remove=${tag}
-            aria-label=${`Remove tag ${tag}`}
-            @click=${this._onRemoveClick(tag)}
-          >×</button>
-        </span>`
+        (tag) => {
+          const removeLabel = `${t("tagsRow.removePrefix", "Remove tag")} ${tag}`;
+          return html`<span class="chip" data-tag-chip=${tag}>
+            ${tag}
+            <button
+              type="button"
+              class="chip-remove"
+              data-tag-remove=${tag}
+              aria-label=${removeLabel}
+              title=${removeLabel}
+              @click=${this._onRemoveClick(tag)}
+            >×</button>
+          </span>`;
+        }
       )}
       ${this.editing
         ? html`
@@ -172,15 +177,16 @@ export class WavyTagsRow extends LitElement {
               type="text"
               class="input"
               data-tags-input
-              placeholder="Add tag"
-              aria-label="Add tag"
+              placeholder=${t("tagsRow.placeholder", "Add tag")}
+              aria-label=${t("tagsRow.add", "Add tag")}
               @keydown=${this._onInputKeydown}
             />
             <button
               type="button"
               class="cancel-button"
               data-tags-cancel
-              aria-label="Cancel tag entry"
+              aria-label=${t("tagsRow.cancel", "Cancel tag entry")}
+              title=${t("tagsRow.cancel", "Cancel tag entry")}
               @click=${this._onCancelClick}
             >×</button>
           `
@@ -189,9 +195,10 @@ export class WavyTagsRow extends LitElement {
               type="button"
               class="add-button"
               data-tags-add
-              aria-label="Add tag"
+              aria-label=${t("tagsRow.add", "Add tag")}
+              title=${t("tagsRow.add", "Add tag")}
               @click=${this._onAddClick}
-            >+ Add tag</button>
+            >+ ${t("tagsRow.add", "Add tag")}</button>
           `}
     `;
   }

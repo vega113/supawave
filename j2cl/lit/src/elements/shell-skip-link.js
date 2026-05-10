@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 export class ShellSkipLink extends LitElement {
   static properties = {
@@ -34,7 +35,7 @@ export class ShellSkipLink extends LitElement {
   constructor() {
     super();
     this.target = "#j2cl-root-shell-workflow";
-    this.label = "Skip to main content";
+    this.label = t("skipLink.label", "Skip to main content");
   }
 
   connectedCallback() {

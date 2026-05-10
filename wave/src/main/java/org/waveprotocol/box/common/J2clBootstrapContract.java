@@ -56,6 +56,7 @@ public final class J2clBootstrapContract {
   public static final String SESSION_ADDRESS = "address";
   public static final String SESSION_ROLE = "role";
   public static final String SESSION_FEATURES = "features";
+  public static final String SESSION_LOCALE = "locale";
 
   public static final String SOCKET_ADDRESS = "address";
 

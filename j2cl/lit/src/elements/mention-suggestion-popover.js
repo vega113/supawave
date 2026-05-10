@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { t } from "../i18n/t.js";
 
 let mentionPopoverCounter = 0;
 
@@ -117,11 +118,11 @@ export class MentionSuggestionPopover extends LitElement {
         <div
           role="listbox"
           tabindex="-1"
-          aria-label="Mention suggestions"
+          aria-label=${t("mentions.suggestions", "Mention suggestions")}
           aria-activedescendant=${ifDefined(activeId || undefined)}
         >
           ${candidates.length === 0
-            ? html`<p>No mention matches</p>`
+            ? html`<p>${t("mentions.noMatches", "No mention matches")}</p>`
             : candidates.map((candidate, index) =>
                 this.renderCandidate(candidate, index, activeIndex)
               )}

@@ -1,4 +1,5 @@
 import { LitElement, css, html } from "lit";
+import { t } from "../i18n/t.js";
 
 /**
  * <wavy-search-help> — F-2 (#1037, #1047 slice 3) modal that documents
@@ -336,7 +337,8 @@ export class WavySearchHelp extends LitElement {
             type="button"
             class="dismiss"
             @click=${this._dismiss}
-            aria-label="Close search help"
+            aria-label=${t("searchHelp.close", "Close search help")}
+            title=${t("searchHelp.close", "Close search help")}
           >
             Got it
           </button>

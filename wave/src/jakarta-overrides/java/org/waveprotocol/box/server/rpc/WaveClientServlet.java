@@ -39,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.waveprotocol.box.common.J2clBootstrapContract;
 import org.waveprotocol.box.common.SessionConstants;
 import org.waveprotocol.box.server.CoreSettingsNames;
 import org.waveprotocol.box.server.account.AccountData;
@@ -589,13 +590,20 @@ public class WaveClientServlet extends HttpServlet {
       String address = (user != null) ? user.getAddress() : null;
       String sessionId = (new RandomBase64Generator()).next(10);
 
-      // Look up the user's role so the client knows if this is an admin
+      // Look up the user's role so the client knows if this is an admin,
+      // and their preferred locale so the J2CL shell can localize without
+      // an extra round-trip.
       String userRole = HumanAccountData.ROLE_USER;
+      String userLocale = "en";
       if (user != null) {
         try {
           AccountData acctData = accountStore.getAccount(user);
           if (acctData != null && acctData.isHuman()) {
             userRole = acctData.asHuman().getRole();
+            String accountLocale = acctData.asHuman().getLocale();
+            if (accountLocale != null && !accountLocale.trim().isEmpty()) {
+              userLocale = accountLocale.trim();
+            }
           }
         } catch (Exception e) {
           LOG.warning("Failed to look up role for session JSON: " + address, e);
@@ -606,7 +614,8 @@ public class WaveClientServlet extends HttpServlet {
           .put(SessionConstants.DOMAIN, domain)
           .putOpt(SessionConstants.ADDRESS, address)
           .putOpt(SessionConstants.ID_SEED, sessionId)
-          .put(SessionConstants.ROLE, userRole);
+          .put(SessionConstants.ROLE, userRole)
+          .put(J2clBootstrapContract.SESSION_LOCALE, userLocale);
       // Add enabled feature flags for this user
       if (address != null) {
         List<String> enabledFlags =

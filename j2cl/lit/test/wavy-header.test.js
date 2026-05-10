@@ -1,7 +1,14 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
 import "../src/elements/wavy-header.js";
+import { _resetLocaleForTesting } from "../src/i18n/locale.js";
 
 describe("<wavy-header>", () => {
+  // The locale picker now writes through to the module-level i18n state
+  // so other components can react. Tests that flip the picker would
+  // otherwise leak a non-en locale into siblings — reset on both ends.
+  beforeEach(() => _resetLocaleForTesting());
+  afterEach(() => _resetLocaleForTesting());
+
   it("registers the F-2.S3 wavy-header element", () => {
     expect(customElements.get("wavy-header")).to.exist;
   });

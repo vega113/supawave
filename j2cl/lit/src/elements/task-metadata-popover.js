@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
+import { t } from "../i18n/t.js";
 
 let taskMetadataPopoverCounter = 0;
 
@@ -149,11 +150,11 @@ export class TaskMetadataPopover extends LitElement {
         aria-labelledby=${titleId}
         @submit=${this.submit}
       >
-        <h2 id=${titleId}>Task details</h2>
+        <h2 id=${titleId}>${t("taskMetadata.title", "Task details")}</h2>
         <label>
-          Assignee
-          <select name="assignee">
-            <option value="">Unassigned</option>
+          ${t("taskMetadata.assignee", "Assignee")}
+          <select name="assignee" aria-label=${t("taskMetadata.assignee", "Assignee")}>
+            <option value="">${t("taskMetadata.unassigned", "Unassigned")}</option>
             ${assigneeOptions.map(
               participant => html`
                 <option
@@ -167,11 +168,12 @@ export class TaskMetadataPopover extends LitElement {
           </select>
         </label>
         <label>
-          Due date
+          ${t("taskMetadata.dueDate", "Due date")}
           <input
             name="dueDate"
             inputmode="numeric"
-            placeholder="YYYY-MM-DD"
+            placeholder=${t("taskMetadata.dueDatePlaceholder", "YYYY-MM-DD")}
+            aria-label=${t("taskMetadata.dueDate", "Due date")}
             aria-invalid=${this.error ? "true" : "false"}
             aria-describedby=${ifDefined(this.error ? errorId : undefined)}
             .value=${this.dueDate}
@@ -179,8 +181,17 @@ export class TaskMetadataPopover extends LitElement {
         </label>
         ${this.error ? html`<p id=${errorId} role="alert">${this.error}</p>` : ""}
         <div class="actions">
-          <button type="button" @click=${() => this.close("cancel")}>Cancel</button>
-          <button type="submit">Save</button>
+          <button
+            type="button"
+            aria-label=${t("common.cancel", "Cancel")}
+            title=${t("common.cancel", "Cancel")}
+            @click=${() => this.close("cancel")}
+          >${t("common.cancel", "Cancel")}</button>
+          <button
+            type="submit"
+            aria-label=${t("taskMetadata.save", "Save")}
+            title=${t("taskMetadata.save", "Save")}
+          >${t("taskMetadata.save", "Save")}</button>
         </div>
       </form>
     `;

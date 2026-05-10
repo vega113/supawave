@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-10-j2cl-parity-round6",
+  "version": "Issue #1240",
+  "date": "2026-05-10",
+  "title": "J2CL parity round 6: restore the 8px gap between the dark-blue compact topbar and the inner blue panel toolbars.",
+  "summary": "Round 6 parity work after user testing of round 5. The legacy GWT WebClient gives the search rail and wave panel an 8px top margin so the inner blue title strips don't butt directly up against the outer dark-blue app topbar (WebClient.ui.xml `.searchPanel { margin: 8px 0 0 8px; }` / `.wavePanel { margin: 8px 0 0 0; }` against the `#f0f4f8` page bg). The J2CL shell-root grid had row-gap 0 between the header row and the nav/main rows, so the inner blue toolbar strips (wavy-search-rail .panel-title, .sidecar-selected-title) sat flush against shell-header[compact-gwt-topbar]. Round 6 adds an 8px top inset to the nav and main slot wrappers when the shell is in compact-gwt-topbar mode, restoring the visual separation users see in the GWT client.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Add `padding-top: 8px` to shell-root's nav and main slot wrappers when shell-header is in compact-gwt-topbar mode so the inner blue toolbar strips no longer butt against the outer dark-blue topbar — matches the 8px margin GWT WebClient.ui.xml puts on .searchPanel / .wavePanel."
+      ]
+    }
+  ]
+}

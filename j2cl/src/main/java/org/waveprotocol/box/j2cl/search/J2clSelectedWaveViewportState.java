@@ -286,9 +286,6 @@ public final class J2clSelectedWaveViewportState {
 
   private static List<J2clInlineReplyAnchor> chooseDocumentMergeInlineReplyAnchors(
       Entry existing, Entry documentEntry) {
-    if (existing.shouldParseAttachmentElements() && !existing.getInlineReplyAnchors().isEmpty()) {
-      return existing.getInlineReplyAnchors();
-    }
     if (!documentEntry.getInlineReplyAnchors().isEmpty()) {
       return documentEntry.getInlineReplyAnchors();
     }

@@ -743,6 +743,49 @@ public class J2clSelectedWaveProjectorTest {
   }
 
   @Test
+  public void viewportDocumentMergeUsesFreshDocumentInlineReplyAnchors() {
+    J2clSelectedWaveViewportState state =
+        J2clSelectedWaveViewportState.fromFragments(
+            new SidecarSelectedWaveFragments(
+                9L,
+                0L,
+                9L,
+                Arrays.asList(new SidecarSelectedWaveFragmentRange("blip:b+root", 0L, 9L)),
+                Arrays.asList(
+                    new SidecarSelectedWaveFragment(
+                        "blip:b+root",
+                        "<body><line/>Before <reply id=\"t+old\"></reply> after</body>",
+                        0,
+                        0))));
+
+    state =
+        state.mergeDocuments(
+            Arrays.asList(
+                new SidecarSelectedWaveDocument(
+                    "b+root",
+                    "user@example.com",
+                    7L,
+                    10L,
+                    "Updated  after",
+                    /* bodyItemCount= */ 18,
+                    Collections.<SidecarAnnotationRange>emptyList(),
+                    Collections.<SidecarReactionEntry>emptyList(),
+                    SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED,
+                    Arrays.asList(new J2clInlineReplyAnchor("t+new", "Updated ".length())))));
+
+    Assert.assertEquals("Updated  after", state.getLoadedReadBlips().get(0).getText());
+    Assert.assertEquals(1, state.getLoadedReadBlips().get(0).getInlineReplyAnchors().size());
+    Assert.assertEquals(
+        "t+new", state.getLoadedReadBlips().get(0).getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals(
+        "Updated ".length(),
+        state.getLoadedReadBlips().get(0).getInlineReplyAnchors().get(0).getTextOffset());
+    Assert.assertEquals(
+        "t+new",
+        state.getReadWindowEntries().get(0).getInlineReplyAnchors().get(0).getThreadId());
+  }
+
+  @Test
   public void viewportFragmentMergeOverDocumentRestoresAttachmentParsing() {
     J2clSelectedWaveViewportState state =
         J2clSelectedWaveViewportState.fromDocuments(

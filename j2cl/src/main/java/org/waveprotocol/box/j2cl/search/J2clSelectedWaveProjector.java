@@ -754,10 +754,10 @@ public final class J2clSelectedWaveProjector {
 
   private static List<J2clInlineReplyAnchor> chooseDocumentInlineReplyAnchors(
       J2clReadBlip blip, SidecarSelectedWaveDocument doc) {
-    if (!blip.getInlineReplyAnchors().isEmpty()) {
-      return blip.getInlineReplyAnchors();
+    if (!doc.getInlineReplyAnchors().isEmpty()) {
+      return doc.getInlineReplyAnchors();
     }
-    return doc.getInlineReplyAnchors();
+    return blip.getInlineReplyAnchors();
   }
 
   static List<J2clReadBlip> applyDigestMetadataFallback(

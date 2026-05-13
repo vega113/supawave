@@ -98,6 +98,7 @@ public final class WavePanelThreadFocusContractTest extends TestCase {
     assertTrue(historyListener.contains("encodedToken.equals(currentSelectedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(savedToken)"));
     assertTrue(webClient.contains("ThreadNavigationHistory.stripMetadata(encodedToken)"));
+    assertTrue(webClient.contains("RouteWaveToken.selectInitialToken("));
     assertTrue(webClient.contains("HistoryChangeListener.setCurrentWaveToken("));
   }
 

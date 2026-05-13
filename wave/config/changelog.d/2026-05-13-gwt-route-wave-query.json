@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-13-gwt-route-wave-query",
+  "version": "GWT route parity",
+  "date": "2026-05-13",
+  "title": "GWT wave deep-link route parity",
+  "summary": "Keeps GWT wave loading aligned with J2CL deep links that carry the selected wave in the URL query.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Makes the legacy GWT client honor the canonical wave= route parameter before falling back to the hash token, so J2CL-compatible wave links open the same selected wave in both views."
+      ]
+    }
+  ]
+}

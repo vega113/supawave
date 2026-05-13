@@ -75,6 +75,7 @@ import org.waveprotocol.wave.client.events.WaveCreationEvent;
 import org.waveprotocol.wave.client.events.WaveCreationEventHandler;
 import org.waveprotocol.wave.client.events.WaveSelectionEvent;
 import org.waveprotocol.wave.client.events.WaveSelectionEventHandler;
+import org.waveprotocol.wave.model.util.RouteWaveToken;
 import org.waveprotocol.wave.model.util.ThreadNavigationHistory;
 import org.waveprotocol.wave.client.wavepanel.event.EventDispatcherPanel;
 import org.waveprotocol.wave.client.wavepanel.event.WaveChangeHandler;
@@ -464,6 +465,7 @@ public class WebClient implements EntryPoint {
     setupStatistics();
 
     if (loggedIn) {
+      restoreInitialWaveFromRoute();
       restoreLastWaveFromStorage();
       History.fireCurrentHistoryState();
     }
@@ -798,6 +800,19 @@ public class WebClient implements EntryPoint {
         LOG.info("Saved last-wave token contains invalid path: " + savedToken);
         storage.removeItem(storageKey);
       }
+    }
+  }
+
+  private void restoreInitialWaveFromRoute() {
+    String historyToken = History.getToken();
+    String selectedToken =
+        RouteWaveToken.selectInitialToken(
+            historyToken,
+            Window.Location.getParameter("wave"),
+            Window.Location.getParameter("depth"),
+            GwtWaverefEncoder.INSTANCE);
+    if (selectedToken != null && !selectedToken.equals(historyToken)) {
+      History.newItem(selectedToken, false);
     }
   }
 

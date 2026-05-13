@@ -12,6 +12,7 @@ import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
 import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.read.J2clReadBlipContent;
 import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
@@ -308,6 +309,46 @@ public class J2clSelectedWaveProjectorTest {
                             "<body><line/>Before <reply id=\"t+inline\"></reply> after</body>",
                             0,
                             0)))),
+            null,
+            0);
+
+    J2clReadBlip blip = projected.getReadBlips().get(0);
+    Assert.assertEquals("Before  after", blip.getText());
+    Assert.assertEquals(1, blip.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+inline", blip.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("Before ".length(), blip.getInlineReplyAnchors().get(0).getTextOffset());
+    Assert.assertEquals(
+        1,
+        projected.getViewportState().getReadWindowEntries().get(0).getInlineReplyAnchors().size());
+  }
+
+  @Test
+  public void documentSnapshotsProjectInlineReplyAnchorsToReadBlips() {
+    J2clSelectedWaveModel projected =
+        J2clSelectedWaveProjector.project(
+            WAVE_ID,
+            digest("Wave A", "snippet", 0),
+            new SidecarSelectedWaveUpdate(
+                1,
+                WAVELET_NAME,
+                true,
+                CHANNEL_ID,
+                9L,
+                "HASH",
+                Arrays.asList("user@example.com"),
+                Arrays.asList(
+                    new SidecarSelectedWaveDocument(
+                        "b+root",
+                        "user@example.com",
+                        7L,
+                        10L,
+                        "Before  after",
+                        /* bodyItemCount= */ 19,
+                        Collections.<SidecarAnnotationRange>emptyList(),
+                        Collections.<SidecarReactionEntry>emptyList(),
+                        SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED,
+                        Arrays.asList(new J2clInlineReplyAnchor("t+inline", "Before ".length())))),
+                null),
             null,
             0);
 

@@ -3,6 +3,7 @@ package org.waveprotocol.box.j2cl.transport;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 
 public final class SidecarSelectedWaveDocument {
   private static final String REACTION_DATA_DOCUMENT_PREFIX = "react+";
@@ -19,6 +20,7 @@ public final class SidecarSelectedWaveDocument {
   private final List<SidecarAnnotationRange> annotationRanges;
   private final List<SidecarReactionEntry> reactionEntries;
   private final String lockState;
+  private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
 
   public SidecarSelectedWaveDocument(
       String documentId,
@@ -35,7 +37,8 @@ public final class SidecarSelectedWaveDocument {
         /* bodyItemCount= */ 0,
         Collections.<SidecarAnnotationRange>emptyList(),
         Collections.<SidecarReactionEntry>emptyList(),
-        LOCK_STATE_UNLOCKED);
+        LOCK_STATE_UNLOCKED,
+        Collections.<J2clInlineReplyAnchor>emptyList());
   }
 
   public SidecarSelectedWaveDocument(
@@ -55,7 +58,8 @@ public final class SidecarSelectedWaveDocument {
         /* bodyItemCount= */ 0,
         annotationRanges,
         reactionEntries,
-        LOCK_STATE_UNLOCKED);
+        LOCK_STATE_UNLOCKED,
+        Collections.<J2clInlineReplyAnchor>emptyList());
   }
 
   public SidecarSelectedWaveDocument(
@@ -76,7 +80,8 @@ public final class SidecarSelectedWaveDocument {
         bodyItemCount,
         annotationRanges,
         reactionEntries,
-        LOCK_STATE_UNLOCKED);
+        LOCK_STATE_UNLOCKED,
+        Collections.<J2clInlineReplyAnchor>emptyList());
   }
 
   public SidecarSelectedWaveDocument(
@@ -89,6 +94,30 @@ public final class SidecarSelectedWaveDocument {
       List<SidecarAnnotationRange> annotationRanges,
       List<SidecarReactionEntry> reactionEntries,
       String lockState) {
+    this(
+        documentId,
+        author,
+        lastModifiedVersion,
+        lastModifiedTime,
+        textContent,
+        bodyItemCount,
+        annotationRanges,
+        reactionEntries,
+        lockState,
+        Collections.<J2clInlineReplyAnchor>emptyList());
+  }
+
+  public SidecarSelectedWaveDocument(
+      String documentId,
+      String author,
+      long lastModifiedVersion,
+      long lastModifiedTime,
+      String textContent,
+      int bodyItemCount,
+      List<SidecarAnnotationRange> annotationRanges,
+      List<SidecarReactionEntry> reactionEntries,
+      String lockState,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     this.documentId = documentId;
     this.author = author;
     this.lastModifiedVersion = lastModifiedVersion;
@@ -104,6 +133,11 @@ public final class SidecarSelectedWaveDocument {
             ? Collections.<SidecarReactionEntry>emptyList()
             : Collections.unmodifiableList(new ArrayList<SidecarReactionEntry>(reactionEntries));
     this.lockState = normalizeLockState(lockState);
+    this.inlineReplyAnchors =
+        inlineReplyAnchors == null
+            ? Collections.<J2clInlineReplyAnchor>emptyList()
+            : Collections.unmodifiableList(
+                new ArrayList<J2clInlineReplyAnchor>(inlineReplyAnchors));
   }
 
   public static String normalizeLockState(String value) {
@@ -150,6 +184,10 @@ public final class SidecarSelectedWaveDocument {
 
   public String getLockState() {
     return lockState;
+  }
+
+  public List<J2clInlineReplyAnchor> getInlineReplyAnchors() {
+    return inlineReplyAnchors;
   }
 
   public boolean isReactionDataDocument() {

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 import org.waveprotocol.box.j2cl.search.SidecarSearchResponse;
 
 public final class SidecarTransportCodec {
@@ -118,7 +119,8 @@ public final class SidecarTransportCodec {
                 extraction.bodyItemCount,
                 extraction.annotationRanges,
                 extraction.reactionEntries,
-                extraction.lockState));
+                extraction.lockState,
+                extraction.inlineReplyAnchors));
         if ("conversation".equals(documentId) && conversationManifest.isEmpty()) {
           conversationManifest = extractConversationManifest(documentOperation);
         }
@@ -515,7 +517,8 @@ public final class SidecarTransportCodec {
           0,
           new ArrayList<SidecarAnnotationRange>(),
           new ArrayList<SidecarReactionEntry>(),
-          SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED);
+          SidecarSelectedWaveDocument.LOCK_STATE_UNLOCKED,
+          new ArrayList<J2clInlineReplyAnchor>());
     }
     StringBuilder text = new StringBuilder();
     int bodyItemCount = 0;
@@ -523,6 +526,7 @@ public final class SidecarTransportCodec {
     Map<String, ActiveAnnotation> activeAnnotations =
         new LinkedHashMap<String, ActiveAnnotation>();
     List<SidecarAnnotationRange> annotationRanges = new ArrayList<SidecarAnnotationRange>();
+    List<J2clInlineReplyAnchor> inlineReplyAnchors = new ArrayList<J2clInlineReplyAnchor>();
     Map<String, List<String>> reactionAddressesByEmoji = new LinkedHashMap<String, List<String>>();
     List<String> elementStack = new ArrayList<String>();
     String currentReactionEmoji = null;
@@ -569,6 +573,11 @@ public final class SidecarTransportCodec {
         } else if ("m/lock".equals(documentId) && "lock".equals(type)) {
           lockState =
               SidecarSelectedWaveDocument.normalizeLockState(getAttribute(elementStart, "mode"));
+        } else if ("reply".equals(type)) {
+          String threadId = getAttribute(elementStart, "id");
+          if (threadId != null && !threadId.isEmpty()) {
+            inlineReplyAnchors.add(new J2clInlineReplyAnchor(threadId, text.length()));
+          }
         }
         if ("line".equals(type) && text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
           text.append('\n');
@@ -591,7 +600,8 @@ public final class SidecarTransportCodec {
         bodyItemCount,
         annotationRanges,
         extractReactionEntries(documentId, reactionAddressesByEmoji),
-        lockState);
+        lockState,
+        inlineReplyAnchors);
   }
 
   private static void processAnnotationBoundary(
@@ -704,18 +714,21 @@ public final class SidecarTransportCodec {
     private final List<SidecarAnnotationRange> annotationRanges;
     private final List<SidecarReactionEntry> reactionEntries;
     private final String lockState;
+    private final List<J2clInlineReplyAnchor> inlineReplyAnchors;
 
     DocumentExtraction(
         String textContent,
         int bodyItemCount,
         List<SidecarAnnotationRange> annotationRanges,
         List<SidecarReactionEntry> reactionEntries,
-        String lockState) {
+        String lockState,
+        List<J2clInlineReplyAnchor> inlineReplyAnchors) {
       this.textContent = textContent;
       this.bodyItemCount = bodyItemCount;
       this.annotationRanges = annotationRanges;
       this.reactionEntries = reactionEntries;
       this.lockState = lockState;
+      this.inlineReplyAnchors = inlineReplyAnchors;
     }
   }
 

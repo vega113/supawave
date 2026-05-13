@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
+import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
 import org.waveprotocol.box.j2cl.read.J2clReadBlip;
 import org.waveprotocol.box.j2cl.read.J2clReadWindowEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarAnnotationRange;
@@ -685,7 +686,8 @@ public final class J2clSelectedWaveProjector {
               /* taskAssignee= */ documentTaskAssignee(document),
               /* taskDueTimestamp= */ documentTaskDueTimestamp(document),
               /* bodyItemCount= */ document.getBodyItemCount(),
-              /* isTask= */ documentHasTask(document)));
+              /* isTask= */ documentHasTask(document),
+              document.getInlineReplyAnchors()));
     }
     return blips;
   }
@@ -745,9 +747,17 @@ public final class J2clSelectedWaveProjector {
               /* taskDueTimestamp= */ documentTaskDueTimestamp(doc),
               /* bodyItemCount= */ doc.getBodyItemCount(),
               /* isTask= */ documentHasTask(doc),
-              blip.getInlineReplyAnchors()));
+              chooseDocumentInlineReplyAnchors(blip, doc)));
     }
     return enriched;
+  }
+
+  private static List<J2clInlineReplyAnchor> chooseDocumentInlineReplyAnchors(
+      J2clReadBlip blip, SidecarSelectedWaveDocument doc) {
+    if (!blip.getInlineReplyAnchors().isEmpty()) {
+      return blip.getInlineReplyAnchors();
+    }
+    return doc.getInlineReplyAnchors();
   }
 
   static List<J2clReadBlip> applyDigestMetadataFallback(

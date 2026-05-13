@@ -579,8 +579,8 @@ public final class SidecarTransportCodec {
             inlineReplyAnchors.add(new J2clInlineReplyAnchor(threadId, text.length()));
           }
         }
-        if ("line".equals(type) && text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
-          text.append('\n');
+        if ("line".equals(type)) {
+          appendDocumentLineSeparator(text);
         }
         continue;
       }
@@ -634,6 +634,17 @@ public final class SidecarTransportCodec {
       if (newValue != null) {
         activeAnnotations.put(key, new ActiveAnnotation(newValue, textOffset, docOffset));
       }
+    }
+  }
+
+  private static void appendDocumentLineSeparator(StringBuilder text) {
+    while (text.length() > 0
+        && Character.isWhitespace(text.charAt(text.length() - 1))
+        && text.charAt(text.length() - 1) != '\n') {
+      text.deleteCharAt(text.length() - 1);
+    }
+    if (text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
+      text.append('\n');
     }
   }
 

@@ -652,18 +652,28 @@ async function normalizeTaskOverlayChrome(region: Locator): Promise<void> {
   await normalizeRegionBounds(region, 320, 258);
   await region.evaluate((dialog) => {
     const root = dialog as HTMLElement;
-    root.style.position = "relative";
-    root.style.padding = "0";
-    root.style.margin = "0";
-    root.style.border = "0";
-    root.style.borderRadius = "0";
-    root.style.background = "#ffffff";
-    root.style.color = "transparent";
-    root.style.textShadow = "none";
-    root.style.boxShadow = "none";
-    root.style.outline = "0";
-    root.style.boxSizing = "border-box";
-    root.style.overflow = "hidden";
+    root.style.setProperty("display", "block", "important");
+    root.style.setProperty("position", "fixed", "important");
+    root.style.setProperty("left", "20px", "important");
+    root.style.setProperty("top", "20px", "important");
+    root.style.setProperty("z-index", "2147483647", "important");
+    root.style.setProperty("width", "320px", "important");
+    root.style.setProperty("height", "258px", "important");
+    root.style.setProperty("max-width", "320px", "important");
+    root.style.setProperty("max-height", "258px", "important");
+    root.style.setProperty("padding", "0", "important");
+    root.style.setProperty("margin", "0", "important");
+    root.style.setProperty("border", "0", "important");
+    root.style.setProperty("border-radius", "0", "important");
+    root.style.setProperty("background", "#ffffff", "important");
+    root.style.setProperty("background-color", "#ffffff", "important");
+    root.style.setProperty("opacity", "1", "important");
+    root.style.setProperty("color", "transparent", "important");
+    root.style.setProperty("text-shadow", "none", "important");
+    root.style.setProperty("box-shadow", "none", "important");
+    root.style.setProperty("outline", "0", "important");
+    root.style.setProperty("box-sizing", "border-box", "important");
+    root.style.setProperty("overflow", "hidden", "important");
 
     root.querySelectorAll("*").forEach((node) => {
       const el = node as HTMLElement;

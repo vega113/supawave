@@ -267,6 +267,33 @@ public class SidecarTransportCodecTest {
   }
 
   @Test
+  public void decodeSelectedWaveUpdateAdjustsInlineReplyOffsetWhenLineTrimRunsLater() {
+    String json =
+        "{\"sequenceNumber\":14,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"
+            + "\"1\":\"local.net!w+s4635670bfbwA/~/conv+root\","
+            + "\"5\":{\"1\":\"conv+root\",\"2\":[\"user@example.com\"],"
+            + "\"3\":[{\"1\":\"b+abc123\","
+            + "\"2\":{\"1\":[{\"3\":{\"1\":\"body\",\"2\":[]}},"
+            + "{\"2\":\"foo   \"},"
+            + "{\"3\":{\"1\":\"reply\",\"2\":[{\"1\":\"id\",\"2\":\"t+before-line\"}]}},"
+            + "{\"4\":true},"
+            + "{\"3\":{\"1\":\"line\",\"2\":[]}},"
+            + "{\"2\":\"bar\"},"
+            + "{\"4\":true},{\"4\":true}]},"
+            + "\"3\":\"user@example.com\",\"5\":[1,0],\"6\":[2,0]}]},"
+            + "\"6\":true,\"7\":\"ch3\"}}";
+
+    SidecarSelectedWaveDocument document =
+        SidecarTransportCodec.decodeSelectedWaveUpdate(json).getDocuments().get(0);
+
+    Assert.assertEquals("foo\nbar", document.getTextContent());
+    Assert.assertEquals(15, document.getBodyItemCount());
+    Assert.assertEquals(1, document.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+before-line", document.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("foo".length(), document.getInlineReplyAnchors().get(0).getTextOffset());
+  }
+
+  @Test
   public void decodeSelectedWaveUpdateReadsRootLockDocumentState() {
     String json =
         "{\"sequenceNumber\":14,\"messageType\":\"ProtocolWaveletUpdate\",\"message\":{"

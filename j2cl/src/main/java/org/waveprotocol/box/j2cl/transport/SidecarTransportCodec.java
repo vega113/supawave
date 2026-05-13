@@ -580,7 +580,7 @@ public final class SidecarTransportCodec {
           }
         }
         if ("line".equals(type)) {
-          appendDocumentLineSeparator(text);
+          appendDocumentLineSeparator(text, inlineReplyAnchors);
         }
         continue;
       }
@@ -637,14 +637,30 @@ public final class SidecarTransportCodec {
     }
   }
 
-  private static void appendDocumentLineSeparator(StringBuilder text) {
+  private static void appendDocumentLineSeparator(
+      StringBuilder text, List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     while (text.length() > 0
         && Character.isWhitespace(text.charAt(text.length() - 1))
         && text.charAt(text.length() - 1) != '\n') {
       text.deleteCharAt(text.length() - 1);
+      clampInlineReplyAnchorOffsets(inlineReplyAnchors, text.length());
     }
     if (text.length() > 0 && text.charAt(text.length() - 1) != '\n') {
       text.append('\n');
+    }
+  }
+
+  private static void clampInlineReplyAnchorOffsets(
+      List<J2clInlineReplyAnchor> inlineReplyAnchors, int maxTextOffset) {
+    if (inlineReplyAnchors == null || inlineReplyAnchors.isEmpty()) {
+      return;
+    }
+    for (int i = 0; i < inlineReplyAnchors.size(); i++) {
+      J2clInlineReplyAnchor anchor = inlineReplyAnchors.get(i);
+      if (anchor.getTextOffset() > maxTextOffset) {
+        inlineReplyAnchors.set(
+            i, new J2clInlineReplyAnchor(anchor.getThreadId(), maxTextOffset));
+      }
     }
   }
 

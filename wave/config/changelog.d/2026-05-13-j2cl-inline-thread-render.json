@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-13-j2cl-inline-thread-render",
+  "version": "J2CL parity",
+  "date": "2026-05-13",
+  "title": "J2CL read mode now keeps inline reply threads attached to their root-blip anchors.",
+  "summary": "J2CL selected-wave document snapshots now preserve inline reply anchor metadata from reply elements, so child blips render at the same inline locations as they do in GWT instead of being flattened or omitted from the root blip context.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Sidecar document decoding records reply element ids as inline reply anchors at the decoded visible-text offset.",
+        "Document-backed J2CL viewport entries and read blips now carry those anchors through projection while preserving fragment-derived anchors when fragments already provide them."
+      ]
+    }
+  ]
+}

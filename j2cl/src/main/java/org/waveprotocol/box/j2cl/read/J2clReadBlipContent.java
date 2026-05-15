@@ -245,7 +245,8 @@ public final class J2clReadBlipContent {
         // <line/> and <line> are DocOp structural separators: Hello<line/>World -> Hello\nWorld.
         String tagContent = tagBuf.toString();
         if (isLineTag(tagContent)) {
-          decodedVisibleLength = appendLineSeparator(stripped, decodedVisibleLength);
+          decodedVisibleLength =
+              appendLineSeparator(stripped, decodedVisibleLength, inlineReplyAnchors);
         } else if (isInlineReplyAnchorTag(tagContent)) {
           String threadId = attributeValue("<" + tagContent + ">", "id");
           if (!threadId.isEmpty()) {
@@ -330,19 +331,37 @@ public final class J2clReadBlipContent {
     }
   }
 
-  private static int appendLineSeparator(StringBuilder stripped, int decodedVisibleLength) {
+  private static int appendLineSeparator(
+      StringBuilder stripped,
+      int decodedVisibleLength,
+      List<J2clInlineReplyAnchor> inlineReplyAnchors) {
     // Normalize horizontal whitespace at paragraph boundaries before emitting one line break.
     while (stripped.length() > 0
         && Character.isWhitespace(stripped.charAt(stripped.length() - 1))
         && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.deleteCharAt(stripped.length() - 1);
       decodedVisibleLength = Math.max(0, decodedVisibleLength - 1);
+      clampInlineReplyAnchorOffsets(inlineReplyAnchors, decodedVisibleLength);
     }
     if (stripped.length() > 0 && stripped.charAt(stripped.length() - 1) != '\n') {
       stripped.append('\n');
       decodedVisibleLength++;
     }
     return decodedVisibleLength;
+  }
+
+  private static void clampInlineReplyAnchorOffsets(
+      List<J2clInlineReplyAnchor> inlineReplyAnchors, int maxTextOffset) {
+    if (inlineReplyAnchors == null || inlineReplyAnchors.isEmpty()) {
+      return;
+    }
+    for (int i = 0; i < inlineReplyAnchors.size(); i++) {
+      J2clInlineReplyAnchor anchor = inlineReplyAnchors.get(i);
+      if (anchor.getTextOffset() > maxTextOffset) {
+        inlineReplyAnchors.set(
+            i, new J2clInlineReplyAnchor(anchor.getThreadId(), maxTextOffset));
+      }
+    }
   }
 
   private static AnnotationSnapshot parseAnnotationSnapshot(String raw) {

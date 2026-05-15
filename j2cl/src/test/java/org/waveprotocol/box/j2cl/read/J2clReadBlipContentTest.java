@@ -202,6 +202,18 @@ public class J2clReadBlipContentTest {
   }
 
   @Test
+  public void inlineReplyAnchorOffsetBeforeLineTracksTrimmedWhitespace() {
+    J2clReadBlipContent parsed =
+        J2clReadBlipContent.parseRawSnapshot(
+            "<body>foo   <reply id=\"t+before-line\"></reply><line/>bar</body>");
+
+    Assert.assertEquals("foo\nbar", parsed.getText());
+    Assert.assertEquals(1, parsed.getInlineReplyAnchors().size());
+    Assert.assertEquals("t+before-line", parsed.getInlineReplyAnchors().get(0).getThreadId());
+    Assert.assertEquals("foo".length(), parsed.getInlineReplyAnchors().get(0).getTextOffset());
+  }
+
+  @Test
   public void parsesTaskAnnotationsFromRawFragmentSnapshot() {
     J2clReadBlipContent parsed =
         J2clReadBlipContent.parseRawSnapshot(

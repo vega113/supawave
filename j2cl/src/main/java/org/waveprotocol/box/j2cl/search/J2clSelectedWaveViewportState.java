@@ -124,7 +124,11 @@ public final class J2clSelectedWaveViewportState {
               textContent,
               0,
               0,
-              document.getBodyItemCount()));
+              document.getBodyItemCount(),
+              /* parseAttachmentElements= */ false,
+              Collections.<J2clAttachmentRenderModel>emptyList(),
+              null,
+              document.getInlineReplyAnchors()));
     }
     if (entries.isEmpty()) {
       return empty();
@@ -268,7 +272,7 @@ public final class J2clSelectedWaveViewportState {
                 /* parseAttachmentElements= */ false,
                 Collections.<J2clAttachmentRenderModel>emptyList(),
                 null,
-                existing.getInlineReplyAnchors()));
+                chooseDocumentMergeInlineReplyAnchors(existing, documentEntry)));
       } else {
         merged.add(documentEntry);
       }
@@ -278,6 +282,14 @@ public final class J2clSelectedWaveViewportState {
         knownOrFallback(startVersion, documentState.getStartVersion()),
         Math.max(endVersion, documentState.getEndVersion()),
         merged);
+  }
+
+  private static List<J2clInlineReplyAnchor> chooseDocumentMergeInlineReplyAnchors(
+      Entry existing, Entry documentEntry) {
+    if (!documentEntry.getInlineReplyAnchors().isEmpty()) {
+      return documentEntry.getInlineReplyAnchors();
+    }
+    return existing.getInlineReplyAnchors();
   }
 
   public long getSnapshotVersion() {

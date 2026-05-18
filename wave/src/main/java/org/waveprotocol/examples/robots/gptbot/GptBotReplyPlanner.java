@@ -38,6 +38,8 @@ public final class GptBotReplyPlanner {
   private static final Log LOG = Log.get(GptBotReplyPlanner.class);
   private static final int MAX_CONTEXT_CHARS = 2000;
   private static final int MAX_PROMPT_CHARS = 3000;
+  /** Minimum chars needed to render a useful attachment entry (header + short message). */
+  private static final int MIN_ATTACHMENT_RENDERED_CHARS = 80;
   /** Drop oldest history turns when estimated token count exceeds this threshold. */
   private static final int DEFAULT_MAX_HISTORY_TOKENS = 80000;
   /** Evict least-recently-added waves when the map exceeds this size to bound memory. */
@@ -199,7 +201,8 @@ public final class GptBotReplyPlanner {
         continue;
       }
       int allowed = remaining - sep.length();
-      if (allowed <= 0) {
+      if (allowed < MIN_ATTACHMENT_RENDERED_CHARS) {
+        // Budget too small for useful content; skip to avoid transcription cost.
         break;
       }
       String rendered = BotAttachmentContext.fromRaw(raw, codexClient).render();

@@ -21,7 +21,9 @@ package org.waveprotocol.examples.robots.gptbot;
 
 import junit.framework.TestCase;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
@@ -302,6 +304,12 @@ public class SupaWaveApiClientTest extends TestCase {
       }
       lastRpcRequestUri = request.uri();
       lastRpcRequestBody = body;
+      if (body.contains("\"robot.exportAttachment\"")) {
+        @SuppressWarnings("unchecked")
+        HttpResponse<T> response = (HttpResponse<T>) new InputStreamHttpResponse(200,
+            new ByteArrayInputStream(rpcResponseBody.getBytes(StandardCharsets.UTF_8)));
+        return response;
+      }
       @SuppressWarnings("unchecked")
       HttpResponse<T> response = (HttpResponse<T>) new StringHttpResponse(200, rpcResponseBody);
       return response;
@@ -397,6 +405,56 @@ public class SupaWaveApiClientTest extends TestCase {
 
     @Override
     public String body() {
+      return body;
+    }
+
+    @Override
+    public Optional<SSLSession> sslSession() {
+      return Optional.empty();
+    }
+
+    @Override
+    public URI uri() {
+      return URI.create("https://wave.example.com");
+    }
+
+    @Override
+    public HttpClient.Version version() {
+      return HttpClient.Version.HTTP_1_1;
+    }
+  }
+
+  private static final class InputStreamHttpResponse implements HttpResponse<InputStream> {
+    private final int statusCode;
+    private final InputStream body;
+
+    private InputStreamHttpResponse(int statusCode, InputStream body) {
+      this.statusCode = statusCode;
+      this.body = body;
+    }
+
+    @Override
+    public int statusCode() {
+      return statusCode;
+    }
+
+    @Override
+    public HttpRequest request() {
+      return null;
+    }
+
+    @Override
+    public Optional<HttpResponse<InputStream>> previousResponse() {
+      return Optional.empty();
+    }
+
+    @Override
+    public HttpHeaders headers() {
+      return HttpHeaders.of(java.util.Collections.emptyMap(), (a, b) -> true);
+    }
+
+    @Override
+    public InputStream body() {
       return body;
     }
 

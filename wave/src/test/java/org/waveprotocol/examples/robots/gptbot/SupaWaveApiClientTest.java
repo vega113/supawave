@@ -100,6 +100,27 @@ public class SupaWaveApiClientTest extends TestCase {
     assertTrue(httpClient.lastRpcRequestBody.contains("\"blipId\":\"b+reply\""));
   }
 
+  public void testExportAttachmentPostsRobotExportAttachmentAndParsesData() {
+    GptBotConfig config = testConfig();
+    RecordingHttpClient httpClient = new RecordingHttpClient();
+    httpClient.rpcResponseBody =
+        "[{\"id\":\"gpt-bot-attachment-1\",\"data\":{\"attachmentData\":{"
+            + "\"fileName\":\"voice.mp3\","
+            + "\"creator\":\"alice@example.com\","
+            + "\"data\":\"dm9pY2UtYnl0ZXM=\"}}}]";
+    SupaWaveApiClient client = new SupaWaveApiClient(config, httpClient);
+
+    Optional<BotAttachmentContext.RawAttachment> attachment =
+        client.exportAttachment("att-voice", "https://wave.example.com/robot/dataapi/rpc");
+
+    assertTrue(attachment.isPresent());
+    assertEquals("voice.mp3", attachment.get().getFileName());
+    assertEquals("voice-bytes", new String(attachment.get().getData(), StandardCharsets.UTF_8));
+    assertEquals("https://wave.example.com/robot/dataapi/rpc", httpClient.lastRpcRequestUri.toString());
+    assertTrue(httpClient.lastRpcRequestBody.contains("\"method\":\"robot.exportAttachment\""));
+    assertTrue(httpClient.lastRpcRequestBody.contains("\"attachmentId\":\"att-voice\""));
+  }
+
   public void testCreateReplyFallsBackToTrustedRobotEndpointWhenRpcServerUrlIsUntrusted() {
     GptBotConfig config = testConfig();
     RecordingHttpClient httpClient = new RecordingHttpClient();
@@ -218,6 +239,8 @@ public class SupaWaveApiClientTest extends TestCase {
     private String lastTokenRequestBody = "";
     private URI lastRpcRequestUri;
     private String lastRpcRequestBody = "";
+    private String rpcResponseBody =
+        "[{\"id\":\"gpt-bot-reply-1\",\"data\":{\"newBlipId\":\"b+child\"}}]";
 
     @Override
     public Optional<CookieHandler> cookieHandler() {
@@ -280,8 +303,7 @@ public class SupaWaveApiClientTest extends TestCase {
       lastRpcRequestUri = request.uri();
       lastRpcRequestBody = body;
       @SuppressWarnings("unchecked")
-      HttpResponse<T> response = (HttpResponse<T>) new StringHttpResponse(
-          200, "[{\"id\":\"gpt-bot-reply-1\",\"data\":{\"newBlipId\":\"b+child\"}}]");
+      HttpResponse<T> response = (HttpResponse<T>) new StringHttpResponse(200, rpcResponseBody);
       return response;
     }
 

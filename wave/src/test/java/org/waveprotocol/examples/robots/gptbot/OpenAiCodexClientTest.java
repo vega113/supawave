@@ -77,6 +77,23 @@ public class OpenAiCodexClientTest extends TestCase {
     assertFalse(httpClient.lastRequestBody.contains("\"stream\":true"));
   }
 
+  public void testTranscribeAttachmentPostsMultipartAudioRequest() {
+    StringHttpClient httpClient = new StringHttpClient("{\"text\":\"hello from audio\"}");
+    OpenAiCodexClient client = new OpenAiCodexClient("test-key", "https://api.example.com",
+        "gpt-test", httpClient, false, "gpt-4o-mini-transcribe");
+
+    Optional<String> transcript = client.transcribeAttachment("voice.mp3", "audio/mpeg",
+        "audio bytes".getBytes(StandardCharsets.UTF_8));
+
+    assertEquals(Optional.of("hello from audio"), transcript);
+    assertEquals("/audio/transcriptions", httpClient.lastRequestUri.getPath());
+    assertTrue(httpClient.lastContentType.startsWith("multipart/form-data; boundary="));
+    assertTrue(httpClient.lastRequestBody.contains("name=\"model\""));
+    assertTrue(httpClient.lastRequestBody.contains("gpt-4o-mini-transcribe"));
+    assertTrue(httpClient.lastRequestBody.contains("filename=\"voice.mp3\""));
+    assertTrue(httpClient.lastRequestBody.contains("audio bytes"));
+  }
+
   private static List<Map<String, String>> exampleMessages() {
     List<Map<String, String>> messages = new ArrayList<Map<String, String>>();
     Map<String, String> system = new LinkedHashMap<String, String>();
@@ -92,6 +109,8 @@ public class OpenAiCodexClientTest extends TestCase {
 
   private abstract static class BaseHttpClient extends HttpClient {
     protected String lastRequestBody = "";
+    protected URI lastRequestUri;
+    protected String lastContentType = "";
 
     @Override
     public Optional<CookieHandler> cookieHandler() {
@@ -152,6 +171,8 @@ public class OpenAiCodexClientTest extends TestCase {
     }
 
     protected void capture(HttpRequest request) {
+      lastRequestUri = request.uri();
+      lastContentType = request.headers().firstValue("Content-Type").orElse("");
       lastRequestBody = bodyString(request);
     }
 

@@ -35,6 +35,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,6 +89,23 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       }
     }
     return summary;
+  }
+
+  @Override
+  public Optional<BotAttachmentContext.RawAttachment> exportAttachment(String attachmentId,
+      String rpcServerUrl) {
+    Optional<BotAttachmentContext.RawAttachment> attachment = Optional.empty();
+    if (attachmentId != null && !attachmentId.isBlank() && config.hasApiCredentials()) {
+      try {
+        String endpoint = resolveRpcEndpoint(rpcServerUrl);
+        JsonArray response = postRpc(exportAttachmentRequest(attachmentId), endpoint,
+            accessTokenForEndpoint(endpoint));
+        attachment = extractAttachmentData(attachmentId, response);
+      } catch (IOException | InterruptedException | RuntimeException e) {
+        logWarningAndRestoreInterrupt("Unable to export attachment through SupaWave RPC", e);
+      }
+    }
+    return attachment;
   }
 
   @Override
@@ -156,6 +174,20 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     JsonObject request = new JsonObject();
     request.addProperty("id", "gpt-bot-search-1");
     request.addProperty("method", "robot.search");
+    request.add("params", params);
+
+    JsonArray body = new JsonArray();
+    body.add(request);
+    return body;
+  }
+
+  private JsonArray exportAttachmentRequest(String attachmentId) {
+    JsonObject params = new JsonObject();
+    params.addProperty("attachmentId", attachmentId);
+
+    JsonObject request = new JsonObject();
+    request.addProperty("id", "gpt-bot-attachment-1");
+    request.addProperty("method", "robot.exportAttachment");
     request.add("params", params);
 
     JsonArray body = new JsonArray();
@@ -420,6 +452,31 @@ public final class SupaWaveApiClient implements SupaWaveClient {
           }
         }
       }
+    }
+    return Optional.empty();
+  }
+
+  private Optional<BotAttachmentContext.RawAttachment> extractAttachmentData(String attachmentId,
+      JsonArray response) {
+    for (JsonElement element : response) {
+      if (!element.isJsonObject()) {
+        continue;
+      }
+      JsonObject object = element.getAsJsonObject();
+      JsonObject data = object.has("data") && object.get("data").isJsonObject()
+          ? object.getAsJsonObject("data") : object;
+      if (!data.has("attachmentData") || !data.get("attachmentData").isJsonObject()) {
+        continue;
+      }
+      JsonObject attachmentData = data.getAsJsonObject("attachmentData");
+      String fileName = attachmentData.has("fileName")
+          ? attachmentData.get("fileName").getAsString() : attachmentId;
+      String mimeType = attachmentData.has("mimeType")
+          ? attachmentData.get("mimeType").getAsString() : "application/octet-stream";
+      String encoded = attachmentData.has("data") ? attachmentData.get("data").getAsString() : "";
+      byte[] bytes = Base64.getDecoder().decode(encoded);
+      return Optional.of(new BotAttachmentContext.RawAttachment(attachmentId, fileName,
+          mimeType, bytes));
     }
     return Optional.empty();
   }

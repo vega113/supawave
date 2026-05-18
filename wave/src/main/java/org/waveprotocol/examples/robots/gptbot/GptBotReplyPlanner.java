@@ -86,16 +86,27 @@ public final class GptBotReplyPlanner {
   }
 
   Optional<String> replyForPrompt(String promptText, String waveContext, String waveId) {
-    return Optional.of(runCompletion(promptText, waveContext, waveId, null));
+    return replyForPrompt(promptText, waveContext, waveId, java.util.Collections.emptyList());
+  }
+
+  Optional<String> replyForPrompt(String promptText, String waveContext, String waveId,
+      List<BotAttachmentContext.RawAttachment> attachments) {
+    return Optional.of(runCompletion(promptText, waveContext, waveId, attachments, null));
   }
 
   Optional<String> replyForPromptStreaming(String promptText, String waveContext, String waveId,
       CodexClient.StreamingListener listener) {
-    return Optional.of(runCompletion(promptText, waveContext, waveId, listener));
+    return replyForPromptStreaming(promptText, waveContext, waveId,
+        java.util.Collections.emptyList(), listener);
+  }
+
+  Optional<String> replyForPromptStreaming(String promptText, String waveContext, String waveId,
+      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+    return Optional.of(runCompletion(promptText, waveContext, waveId, attachments, listener));
   }
 
   private String runCompletion(String promptText, String waveContext, String waveId,
-      CodexClient.StreamingListener listener) {
+      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
     if (waveId != null && !waveId.isEmpty()) {
       while (true) {
         // Retired mutex entries can linger briefly until the last releaser evicts them.
@@ -106,7 +117,7 @@ public final class GptBotReplyPlanner {
         }
         waveMutex.lock();
         try {
-          return doRunCompletion(promptText, waveContext, waveId, listener);
+          return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
         } finally {
           waveMutex.unlock();
           if (waveMutex.release()) {
@@ -115,18 +126,20 @@ public final class GptBotReplyPlanner {
         }
       }
     }
-    return doRunCompletion(promptText, waveContext, waveId, listener);
+    return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
   }
 
   private String doRunCompletion(String promptText, String waveContext, String waveId,
-      CodexClient.StreamingListener listener) {
+      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
 
     Map<String, String> userMsg = new LinkedHashMap<>();
-    List<Map<String, String>> messages = buildMessages(normalizedPrompt, waveContext, waveId, userMsg);
+    String promptWithAttachments = appendAttachmentContext(normalizedPrompt, attachments);
+    List<Map<String, String>> messages =
+        buildMessages(promptWithAttachments, waveContext, waveId, userMsg);
 
     String response = "";
     try {
@@ -146,6 +159,24 @@ public final class GptBotReplyPlanner {
 
     recordConversationTurn(waveId, userMsg, response);
     return response;
+  }
+
+  private String appendAttachmentContext(String promptText,
+      List<BotAttachmentContext.RawAttachment> attachments) {
+    if (attachments == null || attachments.isEmpty()) {
+      return promptText;
+    }
+    StringBuilder prompt = new StringBuilder(promptText);
+    prompt.append("\n\nAttachment context:");
+    int count = 0;
+    for (BotAttachmentContext.RawAttachment raw : attachments) {
+      if (raw == null || count >= 5) {
+        continue;
+      }
+      count++;
+      prompt.append("\n\n").append(BotAttachmentContext.fromRaw(raw, codexClient).render());
+    }
+    return prompt.toString();
   }
 
   private List<Map<String, String>> buildMessages(String normalizedPrompt, String waveContext,

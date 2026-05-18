@@ -25,14 +25,18 @@ import com.google.gson.JsonParser;
 
 import org.waveprotocol.wave.util.logging.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -56,6 +60,7 @@ public final class OpenAiCodexClient implements CodexClient {
   private final String apiKey;
   private final String baseUrl;
   private final String model;
+  private final String transcriptionModel;
   private final HttpClient httpClient;
   private final boolean webSearchEnabled;
 
@@ -65,6 +70,9 @@ public final class OpenAiCodexClient implements CodexClient {
     this.baseUrl = (base != null && !base.isBlank()) ? stripTrailingSlash(base) : "https://api.openai.com/v1";
     String envModel = System.getenv("GPTBOT_OPENAI_MODEL");
     this.model = (envModel != null && !envModel.isBlank()) ? envModel.trim() : "gpt-4o-mini";
+    String envTranscriptionModel = System.getenv("GPTBOT_OPENAI_TRANSCRIPTION_MODEL");
+    this.transcriptionModel = (envTranscriptionModel != null && !envTranscriptionModel.isBlank())
+        ? envTranscriptionModel.trim() : "gpt-4o-mini-transcribe";
     String webSearch = System.getenv("GPTBOT_WEB_SEARCH_ENABLED");
     this.webSearchEnabled = "true".equalsIgnoreCase(webSearch == null ? "" : webSearch.trim());
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
@@ -74,11 +82,17 @@ public final class OpenAiCodexClient implements CodexClient {
 
   OpenAiCodexClient(String apiKey, String baseUrl, String model, HttpClient httpClient,
       boolean webSearchEnabled) {
+    this(apiKey, baseUrl, model, httpClient, webSearchEnabled, "gpt-4o-mini-transcribe");
+  }
+
+  OpenAiCodexClient(String apiKey, String baseUrl, String model, HttpClient httpClient,
+      boolean webSearchEnabled, String transcriptionModel) {
     this.apiKey = apiKey;
     this.baseUrl = stripTrailingSlash(baseUrl);
     this.model = model;
     this.httpClient = httpClient;
     this.webSearchEnabled = webSearchEnabled;
+    this.transcriptionModel = transcriptionModel;
   }
 
   @Override
@@ -196,6 +210,35 @@ public final class OpenAiCodexClient implements CodexClient {
       }
       LOG.warning("OpenAI streaming API call failed", e);
       return "I'm having trouble generating a response right now.";
+    }
+  }
+
+  @Override
+  public Optional<String> transcribeAttachment(String fileName, String mimeType, byte[] data) {
+    try {
+      String boundary = "----SupaWaveGptBot" + UUID.randomUUID().toString().replace("-", "");
+      byte[] body = buildTranscriptionMultipartBody(boundary, fileName, mimeType, data);
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(baseUrl + "/audio/transcriptions"))
+          .timeout(REQUEST_TIMEOUT)
+          .header("Authorization", "Bearer " + apiKey)
+          .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+          .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+          .build();
+
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() < 200 || response.statusCode() >= 300) {
+        LOG.warning("OpenAI transcription returned HTTP " + response.statusCode() + ": "
+            + truncate(response.body(), 200));
+        return Optional.empty();
+      }
+      return extractTranscript(response.body());
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      LOG.warning("OpenAI transcription call failed", e);
+      return Optional.empty();
     }
   }
 
@@ -357,6 +400,46 @@ public final class OpenAiCodexClient implements CodexClient {
     return body;
   }
 
+  private byte[] buildTranscriptionMultipartBody(String boundary, String fileName, String mimeType,
+      byte[] data) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    writePart(out, boundary, "model", null, null,
+        transcriptionModel.getBytes(StandardCharsets.UTF_8));
+    writePart(out, boundary, "response_format", null, null,
+        "json".getBytes(StandardCharsets.UTF_8));
+    writePart(out, boundary, "file", safeFileName(fileName), safeMimeType(mimeType),
+        data == null ? new byte[0] : data);
+    out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+    return out.toByteArray();
+  }
+
+  private static void writePart(ByteArrayOutputStream out, String boundary, String name,
+      String fileName, String mimeType, byte[] data) throws IOException {
+    out.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+    String disposition = "Content-Disposition: form-data; name=\"" + name + "\"";
+    if (fileName != null) {
+      disposition += "; filename=\"" + fileName + "\"";
+    }
+    out.write((disposition + "\r\n").getBytes(StandardCharsets.UTF_8));
+    if (mimeType != null) {
+      out.write(("Content-Type: " + mimeType + "\r\n").getBytes(StandardCharsets.UTF_8));
+    }
+    out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    out.write(data);
+    out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static String safeFileName(String fileName) {
+    String cleaned = fileName == null || fileName.isBlank() ? "attachment" : fileName.trim();
+    return cleaned.replace("\\", "_").replace("\"", "_").replace("\r", "_").replace("\n", "_");
+  }
+
+  private static String safeMimeType(String mimeType) {
+    String cleaned = mimeType == null || mimeType.isBlank()
+        ? "application/octet-stream" : mimeType.trim();
+    return cleaned.replace("\r", "").replace("\n", "");
+  }
+
   private JsonArray buildMessagesArray(List<Map<String, String>> messages) {
     JsonArray messagesArray = new JsonArray();
     for (Map<String, String> msg : messages) {
@@ -435,6 +518,21 @@ public final class OpenAiCodexClient implements CodexClient {
       LOG.warning("Failed to parse OpenAI response", e);
     }
     return "I received your message but couldn't generate a response.";
+  }
+
+  private static Optional<String> extractTranscript(String responseBody) {
+    try {
+      JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
+      if (json.has("text")) {
+        String text = json.get("text").getAsString().trim();
+        if (!text.isEmpty()) {
+          return Optional.of(text);
+        }
+      }
+    } catch (Exception e) {
+      LOG.warning("Failed to parse OpenAI transcription response", e);
+    }
+    return Optional.empty();
   }
 
   private static String requireEnv(String name) {

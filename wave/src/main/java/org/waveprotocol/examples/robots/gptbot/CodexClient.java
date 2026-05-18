@@ -19,6 +19,8 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import java.util.Optional;
+
 /**
  * Generates a natural-language response for a prompt.
  */
@@ -65,5 +67,9 @@ public interface CodexClient {
       listener.onText(response);
     }
     return response;
+  }
+
+  default Optional<String> transcribeAttachment(String fileName, String mimeType, byte[] data) {
+    return Optional.empty();
   }
 }

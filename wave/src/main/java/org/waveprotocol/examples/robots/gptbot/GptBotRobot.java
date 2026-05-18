@@ -22,8 +22,11 @@ package org.waveprotocol.examples.robots.gptbot;
 import com.google.gson.Gson;
 import com.google.wave.api.Annotation;
 import com.google.wave.api.Annotations;
+import com.google.wave.api.Attachment;
 import com.google.wave.api.Blip;
 import com.google.wave.api.BlipThread;
+import com.google.wave.api.Element;
+import com.google.wave.api.Image;
 import com.google.wave.api.OperationQueue;
 import com.google.wave.api.OperationRequest;
 import com.google.wave.api.ParticipantProfile;
@@ -39,6 +42,7 @@ import org.waveprotocol.wave.util.logging.Log;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -213,14 +217,17 @@ public final class GptBotRobot {
     try {
       String waveContext = apiClient.fetchWaveContext(waveId, waveletId).orElse("");
       LOG.info("handleBlip: waveContextLen=" + waveContext.length());
+      List<BotAttachmentContext.RawAttachment> attachments =
+          collectAttachments(blip, rpcServerUrl);
+      LOG.info("handleBlip: attachmentContextCount=" + attachments.size());
 
       if (config.getReplyMode() == GptBotConfig.ReplyMode.ACTIVE_STREAM) {
         LOG.info("handleBlip: ACTIVE_STREAM mode — starting streamed reply for blipId=" + blipId);
         StreamingReplyWriter writer = new StreamingReplyWriter(apiClient, waveId, waveletId,
             blipId, rpcServerUrl);
         final boolean[] started = {false};
-        Optional<String> reply = replyPlanner.replyForPromptStreaming(prompt.get(), waveContext, waveId,
-            accumulatedText -> {
+        Optional<String> reply = replyPlanner.replyForPromptStreaming(prompt.get(), waveContext,
+            waveId, attachments, accumulatedText -> {
               if (!started[0] && accumulatedText != null && !accumulatedText.isEmpty()) {
                 started[0] = writer.start(accumulatedText);
                 if (!started[0]) {
@@ -251,7 +258,8 @@ public final class GptBotRobot {
         return;
       }
 
-      Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext, waveId);
+      Optional<String> reply = replyPlanner.replyForPrompt(prompt.get(), waveContext, waveId,
+          attachments);
       if (!reply.isPresent()) {
         LOG.warning("handleBlip: replyForPrompt returned empty — LLM may have failed");
         return;
@@ -276,6 +284,67 @@ public final class GptBotRobot {
       }
     } catch (Exception e) {
       LOG.warning("handleBlip: exception during reply generation for blipId=" + blipId, e);
+    }
+  }
+
+  private List<BotAttachmentContext.RawAttachment> collectAttachments(Blip blip,
+      String rpcServerUrl) {
+    List<BotAttachmentContext.RawAttachment> attachments =
+        new ArrayList<BotAttachmentContext.RawAttachment>();
+    for (Element element : blip.getElements().values()) {
+      AttachmentReference reference = attachmentReference(element);
+      if (reference == null) {
+        continue;
+      }
+      try {
+        Optional<BotAttachmentContext.RawAttachment> exported =
+            apiClient.exportAttachment(reference.attachmentId, rpcServerUrl);
+        if (exported.isPresent()) {
+          attachments.add(exported.get().withFallbackMetadata(reference.fileName,
+              reference.mimeType));
+        }
+      } catch (RuntimeException e) {
+        LOG.warning("Unable to export attachment for GPT bot context: "
+            + reference.attachmentId, e);
+      }
+      if (attachments.size() >= 5) {
+        break;
+      }
+    }
+    return attachments;
+  }
+
+  private AttachmentReference attachmentReference(Element element) {
+    if (element == null || (!element.isAttachment() && !element.isImage())) {
+      return null;
+    }
+    String attachmentId = element.getProperty(Attachment.ATTACHMENT_ID);
+    if (attachmentId == null || attachmentId.isBlank()) {
+      attachmentId = element.getProperty(Image.ATTACHMENT_ID);
+    }
+    if (attachmentId == null || attachmentId.isBlank()) {
+      return null;
+    }
+    String fileName = element.getProperty(Attachment.CAPTION);
+    if (fileName == null || fileName.isBlank()) {
+      fileName = element.getProperty(Image.CAPTION);
+    }
+    if (fileName == null || fileName.isBlank()) {
+      fileName = attachmentId;
+    }
+    String mimeType = element.getProperty(Attachment.MIME_TYPE);
+    return new AttachmentReference(attachmentId, fileName, mimeType);
+  }
+
+  private static final class AttachmentReference {
+    private final String attachmentId;
+    private final String fileName;
+    private final String mimeType;
+
+    private AttachmentReference(String attachmentId, String fileName, String mimeType) {
+      this.attachmentId = attachmentId;
+      this.fileName = fileName;
+      this.mimeType = mimeType;
     }
   }
 

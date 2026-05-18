@@ -30,6 +30,9 @@ public interface SupaWaveClient {
 
   Optional<String> search(String query);
 
+  Optional<BotAttachmentContext.RawAttachment> exportAttachment(String attachmentId,
+      String rpcServerUrl);
+
   Optional<String> createReply(String waveId, String waveletId, String parentBlipId,
       String initialContent, String rpcServerUrl);
 

@@ -346,6 +346,9 @@ describe("<wave-blip>", () => {
     expect(rowStyle.marginTop).to.equal("0px");
     expect(rowStyle.marginBottom).to.equal("0px");
     expect(button).to.exist;
+    expect(button.getBoundingClientRect().right).to.be.at.most(
+      el.renderRoot.querySelector(".body").getBoundingClientRect().left
+    );
     expect(button.getAttribute("aria-label")).to.equal(
       "Reply on the same level as this blip"
     );

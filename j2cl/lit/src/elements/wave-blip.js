@@ -369,9 +369,9 @@ export class WaveBlip extends LitElement {
       align-items: center;
       justify-content: center;
       position: absolute;
-      left: 13px;
+      left: -44px;
       top: -23px;
-      width: 46px;
+      width: 32px;
       height: 23px;
       padding: 0;
       box-sizing: border-box;

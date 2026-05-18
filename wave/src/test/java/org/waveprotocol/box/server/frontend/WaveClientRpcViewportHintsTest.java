@@ -153,6 +153,21 @@ public final class WaveClientRpcViewportHintsTest {
   }
 
   @Test
+  public void viewportHintsKeepRootBlipInInitialSnapshotWindow() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithBlipIds("b+2", "b+root", "b+1", "b+3"),
+            viewportHintRequest(null, "forward", 2));
+
+    assertTrue(update.hasFragments());
+    assertEquals(Arrays.asList("b+root", "b+1", "b+2"),
+        blipRangeIds(update.getFragments()));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+root"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+2"));
+  }
+
+  @Test
   public void viewportHintsMissingStartFallsBackToFirstWindow() {
     ProtocolWaveletUpdate update =
         openWithRpc(

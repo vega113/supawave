@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-18-j2cl-root-blip-initial-window",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL now keeps the root title blip visible when a wave opens.",
+  "summary": "The J2CL wave panel now includes the editable root blip in the initial viewport window, so the text used as the wave title is also shown as a normal blip like it is in GWT.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Initial J2CL viewport windows now order the root blip before generated numeric blips instead of hiding the title source behind later messages."
+      ]
+    }
+  ]
+}

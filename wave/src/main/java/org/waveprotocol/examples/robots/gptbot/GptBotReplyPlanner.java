@@ -239,8 +239,7 @@ public final class GptBotReplyPlanner {
     }
 
     userMsg.put("role", "user");
-    // Size already bounded in buildPromptWithAttachments; only redact secrets here.
-    userMsg.put("content", sanitize(normalizedPrompt, Integer.MAX_VALUE));
+    userMsg.put("content", sanitize(normalizedPrompt, MAX_PROMPT_CHARS));
     messages.add(userMsg);
     return messages;
   }

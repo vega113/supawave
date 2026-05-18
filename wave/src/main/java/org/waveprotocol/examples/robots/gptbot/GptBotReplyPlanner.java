@@ -38,6 +38,8 @@ public final class GptBotReplyPlanner {
   private static final Log LOG = Log.get(GptBotReplyPlanner.class);
   private static final int MAX_CONTEXT_CHARS = 2000;
   private static final int MAX_PROMPT_CHARS = 3000;
+  /** Minimum chars needed to render a useful attachment entry (header + short message). */
+  private static final int MIN_ATTACHMENT_RENDERED_CHARS = 80;
   /** Drop oldest history turns when estimated token count exceeds this threshold. */
   private static final int DEFAULT_MAX_HISTORY_TOKENS = 80000;
   /** Evict least-recently-added waves when the map exceeds this size to bound memory. */
@@ -86,16 +88,28 @@ public final class GptBotReplyPlanner {
   }
 
   Optional<String> replyForPrompt(String promptText, String waveContext, String waveId) {
-    return Optional.of(runCompletion(promptText, waveContext, waveId, null));
+    return replyForPrompt(promptText, waveContext, waveId, java.util.Collections.emptyList());
+  }
+
+  Optional<String> replyForPrompt(String promptText, String waveContext, String waveId,
+      List<BotAttachmentContext.RawAttachment> attachments) {
+    return Optional.of(runCompletion(promptText, waveContext, waveId, attachments, null));
   }
 
   Optional<String> replyForPromptStreaming(String promptText, String waveContext, String waveId,
       CodexClient.StreamingListener listener) {
-    return Optional.of(runCompletion(promptText, waveContext, waveId, listener));
+    return replyForPromptStreaming(promptText, waveContext, waveId,
+        java.util.Collections.emptyList(), listener);
+  }
+
+  Optional<String> replyForPromptStreaming(String promptText, String waveContext, String waveId,
+      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+    return Optional.of(runCompletion(promptText, waveContext, waveId, attachments, listener));
   }
 
   private String runCompletion(String promptText, String waveContext, String waveId,
-      CodexClient.StreamingListener listener) {
+      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+    String promptWithAttachments = buildPromptWithAttachments(promptText, attachments);
     if (waveId != null && !waveId.isEmpty()) {
       while (true) {
         // Retired mutex entries can linger briefly until the last releaser evicts them.
@@ -106,7 +120,7 @@ public final class GptBotReplyPlanner {
         }
         waveMutex.lock();
         try {
-          return doRunCompletion(promptText, waveContext, waveId, listener);
+          return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
         } finally {
           waveMutex.unlock();
           if (waveMutex.release()) {
@@ -115,18 +129,35 @@ public final class GptBotReplyPlanner {
         }
       }
     }
-    return doRunCompletion(promptText, waveContext, waveId, listener);
+    return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
   }
 
-  private String doRunCompletion(String promptText, String waveContext, String waveId,
-      CodexClient.StreamingListener listener) {
+  private String buildPromptWithAttachments(String promptText,
+      List<BotAttachmentContext.RawAttachment> attachments) {
+    // Build attachment context before the wave mutex is acquired because it may transcribe media.
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
+    boolean hasAttachments = attachments != null && !attachments.isEmpty();
+    String basePrompt;
+    if (hasAttachments) {
+      // Cap user text to half the budget so attachment context is not squeezed out.
+      basePrompt = normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
+          ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2) : normalizedPrompt;
+    } else {
+      // No attachments: apply the full budget cap here so buildMessages can redact-only.
+      basePrompt = normalizedPrompt.length() > MAX_PROMPT_CHARS
+          ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS) : normalizedPrompt;
+    }
+    return appendAttachmentContext(basePrompt, attachments);
+  }
 
+  private String doRunCompletion(String promptWithAttachments, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
     Map<String, String> userMsg = new LinkedHashMap<>();
-    List<Map<String, String>> messages = buildMessages(normalizedPrompt, waveContext, waveId, userMsg);
+    List<Map<String, String>> messages =
+        buildMessages(promptWithAttachments, waveContext, waveId, userMsg);
 
     String response = "";
     try {
@@ -146,6 +177,41 @@ public final class GptBotReplyPlanner {
 
     recordConversationTurn(waveId, userMsg, response);
     return response;
+  }
+
+  private String appendAttachmentContext(String promptText,
+      List<BotAttachmentContext.RawAttachment> attachments) {
+    if (attachments == null || attachments.isEmpty()) {
+      return promptText;
+    }
+    String sectionHeader = "\n\nAttachment context:";
+    String sep = "\n\n";
+    int remaining = MAX_PROMPT_CHARS - promptText.length() - sectionHeader.length();
+    if (remaining <= 0) {
+      return promptText;
+    }
+    StringBuilder prompt = new StringBuilder(promptText);
+    prompt.append(sectionHeader);
+    int count = 0;
+    for (BotAttachmentContext.RawAttachment raw : attachments) {
+      if (count >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
+        break;
+      }
+      if (raw == null) {
+        continue;
+      }
+      int allowed = remaining - sep.length();
+      if (allowed < MIN_ATTACHMENT_RENDERED_CHARS) {
+        // Budget too small for useful content; skip to avoid transcription cost.
+        break;
+      }
+      String rendered = BotAttachmentContext.fromRaw(raw, codexClient).render();
+      String capped = rendered.length() > allowed ? rendered.substring(0, allowed) : rendered;
+      prompt.append(sep).append(capped);
+      remaining -= sep.length() + capped.length();
+      count++;
+    }
+    return prompt.toString();
   }
 
   private List<Map<String, String>> buildMessages(String normalizedPrompt, String waveContext,

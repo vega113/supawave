@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-18-gptbot-attachment-transcription",
+  "version": "Upcoming",
+  "date": "2026-05-18",
+  "title": "GPT Bot Attachment Understanding",
+  "summary": "GPT bot replies can now use Wave attachments as context, including OpenAI transcription for supported audio and video files.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "The GPT bot exports attached files from the triggering blip and includes bounded text attachment content in its prompt context",
+        "Supported audio and video attachments are transcribed through OpenAI before the bot answers"
+      ]
+    }
+  ]
+}

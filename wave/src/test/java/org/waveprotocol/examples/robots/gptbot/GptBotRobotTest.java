@@ -19,9 +19,11 @@
 
 package org.waveprotocol.examples.robots.gptbot;
 
+import com.google.wave.api.Attachment;
 import com.google.wave.api.Annotation;
 import com.google.wave.api.BlipData;
 import com.google.wave.api.BlipThread;
+import com.google.wave.api.Element;
 import com.google.wave.api.event.DocumentChangedEvent;
 import com.google.wave.api.impl.EventMessageBundle;
 import com.google.wave.api.impl.GsonFactory;
@@ -34,7 +36,9 @@ import junit.framework.TestCase;
 
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -60,6 +64,51 @@ public class GptBotRobotTest extends TestCase {
     assertEquals(0, apiClient.appendCalls);
     assertEquals(1, apiClient.fetchCalls);
     assertEquals(1, codexClient.completeCalls);
+  }
+
+  public void testAudioAttachmentIsExportedTranscribedAndIncludedInPrompt() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "The audio asks for a summary.";
+    codexClient.transcriptionResponse = "Please summarize yesterday's launch.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    apiClient.exportedAttachment = new BotAttachmentContext.RawAttachment(
+        "att-audio", "voice-message.mp3", "audio/mpeg",
+        "pretend audio".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    String response = robot.handleEventBundle(exampleBundleJsonWithAttachment(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " answer this audio",
+        "att-audio", "voice-message.mp3", "audio/mpeg",
+        new BlipEditingDoneEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertTrue(response.contains("The audio asks for a summary."));
+    assertEquals(1, apiClient.exportAttachmentCalls);
+    assertEquals("att-audio", apiClient.lastExportedAttachmentId);
+    assertEquals(1, codexClient.transcriptionCalls);
+    assertTrue(codexClient.lastPrompt.contains("Transcript"));
+    assertTrue(codexClient.lastPrompt.contains("Please summarize yesterday's launch."));
+  }
+
+  public void testTextAttachmentIsConvertedToMarkdownContextWithoutTranscription() {
+    RecordingCodexClient codexClient = new RecordingCodexClient();
+    codexClient.response = "The note says launch checklist.";
+    RecordingSupaWaveClient apiClient = new RecordingSupaWaveClient();
+    apiClient.exportedAttachment = new BotAttachmentContext.RawAttachment(
+        "att-note", "notes.md", "text/markdown",
+        "# Launch checklist\n- verify metrics".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    GptBotRobot robot = new GptBotRobot(TEST_CONFIG,
+        new GptBotReplyPlanner(TEST_CONFIG.getRobotName(), codexClient), apiClient);
+
+    robot.handleEventBundle(exampleBundleJsonWithAttachment(TEST_CONFIG,
+        "\n@" + TEST_CONFIG.getRobotName() + " use the note",
+        "att-note", "notes.md", "text/markdown",
+        new BlipEditingDoneEvent(null, null, "alice@example.com", 1L, "b+root")));
+
+    assertEquals(1, apiClient.exportAttachmentCalls);
+    assertEquals(0, codexClient.transcriptionCalls);
+    assertTrue(codexClient.lastPrompt.contains("```markdown"));
+    assertTrue(codexClient.lastPrompt.contains("verify metrics"));
   }
 
   public void testCallbackBundleCanReplyThroughActiveApi() {
@@ -485,6 +534,30 @@ public class GptBotRobotTest extends TestCase {
     return new GsonFactory().create().toJson(bundle);
   }
 
+  private static String exampleBundleJsonWithAttachment(GptBotConfig config, String content,
+      String attachmentId, String fileName, String mimeType, Event... events) {
+    EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
+        "http://localhost:8087/_wave/robot/jsonrpc");
+    WaveletData waveletData = new WaveletData("example.com!w+abc123", "example.com!conv+root",
+        "b+root", (BlipThread) null);
+    waveletData.addParticipant("alice@example.com");
+    bundle.setWaveletData(waveletData);
+    BlipData blipData = new BlipData("example.com!w+abc123",
+        "example.com!conv+root", "b+root", content + " ");
+    Map<String, String> properties = new HashMap<String, String>();
+    properties.put(Attachment.ATTACHMENT_ID, attachmentId);
+    properties.put(Attachment.CAPTION, fileName);
+    properties.put(Attachment.MIME_TYPE, mimeType);
+    Map<Integer, Element> elements = new HashMap<Integer, Element>();
+    elements.put(Integer.valueOf(content.length()), new Attachment(properties, null));
+    blipData.setElements(elements);
+    bundle.addBlip("b+root", blipData);
+    for (Event event : events) {
+      bundle.addEvent(event);
+    }
+    return new GsonFactory().create().toJson(bundle);
+  }
+
   private static String exampleBundleJsonWithChildBlip(GptBotConfig config, String content,
       Event... events) {
     EventMessageBundle bundle = new EventMessageBundle(config.getParticipantId(),
@@ -634,13 +707,23 @@ public class GptBotRobotTest extends TestCase {
 
     private int completeCalls;
     private int completeStreamingCalls;
+    private int transcriptionCalls;
     private String response = "answer";
+    private String transcriptionResponse = "transcript";
+    private String lastPrompt = "";
     private List<String> streamingResponses;
 
     @Override
     public String complete(String prompt) {
       completeCalls++;
+      lastPrompt = prompt;
       return response;
+    }
+
+    @Override
+    public Optional<String> transcribeAttachment(String fileName, String mimeType, byte[] data) {
+      transcriptionCalls++;
+      return Optional.of(transcriptionResponse);
     }
 
     @Override
@@ -661,9 +744,12 @@ public class GptBotRobotTest extends TestCase {
 
     private int appendCalls;
     private int createReplyCalls;
+    private int exportAttachmentCalls;
     private int fetchCalls;
     private boolean appendSucceeds;
+    private BotAttachmentContext.RawAttachment exportedAttachment;
     private String createReplyId = "b+reply";
+    private String lastExportedAttachmentId;
     private String lastReply;
     private String lastCreatedReplyId;
     private String lastCreatedContent;
@@ -679,6 +765,15 @@ public class GptBotRobotTest extends TestCase {
     @Override
     public Optional<String> search(String query) {
       return Optional.empty();
+    }
+
+    @Override
+    public Optional<BotAttachmentContext.RawAttachment> exportAttachment(String attachmentId,
+        String rpcServerUrl) {
+      exportAttachmentCalls++;
+      lastExportedAttachmentId = attachmentId;
+      lastRpcServerUrl = rpcServerUrl;
+      return Optional.ofNullable(exportedAttachment);
     }
 
     @Override

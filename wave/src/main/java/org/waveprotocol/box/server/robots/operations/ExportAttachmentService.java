@@ -66,10 +66,17 @@ public class ExportAttachmentService implements OperationService {
     } catch (InvalidIdException ex) {
       throw new InvalidRequestException("Invalid id", operation, ex);
     }
+    Long maxSizeBytes = OperationUtil.<Long>getOptionalParameter(operation,
+        ParamsProperty.MAX_SIZE_BYTES);
     AttachmentMetadata meta;
     byte[] data;
     try {
       meta = attachmentService.getMetadata(attachmentId);
+      if (maxSizeBytes != null && meta.getSize() > maxSizeBytes) {
+        context.constructErrorResponse(operation,
+            "Attachment too large to export: " + meta.getSize() + " bytes");
+        return;
+      }
       data = readInputStreamToBytes(attachmentService.getAttachment(attachmentId).getInputStream());
     } catch (IOException ex) {
       LOG.info("Get attachment", ex);

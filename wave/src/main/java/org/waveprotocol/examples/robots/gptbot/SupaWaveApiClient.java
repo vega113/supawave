@@ -27,6 +27,7 @@ import com.google.gson.JsonParser;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -35,6 +36,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,6 +48,9 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   private static final Log LOG = Log.get(SupaWaveApiClient.class);
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(45);
+  // Base64 expands by 4/3; add a small JSON envelope margin.
+  private static final long MAX_EXPORT_RESPONSE_BYTES =
+      (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES * 4 / 3 + 4096;
 
   private final GptBotConfig config;
   private final HttpClient httpClient;
@@ -88,6 +93,23 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       }
     }
     return summary;
+  }
+
+  @Override
+  public Optional<BotAttachmentContext.RawAttachment> exportAttachment(String attachmentId,
+      String rpcServerUrl) {
+    Optional<BotAttachmentContext.RawAttachment> attachment = Optional.empty();
+    if (attachmentId != null && !attachmentId.isBlank() && config.hasApiCredentials()) {
+      try {
+        String endpoint = resolveRpcEndpoint(rpcServerUrl);
+        JsonArray response = postRpcBounded(exportAttachmentRequest(attachmentId), endpoint,
+            accessTokenForEndpoint(endpoint), MAX_EXPORT_RESPONSE_BYTES);
+        attachment = extractAttachmentData(attachmentId, response);
+      } catch (IOException | InterruptedException | RuntimeException e) {
+        logWarningAndRestoreInterrupt("Unable to export attachment through SupaWave RPC", e);
+      }
+    }
+    return attachment;
   }
 
   @Override
@@ -163,6 +185,23 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     return body;
   }
 
+  private JsonArray exportAttachmentRequest(String attachmentId) {
+    JsonObject params = new JsonObject();
+    params.addProperty("attachmentId", attachmentId);
+    // Tell the server to reject attachments larger than MAX_TRANSCRIPTION_BYTES before reading,
+    // so it never materializes oversized files into memory on the bot's behalf.
+    params.addProperty("maxSizeBytes", (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES);
+
+    JsonObject request = new JsonObject();
+    request.addProperty("id", "gpt-bot-attachment-1");
+    request.addProperty("method", "robot.exportAttachment");
+    request.add("params", params);
+
+    JsonArray body = new JsonArray();
+    body.add(request);
+    return body;
+  }
+
   private JsonArray createChildRequest(String waveId, String waveletId, String blipId,
       String content) {
     JsonObject blipData = new JsonObject();
@@ -229,6 +268,33 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       throw new IOException("Unexpected SupaWave RPC status: " + response.statusCode());
     }
     return JsonParser.parseString(response.body()).getAsJsonArray();
+  }
+
+  private JsonArray postRpcBounded(JsonArray body, String endpoint, String accessToken,
+      long maxBytes) throws IOException, InterruptedException {
+    HttpRequest httpRequest = HttpRequest.newBuilder()
+        .uri(URI.create(endpoint))
+        .timeout(REQUEST_TIMEOUT)
+        .header("Authorization", "Bearer " + accessToken)
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+        .build();
+
+    HttpResponse<InputStream> response = httpClient.send(httpRequest,
+        HttpResponse.BodyHandlers.ofInputStream());
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      response.body().close();
+      throw new IOException("Unexpected SupaWave RPC status: " + response.statusCode());
+    }
+    try (InputStream is = response.body()) {
+      // Read one byte beyond the limit so we can detect oversized responses without buffering them.
+      int readLimit = (int) Math.min(maxBytes + 1, Integer.MAX_VALUE);
+      byte[] buf = is.readNBytes(readLimit);
+      if (buf.length > maxBytes) {
+        throw new IOException("Export response exceeds size limit of " + maxBytes + " bytes");
+      }
+      return JsonParser.parseString(new String(buf, StandardCharsets.UTF_8)).getAsJsonArray();
+    }
   }
 
   private String contextAccessToken() throws IOException, InterruptedException {
@@ -420,6 +486,40 @@ public final class SupaWaveApiClient implements SupaWaveClient {
           }
         }
       }
+    }
+    return Optional.empty();
+  }
+
+  private Optional<BotAttachmentContext.RawAttachment> extractAttachmentData(String attachmentId,
+      JsonArray response) {
+    for (JsonElement element : response) {
+      if (!element.isJsonObject()) {
+        continue;
+      }
+      JsonObject object = element.getAsJsonObject();
+      JsonObject data = object.has("data") && object.get("data").isJsonObject()
+          ? object.getAsJsonObject("data") : object;
+      if (!data.has("attachmentData") || !data.get("attachmentData").isJsonObject()) {
+        continue;
+      }
+      JsonObject attachmentData = data.getAsJsonObject("attachmentData");
+      String fileName = attachmentData.has("fileName")
+          ? attachmentData.get("fileName").getAsString() : attachmentId;
+      String mimeType = attachmentData.has("mimeType")
+          ? attachmentData.get("mimeType").getAsString() : "application/octet-stream";
+      String encoded = attachmentData.has("data") ? attachmentData.get("data").getAsString() : "";
+      // Reject oversized payloads before decoding to avoid holding the full byte array in memory
+      // for attachments that BotAttachmentContext will discard anyway.
+      long maxEncodedLen = (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES * 4 / 3 + 1024;
+      if (encoded.length() > maxEncodedLen) {
+        continue;
+      }
+      byte[] bytes = Base64.getDecoder().decode(encoded);
+      if (bytes.length > BotAttachmentContext.MAX_TRANSCRIPTION_BYTES) {
+        continue;
+      }
+      return Optional.of(new BotAttachmentContext.RawAttachment(attachmentId, fileName,
+          mimeType, bytes));
     }
     return Optional.empty();
   }

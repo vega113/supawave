@@ -38,6 +38,15 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.model.document.DocumentConstants;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocOp;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
+import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuffer;
+import org.waveprotocol.wave.model.wave.data.DocumentOperationSink;
+import org.waveprotocol.wave.model.operation.OperationException;
+import org.waveprotocol.wave.model.operation.SilentOperationSink;
+import org.waveprotocol.wave.model.document.Document;
 
 import java.util.Arrays;
 import java.util.List;
@@ -154,9 +163,10 @@ public final class WaveClientRpcViewportHintsTest {
 
   @Test
   public void viewportHintsKeepRootBlipInInitialSnapshotWindow() {
+    // "b+root" is the actual root blip identified in the manifest — it must sort first.
     ProtocolWaveletUpdate update =
         openWithRpc(
-            makeWaveClientRpcWithBlipIds("b+2", "b+root", "b+1", "b+3"),
+            makeWaveClientRpcWithRootBlipId("b+root", "b+2", "b+root", "b+1", "b+3"),
             viewportHintRequest(null, "forward", 2));
 
     assertTrue(update.hasFragments());
@@ -513,6 +523,69 @@ public final class WaveClientRpcViewportHintsTest {
       }
     };
     return WaveClientRpcImpl.create(frontend, false);
+  }
+
+  /**
+   * Like {@link #makeWaveClientRpcWithBlipIds} but also adds a manifest document so that the
+   * root blip can be resolved from the snapshot (rather than relying on a hardcoded string).
+   */
+  private static WaveClientRpcImpl makeWaveClientRpcWithRootBlipId(
+      String rootBlipId, String... blipIds) {
+    ClientFrontend frontend = new ClientFrontend() {
+      @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
+        WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
+        WaveletName wn = WaveletName.of(waveId, wid);
+        ReadableWaveletData data = providerDataWithRootBlipId(waveId, wid, rootBlipId, blipIds);
+        CommittedWaveletSnapshot snap = new CommittedWaveletSnapshot(data, HashedVersion.unsigned(100));
+        listener.onUpdate(wn, snap, java.util.Collections.emptyList(), HashedVersion.unsigned(100), null, "ch-vh");
+      }
+    };
+    return WaveClientRpcImpl.create(frontend, false);
+  }
+
+  private static ReadableWaveletData providerDataWithRootBlipId(
+      WaveId waveId, WaveletId wid, String rootBlipId, String... blipIds) {
+    ReadableWaveletDataStub stub = dataStub(waveId, wid);
+    for (int i = 0; i < blipIds.length; i++) {
+      stub.addDoc(
+          blipIds[i],
+          new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), (i + 1) * 100L));
+    }
+    // Add a manifest document so the root blip can be resolved from the snapshot.
+    stub.addDoc(DocumentConstants.MANIFEST_DOCUMENT_ID, manifestBlipDoc(rootBlipId));
+    return stub;
+  }
+
+  /**
+   * Creates a ReadableBlipData whose DocInitialization encodes a minimal manifest document:
+   * {@code <conversation><blip id="rootBlipId"/></conversation>}.
+   */
+  private static org.waveprotocol.wave.model.wave.data.ReadableBlipData manifestBlipDoc(
+      String rootBlipId) {
+    DocInitializationBuffer buf = new DocInitializationBuffer();
+    buf.elementStart("conversation", new AttributesImpl());
+    buf.elementStart(DocumentConstants.BLIP,
+        new AttributesImpl(DocumentConstants.BLIP_ID, rootBlipId));
+    buf.elementEnd();
+    buf.elementEnd();
+    DocInitialization docInit = buf.finish();
+    return new org.waveprotocol.wave.model.wave.data.ReadableBlipData() {
+      @Override public String getId() { return DocumentConstants.MANIFEST_DOCUMENT_ID; }
+      @Override public org.waveprotocol.wave.model.wave.data.ReadableWaveletData getWavelet() { return null; }
+      @Override public ParticipantId getAuthor() { return ParticipantId.ofUnsafe("stub@example.com"); }
+      @Override public java.util.Set<ParticipantId> getContributors() { return java.util.Collections.emptySet(); }
+      @Override public long getLastModifiedTime() { return 0; }
+      @Override public long getLastModifiedVersion() { return 0; }
+      @Override public DocumentOperationSink getContent() {
+        return new DocumentOperationSink() {
+          @Override public DocInitialization asOperation() { return docInit; }
+          @Override public void consume(DocOp op) throws OperationException {}
+          @Override public Document getMutableDocument() { return null; }
+          @Override public void init(SilentOperationSink<? super DocOp> outputSink) {}
+        };
+      }
+    };
   }
 
   private static ReadableWaveletData providerDataWithBlips(WaveId waveId, WaveletId wid, int count) {

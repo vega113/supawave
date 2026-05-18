@@ -109,6 +109,91 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void inlineReplyWithoutCapturedCaretFallsBackToParentBodyEndLikeGwt() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onInlineReplyAnchorRequested(
+        "b+child",
+        /* anchorItemOffset= */ -1,
+        /* parentBodyItemCount= */ TEST_BODY_ITEM_COUNT);
+    controller.onReplySubmitted("reply without live selection", "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertEquals("b+child", factory.lastReplySession.getReplyTargetBlipId());
+    Assert.assertEquals(
+        "GWT ReplyLocationResolver falls back to blip.getContent().size() - 1",
+        TEST_BODY_ITEM_COUNT - 1,
+        factory.lastInlineAnchorItemOffset);
+    Assert.assertEquals(TEST_BODY_ITEM_COUNT, factory.lastInlineAnchorParentBodyItemCount);
+  }
+
+  @Test
+  public void inlineReplyWithOffsetZeroProducesNoAnchor() {
+    // offset 0 is below the minimum accepted by downstream anchor-op builders (>= 1),
+    // so it is treated as an invalid anchor and results in no inline anchor (-1).
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onInlineReplyAnchorRequested(
+        "b+child",
+        /* anchorItemOffset= */ 0,
+        /* parentBodyItemCount= */ TEST_BODY_ITEM_COUNT);
+    controller.onReplySubmitted("reply at body start", "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertEquals(-1, factory.lastInlineAnchorItemOffset);
+  }
+
+  @Test
+  public void continuationReplyIgnoresPendingInlineAnchor() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onInlineReplyAnchorRequested(
+        "b+child",
+        /* anchorItemOffset= */ TEST_BODY_ITEM_COUNT - 1,
+        /* parentBodyItemCount= */ TEST_BODY_ITEM_COUNT);
+    controller.onContinuationSubmitted("same-level reply", "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertTrue(factory.lastReplySession.isContinuationReply());
+    Assert.assertEquals("b+child", factory.lastReplySession.getReplyTargetBlipId());
+    Assert.assertEquals(-1, factory.lastInlineAnchorItemOffset);
+    Assert.assertEquals(0, factory.lastInlineAnchorParentBodyItemCount);
+  }
+
+  @Test
   public void selectedWaveParticipantsRenderBeforeWriteSessionReady() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -4865,6 +4950,8 @@ public class J2clComposeSurfaceControllerTest {
     private String lastDraftText = null;
     private int lastDocumentComponentCount = -1;
     private J2clSidecarWriteSession lastReplySession = null;
+    private int lastInlineAnchorItemOffset = Integer.MIN_VALUE;
+    private int lastInlineAnchorParentBodyItemCount = Integer.MIN_VALUE;
 
     @Override
     public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
@@ -4898,6 +4985,19 @@ public class J2clComposeSurfaceControllerTest {
       lastDocumentComponentCount = componentCount(document);
       return new SidecarSubmitRequest(
           session.getSelectedWaveId() + "/~/conv+root", "{\"reply\":true}", session.getChannelId());
+    }
+
+    @Override
+    public SidecarSubmitRequest createReplyRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String draftText,
+        org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document,
+        int inlineAnchorItemOffset,
+        int parentBodyItemCount) {
+      lastInlineAnchorItemOffset = inlineAnchorItemOffset;
+      lastInlineAnchorParentBodyItemCount = parentBodyItemCount;
+      return createReplyRequest(address, session, draftText, document);
     }
 
     private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {

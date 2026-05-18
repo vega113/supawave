@@ -38,7 +38,13 @@ import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.document.DocumentConstants;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
 import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
@@ -558,16 +564,59 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       }
     }
     if (naturalOrder) {
-      blips.sort(WaveClientRpcImpl::compareBlipIdsNaturally);
+      String rootBlipId = getRootBlipId(snapshot.snapshot);
+      blips.sort((left, right) -> compareBlipIdsNaturally(left, right, rootBlipId));
     }
     return blips;
   }
 
-  private static int compareBlipIdsNaturally(String left, String right) {
-    if ("b+root".equals(left) && !"b+root".equals(right)) {
+  /**
+   * Reads the root blip ID from the manifest document of a wavelet snapshot.
+   * The manifest ({@code "conversation"} document) has the form
+   * {@code <conversation><blip id="b+xyz">...</blip>...</conversation>}.
+   * The first {@code <blip>} element's {@code id} attribute is the root blip.
+   *
+   * @return the root blip ID, or {@code null} if the manifest is absent or has no blip element.
+   */
+  @Nullable
+  private static String getRootBlipId(ReadableWaveletData waveletData) {
+    ReadableBlipData manifestDoc =
+        waveletData.getDocument(DocumentConstants.MANIFEST_DOCUMENT_ID);
+    if (manifestDoc == null) {
+      return null;
+    }
+    final String[] rootBlipId = {null};
+    try {
+      DocInitialization docOp = manifestDoc.getContent().asOperation();
+      docOp.apply(new DocInitializationCursor() {
+        @Override
+        public void elementStart(String type, Attributes attrs) {
+          if (rootBlipId[0] == null
+              && DocumentConstants.BLIP.equals(type)
+              && attrs != null) {
+            String id = attrs.get(DocumentConstants.BLIP_ID);
+            if (id != null) {
+              rootBlipId[0] = id;
+            }
+          }
+        }
+        @Override public void elementEnd() {}
+        @Override public void characters(String chars) {}
+        @Override public void annotationBoundary(AnnotationBoundaryMap map) {}
+      });
+    } catch (Exception e) {
+      LOG.warning("Failed to parse manifest for root blip ID, falling back to natural order: " + e);
+      return null;
+    }
+    return rootBlipId[0];
+  }
+
+  private static int compareBlipIdsNaturally(String left, String right,
+      @Nullable String rootBlipId) {
+    if (rootBlipId != null && rootBlipId.equals(left) && !rootBlipId.equals(right)) {
       return -1;
     }
-    if ("b+root".equals(right) && !"b+root".equals(left)) {
+    if (rootBlipId != null && rootBlipId.equals(right) && !rootBlipId.equals(left)) {
       return 1;
     }
     String leftPrefix = trailingNumberPrefix(left);

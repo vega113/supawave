@@ -1229,9 +1229,21 @@ public final class J2clComposeSurfaceController {
     int normalizedBodyItemCount = Math.max(0, parentBodyItemCount);
     pendingInlineAnchorBlipId = blipId == null ? "" : blipId;
     pendingInlineAnchorItemOffset =
-        (anchorItemOffset >= 1 && anchorItemOffset < normalizedBodyItemCount)
-            ? anchorItemOffset : -1;
+        normalizedInlineReplyAnchorOffset(anchorItemOffset, normalizedBodyItemCount);
     pendingInlineAnchorParentBodyItemCount = normalizedBodyItemCount;
+  }
+
+  private static int normalizedInlineReplyAnchorOffset(
+      int anchorItemOffset, int parentBodyItemCount) {
+    // Downstream anchor-op builders require offset >= 1; only pass through in-range values.
+    if (anchorItemOffset >= 1 && anchorItemOffset < parentBodyItemCount) {
+      return anchorItemOffset;
+    }
+    // Sentinel -1 (or any negative): no caret was captured; fall back to last body item.
+    if (anchorItemOffset < 0 && parentBodyItemCount > 1) {
+      return parentBodyItemCount - 1;
+    }
+    return -1;
   }
 
   private void clearPendingInlineAnchor() {

@@ -87,6 +87,7 @@ describe("<wavy-focus-frame>", () => {
       </div>`
     );
     const frame = host.querySelector("wavy-focus-frame");
+    await frame.updateComplete;
     host.dispatchEvent(
       new CustomEvent("wavy-focus-changed", {
         bubbles: false,
@@ -94,7 +95,7 @@ describe("<wavy-focus-frame>", () => {
         detail: {
           blipId: "b+1",
           bounds: { top: 0, left: 0, width: 100, height: 100 },
-          key: ""
+          key: "ArrowDown"
         }
       })
     );
@@ -107,6 +108,45 @@ describe("<wavy-focus-frame>", () => {
     expect(computed.boxShadow).to.contain("2px");
   });
 
+  it("does not paint the frame for the initial programmatic focus event", async () => {
+    const host = await fixture(
+      html`<div data-j2cl-read-surface="true" style="position: relative; width: 400px; height: 300px;">
+        <wavy-focus-frame></wavy-focus-frame>
+      </div>`
+    );
+    const frame = host.querySelector("wavy-focus-frame");
+    await frame.updateComplete;
+
+    host.dispatchEvent(
+      new CustomEvent("wavy-focus-changed", {
+        detail: {
+          blipId: "b+initial",
+          bounds: { top: 12, left: 8, width: 320, height: 64 },
+          key: ""
+        }
+      })
+    );
+    await frame.updateComplete;
+
+    expect(frame.focusedBlipId).to.equal("b+initial");
+    expect(frame.renderRoot.querySelector(".frame").hasAttribute("hidden")).to.be
+      .true;
+
+    host.dispatchEvent(
+      new CustomEvent("wavy-focus-changed", {
+        detail: {
+          blipId: "b+initial",
+          bounds: { top: 14, left: 8, width: 320, height: 64 },
+          key: "j"
+        }
+      })
+    );
+    await frame.updateComplete;
+
+    expect(frame.renderRoot.querySelector(".frame").hasAttribute("hidden")).to.be
+      .false;
+  });
+
   it("re-hides when focusedBlipId resets to empty", async () => {
     const host = await fixture(
       html`<div data-j2cl-read-surface="true" style="position: relative;">
@@ -116,7 +156,11 @@ describe("<wavy-focus-frame>", () => {
     const frame = host.querySelector("wavy-focus-frame");
     host.dispatchEvent(
       new CustomEvent("wavy-focus-changed", {
-        detail: { blipId: "b+1", bounds: { top: 0, left: 0, width: 10, height: 10 } }
+        detail: {
+          blipId: "b+1",
+          bounds: { top: 0, left: 0, width: 10, height: 10 },
+          key: "ArrowDown"
+        }
       })
     );
     await frame.updateComplete;

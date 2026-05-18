@@ -68,6 +68,25 @@ describe("moveBlipFocus", () => {
     expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b1");
   });
 
+  it("boundary clamp with explicit key dispatches keyed wavy-focus-changed to reveal frame", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+        <wave-blip data-blip-id="b2" data-wave-id="w" author-name="B"></wave-blip>
+      </div>
+    `);
+    // Navigate to last blip
+    moveBlipFocus(1, root); // b1
+    moveBlipFocus(1, root); // b2 (last)
+    let focusDetail = null;
+    root.addEventListener("wavy-focus-changed", (e) => { focusDetail = e.detail; });
+    // Press j again at boundary — focus stays on b2 but frame should become visible
+    moveBlipFocus(1, root, "j");
+    expect(focusDetail).to.not.equal(null);
+    expect(focusDetail.key).to.equal("j");
+    expect(focusDetail.blipId).to.equal("b2");
+  });
+
   it("skips blips inside collapsed thread containers", async () => {
     const root = await fixture(html`
       <div>
@@ -96,6 +115,36 @@ describe("moveBlipFocus", () => {
     expect(root.querySelector("wave-blip[focused]").getAttribute("data-blip-id")).to.equal("b3");
   });
 
+  it("moveBlipFocus threads key through to wavy-focus-changed on the read surface", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+        <wave-blip data-blip-id="b2" data-wave-id="w" author-name="B"></wave-blip>
+      </div>
+    `);
+    let focusDetail = null;
+    root.addEventListener("wavy-focus-changed", (e) => { focusDetail = e.detail; });
+    moveBlipFocus(1, root, "j");
+    expect(focusDetail).to.not.equal(null);
+    expect(focusDetail.key).to.equal("j");
+    expect(focusDetail.blipId).to.equal("b1");
+  });
+
+  it("focusBlipBoundary threads key through to wavy-focus-changed on the read surface", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+        <wave-blip data-blip-id="b2" data-wave-id="w" author-name="B"></wave-blip>
+      </div>
+    `);
+    let focusDetail = null;
+    root.addEventListener("wavy-focus-changed", (e) => { focusDetail = e.detail; });
+    focusBlipBoundary("last", root, "End");
+    expect(focusDetail).to.not.equal(null);
+    expect(focusDetail.key).to.equal("End");
+    expect(focusDetail.blipId).to.equal("b2");
+  });
+
   it("setFocusedBlip fires wave-blip-focus-changed", async () => {
     const root = await threeBlips();
     const target = root.querySelectorAll("wave-blip")[1];
@@ -105,6 +154,21 @@ describe("moveBlipFocus", () => {
     });
     setFocusedBlip(target);
     expect(fired).to.deep.equal({ blipId: "b2", waveId: "w" });
+  });
+
+  it("setFocusedBlip propagates explicit key to wavy-focus-changed", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+      </div>
+    `);
+    const blip = root.querySelector("wave-blip");
+    let focusDetail = null;
+    root.addEventListener("wavy-focus-changed", (e) => { focusDetail = e.detail; });
+    setFocusedBlip(blip, root, "j");
+    expect(focusDetail).to.not.equal(null);
+    expect(focusDetail.key).to.equal("j");
+    expect(focusDetail.blipId).to.equal("b1");
   });
 
   it("setFocusedBlip adds j2cl-read-blip-focused class and removes from others", async () => {

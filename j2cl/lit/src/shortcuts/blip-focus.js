@@ -82,9 +82,10 @@ function findReadSurface(blip, root = document) {
  * Fire `wavy-focus-changed` on the read surface so the
  * <wavy-focus-frame> overlay repaints. Mirrors the detail shape that
  * J2clReadSurfaceDomRenderer.dispatchFocusChanged emits. Pass
- * `blip = null` to clear the frame.
+ * `blip = null` to clear the frame. Pass a non-empty `key` to indicate
+ * the event is from explicit keyboard navigation (vs. programmatic restore).
  */
-function dispatchRendererFocusChanged(surface, blip) {
+function dispatchRendererFocusChanged(surface, blip, key = "") {
   if (!surface) return;
   const blipId = blip ? (blip.getAttribute("data-blip-id") || "") : "";
   let bounds = { top: 0, left: 0, width: 0, height: 0 };
@@ -107,7 +108,7 @@ function dispatchRendererFocusChanged(surface, blip) {
       new CustomEvent("wavy-focus-changed", {
         bubbles: true,
         composed: true,
-        detail: { blipId, bounds, key: "" }
+        detail: { blipId, bounds, key }
       })
     );
   } catch (_) {
@@ -125,7 +126,7 @@ function dispatchRendererFocusChanged(surface, blip) {
  * `moveUp` and `J2clReadSurfaceDomRenderer.focusVisibleByIndex` which
  * both clamp rather than wrap).
  */
-export function moveBlipFocus(direction, root = document) {
+export function moveBlipFocus(direction, root = document, key = "") {
   const list = snapshotBlips(root);
   if (list.length === 0) return false;
 
@@ -135,17 +136,22 @@ export function moveBlipFocus(direction, root = document) {
     nextIdx = direction > 0 ? 0 : list.length - 1;
   } else {
     nextIdx = currentIdx + direction;
-    if (nextIdx < 0 || nextIdx >= list.length) return true; // at boundary, consume key
+    if (nextIdx < 0 || nextIdx >= list.length) {
+      // At boundary — key consumed but focus didn't move. Reveal the frame on the
+      // current blip if this was explicit keyboard navigation so the user sees focus.
+      if (key) dispatchRendererFocusChanged(findReadSurface(list[currentIdx], root), list[currentIdx], key);
+      return true;
+    }
   }
-  setFocusedBlip(list[nextIdx], root);
+  setFocusedBlip(list[nextIdx], root, key);
   return true;
 }
 
-export function focusBlipBoundary(boundary, root = document) {
+export function focusBlipBoundary(boundary, root = document, key = "") {
   const list = snapshotBlips(root);
   if (list.length === 0) return false;
   const target = boundary === "last" ? list[list.length - 1] : list[0];
-  setFocusedBlip(target, root);
+  setFocusedBlip(target, root, key);
   return true;
 }
 
@@ -211,7 +217,7 @@ export function dispatchFocusedBlipDepth(direction, root = document) {
  * Fires a `wave-blip-focus-changed` CustomEvent (bubbles + composed)
  * so external consumers (telemetry, the route controller) can react.
  */
-export function setFocusedBlip(target, root = document) {
+export function setFocusedBlip(target, root = document, key = "") {
   if (!target) return;
   // Clear ALL blips (including hidden/parked) so stale markers left by
   // the viewport renderer do not accumulate. `snapshotBlips` still scopes
@@ -257,7 +263,7 @@ export function setFocusedBlip(target, root = document) {
       }
     })
   );
-  dispatchRendererFocusChanged(findReadSurface(target, root), target);
+  dispatchRendererFocusChanged(findReadSurface(target, root), target, key);
 }
 
 /**

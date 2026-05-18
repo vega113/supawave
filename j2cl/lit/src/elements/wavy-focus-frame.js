@@ -66,6 +66,7 @@ export class WavyFocusFrame extends LitElement {
     super();
     this.focusedBlipId = "";
     this.bounds = { top: 0, left: 0, width: 0, height: 0 };
+    this._frameVisible = false;
     this._onFocusChanged = this._onFocusChanged.bind(this);
     this._listeningOn = null;
   }
@@ -94,7 +95,17 @@ export class WavyFocusFrame extends LitElement {
       return;
     }
     const { blipId, bounds } = event.detail;
-    this.focusedBlipId = typeof blipId === "string" ? blipId : "";
+    const nextBlipId = typeof blipId === "string" ? blipId : "";
+    const explicitKey =
+      typeof event.detail.key === "string" && event.detail.key.trim() !== "";
+    if (!nextBlipId) {
+      this._frameVisible = false;
+    } else if (explicitKey) {
+      this._frameVisible = true;
+    } else if (nextBlipId !== this.focusedBlipId) {
+      this._frameVisible = false;
+    }
+    this.focusedBlipId = nextBlipId;
     this.bounds =
       bounds && typeof bounds === "object"
         ? {
@@ -107,7 +118,7 @@ export class WavyFocusFrame extends LitElement {
   }
 
   render() {
-    const hidden = !this.focusedBlipId;
+    const hidden = !this.focusedBlipId || !this._frameVisible;
     const style = `top: ${this.bounds.top}px; left: ${this.bounds.left}px; width: ${this.bounds.width}px; height: ${this.bounds.height}px;`;
     return html`<div
       class="frame"

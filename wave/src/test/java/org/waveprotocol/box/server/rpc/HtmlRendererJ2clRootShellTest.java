@@ -726,6 +726,27 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         html.contains("locale=\"zh-TW\""));
   }
 
+  public void testUserMenuLinksGetTrailingSlashWhenBasePathLacksOne() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "user");
+
+    // Return target whose path component has no trailing slash (e.g. "/app?view=j2cl-root").
+    // resolvedBasePath becomes "/app"; without the fix the menu href would be "/appauth/signout".
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/app?view=j2cl-root", "ws.example:443");
+
+    assertTrue(
+        "user menu signout must use /app/ prefix, not /app concatenated directly",
+        html.contains("href=\"/app/auth/signout?r="));
+    assertTrue(
+        "user menu account link must use /app/ prefix",
+        html.contains("href=\"/app/userprofile/edit\""));
+    assertFalse(
+        "user menu must not produce /appauth/signout from a base path without trailing slash",
+        html.contains("href=\"/appauth/signout"));
+  }
+
   public void testWavyHeaderLocaleResolvesExtensionSuffixedTag() {
     JSONObject session = new JSONObject();
     session.put("address", "alice@example.com");

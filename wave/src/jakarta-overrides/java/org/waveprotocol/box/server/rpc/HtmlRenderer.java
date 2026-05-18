@@ -4341,6 +4341,9 @@ public final class HtmlRenderer {
       String resolvedReturnTarget,
       String userRole) {
     String base = safeBasePath == null || safeBasePath.isEmpty() ? "/" : safeBasePath;
+    if (!base.endsWith("/")) {
+      base = base + "/";
+    }
     String safeSignOutHref =
         base + "auth/signout?r=" + escapeHtml(encodeLocalReturnTarget(resolvedReturnTarget));
     boolean isAdminOrOwner =

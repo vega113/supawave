@@ -1385,6 +1385,65 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void attachmentMetadataRefreshUpdatesTilesWithoutRebuildingBlips() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    J2clAttachmentRenderModel pending =
+        J2clAttachmentRenderModel.metadataPending(
+            "example.com/att+hero", "Hero diagram", "medium");
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root",
+                    0L,
+                    9L,
+                    "b+root",
+                    "Root text",
+                    Arrays.asList(pending)))));
+    HTMLElement originalBlip = blip(host, "b+root");
+    Assert.assertNotNull(originalBlip);
+    Assert.assertEquals(
+        "pending",
+        ((HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']"))
+            .getAttribute("data-attachment-state"));
+
+    J2clAttachmentRenderModel resolved =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root",
+                    0L,
+                    9L,
+                    "b+root",
+                    "Root text",
+                    Arrays.asList(resolved)))));
+
+    Assert.assertSame(originalBlip, blip(host, "b+root"));
+    HTMLElement tile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertEquals("ready", tile.getAttribute("data-attachment-state"));
+    Assert.assertNotNull(tile.querySelector("[data-j2cl-attachment-open='true']"));
+    Assert.assertNotNull(tile.querySelector(".j2cl-read-attachment-preview"));
+  }
+
+  @Test
   public void largeInlineImageUsesAttachmentUrlAndDataDisplaySize() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

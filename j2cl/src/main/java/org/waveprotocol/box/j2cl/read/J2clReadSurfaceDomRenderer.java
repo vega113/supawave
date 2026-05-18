@@ -34,6 +34,7 @@ public final class J2clReadSurfaceDomRenderer {
   // Roughly one compact blip of lead time before a viewport edge reaches the exact scroll boundary.
   private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
   private static final String ATTACHMENT_TELEMETRY_BOUND = "data-attachment-telemetry-bound";
+  private static final String BLIP_PENDING_UPGRADE = "data-j2cl-pending-upgrade";
 
   static final class InlineAnchorTextSegment {
     private final String text;
@@ -761,6 +762,11 @@ public final class J2clReadSurfaceDomRenderer {
     // entire blip stream flash and reflow even though only one
     // attribute changed. The surgical path is silent.
     if (applyTaskOnlyDiffIfPossible(effectiveEntries)) {
+      restoreFocusedBlipById(focusedBlipId);
+      evaluateDwellTimers();
+      return true;
+    }
+    if (applyAttachmentOnlyDiffIfPossible(effectiveEntries)) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -1525,6 +1531,7 @@ public final class J2clReadSurfaceDomRenderer {
         (HTMLElement) DomGlobal.document.createElement("wave-blip");
     element.className = "blip j2cl-read-blip";
     element.setAttribute("data-j2cl-read-blip", "true");
+    element.setAttribute(BLIP_PENDING_UPGRADE, "");
     element.setAttribute("data-blip-id", blip.getBlipId());
     element.setAttribute("role", "listitem");
     element.setAttribute("tabindex", index == 0 ? "0" : "-1");
@@ -3873,6 +3880,34 @@ public final class J2clReadSurfaceDomRenderer {
   }
 
   /**
+   * GWT-parity (#1255): identity comparison for the attachment metadata refresh fast path.
+   * Attachment metadata resolution changes only the attachment render models. Text, focus,
+   * parent/thread placement, task state, and read metadata must stay identical or we fall through
+   * to the normal rebuild path.
+   */
+  private static boolean sameWindowEntryExceptAttachments(
+      J2clReadWindowEntry left, J2clReadWindowEntry right) {
+    return left.isLoaded() == right.isLoaded()
+        && left.getFromVersion() == right.getFromVersion()
+        && left.getToVersion() == right.getToVersion()
+        && left.getSegment().equals(right.getSegment())
+        && left.getBlipId().equals(right.getBlipId())
+        && left.getText().equals(right.getText())
+        && left.getAuthorId().equals(right.getAuthorId())
+        && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
+        && left.getParentBlipId().equals(right.getParentBlipId())
+        && left.getThreadId().equals(right.getThreadId())
+        && left.isUnread() == right.isUnread()
+        && left.hasMention() == right.hasMention()
+        && left.isTaskDone() == right.isTaskDone()
+        && left.getTaskAssignee().equals(right.getTaskAssignee())
+        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
+        && left.getBodyItemCount() == right.getBodyItemCount()
+        && left.isTask() == right.isTask()
+        && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
+  }
+
+  /**
    * GWT-parity (round 5, #1237): when the only differences between the
    * incoming entries and the rendered entries are task-related
    * (taskDone / assignee / due-date / body-item-count), surgically
@@ -3940,6 +3975,87 @@ public final class J2clReadSurfaceDomRenderer {
     renderedWindowEntries =
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     return true;
+  }
+
+  /**
+   * GWT-parity (#1255): when attachment metadata resolves, keep the existing wave-blip hosts and
+   * replace only their attachment tile subtree. Clearing {@code host.innerHTML} here makes every
+   * blip detach and Lit-upgrade again, which is the visible "formatting disappears, then returns"
+   * churn users reported while attachments finish loading.
+   */
+  private boolean applyAttachmentOnlyDiffIfPossible(List<J2clReadWindowEntry> entries) {
+    if (renderedSurface == null || renderedSurface.parentElement != host) {
+      return false;
+    }
+    if (renderedWindowEntries.size() != entries.size()) {
+      return false;
+    }
+    if (conversationManifest != renderedConversationManifest) {
+      return false;
+    }
+    boolean anyAttachmentDiff = false;
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry next = entries.get(i);
+      J2clReadWindowEntry prev = renderedWindowEntries.get(i);
+      if (!sameWindowEntryExceptAttachments(prev, next)) {
+        return false;
+      }
+      if (!prev.getAttachments().equals(next.getAttachments())) {
+        anyAttachmentDiff = true;
+      }
+    }
+    if (!anyAttachmentDiff) {
+      return false;
+    }
+    for (J2clReadWindowEntry entry : entries) {
+      if (!entry.isLoaded()) {
+        continue;
+      }
+      HTMLElement element = renderedBlipById(entry.getBlipId());
+      if (element == null) {
+        return false;
+      }
+      replaceAttachmentSubtree(element, entry.getAttachments());
+    }
+    renderedWindowEntries =
+        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
+    return true;
+  }
+
+  private void replaceAttachmentSubtree(
+      HTMLElement blipElement, List<J2clAttachmentRenderModel> attachments) {
+    HTMLElement existing = directChildWithClass(blipElement, "j2cl-read-attachments");
+    if (existing != null && existing.parentElement == blipElement) {
+      blipElement.removeChild(existing);
+    }
+    if (attachments == null || attachments.isEmpty()) {
+      return;
+    }
+    HTMLElement next = (HTMLElement) DomGlobal.document.createElement("div");
+    next.className = "j2cl-read-attachments";
+    for (J2clAttachmentRenderModel attachment : attachments) {
+      next.appendChild(renderAttachment(attachment));
+    }
+    Element reactionRow = blipElement.querySelector("reaction-row[slot='reactions']");
+    if (reactionRow != null && reactionRow.parentElement == blipElement) {
+      blipElement.insertBefore(next, reactionRow);
+    } else {
+      blipElement.appendChild(next);
+    }
+  }
+
+  private static HTMLElement directChildWithClass(HTMLElement parent, String className) {
+    if (parent == null || className == null || className.isEmpty()) {
+      return null;
+    }
+    Element child = parent.firstElementChild;
+    while (child != null) {
+      if (child instanceof HTMLElement && child.classList.contains(className)) {
+        return (HTMLElement) child;
+      }
+      child = child.nextElementSibling;
+    }
+    return null;
   }
 
   private HTMLElement renderedBlipById(String blipId) {

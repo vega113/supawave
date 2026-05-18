@@ -128,6 +128,9 @@ export class WaveBlip extends LitElement {
        * host is a transparent wrapper so the F-0 recipe styling owns
        * focus / unread / pulse visuals. */
     }
+    :host([data-j2cl-pending-upgrade]) .body {
+      visibility: hidden;
+    }
     /* Per-blip action toolbar. G-PORT-9 keeps the primary action glyphs
      * visible in the metadata strip because GWT paints them in the blip
      * header; task-specific controls still reveal on hover/focus below. */
@@ -414,6 +417,10 @@ export class WaveBlip extends LitElement {
     this.authorAvatarUrl = "";
     this._capturedReplyAnchorOffset = undefined;
     this._capturedReplyAnchorCapturedAt = undefined;
+  }
+
+  firstUpdated() {
+    this.removeAttribute("data-j2cl-pending-upgrade");
   }
 
   /**

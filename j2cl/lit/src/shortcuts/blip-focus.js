@@ -136,7 +136,12 @@ export function moveBlipFocus(direction, root = document, key = "") {
     nextIdx = direction > 0 ? 0 : list.length - 1;
   } else {
     nextIdx = currentIdx + direction;
-    if (nextIdx < 0 || nextIdx >= list.length) return true; // at boundary, consume key
+    if (nextIdx < 0 || nextIdx >= list.length) {
+      // At boundary — key consumed but focus didn't move. Reveal the frame on the
+      // current blip if this was explicit keyboard navigation so the user sees focus.
+      if (key) dispatchRendererFocusChanged(findReadSurface(list[currentIdx], root), list[currentIdx], key);
+      return true;
+    }
   }
   setFocusedBlip(list[nextIdx], root, key);
   return true;

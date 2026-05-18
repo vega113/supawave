@@ -24,7 +24,7 @@ import {
  *   - panel-level action row matching the GWT toolbar:
  *     [New Wave] [Manage saved searches] [Inbox] [Mentions]
  *     [Tasks] [Public] [Archive] [Pinned] [Refresh]
- *   - Filter-chip strip below results for explicit advanced filtering
+ *   - Filter-chip strip above results for explicit advanced filtering
  *   - Result count
  *   - Slot for <wavy-search-rail-card> digest cards
  *
@@ -982,7 +982,6 @@ export class WavySearchRail extends LitElement {
             </ul>
           `
         : null}
-      <slot name="cards"></slot>
       <details
         class="filters"
         id="wavy-search-filter-strip"
@@ -1015,6 +1014,7 @@ export class WavySearchRail extends LitElement {
         </div>
       </details>
       <p class="result-count" aria-live="polite">${this.resultCount || ""}</p>
+      <slot name="cards"></slot>
       ${this.savedSearchesOpen ? this._renderSavedSearchesDialog() : null}
     `;
   }

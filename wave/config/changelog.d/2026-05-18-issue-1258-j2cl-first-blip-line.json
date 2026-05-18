@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-18-issue-1258-j2cl-first-blip-line",
+  "version": "Issue #1258",
+  "date": "2026-05-18",
+  "title": "J2CL no longer paints a focus-frame line across the first blip on wave open.",
+  "summary": "The J2CL focus frame now waits for explicit keyboard navigation before painting, so the initial programmatic blip selection remains available for navigation without drawing a horizontal cyan line across the first blip.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Initial wave-open blip selection keeps logical focus markers but does not show the absolute focus-frame overlay until the user navigates."
+      ]
+    }
+  ]
+}

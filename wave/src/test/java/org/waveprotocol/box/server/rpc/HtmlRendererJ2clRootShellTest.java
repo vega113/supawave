@@ -103,6 +103,9 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
             && html.contains("data-digest-action=\"public\"")
             && html.contains("data-digest-action=\"archive\"")
             && html.contains("data-digest-action=\"pinned\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR the GWT-style refresh toolbar icon",
+        html.contains("data-digest-action=\"refresh\""));
     assertFalse(
         "signed-in J2CL search rail must not SSR the old J2CL sort button",
         html.contains("data-digest-action=\"sort\""));

@@ -81,6 +81,39 @@ describe("<wave-blip>", () => {
     expect(card.hasAttribute("unread")).to.be.true;
   });
 
+  it("clears the renderer pending-upgrade marker after the first Lit render", async () => {
+    const el = await fixture(html`
+      <wave-blip data-j2cl-pending-upgrade data-blip-id="b2p" data-wave-id="w2">
+        pending body
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    expect(el.hasAttribute("data-j2cl-pending-upgrade")).to.be.false;
+  });
+
+  it("keeps the slotted body hidden while the pending-upgrade marker is present", async () => {
+    const el = document.createElement("wave-blip");
+    el.setAttribute("data-j2cl-pending-upgrade", "");
+    el.setAttribute("data-blip-id", "b2pending");
+    el.setAttribute("data-wave-id", "w2");
+    el.textContent = "pending body";
+    const removeAttribute = el.removeAttribute.bind(el);
+    el.removeAttribute = (name) => {
+      if (name !== "data-j2cl-pending-upgrade") {
+        removeAttribute(name);
+      }
+    };
+    document.body.appendChild(el);
+    try {
+      await el.updateComplete;
+      const body = el.renderRoot.querySelector(".body");
+      expect(getComputedStyle(body).visibility).to.equal("hidden");
+    } finally {
+      el.removeAttribute = removeAttribute;
+      el.remove();
+    }
+  });
+
   it("highlights unread blip bodies beyond the small card unread dot", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b2u" data-wave-id="w2" author-name="Bob" unread>

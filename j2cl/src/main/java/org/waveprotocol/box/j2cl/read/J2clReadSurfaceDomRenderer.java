@@ -34,6 +34,7 @@ public final class J2clReadSurfaceDomRenderer {
   // Roughly one compact blip of lead time before a viewport edge reaches the exact scroll boundary.
   private static final double EDGE_SCROLL_THRESHOLD_PX = 64;
   private static final String ATTACHMENT_TELEMETRY_BOUND = "data-attachment-telemetry-bound";
+  private static final String BLIP_PENDING_UPGRADE = "data-j2cl-pending-upgrade";
 
   static final class InlineAnchorTextSegment {
     private final String text;
@@ -761,6 +762,11 @@ public final class J2clReadSurfaceDomRenderer {
     // entire blip stream flash and reflow even though only one
     // attribute changed. The surgical path is silent.
     if (applyTaskOnlyDiffIfPossible(effectiveEntries)) {
+      restoreFocusedBlipById(focusedBlipId);
+      evaluateDwellTimers();
+      return true;
+    }
+    if (applyAttachmentOnlyDiffIfPossible(effectiveEntries)) {
       restoreFocusedBlipById(focusedBlipId);
       evaluateDwellTimers();
       return true;
@@ -1525,6 +1531,7 @@ public final class J2clReadSurfaceDomRenderer {
         (HTMLElement) DomGlobal.document.createElement("wave-blip");
     element.className = "blip j2cl-read-blip";
     element.setAttribute("data-j2cl-read-blip", "true");
+    element.setAttribute(BLIP_PENDING_UPGRADE, "");
     element.setAttribute("data-blip-id", blip.getBlipId());
     element.setAttribute("role", "listitem");
     element.setAttribute("tabindex", index == 0 ? "0" : "-1");
@@ -3819,6 +3826,62 @@ public final class J2clReadSurfaceDomRenderer {
     return true;
   }
 
+  /**
+   * Returns true when the {@code wavy-task-affordance} children currently in {@code actual} match
+   * what {@code taskBinder} would produce for {@code blipId}. Falls through to false (triggering a
+   * full rebuild) when a task item is added, removed, checked, reassigned, due-dated, or its text
+   * range shifts — the same cases that {@link #applyTaskOnlyDiffIfPossible} handles via aggregate
+   * fields, but covering per-item granularity that the window-entry aggregate fields miss.
+   */
+  private boolean renderedTaskItemsMatch(String blipId, HTMLElement actual) {
+    if (actual == null) {
+      return false;
+    }
+    List<J2clTaskItemModel> expected = taskBinder == null
+        ? Collections.<J2clTaskItemModel>emptyList()
+        : taskBinder.tasksFor(blipId);
+    if (expected == null) {
+      expected = Collections.emptyList();
+    }
+    List<J2clTaskItemModel> namedExpected = new ArrayList<>();
+    for (J2clTaskItemModel t : expected) {
+      if (t != null && !t.getTaskId().isEmpty()) {
+        namedExpected.add(t);
+      }
+    }
+    NodeList<Element> rendered = actual.querySelectorAll("wavy-task-affordance[data-task-id]");
+    if (rendered.length != namedExpected.size()) {
+      return false;
+    }
+    for (int i = 0; i < namedExpected.size(); i++) {
+      J2clTaskItemModel exp = namedExpected.get(i);
+      Element ren = rendered.getAt(i);
+      if (!exp.getTaskId().equals(ren.getAttribute("data-task-id"))) {
+        return false;
+      }
+      if (exp.isChecked() != ren.hasAttribute("data-task-completed")) {
+        return false;
+      }
+      if (!String.valueOf(exp.getTextOffset()).equals(safeString(ren.getAttribute("data-task-start")))) {
+        return false;
+      }
+      if (!String.valueOf(exp.getEndOffset()).equals(safeString(ren.getAttribute("data-task-end")))) {
+        return false;
+      }
+      String expectedAssignee = safeString(exp.getAssigneeAddress()).trim();
+      String renderedAssignee = safeString(ren.getAttribute("data-task-assignee"));
+      if (!expectedAssignee.equals(renderedAssignee)) {
+        return false;
+      }
+      String expectedDue = formatDueDate(exp.getDueTimestamp());
+      String renderedDue = safeString(ren.getAttribute("data-task-due-date"));
+      if (!expectedDue.equals(renderedDue)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static String safeString(String value) {
     return value == null ? "" : value;
   }
@@ -3869,6 +3932,35 @@ public final class J2clReadSurfaceDomRenderer {
         && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
         && left.isUnread() == right.isUnread()
         && left.hasMention() == right.hasMention()
+        && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
+  }
+
+  /**
+   * GWT-parity (#1255): identity comparison for the attachment metadata refresh fast path.
+   * Attachment metadata resolution changes only the attachment render models. Text, focus,
+   * parent/thread placement, task state, and read metadata must stay identical or we fall through
+   * to the normal rebuild path.
+   */
+  private static boolean sameWindowEntryExceptAttachments(
+      J2clReadWindowEntry left, J2clReadWindowEntry right) {
+    return left.isLoaded() == right.isLoaded()
+        && left.getFromVersion() == right.getFromVersion()
+        && left.getToVersion() == right.getToVersion()
+        && left.getSegment().equals(right.getSegment())
+        && left.getBlipId().equals(right.getBlipId())
+        && left.getText().equals(right.getText())
+        && left.getAuthorId().equals(right.getAuthorId())
+        && left.getAuthorDisplayName().equals(right.getAuthorDisplayName())
+        && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
+        && left.getParentBlipId().equals(right.getParentBlipId())
+        && left.getThreadId().equals(right.getThreadId())
+        && left.isUnread() == right.isUnread()
+        && left.hasMention() == right.hasMention()
+        && left.isTaskDone() == right.isTaskDone()
+        && left.getTaskAssignee().equals(right.getTaskAssignee())
+        && left.getTaskDueTimestamp() == right.getTaskDueTimestamp()
+        && left.getBodyItemCount() == right.getBodyItemCount()
+        && left.isTask() == right.isTask()
         && left.getInlineReplyAnchors().equals(right.getInlineReplyAnchors());
   }
 
@@ -3940,6 +4032,126 @@ public final class J2clReadSurfaceDomRenderer {
     renderedWindowEntries =
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     return true;
+  }
+
+  /**
+   * GWT-parity (#1255): when attachment metadata resolves, keep the existing wave-blip hosts and
+   * replace only their attachment tile subtree. Clearing {@code host.innerHTML} here makes every
+   * blip detach and Lit-upgrade again, which is the visible "formatting disappears, then returns"
+   * churn users reported while attachments finish loading.
+   */
+  private boolean applyAttachmentOnlyDiffIfPossible(List<J2clReadWindowEntry> entries) {
+    if (renderedSurface == null || renderedSurface.parentElement != host) {
+      return false;
+    }
+    if (renderedWindowEntries.size() != entries.size()) {
+      return false;
+    }
+    if (conversationManifest != renderedConversationManifest) {
+      return false;
+    }
+    boolean anyAttachmentDiff = false;
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry next = entries.get(i);
+      J2clReadWindowEntry prev = renderedWindowEntries.get(i);
+      if (!sameWindowEntryExceptAttachments(prev, next)) {
+        return false;
+      }
+      if (!prev.getAttachments().equals(next.getAttachments())) {
+        anyAttachmentDiff = true;
+      }
+    }
+    if (!anyAttachmentDiff) {
+      return false;
+    }
+    // Guard: if any mention binder ranges differ from the rendered state, fall through to the full
+    // rebuild so mention spans are refreshed (same guard as matchesRenderedWindowEntries).
+    // Also guard against task-item binder changes: if per-task affordance state is stale, fall
+    // through so renderBlip() can rebuild the wavy-task-affordance subtree from the new binder.
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
+      if (!entry.isLoaded()) {
+        continue;
+      }
+      HTMLElement blipElement = renderedBlipById(entry.getBlipId());
+      if (!renderedMentionRangesMatch(entry.getBlipId(), entry.getText(), blipElement)) {
+        return false;
+      }
+      if (!renderedTaskItemsMatch(entry.getBlipId(), blipElement)) {
+        return false;
+      }
+    }
+    List<J2clReadWindowEntry> loadedEntries = new ArrayList<J2clReadWindowEntry>();
+    List<HTMLElement> loadedElements = new ArrayList<HTMLElement>();
+    List<Boolean> attachmentChanged = new ArrayList<Boolean>();
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
+      if (!entry.isLoaded()) {
+        continue;
+      }
+      J2clReadWindowEntry previous = renderedWindowEntries.get(i);
+      HTMLElement element = renderedBlipById(entry.getBlipId());
+      if (element == null) {
+        return false;
+      }
+      loadedEntries.add(entry);
+      loadedElements.add(element);
+      attachmentChanged.add(!previous.getAttachments().equals(entry.getAttachments()));
+    }
+    for (int i = 0; i < loadedEntries.size(); i++) {
+      J2clReadWindowEntry entry = loadedEntries.get(i);
+      HTMLElement element = loadedElements.get(i);
+      refreshReactionRow(element, entry.getBlipId());
+      if (Boolean.TRUE.equals(attachmentChanged.get(i))) {
+        replaceAttachmentSubtree(element, entry.getAttachments());
+      }
+    }
+    renderedWindowEntries =
+        Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
+    return true;
+  }
+
+  private void refreshReactionRow(HTMLElement blipElement, String blipId) {
+    Element reactionRow = blipElement.querySelector("reaction-row[slot='reactions']");
+    if (reactionRow instanceof HTMLElement && reactionRow.parentElement == blipElement) {
+      setProperty((HTMLElement) reactionRow, "reactions", buildReactionsArray(blipId));
+    }
+  }
+
+  private void replaceAttachmentSubtree(
+      HTMLElement blipElement, List<J2clAttachmentRenderModel> attachments) {
+    HTMLElement existing = directChildWithClass(blipElement, "j2cl-read-attachments");
+    if (existing != null && existing.parentElement == blipElement) {
+      blipElement.removeChild(existing);
+    }
+    if (attachments == null || attachments.isEmpty()) {
+      return;
+    }
+    HTMLElement next = (HTMLElement) DomGlobal.document.createElement("div");
+    next.className = "j2cl-read-attachments";
+    for (J2clAttachmentRenderModel attachment : attachments) {
+      next.appendChild(renderAttachment(attachment));
+    }
+    Element reactionRow = blipElement.querySelector("reaction-row[slot='reactions']");
+    if (reactionRow != null && reactionRow.parentElement == blipElement) {
+      blipElement.insertBefore(next, reactionRow);
+    } else {
+      blipElement.appendChild(next);
+    }
+  }
+
+  private static HTMLElement directChildWithClass(HTMLElement parent, String className) {
+    if (parent == null || className == null || className.isEmpty()) {
+      return null;
+    }
+    Element child = parent.firstElementChild;
+    while (child != null) {
+      if (child instanceof HTMLElement && child.classList.contains(className)) {
+        return (HTMLElement) child;
+      }
+      child = child.nextElementSibling;
+    }
+    return null;
   }
 
   private HTMLElement renderedBlipById(String blipId) {

@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.read;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import elemental2.core.JsArray;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Element;
 import elemental2.dom.Event;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import jsinterop.base.Js;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -22,6 +24,7 @@ import org.junit.Test;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
+import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
@@ -1382,6 +1385,236 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertEquals("Open attachment hero.png (image/png)", open.getAttribute("aria-label"));
     Assert.assertEquals(
         "Download attachment hero.png (image/png)", download.getAttribute("aria-label"));
+  }
+
+  @Test
+  public void attachmentMetadataRefreshUpdatesTilesWithoutRebuildingBlips() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    ArrayList<J2clReactionSummary> rootReactions = new ArrayList<J2clReactionSummary>();
+    rootReactions.add(
+        new J2clReactionSummary("👍", Arrays.asList("alice@example.com"), true, ""));
+    renderer.setReactionBinder(
+        blipId -> "b+root".equals(blipId) ? rootReactions : Collections.emptyList());
+    J2clAttachmentRenderModel pending =
+        J2clAttachmentRenderModel.metadataPending(
+            "example.com/att+hero", "Hero diagram", "medium");
+    J2clAttachmentRenderModel unchanged =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+stable",
+            "Stable diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+stable",
+                "stable.png",
+                "image/png",
+                "/attachment/example.com/att+stable",
+                "/thumbnail/example.com/att+stable",
+                new J2clAttachmentMetadata.ImageMetadata(640, 480),
+                false));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root",
+                    0L,
+                    9L,
+                    "b+root",
+                    "Root text",
+                    Arrays.asList(pending)),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+stable",
+                    0L,
+                    9L,
+                    "b+stable",
+                    "Stable text",
+                    Arrays.asList(unchanged)))));
+    HTMLElement originalBlip = blip(host, "b+root");
+    HTMLElement unchangedBlip = blip(host, "b+stable");
+    Assert.assertNotNull(originalBlip);
+    Assert.assertNotNull(unchangedBlip);
+    HTMLElement pendingTile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull("attachment tile should be present before resolve", pendingTile);
+    Assert.assertEquals("pending", pendingTile.getAttribute("data-attachment-state"));
+    HTMLElement originalReactionRow =
+        (HTMLElement) originalBlip.querySelector("reaction-row[slot='reactions']");
+    Assert.assertNotNull("reaction row should be present before resolve", originalReactionRow);
+    Assert.assertEquals(1, reactionCount(originalReactionRow));
+    HTMLElement unchangedTile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+stable']");
+    Assert.assertNotNull("unchanged attachment tile should be present", unchangedTile);
+
+    J2clAttachmentRenderModel resolved =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+    rootReactions.clear();
+    rootReactions.add(
+        new J2clReactionSummary(
+            "👍", Arrays.asList("alice@example.com", "bob@example.com"), true, ""));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loaded(
+                    "blip:b+root",
+                    0L,
+                    9L,
+                    "b+root",
+                    "Root text",
+                    Arrays.asList(resolved)),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+stable",
+                    0L,
+                    9L,
+                    "b+stable",
+                    "Stable text",
+                    Arrays.asList(unchanged)))));
+
+    Assert.assertSame(originalBlip, blip(host, "b+root"));
+    Assert.assertSame(
+        originalReactionRow, originalBlip.querySelector("reaction-row[slot='reactions']"));
+    Assert.assertEquals(1, reactionCount(originalReactionRow));
+    Assert.assertEquals(2, firstReactionCount(originalReactionRow));
+    Assert.assertSame(unchangedBlip, blip(host, "b+stable"));
+    Assert.assertSame(
+        unchangedTile, host.querySelector("[data-attachment-id='example.com/att+stable']"));
+    HTMLElement tile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull("attachment tile should be present after resolve", tile);
+    Assert.assertEquals("ready", tile.getAttribute("data-attachment-state"));
+    Assert.assertNotNull(tile.querySelector("[data-j2cl-attachment-open='true']"));
+    Assert.assertNotNull(tile.querySelector(".j2cl-read-attachment-preview"));
+  }
+
+  @Test
+  public void attachmentMetadataRefreshFallsBackWhenTaskDueDateChanges() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    ArrayList<J2clTaskItemModel> taskItems = new ArrayList<>();
+    taskItems.add(
+        new J2clTaskItemModel(
+            "task-1",
+            0,
+            4,
+            "task-b-task-task-1",
+            "",
+            1714560000000L,
+            false,
+            true));
+    renderer.setTaskBinder(
+        blipId ->
+            "b+task".equals(blipId)
+                ? taskItems
+                : Collections.<J2clTaskItemModel>emptyList());
+    J2clAttachmentRenderModel pending =
+        J2clAttachmentRenderModel.metadataPending(
+            "example.com/att+hero", "Hero diagram", "medium");
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loadedWithTaskMetadata(
+                    "blip:b+task",
+                    0L,
+                    9L,
+                    "b+task",
+                    "Task body",
+                    Arrays.asList(pending),
+                    "alice@example.com",
+                    "alice@example.com",
+                    1714240000000L,
+                    "",
+                    "",
+                    /* unread= */ false,
+                    /* hasMention= */ false,
+                    /* taskDone= */ false,
+                    /* taskAssignee= */ "",
+                    /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+                    /* bodyItemCount= */ 9,
+                    /* isTask= */ true))));
+    HTMLElement originalBlip = blip(host, "b+task");
+    Assert.assertNotNull(originalBlip);
+    HTMLElement originalAffordance =
+        (HTMLElement) originalBlip.querySelector("wavy-task-affordance[data-task-id='task-1']");
+    Assert.assertNotNull(originalAffordance);
+    Assert.assertEquals("2024-05-01", originalAffordance.getAttribute("data-task-due-date"));
+
+    taskItems.clear();
+    taskItems.add(
+        new J2clTaskItemModel(
+            "task-1",
+            0,
+            4,
+            "task-b-task-task-1",
+            "",
+            1714646400000L,
+            false,
+            true));
+    J2clAttachmentRenderModel resolved =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loadedWithTaskMetadata(
+                    "blip:b+task",
+                    0L,
+                    9L,
+                    "b+task",
+                    "Task body",
+                    Arrays.asList(resolved),
+                    "alice@example.com",
+                    "alice@example.com",
+                    1714240000000L,
+                    "",
+                    "",
+                    /* unread= */ false,
+                    /* hasMention= */ false,
+                    /* taskDone= */ false,
+                    /* taskAssignee= */ "",
+                    /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+                    /* bodyItemCount= */ 9,
+                    /* isTask= */ true))));
+
+    HTMLElement updatedBlip = blip(host, "b+task");
+    Assert.assertNotNull(updatedBlip);
+    Assert.assertNotSame(
+        "due-date-only task changes must not take the attachment-only DOM path",
+        originalBlip,
+        updatedBlip);
+    HTMLElement updatedAffordance =
+        (HTMLElement) updatedBlip.querySelector("wavy-task-affordance[data-task-id='task-1']");
+    Assert.assertNotNull(updatedAffordance);
+    Assert.assertEquals("2024-05-02", updatedAffordance.getAttribute("data-task-due-date"));
+    HTMLElement tile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull(tile);
+    Assert.assertEquals("ready", tile.getAttribute("data-attachment-state"));
   }
 
   @Test
@@ -3796,6 +4029,33 @@ public class J2clReadSurfaceDomRendererTest {
       }
     }
     return false;
+  }
+
+  /** Returns the number of entries in the {@code reactions} JsArray property of a reaction-row. */
+  private static int reactionCount(HTMLElement reactionRow) {
+    Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
+    if (reactions == null) {
+      return 0;
+    }
+    return Js.<JsArray<Object>>uncheckedCast(reactions).length;
+  }
+
+  /**
+   * Returns the {@code count} field of the first entry in the {@code reactions} JsArray property
+   * of a reaction-row element (each entry is a plain JS object with a numeric {@code count} field).
+   */
+  private static int firstReactionCount(HTMLElement reactionRow) {
+    Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
+    JsArray<Object> array = Js.uncheckedCast(reactions);
+    if (array == null || array.length == 0) {
+      return 0;
+    }
+    Object firstReaction = array.getAt(0);
+    if (firstReaction == null) {
+      return 0;
+    }
+    Object count = Js.asPropertyMap(firstReaction).get("count");
+    return count instanceof Number ? ((Number) count).intValue() : 0;
   }
 
   @Test

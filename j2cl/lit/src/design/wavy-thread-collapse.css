@@ -33,6 +33,26 @@ wave-blip:not(:defined) > * {
   visibility: hidden;
 }
 
+/* Client-created <wave-blip> hosts can already be defined when Java appends
+ * their light-DOM body. Keep that body hidden until Lit's first render has
+ * installed the formatted shadow wrapper, then wave-blip removes this marker. */
+wave-blip[data-j2cl-pending-upgrade] {
+  display: block;
+  min-height: 40px;
+  margin: var(--wavy-spacing-2, 8px) 0;
+  border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.18));
+  border-radius: var(--wavy-radius-sm, 4px);
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(255, 255, 255, 0.72), rgba(34, 211, 238, 0.08)),
+    var(--wavy-bg-surface, #f8fafc);
+  color: transparent;
+  overflow: hidden;
+}
+
+wave-blip[data-j2cl-pending-upgrade] > * {
+  visibility: hidden;
+}
+
 .j2cl-read-attachments {
   display: grid;
   gap: var(--wavy-spacing-2, 8px);

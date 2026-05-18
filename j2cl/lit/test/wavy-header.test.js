@@ -193,38 +193,41 @@ describe("<wavy-header>", () => {
     outside.textContent = "outside";
     document.body.appendChild(outside);
 
-    expect(dropdown).to.exist;
-    expect(dropdown.classList.contains("open")).to.be.false;
-    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+    try {
+      expect(dropdown).to.exist;
+      expect(dropdown.classList.contains("open")).to.be.false;
+      expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
 
-    userMenu.click();
-    await el.updateComplete;
+      userMenu.click();
+      await el.updateComplete;
 
-    expect(dropdown.classList.contains("open")).to.be.true;
-    expect(userMenu.getAttribute("aria-expanded")).to.equal("true");
-    expect(dropdown.querySelector(".user-info-address").textContent.trim()).to.equal(
-      "alice@example.com"
-    );
-    expect(dropdown.querySelector('a[href="/userprofile/edit"]')).to.exist;
-    expect(dropdown.querySelector('a[href="/auth/signout?r=/%3Fview%3Dj2cl-root"]')).to.exist;
+      expect(dropdown.classList.contains("open")).to.be.true;
+      expect(userMenu.getAttribute("aria-expanded")).to.equal("true");
+      expect(dropdown.querySelector(".user-info-address").textContent.trim()).to.equal(
+        "alice@example.com"
+      );
+      expect(dropdown.querySelector('a[href="/userprofile/edit"]')).to.exist;
+      expect(dropdown.querySelector('a[href="/auth/signout?r=/%3Fview%3Dj2cl-root"]')).to.exist;
 
-    outside.click();
-    await el.updateComplete;
+      outside.click();
+      await el.updateComplete;
 
-    expect(dropdown.classList.contains("open")).to.be.false;
-    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+      expect(dropdown.classList.contains("open")).to.be.false;
+      expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
 
-    userMenu.click();
-    await el.updateComplete;
-    expect(dropdown.classList.contains("open")).to.be.true;
+      userMenu.click();
+      await el.updateComplete;
+      expect(dropdown.classList.contains("open")).to.be.true;
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    await el.updateComplete;
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      await el.updateComplete;
 
-    expect(dropdown.classList.contains("open")).to.be.false;
-    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
-    expect(el.renderRoot.activeElement).to.equal(userMenu);
-    outside.remove();
+      expect(dropdown.classList.contains("open")).to.be.false;
+      expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+      expect(el.renderRoot.activeElement).to.equal(userMenu);
+    } finally {
+      outside.remove();
+    }
   });
 
   it("user menu shows Admin only for admin and owner roles", async () => {

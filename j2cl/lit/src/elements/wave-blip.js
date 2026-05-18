@@ -338,11 +338,14 @@ export class WaveBlip extends LitElement {
     /* GWT parity: a per-blip continuation indicator below the blip body
      * that reveals on hover or focus. Click creates a sibling reply at
      * the same thread level (continuation), distinct from the toolbar
-     * reply icon which creates an inline (nested) reply. Mirrors GWT's
-     * ContinuationIndicator { opacity: 0; } + :hover { opacity: 1.0; }. */
+     * reply icon which creates an inline (nested) reply. GWT's
+     * ContinuationIndicator is an icon/bar affordance that does not
+     * reserve a text badge row in normal layout. */
     .continuation-row {
-      display: flex;
-      margin: 4px 0 2px 3.35em;
+      position: relative;
+      z-index: 3;
+      height: 0;
+      margin: 0 0 0 3.35em;
       opacity: 0;
       pointer-events: none;
       visibility: hidden;
@@ -364,26 +367,32 @@ export class WaveBlip extends LitElement {
     .continuation-trigger {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 10px;
+      justify-content: center;
+      position: absolute;
+      left: -44px;
+      top: -23px;
+      width: 32px;
+      height: 23px;
+      padding: 0;
+      box-sizing: border-box;
       font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
-      color: #4a5568;
-      background: transparent;
-      border: 1px dashed #cbd5e0;
-      border-radius: var(--wavy-radius-sm, 4px);
+      color: var(--wavy-signal-cyan, #0077b6);
+      background: #f0f4f8;
+      border: 1.5px solid var(--wavy-signal-cyan, #0077b6);
+      border-radius: 6px;
       cursor: pointer;
+      opacity: 0.85;
     }
     .continuation-trigger:hover {
-      background: #f0f4f8;
-      border-color: #90cdf4;
-      color: #2b6cb0;
+      background: #e6f3fb;
+      opacity: 1;
     }
     .continuation-trigger:focus-visible {
       outline: none;
       box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
     }
     .continuation-trigger .glyph {
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
     }
   `;
@@ -1016,7 +1025,6 @@ export class WaveBlip extends LitElement {
           @click=${this._onContinuationClick}
         >
           <span class="glyph" aria-hidden="true">↩</span>
-          <span class="label">${t("blip.reply", "Reply")}</span>
         </button>
       </div>
     `;

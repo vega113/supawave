@@ -1392,6 +1392,19 @@ public class J2clReadSurfaceDomRendererTest {
     J2clAttachmentRenderModel pending =
         J2clAttachmentRenderModel.metadataPending(
             "example.com/att+hero", "Hero diagram", "medium");
+    J2clAttachmentRenderModel unchanged =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+stable",
+            "Stable diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+stable",
+                "stable.png",
+                "image/png",
+                "/attachment/example.com/att+stable",
+                "/thumbnail/example.com/att+stable",
+                new J2clAttachmentMetadata.ImageMetadata(640, 480),
+                false));
 
     Assert.assertTrue(
         renderer.renderWindow(
@@ -1402,13 +1415,25 @@ public class J2clReadSurfaceDomRendererTest {
                     9L,
                     "b+root",
                     "Root text",
-                    Arrays.asList(pending)))));
+                    Arrays.asList(pending)),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+stable",
+                    0L,
+                    9L,
+                    "b+stable",
+                    "Stable text",
+                    Arrays.asList(unchanged)))));
     HTMLElement originalBlip = blip(host, "b+root");
+    HTMLElement unchangedBlip = blip(host, "b+stable");
     Assert.assertNotNull(originalBlip);
+    Assert.assertNotNull(unchangedBlip);
     HTMLElement pendingTile =
         (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
     Assert.assertNotNull("attachment tile should be present before resolve", pendingTile);
     Assert.assertEquals("pending", pendingTile.getAttribute("data-attachment-state"));
+    HTMLElement unchangedTile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+stable']");
+    Assert.assertNotNull("unchanged attachment tile should be present", unchangedTile);
 
     J2clAttachmentRenderModel resolved =
         J2clAttachmentRenderModel.fromMetadata(
@@ -1433,9 +1458,19 @@ public class J2clReadSurfaceDomRendererTest {
                     9L,
                     "b+root",
                     "Root text",
-                    Arrays.asList(resolved)))));
+                    Arrays.asList(resolved)),
+                J2clReadWindowEntry.loaded(
+                    "blip:b+stable",
+                    0L,
+                    9L,
+                    "b+stable",
+                    "Stable text",
+                    Arrays.asList(unchanged)))));
 
     Assert.assertSame(originalBlip, blip(host, "b+root"));
+    Assert.assertSame(unchangedBlip, blip(host, "b+stable"));
+    Assert.assertSame(
+        unchangedTile, host.querySelector("[data-attachment-id='example.com/att+stable']"));
     HTMLElement tile =
         (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
     Assert.assertNotNull("attachment tile should be present after resolve", tile);

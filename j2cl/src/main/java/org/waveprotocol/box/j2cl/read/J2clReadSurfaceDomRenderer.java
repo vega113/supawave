@@ -4008,6 +4008,8 @@ public final class J2clReadSurfaceDomRenderer {
     if (!anyAttachmentDiff) {
       return false;
     }
+    List<J2clReadWindowEntry> changedEntries = new ArrayList<J2clReadWindowEntry>();
+    List<HTMLElement> changedElements = new ArrayList<HTMLElement>();
     for (int i = 0; i < entries.size(); i++) {
       J2clReadWindowEntry entry = entries.get(i);
       if (!entry.isLoaded()) {
@@ -4021,7 +4023,11 @@ public final class J2clReadSurfaceDomRenderer {
       if (element == null) {
         return false;
       }
-      replaceAttachmentSubtree(element, entry.getAttachments());
+      changedEntries.add(entry);
+      changedElements.add(element);
+    }
+    for (int i = 0; i < changedEntries.size(); i++) {
+      replaceAttachmentSubtree(changedElements.get(i), changedEntries.get(i).getAttachments());
     }
     renderedWindowEntries =
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));

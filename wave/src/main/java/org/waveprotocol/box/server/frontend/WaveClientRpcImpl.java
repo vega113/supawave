@@ -73,6 +73,7 @@ import javax.annotation.Nullable;
 public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private static final Log LOG = Log.get(WaveClientRpcImpl.class);
+  private static final String ROOT_BLIP_ID = "b+root";
   private static final String J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK =
       "J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK";
   /** Config hook to adjust viewport limits at runtime (eager-read at startup). */
@@ -564,10 +565,10 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
   }
 
   private static int compareBlipIdsNaturally(String left, String right) {
-    if ("b+root".equals(left) && !"b+root".equals(right)) {
+    if (ROOT_BLIP_ID.equals(left) && !ROOT_BLIP_ID.equals(right)) {
       return -1;
     }
-    if ("b+root".equals(right) && !"b+root".equals(left)) {
+    if (ROOT_BLIP_ID.equals(right) && !ROOT_BLIP_ID.equals(left)) {
       return 1;
     }
     String leftPrefix = trailingNumberPrefix(left);

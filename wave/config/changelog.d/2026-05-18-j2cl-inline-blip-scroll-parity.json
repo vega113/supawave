@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-18-j2cl-inline-blip-scroll-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL now matches GWT inline reply placement and wave-open positioning.",
+  "summary": "J2CL replies now use the same inline-blip fallback position as GWT when no caret is captured, and initial wave-open viewport ordering keeps the root title blip visible.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Inline replies created from J2CL now fall back to the end of the parent blip body instead of creating a manifest-only child thread.",
+        "Initial J2CL viewport windows now keep the root blip ordered before generated numeric blips so wave-open scrolling has the same starting content as GWT."
+      ]
+    }
+  ]
+}

@@ -1229,9 +1229,19 @@ public final class J2clComposeSurfaceController {
     int normalizedBodyItemCount = Math.max(0, parentBodyItemCount);
     pendingInlineAnchorBlipId = blipId == null ? "" : blipId;
     pendingInlineAnchorItemOffset =
-        (anchorItemOffset >= 1 && anchorItemOffset < normalizedBodyItemCount)
-            ? anchorItemOffset : -1;
+        normalizedInlineReplyAnchorOffset(anchorItemOffset, normalizedBodyItemCount);
     pendingInlineAnchorParentBodyItemCount = normalizedBodyItemCount;
+  }
+
+  private static int normalizedInlineReplyAnchorOffset(
+      int anchorItemOffset, int parentBodyItemCount) {
+    if (anchorItemOffset >= 1 && anchorItemOffset < parentBodyItemCount) {
+      return anchorItemOffset;
+    }
+    if (parentBodyItemCount > 1) {
+      return parentBodyItemCount - 1;
+    }
+    return -1;
   }
 
   private void clearPendingInlineAnchor() {

@@ -1235,10 +1235,10 @@ public final class J2clComposeSurfaceController {
 
   private static int normalizedInlineReplyAnchorOffset(
       int anchorItemOffset, int parentBodyItemCount) {
-    if (anchorItemOffset >= 1 && anchorItemOffset < parentBodyItemCount) {
+    if (anchorItemOffset >= 0 && anchorItemOffset < parentBodyItemCount) {
       return anchorItemOffset;
     }
-    if (parentBodyItemCount > 1) {
+    if (anchorItemOffset < 0 && parentBodyItemCount > 1) {
       return parentBodyItemCount - 1;
     }
     return -1;
@@ -2462,7 +2462,7 @@ public final class J2clComposeSurfaceController {
     // body-anchor element.
     final boolean useAnchor =
         !continuation
-            && pendingInlineAnchorItemOffset >= 1
+            && pendingInlineAnchorItemOffset >= 0
             && pendingInlineAnchorParentBodyItemCount > 0
             && replyTargetBlipId != null
             && replyTargetBlipId.equals(pendingInlineAnchorBlipId);

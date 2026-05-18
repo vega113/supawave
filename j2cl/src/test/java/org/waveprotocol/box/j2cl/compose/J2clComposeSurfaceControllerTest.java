@@ -139,6 +139,32 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void inlineReplyWithCaretAtBodyStartPreservesOffset() {
+    // offset 0 is a valid start-of-body caret, not a "no caret" signal
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onInlineReplyAnchorRequested(
+        "b+child",
+        /* anchorItemOffset= */ 0,
+        /* parentBodyItemCount= */ TEST_BODY_ITEM_COUNT);
+    controller.onReplySubmitted("reply at body start", "b+child");
+
+    Assert.assertNotNull(factory.lastReplySession);
+    Assert.assertEquals(0, factory.lastInlineAnchorItemOffset);
+  }
+
+  @Test
   public void continuationReplyIgnoresPendingInlineAnchor() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

@@ -107,6 +107,21 @@ describe("moveBlipFocus", () => {
     expect(fired).to.deep.equal({ blipId: "b2", waveId: "w" });
   });
 
+  it("setFocusedBlip propagates explicit key to wavy-focus-changed", async () => {
+    const root = await fixture(html`
+      <div data-j2cl-read-surface="true">
+        <wave-blip data-blip-id="b1" data-wave-id="w" author-name="A"></wave-blip>
+      </div>
+    `);
+    const blip = root.querySelector("wave-blip");
+    let focusDetail = null;
+    root.addEventListener("wavy-focus-changed", (e) => { focusDetail = e.detail; });
+    setFocusedBlip(blip, root, "j");
+    expect(focusDetail).to.not.equal(null);
+    expect(focusDetail.key).to.equal("j");
+    expect(focusDetail.blipId).to.equal("b1");
+  });
+
   it("setFocusedBlip adds j2cl-read-blip-focused class and removes from others", async () => {
     const root = await threeBlips();
     const blips = Array.from(root.querySelectorAll("wave-blip"));

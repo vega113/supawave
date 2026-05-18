@@ -32,6 +32,7 @@ import java.util.Optional;
 public final class BotAttachmentContext {
 
   static final int MAX_TEXT_BYTES = 64 * 1024;
+  static final int MAX_ATTACHMENT_CONTEXT_ITEMS = 5;
   static final int MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
   private static final int MAX_RENDERED_CHARS = 12000;
 

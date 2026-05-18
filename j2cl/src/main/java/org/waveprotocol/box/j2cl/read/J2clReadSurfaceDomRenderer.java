@@ -4008,6 +4008,18 @@ public final class J2clReadSurfaceDomRenderer {
     if (!anyAttachmentDiff) {
       return false;
     }
+    // Guard: if any mention binder ranges differ from the rendered state, fall through to the full
+    // rebuild so mention spans are refreshed (same guard as matchesRenderedWindowEntries).
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
+      if (!entry.isLoaded()) {
+        continue;
+      }
+      if (!renderedMentionRangesMatch(
+          entry.getBlipId(), entry.getText(), renderedBlipById(entry.getBlipId()))) {
+        return false;
+      }
+    }
     List<J2clReadWindowEntry> changedEntries = new ArrayList<J2clReadWindowEntry>();
     List<HTMLElement> changedElements = new ArrayList<HTMLElement>();
     for (int i = 0; i < entries.size(); i++) {

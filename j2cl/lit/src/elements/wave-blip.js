@@ -370,15 +370,15 @@ export class WaveBlip extends LitElement {
       justify-content: center;
       position: absolute;
       left: 13px;
-      top: -15px;
+      top: -23px;
       width: 46px;
       height: 23px;
       padding: 0;
       box-sizing: border-box;
       font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
-      color: #0077b6;
+      color: var(--wavy-signal-cyan, #0077b6);
       background: #f0f4f8;
-      border: 1.5px solid #0077b6;
+      border: 1.5px solid var(--wavy-signal-cyan, #0077b6);
       border-radius: 6px;
       cursor: pointer;
       opacity: 0.85;

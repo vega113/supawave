@@ -68,6 +68,18 @@ describe("<wavy-header>", () => {
     expect(getComputedStyle(bell).height).to.equal("32px");
   });
 
+  it("compact GWT topbar mode uses the GWT user-menu pill geometry", async () => {
+    const el = await fixture(html`<wavy-header compact-gwt-topbar signed-in></wavy-header>`);
+    await el.updateComplete;
+    const userMenu = el.renderRoot.querySelector("button.user-menu");
+    const avatar = userMenu.querySelector(".avatar");
+
+    expect(getComputedStyle(userMenu).width).to.not.equal("32px");
+    expect(getComputedStyle(userMenu).borderRadius).to.equal("20px");
+    expect(getComputedStyle(avatar).width).to.equal("28px");
+    expect(getComputedStyle(avatar).height).to.equal("28px");
+  });
+
   it("change on locale picker emits wavy-locale-changed (A.2)", async () => {
     const el = await fixture(html`<wavy-header></wavy-header>`);
     await el.updateComplete;
@@ -131,7 +143,7 @@ describe("<wavy-header>", () => {
     await el.updateComplete;
     const userMenu = el.renderRoot.querySelector("button.user-menu");
     expect(userMenu).to.exist;
-    expect(userMenu.getAttribute("aria-haspopup")).to.equal("menu");
+    expect(userMenu.getAttribute("aria-haspopup")).to.equal("true");
     const avatar = userMenu.querySelector(".avatar");
     expect(avatar).to.exist;
     expect(avatar.textContent.trim()).to.equal("AS"); // alice.smith → A + S
@@ -162,6 +174,84 @@ describe("<wavy-header>", () => {
     setTimeout(() => userMenu.click(), 0);
     const evt = await oneEvent(el, "wavy-user-menu-requested");
     expect(evt.detail.address).to.equal("alice@example.com");
+    expect(evt.detail.open).to.equal(true);
+  });
+
+  it("user-menu click opens the GWT-style account menu and outside/Escape closes it", async () => {
+    const el = await fixture(
+      html`<wavy-header
+        compact-gwt-topbar
+        signed-in
+        data-address="alice@example.com"
+        return-target="/?view=j2cl-root"
+      ></wavy-header>`
+    );
+    await el.updateComplete;
+    const userMenu = el.renderRoot.querySelector("button.user-menu");
+    const dropdown = el.renderRoot.querySelector(".user-menu-dropdown");
+    const outside = document.createElement("button");
+    outside.textContent = "outside";
+    document.body.appendChild(outside);
+
+    expect(dropdown).to.exist;
+    expect(dropdown.classList.contains("open")).to.be.false;
+    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+
+    userMenu.click();
+    await el.updateComplete;
+
+    expect(dropdown.classList.contains("open")).to.be.true;
+    expect(userMenu.getAttribute("aria-expanded")).to.equal("true");
+    expect(dropdown.querySelector(".user-info-address").textContent.trim()).to.equal(
+      "alice@example.com"
+    );
+    expect(dropdown.querySelector('a[href="/userprofile/edit"]')).to.exist;
+    expect(dropdown.querySelector('a[href="/auth/signout?r=/%3Fview%3Dj2cl-root"]')).to.exist;
+
+    outside.click();
+    await el.updateComplete;
+
+    expect(dropdown.classList.contains("open")).to.be.false;
+    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+
+    userMenu.click();
+    await el.updateComplete;
+    expect(dropdown.classList.contains("open")).to.be.true;
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await el.updateComplete;
+
+    expect(dropdown.classList.contains("open")).to.be.false;
+    expect(userMenu.getAttribute("aria-expanded")).to.equal("false");
+    expect(el.renderRoot.activeElement).to.equal(userMenu);
+    outside.remove();
+  });
+
+  it("user menu shows Admin only for admin and owner roles", async () => {
+    const user = await fixture(html`<wavy-header signed-in user-role="user"></wavy-header>`);
+    await user.updateComplete;
+    expect(user.renderRoot.querySelector('a[href="/admin"]')).to.not.exist;
+
+    const owner = await fixture(html`<wavy-header signed-in user-role="owner"></wavy-header>`);
+    await owner.updateComplete;
+    expect(owner.renderRoot.querySelector('a[href="/admin"]')).to.exist;
+  });
+
+  it("user menu signout follows return-target attribute updates", async () => {
+    const el = await fixture(
+      html`<wavy-header signed-in return-target="/?view=j2cl-root"></wavy-header>`
+    );
+    await el.updateComplete;
+
+    expect(el.renderRoot.querySelector('a[href="/auth/signout?r=/%3Fview%3Dj2cl-root"]')).to
+      .exist;
+
+    el.setAttribute("return-target", "/?view=j2cl-root&q=in:inbox");
+    await el.updateComplete;
+
+    expect(
+      el.renderRoot.querySelector('a[href="/auth/signout?r=/%3Fview%3Dj2cl-root%26q%3Din%3Ainbox"]')
+    ).to.exist;
   });
 
   it("avatar initials handle single-name emails", async () => {

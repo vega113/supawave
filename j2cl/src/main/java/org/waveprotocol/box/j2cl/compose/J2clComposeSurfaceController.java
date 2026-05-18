@@ -1238,7 +1238,10 @@ public final class J2clComposeSurfaceController {
     if (anchorItemOffset >= 1 && anchorItemOffset < parentBodyItemCount) {
       return anchorItemOffset;
     }
-    if (parentBodyItemCount > 1) {
+    // Only fall back to the last body item when no caret was captured (sentinel -1).
+    // If the caller passed 0 or an out-of-range value it was an explicit (invalid)
+    // anchor, not a missing one, so we leave it as -1 (no inline anchor).
+    if (anchorItemOffset == -1 && parentBodyItemCount > 1) {
       return parentBodyItemCount - 1;
     }
     return -1;

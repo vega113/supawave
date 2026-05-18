@@ -38,7 +38,12 @@ import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.document.DocumentConstants;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
+import org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap;
+import org.waveprotocol.wave.model.document.operation.Attributes;
 import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
@@ -73,7 +78,6 @@ import javax.annotation.Nullable;
 public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
 
   private static final Log LOG = Log.get(WaveClientRpcImpl.class);
-  private static final String ROOT_BLIP_ID = "b+root";
   private static final String J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK =
       "J2CL_VIEWPORT_FULL_SNAPSHOT_FALLBACK";
   /** Config hook to adjust viewport limits at runtime (eager-read at startup). */
@@ -559,17 +563,48 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
       }
     }
     if (naturalOrder) {
-      blips.sort(WaveClientRpcImpl::compareBlipIdsNaturally);
+      String rootBlipId = readRootBlipId(snapshot.snapshot);
+      blips.sort((left, right) -> compareBlipIdsNaturally(left, right, rootBlipId));
     }
     return blips;
   }
 
-  private static int compareBlipIdsNaturally(String left, String right) {
-    if (ROOT_BLIP_ID.equals(left) && !ROOT_BLIP_ID.equals(right)) {
-      return -1;
+  /**
+   * Returns the root blip id by reading the first {@code <blip>} element in the
+   * conversation manifest document, or {@code null} if the manifest is absent.
+   */
+  @Nullable
+  private static String readRootBlipId(ReadableWaveletData waveletData) {
+    ReadableBlipData manifestDoc =
+        waveletData.getDocument(DocumentConstants.MANIFEST_DOCUMENT_ID);
+    if (manifestDoc == null) {
+      return null;
     }
-    if (ROOT_BLIP_ID.equals(right) && !ROOT_BLIP_ID.equals(left)) {
-      return 1;
+    final String[] rootBlipId = {null};
+    manifestDoc.getContent().asOperation().apply(new DocInitializationCursor() {
+      @Override
+      public void elementStart(String type, Attributes attrs) {
+        if (rootBlipId[0] == null
+            && DocumentConstants.BLIP.equals(type)
+            && attrs != null) {
+          rootBlipId[0] = attrs.get(DocumentConstants.BLIP_ID);
+        }
+      }
+      @Override public void elementEnd() {}
+      @Override public void characters(String chars) {}
+      @Override public void annotationBoundary(AnnotationBoundaryMap map) {}
+    });
+    return rootBlipId[0];
+  }
+
+  private static int compareBlipIdsNaturally(String left, String right, String rootBlipId) {
+    if (rootBlipId != null) {
+      if (rootBlipId.equals(left) && !rootBlipId.equals(right)) {
+        return -1;
+      }
+      if (rootBlipId.equals(right) && !rootBlipId.equals(left)) {
+        return 1;
+      }
     }
     String leftPrefix = trailingNumberPrefix(left);
     String rightPrefix = trailingNumberPrefix(right);

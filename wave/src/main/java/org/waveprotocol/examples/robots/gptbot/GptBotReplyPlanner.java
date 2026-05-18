@@ -132,6 +132,7 @@ public final class GptBotReplyPlanner {
 
   private String buildPromptWithAttachments(String promptText,
       List<BotAttachmentContext.RawAttachment> attachments) {
+    // Build attachment context before the wave mutex is acquired because it may transcribe media.
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;

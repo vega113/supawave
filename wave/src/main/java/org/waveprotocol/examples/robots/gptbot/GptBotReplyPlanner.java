@@ -137,11 +137,17 @@ public final class GptBotReplyPlanner {
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
-    // Cap user text to half the budget so attachment context is not squeezed out.
     boolean hasAttachments = attachments != null && !attachments.isEmpty();
-    String basePrompt = hasAttachments && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
-        ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2)
-        : normalizedPrompt;
+    String basePrompt;
+    if (hasAttachments) {
+      // Cap user text to half the budget so attachment context is not squeezed out.
+      basePrompt = normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
+          ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2) : normalizedPrompt;
+    } else {
+      // No attachments: apply the full budget cap here so buildMessages can redact-only.
+      basePrompt = normalizedPrompt.length() > MAX_PROMPT_CHARS
+          ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS) : normalizedPrompt;
+    }
     return appendAttachmentContext(basePrompt, attachments);
   }
 
@@ -233,7 +239,8 @@ public final class GptBotReplyPlanner {
     }
 
     userMsg.put("role", "user");
-    userMsg.put("content", sanitize(normalizedPrompt, MAX_PROMPT_CHARS));
+    // Size already bounded in buildPromptWithAttachments; only redact secrets here.
+    userMsg.put("content", sanitize(normalizedPrompt, Integer.MAX_VALUE));
     messages.add(userMsg);
     return messages;
   }

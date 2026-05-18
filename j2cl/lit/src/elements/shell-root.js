@@ -320,12 +320,12 @@ export class ShellRoot extends LitElement {
         // Skip while a modal is open — modal surfaces trap navigation.
         if (this._modalIsOpen()) return false;
         const direction = action === KEY_ACTION.BLIP_FOCUS_NEXT ? 1 : -1;
-        return moveBlipFocus(direction, undefined, evt.key);
+        return moveBlipFocus(direction, document, (evt && evt.key) || "");
       }
       case KEY_ACTION.BLIP_FOCUS_FIRST:
       case KEY_ACTION.BLIP_FOCUS_LAST: {
         if (this._modalIsOpen()) return false;
-        return focusBlipBoundary(action === KEY_ACTION.BLIP_FOCUS_LAST ? "last" : "first", undefined, evt.key);
+        return focusBlipBoundary(action === KEY_ACTION.BLIP_FOCUS_LAST ? "last" : "first", document, (evt && evt.key) || "");
       }
       case KEY_ACTION.BLIP_DEPTH_UP:
       case KEY_ACTION.BLIP_DEPTH_IN: {

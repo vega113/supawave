@@ -176,8 +176,14 @@ public final class GptBotReplyPlanner {
     if (attachments == null || attachments.isEmpty()) {
       return promptText;
     }
+    String sectionHeader = "\n\nAttachment context:";
+    String sep = "\n\n";
+    int remaining = MAX_PROMPT_CHARS - promptText.length() - sectionHeader.length();
+    if (remaining <= 0) {
+      return promptText;
+    }
     StringBuilder prompt = new StringBuilder(promptText);
-    prompt.append("\n\nAttachment context:");
+    prompt.append(sectionHeader);
     int count = 0;
     for (BotAttachmentContext.RawAttachment raw : attachments) {
       if (count >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
@@ -186,8 +192,15 @@ public final class GptBotReplyPlanner {
       if (raw == null) {
         continue;
       }
+      int allowed = remaining - sep.length();
+      if (allowed <= 0) {
+        break;
+      }
+      String rendered = BotAttachmentContext.fromRaw(raw, codexClient).render();
+      String capped = rendered.length() > allowed ? rendered.substring(0, allowed) : rendered;
+      prompt.append(sep).append(capped);
+      remaining -= sep.length() + capped.length();
       count++;
-      prompt.append("\n\n").append(BotAttachmentContext.fromRaw(raw, codexClient).render());
     }
     return prompt.toString();
   }

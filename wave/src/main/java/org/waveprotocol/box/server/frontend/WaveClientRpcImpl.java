@@ -585,24 +585,29 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     if (manifestDoc == null) {
       return null;
     }
-    DocInitialization docOp = manifestDoc.getContent().asOperation();
     final String[] rootBlipId = {null};
-    docOp.apply(new DocInitializationCursor() {
-      @Override
-      public void elementStart(String type, Attributes attrs) {
-        if (rootBlipId[0] == null
-            && DocumentConstants.BLIP.equals(type)
-            && attrs != null) {
-          String id = attrs.get(DocumentConstants.BLIP_ID);
-          if (id != null) {
-            rootBlipId[0] = id;
+    try {
+      DocInitialization docOp = manifestDoc.getContent().asOperation();
+      docOp.apply(new DocInitializationCursor() {
+        @Override
+        public void elementStart(String type, Attributes attrs) {
+          if (rootBlipId[0] == null
+              && DocumentConstants.BLIP.equals(type)
+              && attrs != null) {
+            String id = attrs.get(DocumentConstants.BLIP_ID);
+            if (id != null) {
+              rootBlipId[0] = id;
+            }
           }
         }
-      }
-      @Override public void elementEnd() {}
-      @Override public void characters(String chars) {}
-      @Override public void annotationBoundary(AnnotationBoundaryMap map) {}
-    });
+        @Override public void elementEnd() {}
+        @Override public void characters(String chars) {}
+        @Override public void annotationBoundary(AnnotationBoundaryMap map) {}
+      });
+    } catch (Exception e) {
+      LOG.warning("Failed to parse manifest for root blip ID, falling back to natural order: " + e);
+      return null;
+    }
     return rootBlipId[0];
   }
 

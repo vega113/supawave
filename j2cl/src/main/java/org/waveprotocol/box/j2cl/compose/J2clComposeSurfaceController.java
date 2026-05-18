@@ -1235,9 +1235,11 @@ public final class J2clComposeSurfaceController {
 
   private static int normalizedInlineReplyAnchorOffset(
       int anchorItemOffset, int parentBodyItemCount) {
-    if (anchorItemOffset >= 0 && anchorItemOffset < parentBodyItemCount) {
+    // Downstream anchor-op builders require offset >= 1; only pass through in-range values.
+    if (anchorItemOffset >= 1 && anchorItemOffset < parentBodyItemCount) {
       return anchorItemOffset;
     }
+    // Sentinel -1 (or any negative): no caret was captured; fall back to last body item.
     if (anchorItemOffset < 0 && parentBodyItemCount > 1) {
       return parentBodyItemCount - 1;
     }
@@ -2462,7 +2464,7 @@ public final class J2clComposeSurfaceController {
     // body-anchor element.
     final boolean useAnchor =
         !continuation
-            && pendingInlineAnchorItemOffset >= 0
+            && pendingInlineAnchorItemOffset >= 1
             && pendingInlineAnchorParentBodyItemCount > 0
             && replyTargetBlipId != null
             && replyTargetBlipId.equals(pendingInlineAnchorBlipId);

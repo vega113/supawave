@@ -48,8 +48,6 @@ import java.util.Map;
  */
 public class ExportAttachmentService implements OperationService {
   private static final Log LOG = Log.get(ExportAttachmentService.class);
-  // Attachment export size limit — matches the client-side MAX_TRANSCRIPTION_BYTES (25 MB).
-  private static final long MAX_EXPORT_BYTES = 25L * 1024 * 1024;
 
   private final AttachmentService attachmentService;
 
@@ -68,11 +66,13 @@ public class ExportAttachmentService implements OperationService {
     } catch (InvalidIdException ex) {
       throw new InvalidRequestException("Invalid id", operation, ex);
     }
+    Long maxSizeBytes = OperationUtil.<Long>getOptionalParameter(operation,
+        ParamsProperty.MAX_SIZE_BYTES);
     AttachmentMetadata meta;
     byte[] data;
     try {
       meta = attachmentService.getMetadata(attachmentId);
-      if (meta.getSize() > MAX_EXPORT_BYTES) {
+      if (maxSizeBytes != null && meta.getSize() > maxSizeBytes) {
         context.constructErrorResponse(operation,
             "Attachment too large to export: " + meta.getSize() + " bytes");
         return;

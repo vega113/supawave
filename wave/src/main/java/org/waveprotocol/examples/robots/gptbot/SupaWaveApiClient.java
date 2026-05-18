@@ -188,6 +188,9 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   private JsonArray exportAttachmentRequest(String attachmentId) {
     JsonObject params = new JsonObject();
     params.addProperty("attachmentId", attachmentId);
+    // Tell the server to reject attachments larger than MAX_TRANSCRIPTION_BYTES before reading,
+    // so it never materializes oversized files into memory on the bot's behalf.
+    params.addProperty("maxSizeBytes", (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES);
 
     JsonObject request = new JsonObject();
     request.addProperty("id", "gpt-bot-attachment-1");

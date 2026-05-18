@@ -147,7 +147,8 @@ public class JsonRpcConstant {
     RAW_DELTAS("rawDeltas", List.class),
     TARGET_VERSION("targetVersion", byte[].class),
     ATTACHMENT_DATA("attachmentData", RawAttachmentData.class),
-    IMPORTED_FROM_VERSION("importedFromVersion", Long.class);
+    IMPORTED_FROM_VERSION("importedFromVersion", Long.class),
+    MAX_SIZE_BYTES("maxSizeBytes", Long.class);
 
     private static final Logger LOG = Logger.getLogger(ParamsProperty.class.getName());
 

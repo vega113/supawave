@@ -84,6 +84,28 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         "compact wavy-header must SSR a netstatus chip",
         html.contains("class=\"netstatus\""));
     assertTrue(
+        "compact wavy-header must SSR the GWT-style user menu toggle",
+        html.contains("id=\"wavyHeaderUserMenuToggle\""));
+    assertTrue(
+        "compact wavy-header must SSR aria-expanded for the user menu",
+        html.contains("aria-expanded=\"false\" aria-controls=\"wavyHeaderUserMenu\""));
+    assertTrue(
+        "compact wavy-header must SSR the user menu dropdown",
+        html.contains("class=\"user-menu-dropdown\" id=\"wavyHeaderUserMenu\""));
+    assertTrue(
+        "compact wavy-header user menu must include account links",
+        html.contains("href=\"/userprofile/edit\"")
+            && html.contains("href=\"/account/settings\""));
+    assertTrue(
+        "admin users must see the Admin menu item",
+        html.contains("href=\"/admin\""));
+    assertTrue(
+        "compact wavy-header user menu must preserve the J2CL return target on sign out",
+        html.contains("href=\"/auth/signout?r=/%3Fview%3Dj2cl-root\""));
+    assertTrue(
+        "J2CL route sync must update wavy-header return-target for the dropdown signout link",
+        html.contains("document.querySelectorAll('wavy-header[return-target]').forEach(function(header){header.setAttribute('return-target', target);});"));
+    assertTrue(
         "signed-in J2CL brand must hop to the GWT-style landing target",
         html.contains("id=\"j2cl-root-brand-link\" href=\"/?view=landing\""));
     assertTrue(
@@ -117,6 +139,25 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
         html.contains("<ul class=\"folders\""));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
+  }
+
+  public void testSignedInTopHeaderSignOutEncodesRawReturnTargetBeforeHtmlEscaping() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "user");
+
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/?view=j2cl-root&q=in:inbox", "ws.example:443");
+
+    assertTrue(
+        "signout href must preserve ampersands in the URL-encoded return target",
+        html.contains("href=\"/auth/signout?r=/%3Fview%3Dj2cl-root%26q%3Din%3Ainbox\""));
+    assertFalse(
+        "signout href must not URL-encode an HTML entity from a pre-escaped return target",
+        html.contains("%26amp%3B"));
+    assertFalse(
+        "regular users must not see the Admin menu item",
+        html.contains("href=\"/admin\""));
   }
 
   public void testSignedOutPageUsesSignedOutRoot() {
@@ -683,6 +724,27 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertFalse(
         "<wavy-header locale> must not carry raw BCP-47 zh-TW",
         html.contains("locale=\"zh-TW\""));
+  }
+
+  public void testUserMenuLinksGetTrailingSlashWhenBasePathLacksOne() {
+    JSONObject session = new JSONObject();
+    session.put("address", "alice@example.com");
+    session.put("role", "user");
+
+    // Return target whose path component has no trailing slash (e.g. "/app?view=j2cl-root").
+    // resolvedBasePath becomes "/app"; without the fix the menu href would be "/appauth/signout".
+    String html = HtmlRenderer.renderJ2clRootShellPage(
+        session, "", "commit", 0L, "rel", "/app?view=j2cl-root", "ws.example:443");
+
+    assertTrue(
+        "user menu signout must use /app/ prefix, not /app concatenated directly",
+        html.contains("href=\"/app/auth/signout?r="));
+    assertTrue(
+        "user menu account link must use /app/ prefix",
+        html.contains("href=\"/app/userprofile/edit\""));
+    assertFalse(
+        "user menu must not produce /appauth/signout from a base path without trailing slash",
+        html.contains("href=\"/appauth/signout"));
   }
 
   public void testWavyHeaderLocaleResolvesExtensionSuffixedTag() {

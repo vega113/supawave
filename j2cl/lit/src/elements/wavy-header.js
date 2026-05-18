@@ -30,7 +30,7 @@ import { t } from "../i18n/t.js";
  *
  * Events:
  * - wavy-locale-changed     — `{detail: {locale}}` on <select> change
- * - wavy-user-menu-requested — `{detail: {address}}` on user-menu click
+ * - wavy-user-menu-requested — `{detail: {address, open}}` on user-menu click
  */
 export class WavyHeader extends LitElement {
   static properties = {
@@ -38,8 +38,10 @@ export class WavyHeader extends LitElement {
     locale: { type: String, reflect: true },
     address: { type: String, attribute: "data-address", reflect: true },
     userName: { type: String, attribute: "user-name" },
+    userRole: { type: String, attribute: "user-role" },
     unreadCount: { type: Number, attribute: "unread-count" },
     basePath: { type: String, attribute: "base-path" },
+    returnTarget: { type: String, attribute: "return-target" },
     compactGwtTopbar: { type: Boolean, attribute: "compact-gwt-topbar", reflect: true },
     connectionState: { type: String, attribute: "data-connection-state", reflect: true },
     saveState: { type: String, attribute: "data-save-state", reflect: true },
@@ -141,8 +143,7 @@ export class WavyHeader extends LitElement {
       text-decoration: none;
     }
     :host([compact-gwt-topbar]) .bell,
-    :host([compact-gwt-topbar]) .mail,
-    :host([compact-gwt-topbar]) .user-menu {
+    :host([compact-gwt-topbar]) .mail {
       width: 32px;
       height: 32px;
       min-width: 32px;
@@ -151,6 +152,17 @@ export class WavyHeader extends LitElement {
       color: #fff;
       background: rgba(255, 255, 255, 0.10);
       border-radius: 6px;
+    }
+    :host([compact-gwt-topbar]) .user-menu {
+      width: auto;
+      height: 32px;
+      min-width: 0;
+      padding: 3px 8px 3px 4px;
+      justify-content: center;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 20px;
+      gap: 6px;
     }
     .savestatus,
     .netstatus {
@@ -273,6 +285,25 @@ export class WavyHeader extends LitElement {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       font-weight: 600;
     }
+    :host([compact-gwt-topbar]) .avatar {
+      width: 28px;
+      height: 28px;
+      border: 0;
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .caret {
+      display: none;
+      font-size: 10px;
+      line-height: 1;
+      opacity: 0.8;
+    }
+    :host([compact-gwt-topbar]) .caret {
+      display: inline;
+    }
     .user-email {
       font: var(--wavy-type-meta, 0.6875rem / 1.4 sans-serif);
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
@@ -286,6 +317,90 @@ export class WavyHeader extends LitElement {
         display: none;
       }
     }
+    .user-menu-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .user-menu-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      z-index: 1000;
+      min-width: 224px;
+      margin-top: 6px;
+      padding: 6px;
+      border: 1px solid #dbe7f1;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 14px 30px rgba(2, 62, 107, 0.18);
+      color: #1f2933;
+    }
+    .user-menu-dropdown.open {
+      display: block;
+    }
+    .user-info {
+      padding: 6px 10px 9px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #4a5568;
+      margin-bottom: 2px;
+    }
+    .user-info-label,
+    .section-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #718096;
+    }
+    .user-info-label {
+      margin-bottom: 4px;
+    }
+    .section-label {
+      padding: 0 10px 4px;
+    }
+    .user-info-address {
+      display: block;
+      color: #1f2933;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .menu-section {
+      padding: 4px 0 0;
+    }
+    .menu-section + .menu-section {
+      border-top: 1px solid #e2e8f0;
+      margin-top: 4px;
+      padding-top: 6px;
+    }
+    .user-menu-dropdown a {
+      display: block;
+      padding: 7px 10px;
+      border-radius: 8px;
+      color: #1f2933;
+      text-decoration: none;
+      font-size: 13px;
+      line-height: 1.25;
+      transition: background 0.12s, color 0.12s;
+    }
+    .user-menu-dropdown a:hover,
+    .user-menu-dropdown a:focus-visible {
+      background: #f0f7fb;
+      color: #0077b6;
+      outline: none;
+    }
+    .section-link-strong {
+      font-weight: 700;
+      color: #0077b6;
+    }
+    .menu-signout {
+      font-weight: 600;
+      margin-top: 2px;
+    }
     svg {
       width: 16px;
       height: 16px;
@@ -298,13 +413,18 @@ export class WavyHeader extends LitElement {
     this.locale = getLocale();
     this.address = "";
     this.userName = "";
+    this.userRole = "user";
     this.unreadCount = 0;
     this.basePath = "/";
+    this.returnTarget = "/";
     this.compactGwtTopbar = false;
     this.noBrand = false;
     this.connectionState = "online";
     this.saveState = "saved";
     this._unsubscribeLocale = null;
+    this._menuOpen = false;
+    this._onDocumentClick = this._onDocumentClick.bind(this);
+    this._onWindowKeyDown = this._onWindowKeyDown.bind(this);
   }
 
   connectedCallback() {
@@ -315,6 +435,12 @@ export class WavyHeader extends LitElement {
       }
       this.requestUpdate();
     });
+    if (typeof document !== "undefined") {
+      document.addEventListener("click", this._onDocumentClick);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", this._onWindowKeyDown);
+    }
   }
 
   disconnectedCallback() {
@@ -323,6 +449,12 @@ export class WavyHeader extends LitElement {
       this._unsubscribeLocale();
       this._unsubscribeLocale = null;
     }
+    if (typeof document !== "undefined") {
+      document.removeEventListener("click", this._onDocumentClick);
+    }
+    if (typeof window !== "undefined") {
+      window.removeEventListener("keydown", this._onWindowKeyDown);
+    }
   }
 
   _normalizedBasePath() {
@@ -330,6 +462,20 @@ export class WavyHeader extends LitElement {
     if (!raw || raw === "/") return "/";
     const withLeading = raw.startsWith("/") ? raw : `/${raw}`;
     return withLeading.endsWith("/") ? withLeading.slice(0, -1) : withLeading;
+  }
+
+  _href(path) {
+    const base = this._normalizedBasePath();
+    if (base === "/") return path;
+    return `${base}${path}`;
+  }
+
+  _signOutHref() {
+    const target = this.returnTarget || this._normalizedBasePath();
+    const encoded = target.startsWith("/")
+      ? `/${encodeURIComponent(target.slice(1))}`
+      : encodeURIComponent(target);
+    return `${this._href("/auth/signout")}?r=${encoded}`;
   }
 
   _initials() {
@@ -362,13 +508,33 @@ export class WavyHeader extends LitElement {
   }
 
   _onUserMenuClick() {
+    this._menuOpen = !this._menuOpen;
+    this.requestUpdate();
     this.dispatchEvent(
       new CustomEvent("wavy-user-menu-requested", {
         bubbles: true,
         composed: true,
-        detail: { address: this.address }
+        detail: { address: this.address, open: this._menuOpen }
       })
     );
+  }
+
+  _onDocumentClick(evt) {
+    if (!this._menuOpen) return;
+    const path = evt.composedPath ? evt.composedPath() : [];
+    if (path.includes(this)) return;
+    this._menuOpen = false;
+    this.requestUpdate();
+  }
+
+  _onWindowKeyDown(evt) {
+    if (evt.key !== "Escape" || !this._menuOpen) return;
+    evt.preventDefault();
+    this._menuOpen = false;
+    this.requestUpdate();
+    this.updateComplete.then(() => {
+      this.renderRoot.querySelector("#wavyHeaderUserMenuToggle")?.focus();
+    });
   }
 
   _saveLabel() {
@@ -388,6 +554,7 @@ export class WavyHeader extends LitElement {
     const hasUnread = (this.unreadCount || 0) > 0;
     const base = this._normalizedBasePath();
     const compact = this.compactGwtTopbar;
+    const isAdminOrOwner = this.userRole === "admin" || this.userRole === "owner";
     return html`
       ${this.noBrand
         ? null
@@ -480,17 +647,57 @@ export class WavyHeader extends LitElement {
               </svg>
             </a>
 
-            <button
-              type="button"
-              class="user-menu"
-              aria-haspopup="menu"
-              aria-label=${t("header.userMenu", "Open user menu")}
-              title=${t("header.userMenu", "Open user menu")}
-              @click=${this._onUserMenuClick}
-            >
-              <span class="avatar" aria-hidden="true">${initials}</span>
-              <span class="user-email">${this.address || ""}</span>
-            </button>
+            <span class="user-menu-wrap">
+              <button
+                id="wavyHeaderUserMenuToggle"
+                type="button"
+                class="user-menu"
+                aria-haspopup="true"
+                aria-expanded=${this._menuOpen ? "true" : "false"}
+                aria-controls="wavyHeaderUserMenu"
+                aria-label=${t("header.userMenu", "Open user menu")}
+                title=${this.address || t("header.userMenu", "Open user menu")}
+                @click=${this._onUserMenuClick}
+              >
+                <span class="avatar" aria-hidden="true">${initials}</span>
+                <span class="user-email">${this.address || ""}</span>
+                <span class="caret" aria-hidden="true">▾</span>
+              </button>
+              <div
+                id="wavyHeaderUserMenu"
+                class=${`user-menu-dropdown ${this._menuOpen ? "open" : ""}`}
+                aria-labelledby="wavyHeaderUserMenuToggle"
+              >
+                <div class="user-info">
+                  <div class="user-info-label">Signed in as</div>
+                  <div class="user-info-address">${this.address || ""}</div>
+                </div>
+                <div class="menu-section">
+                  <div class="section-label">Account</div>
+                  <a href=${this._href("/userprofile/edit")}>Edit Profile</a>
+                  <a href=${this._href("/account/settings")}>Account Settings</a>
+                </div>
+                <div class="menu-section">
+                  <div class="section-label">Plugins / Integrations</div>
+                  <a class="section-link-strong" href=${this._href("/account/robots")}>Robot &amp; Data API</a>
+                  <a href=${this._href("/api-docs")} target="_blank" rel="noopener noreferrer">API Docs</a>
+                </div>
+                <div class="menu-section">
+                  <div class="section-label">Product / Support</div>
+                  <a href=${this._href("/changelog")} target="_blank" rel="noopener noreferrer">What's New</a>
+                  <a href=${this._href("/contact")}>Contact Us</a>
+                  ${isAdminOrOwner ? html`<a href=${this._href("/admin")}>Admin</a>` : null}
+                </div>
+                <div class="menu-section">
+                  <div class="section-label">Legal</div>
+                  <a href=${this._href("/terms")} target="_blank" rel="noopener noreferrer">Terms of Service</a>
+                  <a href=${this._href("/privacy")} target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+                </div>
+                <div class="menu-section">
+                  <a class="menu-signout" href=${this._signOutHref()}>Sign Out</a>
+                </div>
+              </div>
+            </span>
           `
         : null}
     `;

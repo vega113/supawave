@@ -323,8 +323,7 @@ shell-header[compact-gwt-topbar] wavy-header .locale {
 }
 
 shell-header[compact-gwt-topbar] wavy-header .bell,
-shell-header[compact-gwt-topbar] wavy-header .mail,
-shell-header[compact-gwt-topbar] wavy-header .user-menu {
+shell-header[compact-gwt-topbar] wavy-header .mail {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -341,11 +340,151 @@ shell-header[compact-gwt-topbar] wavy-header .user-menu {
   text-decoration: none;
 }
 
+shell-header[compact-gwt-topbar] wavy-header .user-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-menu {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  min-width: 0;
+  padding: 3px 8px 3px 4px;
+  border: 0;
+  border-radius: 20px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  cursor: pointer;
+  text-decoration: none;
+}
+
 shell-header[compact-gwt-topbar] wavy-header .bell svg,
 shell-header[compact-gwt-topbar] wavy-header .mail svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .avatar {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font: 700 13px / 1 Arial, Helvetica, sans-serif;
+  text-transform: uppercase;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .caret {
+  display: inline;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+wavy-header .user-menu-dropdown {
+  display: none;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1000;
+  min-width: 224px;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid #dbe7f1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(2, 62, 107, 0.18);
+  color: #1f2933;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-menu-dropdown.open {
+  display: block;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-info {
+  padding: 6px 10px 9px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #4a5568;
+  margin-bottom: 2px;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-info-label,
+shell-header[compact-gwt-topbar] wavy-header .section-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #718096;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-info-label {
+  margin-bottom: 4px;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .section-label {
+  padding: 0 10px 4px;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-info-address {
+  display: block;
+  color: #1f2933;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .menu-section {
+  padding: 4px 0 0;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .menu-section + .menu-section {
+  border-top: 1px solid #e2e8f0;
+  margin-top: 4px;
+  padding-top: 6px;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-menu-dropdown a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #1f2933;
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .user-menu-dropdown a:hover,
+shell-header[compact-gwt-topbar] wavy-header .user-menu-dropdown a:focus-visible {
+  background: #f0f7fb;
+  color: #0077b6;
+  outline: none;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .section-link-strong {
+  font-weight: 700;
+  color: #0077b6;
+}
+
+shell-header[compact-gwt-topbar] wavy-header .menu-signout {
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 /* GWT topbar parity (#1232): savestatus + netstatus chips inside the

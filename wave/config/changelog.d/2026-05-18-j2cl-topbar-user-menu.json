@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-18-j2cl-topbar-user-menu",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL topbar user menu now matches the compact GWT behavior.",
+  "summary": "The J2CL root topbar now opens a GWT-style account dropdown from the user/avatar control and uses the same compact pill/avatar geometry as the GWT topbar.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Restored the user menu dropdown on the J2CL compact topbar avatar.",
+        "Aligned the compact J2CL user control styling with the GWT topbar pill and avatar pattern."
+      ]
+    }
+  ]
+}

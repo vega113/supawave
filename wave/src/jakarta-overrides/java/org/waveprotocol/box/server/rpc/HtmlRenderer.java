@@ -3592,8 +3592,8 @@ public final class HtmlRenderer {
       // passed through alongside the safe (HTML-escaped) form so
       // computeUserInitials can run on the unescaped local part.
       appendWavyHeaderActionsSlot(
-          sb, address, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, safeHtmlLang,
-          true);
+          sb, address, safeAddress, resolvedReturnTarget, safeResolvedReturnTarget,
+          safeResolvedBasePath, safeHtmlLang, role, true);
       // The legacy inline Admin and Sign out links are PRESERVED until
       // the F-0 user-menu sheet ships (A.7 only mounts the trigger;
       // A.8–A.18 are F-0). Removing them now would orphan affordances
@@ -3875,7 +3875,15 @@ public final class HtmlRenderer {
     sb.append("      <span aria-hidden=\"true\">J2</span><span>SupaWave Read Surface Preview</span>\n");
     sb.append("    </a>\n");
     appendWavyHeaderActionsSlot(
-        sb, resolvedAddress, safeAddress, safeResolvedReturnTarget, safeResolvedBasePath, "en", false);
+        sb,
+        resolvedAddress,
+        safeAddress,
+        resolvedReturnTarget,
+        safeResolvedReturnTarget,
+        safeResolvedBasePath,
+        "en",
+        HumanAccountData.ROLE_USER,
+        false);
     sb.append("  </shell-header>\n");
     sb.append("  <shell-nav-rail slot=\"nav\" label=\"Primary\">\n");
     appendWavySearchRail(sb, safeInitialQuery, false, false);
@@ -4232,8 +4240,8 @@ public final class HtmlRenderer {
    */
   private static void appendWavyHeaderActionsSlot(
       StringBuilder sb, String rawAddress, String safeAddress,
-      String safeResolvedReturnTarget, String safeBasePath, String safeHtmlLang,
-      boolean compactGwtTopbar) {
+      String resolvedReturnTarget, String safeResolvedReturnTarget, String safeBasePath, String safeHtmlLang,
+      String userRole, boolean compactGwtTopbar) {
     String escapedAddress = safeAddress == null ? "" : safeAddress;
     // computeUserInitials runs on the RAW address so the local-part
     // splitting matches the JS Lit element exactly (the Lit element
@@ -4258,6 +4266,10 @@ public final class HtmlRenderer {
         .append(escapedAddress)
         .append("\" user-name=\"")
         .append(escapedAddress)
+        .append("\" user-role=\"")
+        .append(escapeHtml(userRole == null ? HumanAccountData.ROLE_USER : userRole))
+        .append("\" return-target=\"")
+        .append(safeResolvedReturnTarget)
         .append("\" unread-count=\"0\" data-connection-state=\"online\""
             + " data-save-state=\"saved\" base-path=\"")
         .append(safeBasePath)
@@ -4306,14 +4318,68 @@ public final class HtmlRenderer {
         .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
         .append("<rect x=\"2\" y=\"3.5\" width=\"12\" height=\"9\" rx=\"1.4\"/>")
         .append("<path d=\"M2.5 4.5l5.5 4 5.5-4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>\n");
-    sb.append("      <button type=\"button\" class=\"user-menu\" aria-haspopup=\"menu\" aria-label=\"Open user menu\">")
+    sb.append("      <span class=\"user-menu-wrap\">\n");
+    sb.append("        <button id=\"wavyHeaderUserMenuToggle\" type=\"button\" class=\"user-menu\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"wavyHeaderUserMenu\" aria-label=\"Open user menu\" title=\"")
+        .append(escapedAddress)
+        .append("\">")
         .append("<span class=\"avatar\" aria-hidden=\"true\">")
         .append(initials)
         .append("</span>")
         .append("<span class=\"user-email\">")
         .append(escapedAddress)
-        .append("</span></button>\n");
+        .append("</span>")
+        .append("<span class=\"caret\" aria-hidden=\"true\">&#9662;</span></button>\n");
+    appendWavyHeaderUserMenu(sb, escapedAddress, safeBasePath, resolvedReturnTarget, userRole);
+    sb.append("      </span>\n");
     sb.append("    </wavy-header>\n");
+  }
+
+  private static void appendWavyHeaderUserMenu(
+      StringBuilder sb,
+      String safeAddress,
+      String safeBasePath,
+      String resolvedReturnTarget,
+      String userRole) {
+    String base = safeBasePath == null || safeBasePath.isEmpty() ? "/" : safeBasePath;
+    if (!base.endsWith("/")) {
+      base = base + "/";
+    }
+    String safeSignOutHref =
+        base + "auth/signout?r=" + escapeHtml(encodeLocalReturnTarget(resolvedReturnTarget));
+    boolean isAdminOrOwner =
+        HumanAccountData.ROLE_ADMIN.equals(userRole) || HumanAccountData.ROLE_OWNER.equals(userRole);
+
+    sb.append("        <div class=\"user-menu-dropdown\" id=\"wavyHeaderUserMenu\" aria-labelledby=\"wavyHeaderUserMenuToggle\">\n");
+    sb.append("          <div class=\"user-info\"><div class=\"user-info-label\">Signed in as</div><div class=\"user-info-address\">")
+        .append(safeAddress)
+        .append("</div></div>\n");
+    sb.append("          <div class=\"menu-section\">\n");
+    sb.append("            <div class=\"section-label\">Account</div>\n");
+    sb.append("            <a href=\"").append(base).append("userprofile/edit\">Edit Profile</a>\n");
+    sb.append("            <a href=\"").append(base).append("account/settings\">Account Settings</a>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"menu-section\">\n");
+    sb.append("            <div class=\"section-label\">Plugins / Integrations</div>\n");
+    sb.append("            <a class=\"section-link-strong\" href=\"").append(base).append("account/robots\">Robot &amp; Data API</a>\n");
+    sb.append("            <a href=\"").append(base).append("api-docs\" target=\"_blank\" rel=\"noopener noreferrer\">API Docs</a>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"menu-section\">\n");
+    sb.append("            <div class=\"section-label\">Product / Support</div>\n");
+    sb.append("            <a href=\"").append(base).append("changelog\" target=\"_blank\" rel=\"noopener noreferrer\">What's New</a>\n");
+    sb.append("            <a href=\"").append(base).append("contact\">Contact Us</a>\n");
+    if (isAdminOrOwner) {
+      sb.append("            <a href=\"").append(base).append("admin\">Admin</a>\n");
+    }
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"menu-section\">\n");
+    sb.append("            <div class=\"section-label\">Legal</div>\n");
+    sb.append("            <a href=\"").append(base).append("terms\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>\n");
+    sb.append("            <a href=\"").append(base).append("privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
+    sb.append("          </div>\n");
+    sb.append("          <div class=\"menu-section\">\n");
+    sb.append("            <a class=\"menu-signout\" data-j2cl-root-signout=\"true\" href=\"").append(safeSignOutHref).append("\">Sign Out</a>\n");
+    sb.append("          </div>\n");
+    sb.append("        </div>\n");
   }
 
   private static void appendLocaleOption(
@@ -4946,6 +5012,7 @@ public final class HtmlRenderer {
     // rewritten by the return-target bootstrap.
     sb.append("  var targetText=document.getElementById('j2cl-root-return-target-text');\n");
     sb.append("  if(targetText){targetText.className='j2cl-status-live-text';targetText.textContent='Return target: ' + target;}\n");
+    sb.append("  document.querySelectorAll('wavy-header[return-target]').forEach(function(header){header.setAttribute('return-target', target);});\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signin]').forEach(function(anchor){anchor.href='/auth/signin?r=' + encoded;});\n");
     sb.append("  document.querySelectorAll('[data-j2cl-root-signout]').forEach(function(anchor){anchor.href='/auth/signout?r=' + encoded;});\n");
     sb.append("}\n");

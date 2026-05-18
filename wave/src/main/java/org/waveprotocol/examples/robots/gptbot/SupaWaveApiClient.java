@@ -481,6 +481,9 @@ public final class SupaWaveApiClient implements SupaWaveClient {
         continue;
       }
       byte[] bytes = Base64.getDecoder().decode(encoded);
+      if (bytes.length > BotAttachmentContext.MAX_TRANSCRIPTION_BYTES) {
+        continue;
+      }
       return Optional.of(new BotAttachmentContext.RawAttachment(attachmentId, fileName,
           mimeType, bytes));
     }

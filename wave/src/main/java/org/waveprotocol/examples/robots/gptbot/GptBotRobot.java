@@ -333,7 +333,22 @@ public final class GptBotRobot {
       fileName = attachmentId;
     }
     String mimeType = element.getProperty(Attachment.MIME_TYPE);
+    if ((mimeType == null || mimeType.isBlank()) && element.isImage()) {
+      mimeType = inferImageMimeType(fileName);
+    }
     return new AttachmentReference(attachmentId, fileName, mimeType);
+  }
+
+  private static String inferImageMimeType(String fileName) {
+    if (fileName != null) {
+      String lower = fileName.toLowerCase(Locale.ROOT);
+      if (lower.endsWith(".png")) return "image/png";
+      if (lower.endsWith(".gif")) return "image/gif";
+      if (lower.endsWith(".webp")) return "image/webp";
+      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+      if (lower.endsWith(".svg")) return "image/svg+xml";
+    }
+    return "image/jpeg";
   }
 
   private static final class AttachmentReference {

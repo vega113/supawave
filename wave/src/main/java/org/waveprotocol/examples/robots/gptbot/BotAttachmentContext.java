@@ -46,7 +46,7 @@ public final class BotAttachmentContext {
     this.attachmentId = clean(attachmentId);
     this.fileName = clean(fileName);
     this.mimeType = clean(mimeType);
-    this.renderedContext = clean(renderedContext);
+    this.renderedContext = clamp(clean(renderedContext));
   }
 
   public String render() {

@@ -137,7 +137,11 @@ public final class GptBotReplyPlanner {
     }
 
     Map<String, String> userMsg = new LinkedHashMap<>();
-    String promptWithAttachments = appendAttachmentContext(normalizedPrompt, attachments);
+    // Cap user text to half the budget so attachment context is not squeezed out.
+    String basePrompt = !attachments.isEmpty() && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
+        ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2)
+        : normalizedPrompt;
+    String promptWithAttachments = appendAttachmentContext(basePrompt, attachments);
     List<Map<String, String>> messages =
         buildMessages(promptWithAttachments, waveContext, waveId, userMsg);
 
@@ -170,7 +174,10 @@ public final class GptBotReplyPlanner {
     prompt.append("\n\nAttachment context:");
     int count = 0;
     for (BotAttachmentContext.RawAttachment raw : attachments) {
-      if (raw == null || count >= 5) {
+      if (count >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
+        break;
+      }
+      if (raw == null) {
         continue;
       }
       count++;

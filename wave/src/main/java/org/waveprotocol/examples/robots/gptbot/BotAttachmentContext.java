@@ -32,6 +32,7 @@ import java.util.Optional;
 public final class BotAttachmentContext {
 
   static final int MAX_TEXT_BYTES = 64 * 1024;
+  static final int MAX_ATTACHMENT_CONTEXT_ITEMS = 5;
   static final int MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024;
   private static final int MAX_RENDERED_CHARS = 12000;
 
@@ -112,7 +113,16 @@ public final class BotAttachmentContext {
   private static Optional<String> decodeText(byte[] data) {
     byte[] bytes = data == null ? new byte[0] : data;
     if (bytes.length > MAX_TEXT_BYTES) {
-      return Optional.of(new String(bytes, 0, MAX_TEXT_BYTES, StandardCharsets.UTF_8)
+      // Walk back to a valid UTF-8 codepoint boundary so we don't split a multi-byte sequence.
+      int safeLen = MAX_TEXT_BYTES;
+      while (safeLen > 0 && (bytes[safeLen - 1] & 0xC0) == 0x80) {
+        safeLen--;
+      }
+      // If we landed on a multi-byte start byte, its continuation bytes were cut — skip it too.
+      if (safeLen > 0 && (bytes[safeLen - 1] & 0xC0) == 0xC0) {
+        safeLen--;
+      }
+      return Optional.of(new String(bytes, 0, safeLen, StandardCharsets.UTF_8)
           + "\n[truncated after " + MAX_TEXT_BYTES + " bytes]");
     }
     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()

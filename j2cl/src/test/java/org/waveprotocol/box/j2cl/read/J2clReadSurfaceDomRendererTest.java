@@ -1500,6 +1500,124 @@ public class J2clReadSurfaceDomRendererTest {
   }
 
   @Test
+  public void attachmentMetadataRefreshFallsBackWhenTaskDueDateChanges() {
+    assumeBrowserDom();
+    HTMLDivElement host = createHost();
+    J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    ArrayList<J2clTaskItemModel> taskItems = new ArrayList<>();
+    taskItems.add(
+        new J2clTaskItemModel(
+            "task-1",
+            0,
+            4,
+            "task-b-task-task-1",
+            "",
+            1714560000000L,
+            false,
+            true));
+    renderer.setTaskBinder(
+        blipId ->
+            "b+task".equals(blipId)
+                ? taskItems
+                : Collections.<J2clTaskItemModel>emptyList());
+    J2clAttachmentRenderModel pending =
+        J2clAttachmentRenderModel.metadataPending(
+            "example.com/att+hero", "Hero diagram", "medium");
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loadedWithTaskMetadata(
+                    "blip:b+task",
+                    0L,
+                    9L,
+                    "b+task",
+                    "Task body",
+                    Arrays.asList(pending),
+                    "alice@example.com",
+                    "alice@example.com",
+                    1714240000000L,
+                    "",
+                    "",
+                    /* unread= */ false,
+                    /* hasMention= */ false,
+                    /* taskDone= */ false,
+                    /* taskAssignee= */ "",
+                    /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+                    /* bodyItemCount= */ 9,
+                    /* isTask= */ true))));
+    HTMLElement originalBlip = blip(host, "b+task");
+    Assert.assertNotNull(originalBlip);
+    HTMLElement originalAffordance =
+        (HTMLElement) originalBlip.querySelector("wavy-task-affordance[data-task-id='task-1']");
+    Assert.assertNotNull(originalAffordance);
+    Assert.assertEquals("2024-05-01", originalAffordance.getAttribute("data-task-due-date"));
+
+    taskItems.clear();
+    taskItems.add(
+        new J2clTaskItemModel(
+            "task-1",
+            0,
+            4,
+            "task-b-task-task-1",
+            "",
+            1714646400000L,
+            false,
+            true));
+    J2clAttachmentRenderModel resolved =
+        J2clAttachmentRenderModel.fromMetadata(
+            "example.com/att+hero",
+            "Hero diagram",
+            "medium",
+            attachmentMetadata(
+                "example.com/att+hero",
+                "hero.png",
+                "image/png",
+                "/attachment/example.com/att+hero",
+                "/thumbnail/example.com/att+hero",
+                new J2clAttachmentMetadata.ImageMetadata(1200, 800),
+                false));
+
+    Assert.assertTrue(
+        renderer.renderWindow(
+            Arrays.asList(
+                J2clReadWindowEntry.loadedWithTaskMetadata(
+                    "blip:b+task",
+                    0L,
+                    9L,
+                    "b+task",
+                    "Task body",
+                    Arrays.asList(resolved),
+                    "alice@example.com",
+                    "alice@example.com",
+                    1714240000000L,
+                    "",
+                    "",
+                    /* unread= */ false,
+                    /* hasMention= */ false,
+                    /* taskDone= */ false,
+                    /* taskAssignee= */ "",
+                    /* taskDueTimestamp= */ J2clTaskItemModel.UNKNOWN_DUE_TIMESTAMP,
+                    /* bodyItemCount= */ 9,
+                    /* isTask= */ true))));
+
+    HTMLElement updatedBlip = blip(host, "b+task");
+    Assert.assertNotNull(updatedBlip);
+    Assert.assertNotSame(
+        "due-date-only task changes must not take the attachment-only DOM path",
+        originalBlip,
+        updatedBlip);
+    HTMLElement updatedAffordance =
+        (HTMLElement) updatedBlip.querySelector("wavy-task-affordance[data-task-id='task-1']");
+    Assert.assertNotNull(updatedAffordance);
+    Assert.assertEquals("2024-05-02", updatedAffordance.getAttribute("data-task-due-date"));
+    HTMLElement tile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull(tile);
+    Assert.assertEquals("ready", tile.getAttribute("data-attachment-state"));
+  }
+
+  @Test
   public void largeInlineImageUsesAttachmentUrlAndDataDisplaySize() {
     assumeBrowserDom();
     HTMLDivElement host = createHost();

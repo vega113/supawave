@@ -4031,6 +4031,7 @@ public class J2clReadSurfaceDomRendererTest {
     return false;
   }
 
+  /** Returns the number of entries in the {@code reactions} JsArray property of a reaction-row. */
   private static int reactionCount(HTMLElement reactionRow) {
     Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
     if (reactions == null) {
@@ -4039,13 +4040,21 @@ public class J2clReadSurfaceDomRendererTest {
     return Js.<JsArray<Object>>uncheckedCast(reactions).length;
   }
 
+  /**
+   * Returns the {@code count} field of the first entry in the {@code reactions} JsArray property
+   * of a reaction-row element (each entry is a plain JS object with a numeric {@code count} field).
+   */
   private static int firstReactionCount(HTMLElement reactionRow) {
     Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
     JsArray<Object> array = Js.uncheckedCast(reactions);
     if (array == null || array.length == 0) {
       return 0;
     }
-    Object count = Js.asPropertyMap(array.getAt(0)).get("count");
+    Object firstReaction = array.getAt(0);
+    if (firstReaction == null) {
+      return 0;
+    }
+    Object count = Js.asPropertyMap(firstReaction).get("count");
     return count instanceof Number ? ((Number) count).intValue() : 0;
   }
 

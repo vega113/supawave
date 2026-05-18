@@ -4029,6 +4029,19 @@ public final class J2clReadSurfaceDomRenderer {
     for (int i = 0; i < changedEntries.size(); i++) {
       replaceAttachmentSubtree(changedElements.get(i), changedEntries.get(i).getAttachments());
     }
+    // reactionBinder may have been updated in the same render pass (e.g. a reaction
+    // and attachment metadata arriving together). Refresh every reaction-row so chips
+    // don't stay stale when the full rebuild path was bypassed.
+    for (HTMLElement blip : renderedBlips) {
+      String blipId = blip.getAttribute("data-blip-id");
+      if (blipId == null || blipId.isEmpty()) {
+        continue;
+      }
+      Element reactionRow = blip.querySelector("reaction-row[slot='reactions']");
+      if (reactionRow != null) {
+        setProperty((HTMLElement) reactionRow, "reactions", buildReactionsArray(blipId));
+      }
+    }
     renderedWindowEntries =
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     return true;

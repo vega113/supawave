@@ -235,6 +235,10 @@ describe("<wavy-header>", () => {
     const owner = await fixture(html`<wavy-header signed-in user-role="owner"></wavy-header>`);
     await owner.updateComplete;
     expect(owner.renderRoot.querySelector('a[href="/admin"]')).to.exist;
+
+    const admin = await fixture(html`<wavy-header signed-in user-role="admin"></wavy-header>`);
+    await admin.updateComplete;
+    expect(admin.renderRoot.querySelector('a[href="/admin"]')).to.exist;
   });
 
   it("user menu signout follows return-target attribute updates", async () => {

@@ -4377,7 +4377,7 @@ public final class HtmlRenderer {
     sb.append("            <a href=\"").append(base).append("privacy\" target=\"_blank\" rel=\"noopener noreferrer\">Privacy Policy</a>\n");
     sb.append("          </div>\n");
     sb.append("          <div class=\"menu-section\">\n");
-    sb.append("            <a class=\"menu-signout\" href=\"").append(safeSignOutHref).append("\">Sign Out</a>\n");
+    sb.append("            <a class=\"menu-signout\" data-j2cl-root-signout=\"true\" href=\"").append(safeSignOutHref).append("\">Sign Out</a>\n");
     sb.append("          </div>\n");
     sb.append("        </div>\n");
   }

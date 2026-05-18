@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-18-j2cl-search-toolbar-gwt-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL search rail now uses the compact GWT search toolbar actions.",
+  "summary": "The J2CL root search rail now presents the same compact icon action row as GWT for New Wave, saved-search management, folder shortcuts, and refresh, instead of the separate large New Wave/manage buttons and folder list.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Moved J2CL New Wave, Manage saved searches, Inbox, Mentions, Tasks, Public, Archive, Pinned, and Refresh into one GWT-style toolbar row.",
+        "Kept the existing J2CL events and canonical search queries behind the toolbar icons so functionality matches the previous controls while matching the GWT layout."
+      ]
+    }
+  ]
+}

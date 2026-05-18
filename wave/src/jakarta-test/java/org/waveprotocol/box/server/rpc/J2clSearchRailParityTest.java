@@ -336,7 +336,11 @@ public final class J2clSearchRailParityTest {
       assertTrue(
           "Folder " + id + " carries data-query=\"" + query + "\"",
           html.contains("data-query=\"" + query + "\""));
-      assertTrue("Folder " + id + " label \"" + label + "\"", html.contains(">" + label + "<"));
+      // #1253: compact toolbar uses icon buttons; the accessible name is
+      // in aria-label/title, not as visible inner text.
+      assertTrue(
+          "Folder " + id + " accessible label \"" + label + "\" in aria-label",
+          html.contains("aria-label=\"" + label + "\""));
     }
     // Inbox is selected by default; the others are aria-current="false".
     assertTrue(
@@ -356,26 +360,35 @@ public final class J2clSearchRailParityTest {
     assertTrue(
         "B.2 help-trigger references the modal id",
         html.contains("aria-controls=\"wavy-search-help\""));
-    assertTrue("B.3 New Wave button class", html.contains("class=\"new-wave\""));
+    // B.3 New Wave button — #1253 compact toolbar uses data-digest-action
+    // instead of class="new-wave" so the parity selector is consistent
+    // with the other toolbar actions.
+    assertTrue(
+        "B.3 New Wave button is tagged data-digest-action=\"new-wave\"",
+        html.contains("data-digest-action=\"new-wave\""));
     assertTrue(
         "B.3 New Wave button carries the keyboard-shortcut metadata "
             + "(global listener intentionally deferred to S6)",
         html.contains("aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\""));
-    assertTrue("B.4 Manage saved searches class", html.contains("class=\"manage-saved\""));
-    // G-PORT-2 (#1111): Refresh moved into the panel-level action row
-    // alongside Sort and Filter — tagged with `data-digest-action`
-    // for the cross-view parity selector.
+    // B.4 Manage saved searches — same pattern: data-digest-action replaces
+    // the old class="manage-saved" contract (#1253 compact toolbar).
+    assertTrue(
+        "B.4 Manage saved searches is tagged data-digest-action=\"manage-saved\"",
+        html.contains("data-digest-action=\"manage-saved\""));
+    // G-PORT-2 (#1111, updated #1253): Refresh is in the compact action row;
+    // Sort and Filter were removed from the toolbar (sort now happens via
+    // orderby: query tokens; filtering via the inline filter-chip strip below).
     assertTrue(
         "B.11 Refresh button is tagged data-digest-action=\"refresh\"",
         html.contains("data-digest-action=\"refresh\""));
     assertTrue(
         "B.11 Refresh button has descriptive aria-label",
         html.contains("aria-label=\"Refresh search results\""));
-    assertTrue(
-        "G-PORT-2 (#1111) Sort button is tagged data-digest-action=\"sort\"",
+    assertFalse(
+        "#1253: Sort button was removed from compact toolbar",
         html.contains("data-digest-action=\"sort\""));
-    assertTrue(
-        "G-PORT-2 (#1111) Filter button is tagged data-digest-action=\"filter\"",
+    assertFalse(
+        "#1253: Filter button was removed from compact toolbar",
         html.contains("data-digest-action=\"filter\""));
     assertTrue(
         "G-PORT-2 (#1111) action row mounts with data-digest-action-row",
@@ -383,12 +396,14 @@ public final class J2clSearchRailParityTest {
     assertTrue(
         "B.12 result-count <p> with aria-live=\"polite\"",
         html.contains("class=\"result-count\" aria-live=\"polite\""));
-    assertTrue(
-        "Saved-searches list announces its name to screen readers via "
-            + "aria-labelledby pointing to the folders header h2",
+    // #1253: separate folder list (ul.folders + h2 header) replaced by
+    // compact icon buttons inside the action row. Folder navigation is
+    // now part of the data-digest-action-row.
+    assertFalse(
+        "#1253: old folders-title h2 removed",
         html.contains("<h2 id=\"folders-title\">Saved searches</h2>"));
-    assertTrue(
-        "Saved-searches list aria-labelledby relationship intact",
+    assertFalse(
+        "#1253: old ul.folders removed",
         html.contains("<ul class=\"folders\" aria-labelledby=\"folders-title\""));
   }
 
@@ -483,10 +498,10 @@ public final class J2clSearchRailParityTest {
             + "does not flash before the J2CL bundle upgrades the element "
             + "(connectedCallback drops `hidden` on upgrade so the open/close "
             + "flow takes over).",
-        html.contains("<wavy-search-help id=\"wavy-search-help\" hidden"));
+        html.contains("<wavy-search-help slot=\"modal\" id=\"wavy-search-help\" hidden"));
     assertFalse(
         "Modal renders closed by default (no open attribute on initial mount)",
-        html.contains("<wavy-search-help id=\"wavy-search-help\" open"));
+        html.contains("<wavy-search-help slot=\"modal\" id=\"wavy-search-help\" open"));
     String[] filterTokens = {
         // C.1–C.4
         ">in:inbox<", ">in:archive<", ">in:all<", ">in:pinned<",

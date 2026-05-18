@@ -268,7 +268,7 @@ test.describe("G-PORT-7 keyboard shortcuts parity", () => {
     const railNewWaveAriaKey = await page.evaluate(() => {
       const railHost = document.querySelector("wavy-search-rail") as any;
       if (!railHost || !railHost.shadowRoot) return null;
-      const btn = railHost.shadowRoot.querySelector("button.new-wave");
+      const btn = railHost.shadowRoot.querySelector('[data-digest-action="new-wave"]');
       return btn ? btn.getAttribute("aria-keyshortcuts") : null;
     });
     expect(

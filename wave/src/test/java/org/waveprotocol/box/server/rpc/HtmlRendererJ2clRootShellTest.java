@@ -89,6 +89,32 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(
         "signed-in J2CL search rail must SSR the blue panel-title strip",
         html.contains("<h2 class=\"panel-title\" id=\"wavy-search-rail-title\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR the GWT-style New Wave toolbar icon",
+        html.contains("data-digest-action=\"new-wave\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR the GWT-style saved-search management icon",
+        html.contains("data-digest-action=\"manage-saved\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR folder toolbar icons",
+        html.contains("data-digest-action=\"inbox\"")
+            && html.contains("data-digest-action=\"mentions\"")
+            && html.contains("data-digest-action=\"tasks\"")
+            && html.contains("data-digest-action=\"public\"")
+            && html.contains("data-digest-action=\"archive\"")
+            && html.contains("data-digest-action=\"pinned\""));
+    assertTrue(
+        "signed-in J2CL search rail must SSR the GWT-style refresh toolbar icon",
+        html.contains("data-digest-action=\"refresh\""));
+    assertFalse(
+        "signed-in J2CL search rail must not SSR the old J2CL sort button",
+        html.contains("data-digest-action=\"sort\""));
+    assertFalse(
+        "signed-in J2CL search rail must not SSR the old J2CL filter button",
+        html.contains("data-digest-action=\"filter\""));
+    assertFalse(
+        "signed-in J2CL search rail must not SSR the old separate folder list",
+        html.contains("<ul class=\"folders\""));
     assertFalse(html.contains("j2cl-brand-eyebrow"));
     assertFalse(html.contains("J2CL ·"));
   }

@@ -3398,6 +3398,9 @@ public final class J2clReadSurfaceDomRenderer {
     }
     if (focusedBlip == next) {
       markFocusedBlipReadNow(next);
+      if (key != null && !key.isEmpty()) {
+        dispatchFocusChanged(focusedBlip, key);
+      }
       return;
     }
     clearFocusedBlip();

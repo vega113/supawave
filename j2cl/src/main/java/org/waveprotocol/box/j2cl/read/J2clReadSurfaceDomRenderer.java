@@ -3826,6 +3826,57 @@ public final class J2clReadSurfaceDomRenderer {
     return true;
   }
 
+  /**
+   * Returns true when the {@code wavy-task-affordance} children currently in {@code actual} match
+   * what {@code taskBinder} would produce for {@code blipId}. Falls through to false (triggering a
+   * full rebuild) when a task item is added, removed, checked, reassigned, due-dated, or its text
+   * range shifts — the same cases that {@link #applyTaskOnlyDiffIfPossible} handles via aggregate
+   * fields, but covering per-item granularity that the window-entry aggregate fields miss.
+   */
+  private boolean renderedTaskItemsMatch(String blipId, HTMLElement actual) {
+    if (actual == null) {
+      return false;
+    }
+    List<J2clTaskItemModel> expected = taskBinder == null
+        ? Collections.<J2clTaskItemModel>emptyList()
+        : taskBinder.tasksFor(blipId);
+    if (expected == null) {
+      expected = Collections.emptyList();
+    }
+    List<J2clTaskItemModel> namedExpected = new ArrayList<>();
+    for (J2clTaskItemModel t : expected) {
+      if (t != null && !t.getTaskId().isEmpty()) {
+        namedExpected.add(t);
+      }
+    }
+    NodeList<Element> rendered = actual.querySelectorAll("wavy-task-affordance[data-task-id]");
+    if (rendered.length != namedExpected.size()) {
+      return false;
+    }
+    for (int i = 0; i < namedExpected.size(); i++) {
+      J2clTaskItemModel exp = namedExpected.get(i);
+      Element ren = rendered.getAt(i);
+      if (!exp.getTaskId().equals(ren.getAttribute("data-task-id"))) {
+        return false;
+      }
+      if (exp.isChecked() != ren.hasAttribute("data-task-completed")) {
+        return false;
+      }
+      if (!String.valueOf(exp.getTextOffset()).equals(safeString(ren.getAttribute("data-task-start")))) {
+        return false;
+      }
+      if (!String.valueOf(exp.getEndOffset()).equals(safeString(ren.getAttribute("data-task-end")))) {
+        return false;
+      }
+      String expectedAssignee = safeString(exp.getAssigneeAddress()).trim();
+      String renderedAssignee = safeString(ren.getAttribute("data-task-assignee"));
+      if (!expectedAssignee.equals(renderedAssignee)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static String safeString(String value) {
     return value == null ? "" : value;
   }
@@ -4010,13 +4061,18 @@ public final class J2clReadSurfaceDomRenderer {
     }
     // Guard: if any mention binder ranges differ from the rendered state, fall through to the full
     // rebuild so mention spans are refreshed (same guard as matchesRenderedWindowEntries).
+    // Also guard against task-item binder changes: if per-task affordance state is stale, fall
+    // through so renderBlip() can rebuild the wavy-task-affordance subtree from the new binder.
     for (int i = 0; i < entries.size(); i++) {
       J2clReadWindowEntry entry = entries.get(i);
       if (!entry.isLoaded()) {
         continue;
       }
-      if (!renderedMentionRangesMatch(
-          entry.getBlipId(), entry.getText(), renderedBlipById(entry.getBlipId()))) {
+      HTMLElement blipElement = renderedBlipById(entry.getBlipId());
+      if (!renderedMentionRangesMatch(entry.getBlipId(), entry.getText(), blipElement)) {
+        return false;
+      }
+      if (!renderedTaskItemsMatch(entry.getBlipId(), blipElement)) {
         return false;
       }
     }

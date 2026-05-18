@@ -42,7 +42,6 @@ public final class GptBotReplyPlanner {
   private static final int DEFAULT_MAX_HISTORY_TOKENS = 80000;
   /** Evict least-recently-added waves when the map exceeds this size to bound memory. */
   private static final int MAX_WAVE_COUNT = 500;
-  static final int MAX_ATTACHMENT_CONTEXT_ITEMS = 5;
   private static final String CLARIFYING_PROMPT =
       "The user mentioned you without asking a clear question. Ask a short clarifying question.";
 
@@ -115,9 +114,8 @@ public final class GptBotReplyPlanner {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
     boolean hasAttachments = attachments != null && !attachments.isEmpty();
-    int promptBudget = hasAttachments ? MAX_PROMPT_CHARS / 2 : MAX_PROMPT_CHARS;
-    if (normalizedPrompt.length() > promptBudget) {
-      normalizedPrompt = normalizedPrompt.substring(0, promptBudget);
+    if (hasAttachments && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2) {
+      normalizedPrompt = normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2);
     }
     String promptWithAttachments = appendAttachmentContext(normalizedPrompt, attachments);
     if (waveId != null && !waveId.isEmpty()) {
@@ -177,11 +175,11 @@ public final class GptBotReplyPlanner {
     prompt.append("\n\nAttachment context:");
     int count = 0;
     for (BotAttachmentContext.RawAttachment raw : attachments) {
+      if (count >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
+        break;
+      }
       if (raw == null) {
         continue;
-      }
-      if (count >= MAX_ATTACHMENT_CONTEXT_ITEMS) {
-        break;
       }
       count++;
       prompt.append("\n\n").append(BotAttachmentContext.fromRaw(raw, codexClient).render());
@@ -217,8 +215,7 @@ public final class GptBotReplyPlanner {
     }
 
     userMsg.put("role", "user");
-    // Apply secret-redaction to the combined content; size is already bounded per component.
-    userMsg.put("content", sanitize(normalizedPrompt, Integer.MAX_VALUE));
+    userMsg.put("content", sanitize(normalizedPrompt, MAX_PROMPT_CHARS));
     messages.add(userMsg);
     return messages;
   }

@@ -474,6 +474,10 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       String mimeType = attachmentData.has("mimeType")
           ? attachmentData.get("mimeType").getAsString() : "application/octet-stream";
       String encoded = attachmentData.has("data") ? attachmentData.get("data").getAsString() : "";
+      // Base64 expands by ~4/3; reject payloads that exceed the transcription cap before decoding.
+      if (encoded.length() > (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES * 4 / 3 + 1024) {
+        return Optional.empty();
+      }
       byte[] bytes = Base64.getDecoder().decode(encoded);
       return Optional.of(new BotAttachmentContext.RawAttachment(attachmentId, fileName,
           mimeType, bytes));

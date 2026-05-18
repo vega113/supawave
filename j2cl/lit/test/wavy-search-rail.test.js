@@ -30,7 +30,7 @@ describe("<wavy-search-rail>", () => {
   it("renders all six saved-search folders with canonical query strings (B.5–B.10)", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const folders = Array.from(el.renderRoot.querySelectorAll("button.folder"));
+    const folders = Array.from(el.renderRoot.querySelectorAll("button[data-folder-id]"));
     const map = new Map(folders.map((b) => [b.dataset.folderId, b.dataset.query]));
     expect(map.get("inbox")).to.equal("in:inbox");
     expect(map.get("mentions")).to.equal("mentions:me");
@@ -38,7 +38,7 @@ describe("<wavy-search-rail>", () => {
     expect(map.get("public")).to.equal("with:@");
     expect(map.get("archive")).to.equal("in:archive");
     expect(map.get("pinned")).to.equal("in:pinned");
-    const labels = folders.map((b) => b.querySelector(".label").textContent.trim());
+    const labels = folders.map((b) => b.getAttribute("aria-label"));
     expect(labels).to.deep.equal(["Inbox", "Mentions", "Tasks", "Public", "Archive", "Pinned"]);
   });
 
@@ -78,7 +78,7 @@ describe("<wavy-search-rail>", () => {
   it("New Wave button click emits wavy-new-wave-requested and carries aria-keyshortcuts (B.3)", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const newWave = el.renderRoot.querySelector(".new-wave");
+    const newWave = el.renderRoot.querySelector('[data-digest-action="new-wave"]');
     expect(newWave).to.exist;
     expect(newWave.getAttribute("aria-keyshortcuts")).to.equal(
       "Shift+Meta+O Shift+Control+O"
@@ -99,7 +99,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      const manage = el.renderRoot.querySelector(".manage-saved");
+      const manage = el.renderRoot.querySelector('[data-digest-action="manage-saved"]');
       setTimeout(() => manage.click(), 0);
       const evt = await oneEvent(el, "wavy-manage-saved-searches-requested");
       expect(evt).to.exist;
@@ -120,7 +120,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
       const dialog = el.renderRoot.querySelector('[role="dialog"]');
@@ -142,7 +142,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
       const dialog = el.renderRoot.querySelector('[role="dialog"]');
@@ -163,7 +163,7 @@ describe("<wavy-search-rail>", () => {
       expect(el.renderRoot.querySelector(".custom-search")).to.be.null;
       el.renderRoot.querySelector('button[aria-label="Close saved searches"]').click();
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await el.updateComplete;
       const reopened = el.renderRoot.querySelector('[role="dialog"]');
       expect(reopened.querySelector(".saved-error").textContent).to.contain(
@@ -278,7 +278,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
       const dialog = el.renderRoot.querySelector('[role="dialog"]');
@@ -345,7 +345,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
       expect(el.renderRoot.querySelector(".saved-error").textContent).to.equal(
@@ -372,7 +372,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail query="tag:work"></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      const manage = el.renderRoot.querySelector(".manage-saved");
+      const manage = el.renderRoot.querySelector('[data-digest-action="manage-saved"]');
       manage.click();
       await waitForMicrotasks();
       await el.updateComplete;
@@ -412,7 +412,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      const manage = el.renderRoot.querySelector(".manage-saved");
+      const manage = el.renderRoot.querySelector('[data-digest-action="manage-saved"]');
       manage.click();
       await waitForMicrotasks();
       await el.updateComplete;
@@ -452,7 +452,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
       const nameInput = el.renderRoot.querySelector('input[aria-label="Saved search name"]');
@@ -624,7 +624,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await el.updateComplete;
       const add = el.renderRoot.querySelector(".saved-footer .saved-button");
       expect(add.disabled).to.equal(true);
@@ -661,7 +661,7 @@ describe("<wavy-search-rail>", () => {
     expect(el.savedSearchDrafts[0].name).to.equal("Dirty");
   });
 
-  it("opening saved-search management closes the sort menu", async () => {
+  it("opening saved-search management uses the compact GWT toolbar manage icon", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response("[]", {
       status: 200,
@@ -670,13 +670,9 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
-      el.renderRoot.querySelector(".manage-saved").click();
+      el.renderRoot.querySelector('[data-digest-action="manage-saved"]').click();
       await waitForMicrotasks();
       await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
       expect(el.renderRoot.querySelector('[role="dialog"]')).to.exist;
     } finally {
       globalThis.fetch = originalFetch;
@@ -692,7 +688,7 @@ describe("<wavy-search-rail>", () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     try {
       await el.updateComplete;
-      const manage = el.renderRoot.querySelector(".manage-saved");
+      const manage = el.renderRoot.querySelector('[data-digest-action="manage-saved"]');
       manage.click();
       await waitForMicrotasks();
       await el.updateComplete;
@@ -760,7 +756,7 @@ describe("<wavy-search-rail>", () => {
     );
     await el.updateComplete;
     expect(el.activeFolder).to.equal("");
-    const folders = el.renderRoot.querySelectorAll("button.folder");
+    const folders = el.renderRoot.querySelectorAll("button[data-folder-id]");
     folders.forEach((b) => expect(b.getAttribute("aria-current")).to.equal("false"));
   });
 
@@ -775,6 +771,9 @@ describe("<wavy-search-rail>", () => {
     el.mentionsUnread = 3;
     await el.updateComplete;
     expect(dot.hasAttribute("hidden")).to.be.false;
+    const mentions = el.renderRoot.querySelector('[data-folder-id="mentions"]');
+    expect(mentions.getAttribute("aria-label")).to.equal("Mentions, 3 unread mentions");
+    expect(dot.getAttribute("aria-hidden")).to.equal("true");
   });
 
   it("Mentions dot uses the GWT unread red, not the task/toolbar palettes", async () => {
@@ -798,6 +797,9 @@ describe("<wavy-search-rail>", () => {
     await el.updateComplete;
     expect(chip.hasAttribute("hidden")).to.be.false;
     expect(chip.textContent.trim()).to.equal("7");
+    expect(chip.getAttribute("aria-hidden")).to.equal("true");
+    const tasks = el.renderRoot.querySelector('[data-folder-id="tasks"]');
+    expect(tasks.getAttribute("aria-label")).to.equal("Tasks, 7 pending tasks");
   });
 
   it("Tasks chip uses --wavy-signal-amber", async () => {
@@ -1061,225 +1063,35 @@ describe("<wavy-search-rail>", () => {
     });
   });
 
-  // G-PORT-2 (#1111): panel-level action row clones the GWT
-  // SearchPresenter toolbar — refresh + sort + filter buttons in a
-  // single visible row, each tagged with `data-digest-action="..."`
-  // so the parity test resolves them on both views via one selector.
-  describe("G-PORT-2 panel-level action row (#1111)", () => {
-    it("renders an action row with refresh + sort + filter buttons", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const row = el.renderRoot.querySelector("[data-digest-action-row]");
-      expect(row, "action row must mount").to.exist;
-      const buttons = Array.from(row.querySelectorAll("button[data-digest-action]"));
-      expect(buttons.map((b) => b.dataset.digestAction)).to.deep.equal([
-        "refresh",
-        "sort",
-        "filter"
-      ]);
-    });
-
-    it("each action button carries an aria-label for screen readers", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const refresh = el.renderRoot.querySelector('[data-digest-action="refresh"]');
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      const filter = el.renderRoot.querySelector('[data-digest-action="filter"]');
-      expect(refresh.getAttribute("aria-label")).to.equal("Refresh search results");
-      expect(sort.getAttribute("aria-label")).to.equal("Sort waves");
-      expect(sort.getAttribute("aria-haspopup")).to.equal("menu");
-      expect(sort.getAttribute("aria-controls")).to.equal("wavy-search-sort-menu");
-      expect(filter.getAttribute("aria-label")).to.equal("Filter waves");
-    });
-
-    it("Sort button opens options and applying one submits an orderby query", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:datedesc"></wavy-search-rail>`);
-      await el.updateComplete;
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      sort.click();
-      await el.updateComplete;
-      const createdOldest = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
-      expect(createdOldest, "created oldest sort option mounts").to.exist;
-      setTimeout(() => createdOldest.click(), 0);
-      const evt = await oneEvent(el, "wavy-search-submit");
-      expect(evt.detail.query).to.equal("in:inbox orderby:createdasc");
-      await el.updateComplete;
-      await waitForMicrotasks();
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-      expect(el.renderRoot.activeElement).to.equal(sort);
-    });
-
-    it("applying the default sort writes an explicit orderby token", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:dateasc"></wavy-search-rail>`);
-      await el.updateComplete;
-      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
-      await el.updateComplete;
-      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
-      expect(newestActivity.getAttribute("aria-checked")).to.equal("false");
-      expect(newestActivity.hasAttribute("aria-current")).to.equal(false);
-      setTimeout(() => newestActivity.click(), 0);
-      const evt = await oneEvent(el, "wavy-search-submit");
-      expect(evt.detail.query).to.equal("in:inbox orderby:datedesc");
-    });
-
-    it("default sort option shows aria-checked=true when query has no orderby token", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
-      await el.updateComplete;
-      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
-      await el.updateComplete;
-      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
-      const oldest = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
-      expect(newestActivity.getAttribute("aria-checked")).to.equal("true");
-      expect(oldest.getAttribute("aria-checked")).to.equal("false");
-    });
-
-    it("choosing the implicit default sort with no orderby closes without re-submitting", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox"></wavy-search-rail>`);
-      await el.updateComplete;
-      let submitCount = 0;
-      let sortRequestedCount = 0;
-      el.addEventListener("wavy-search-submit", () => {
-        submitCount += 1;
-      });
-      el.addEventListener("wavy-search-sort-requested", () => {
-        sortRequestedCount += 1;
-      });
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      sort.click();
-      await el.updateComplete;
-      const newestActivity = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
-      newestActivity.click();
-      await waitForMicrotasks();
-      await el.updateComplete;
-      expect(el.query).to.equal("in:inbox");
-      expect(submitCount).to.equal(0);
-      expect(sortRequestedCount).to.equal(0);
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-      expect(el.renderRoot.activeElement).to.equal(sort);
-    });
-
-    it("focuses the explicitly checked sort option when reopening the menu", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:createdasc"></wavy-search-rail>`);
-      await el.updateComplete;
-      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
-      await el.updateComplete;
-      await waitForMicrotasks();
-      const selected = el.renderRoot.querySelector('[data-sort-token="orderby:createdasc"]');
-      const unchecked = el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]');
-      expect(selected.getAttribute("aria-checked")).to.equal("true");
-      expect(unchecked.getAttribute("aria-checked")).to.equal("false");
-      expect(el.renderRoot.activeElement).to.equal(selected);
-    });
-
-    it("choosing the current sort closes the menu without re-submitting", async () => {
-      const el = await fixture(html`<wavy-search-rail query="in:inbox orderby:datedesc"></wavy-search-rail>`);
-      await el.updateComplete;
-      let submitCount = 0;
-      let sortRequestedCount = 0;
-      el.addEventListener("wavy-search-submit", () => {
-        submitCount += 1;
-      });
-      el.addEventListener("wavy-search-sort-requested", () => {
-        sortRequestedCount += 1;
-      });
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      sort.click();
-      await el.updateComplete;
-      el.renderRoot.querySelector('[data-sort-token="orderby:datedesc"]').click();
-      await waitForMicrotasks();
-      await el.updateComplete;
-      expect(submitCount).to.equal(0);
-      expect(sortRequestedCount).to.equal(0);
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-      expect(el.renderRoot.activeElement).to.equal(sort);
-    });
-
-    it("Escape and outside click close the sort menu", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      sort.click();
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-
-      sort.click();
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.exist;
-      document.body.click();
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-    });
-
-    it("focus leaving the sort menu closes it", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const sort = el.renderRoot.querySelector('[data-digest-action="sort"]');
-      sort.click();
-      await el.updateComplete;
-      const menu = el.renderRoot.querySelector(".sort-menu");
-      const filter = el.renderRoot.querySelector('[data-digest-action="filter"]');
-      menu.dispatchEvent(new FocusEvent("focusout", {
-        bubbles: true,
-        composed: true,
-        relatedTarget: filter
-      }));
-      await el.updateComplete;
-      expect(el.renderRoot.querySelector(".sort-menu")).to.be.null;
-    });
-
-    it("Arrow keys move through sort options", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      el.renderRoot.querySelector('[data-digest-action="sort"]').click();
-      await el.updateComplete;
-      const menu = el.renderRoot.querySelector(".sort-menu");
-      const options = Array.from(menu.querySelectorAll(".sort-option"));
-      options[0].focus();
-      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
-      expect(el.renderRoot.activeElement).to.equal(options[1]);
-      menu.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-      expect(el.renderRoot.activeElement).to.equal(options[options.length - 1]);
-    });
-
-    it("Filter button click toggles the chip strip open and emits an event", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const filterBtn = el.renderRoot.querySelector('[data-digest-action="filter"]');
-      const details = el.renderRoot.querySelector("details[data-j2cl-filter-strip]");
-      expect(details.hasAttribute("open"), "starts collapsed").to.equal(false);
-
-      // Use a click and capture the synchronous event without race risk:
-      // wavy-search-filter-toggle-requested is fired synchronously inside
-      // the handler, so attach the listener first and then click.
-      let toggleEvt = null;
-      el.addEventListener("wavy-search-filter-toggle-requested", (e) => {
-        toggleEvt = e;
-      });
-      filterBtn.click();
-      await el.updateComplete;
-      expect(toggleEvt, "filter-toggle-requested fires").to.exist;
-      expect(toggleEvt.detail.open).to.equal(true);
-      expect(details.hasAttribute("open"), "details opens").to.equal(true);
-      expect(filterBtn.getAttribute("aria-pressed")).to.equal("true");
-      expect(filterBtn.getAttribute("aria-expanded")).to.equal("true");
-
-      // Second click closes.
-      filterBtn.click();
-      await el.updateComplete;
-      expect(details.hasAttribute("open")).to.equal(false);
-      expect(filterBtn.getAttribute("aria-pressed")).to.equal("false");
-    });
-
-    it("filter button aria-controls points at the filter strip id", async () => {
-      const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
-      await el.updateComplete;
-      const filterBtn = el.renderRoot.querySelector('[data-digest-action="filter"]');
-      const details = el.renderRoot.querySelector("details[data-j2cl-filter-strip]");
-      expect(filterBtn.getAttribute("aria-controls")).to.equal(details.id);
-    });
+  it("renders the full GWT compact toolbar sequence without the J2CL pill/list controls", async () => {
+    const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
+    await el.updateComplete;
+    const row = el.renderRoot.querySelector("[data-digest-action-row]");
+    const buttons = Array.from(row.querySelectorAll("button[data-digest-action]"));
+    expect(buttons.map((b) => b.dataset.digestAction)).to.deep.equal([
+      "new-wave",
+      "manage-saved",
+      "inbox",
+      "mentions",
+      "tasks",
+      "public",
+      "archive",
+      "pinned",
+      "refresh"
+    ]);
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).to.deep.equal([
+      "New Wave",
+      "Manage saved searches",
+      "Inbox",
+      "Mentions",
+      "Tasks",
+      "Public",
+      "Archive",
+      "Pinned",
+      "Refresh search results"
+    ]);
+    expect(el.renderRoot.querySelector(".actions")).to.be.null;
+    expect(el.renderRoot.querySelector("ul.folders")).to.be.null;
   });
 
   // J-UI-1 (#1079): the rail must expose a `cards` slot so the J2CL
@@ -1306,17 +1118,17 @@ describe("<wavy-search-rail>", () => {
       expect(assigned.map((n) => n.dataset.waveId)).to.deep.equal(["w+a", "w+b"]);
     });
 
-    it("preserves the saved-search list above the cards slot and filter strip below it", async () => {
+    it("preserves compact toolbar above the cards slot and filter strip below it", async () => {
       const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
       await el.updateComplete;
-      const folders = el.renderRoot.querySelector("ul.folders");
+      const toolbar = el.renderRoot.querySelector("[data-digest-action-row]");
       const slot = el.renderRoot.querySelector('slot[name="cards"]');
       const filters = el.renderRoot.querySelector("details.filters");
-      expect(folders, "saved-search list mounts").to.exist;
+      expect(toolbar, "toolbar mounts").to.exist;
       expect(slot, "cards slot mounts").to.exist;
       expect(filters, "filter strip mounts").to.exist;
-      // Document order: folders, then cards slot, then filter strip.
-      expect(folders.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
+      // Document order: toolbar, then cards slot, then filter strip.
+      expect(toolbar.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
       expect(slot.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
     });
   });

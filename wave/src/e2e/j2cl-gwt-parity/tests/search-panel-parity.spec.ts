@@ -2,8 +2,8 @@
 // ?view=gwt.
 //
 // Asserts:
-//   - both views render the search rail surface (action row + folder
-//     list);
+//   - both views render the search rail surface and J2CL exposes the
+//     GWT-style compact action row;
 //   - both views expose a refresh affordance reachable via a single
 //     selector (`title="Refresh search results"`) that exists on the
 //     GWT toolbar (setTooltip ⇒ HTML `title="..."`) and the J2CL
@@ -104,7 +104,8 @@ test.describe("G-PORT-2 search panel parity", () => {
       "J2CL: <wavy-search-rail> must mount"
     ).toHaveCount(1, { timeout: 15_000 });
 
-    // The new action row must mount with refresh + sort + filter buttons.
+    // The compact GWT-style action row must mount with the same toolbar
+    // sequence as the J2CL Lit rail.
     // The rail emits the action row twice in DOM: once pre-upgrade (in
     // light DOM, where it's intentionally hidden post-upgrade because the
     // rail does not expose a default slot per #1060) and once in the
@@ -115,18 +116,22 @@ test.describe("G-PORT-2 search panel parity", () => {
       page.locator("[data-digest-action-row]:visible").first(),
       "J2CL: at least one action-row must be visible"
     ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      page.locator('[data-digest-action="refresh"]:visible').first(),
-      "J2CL: refresh action button"
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-digest-action="sort"]:visible').first(),
-      "J2CL: sort action button"
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-digest-action="filter"]:visible').first(),
-      "J2CL: filter action button"
-    ).toBeVisible();
+    for (const action of [
+      "new-wave",
+      "manage-saved",
+      "inbox",
+      "mentions",
+      "tasks",
+      "public",
+      "archive",
+      "pinned",
+      "refresh"
+    ]) {
+      await expect(
+        page.locator(`[data-digest-action="${action}"]:visible`).first(),
+        `J2CL: ${action} action button`
+      ).toBeVisible();
+    }
 
     // Refresh affordance is reachable via the cross-view selector.
     await expect(
@@ -194,10 +199,10 @@ test.describe("G-PORT-2 search panel parity", () => {
       refreshButton(page),
       "GWT: refresh affordance reachable via title='Refresh search results'"
     ).toBeVisible({ timeout: 30_000 });
-    // data-digest-action-row/sort/filter are only emitted by the J2CL SSR
+    // data-digest-action-row is only emitted by the J2CL SSR
     // path (appendWavySearchRail in HtmlRenderer). The GWT search panel
     // creates its toolbar via SearchPanelWidget at runtime without those
-    // attributes, so sort/filter are not asserted here.
+    // attributes, so the compact J2CL row is not asserted here.
 
     // GWT search is also async (XHR /search). Wait until either at
     // least one digest card appears, or the wave-count info bar

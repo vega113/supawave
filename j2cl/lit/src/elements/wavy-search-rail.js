@@ -2,8 +2,14 @@ import { LitElement, css, html } from "lit";
 import { t } from "../i18n/t.js";
 import {
   SEARCH_RAIL_ICON_REFRESH,
-  SEARCH_RAIL_ICON_SORT,
-  SEARCH_RAIL_ICON_FILTER
+  SEARCH_RAIL_ICON_NEW_WAVE,
+  SEARCH_RAIL_ICON_MANAGE_SAVED,
+  SEARCH_RAIL_ICON_INBOX,
+  SEARCH_RAIL_ICON_MENTIONS,
+  SEARCH_RAIL_ICON_TASKS,
+  SEARCH_RAIL_ICON_PUBLIC,
+  SEARCH_RAIL_ICON_ARCHIVE,
+  SEARCH_RAIL_ICON_PINNED
 } from "../icons/search-rail-icons.js";
 
 /**
@@ -15,24 +21,12 @@ import {
  * `?view=j2cl-root` as on `?view=gwt`:
  *
  *   - query textbox + waveform glyph + help-trigger ("?")
- *   - panel-level action row [Refresh] [Sort] [Filter] (G-PORT-2 new)
- *   - New Wave + Manage saved searches buttons
- *   - Saved-search folder list (Inbox/Mentions/Tasks/Public/Archive/Pinned)
- *   - Filter-chip strip (collapsed under the Filter button)
+ *   - panel-level action row matching the GWT toolbar:
+ *     [New Wave] [Manage saved searches] [Inbox] [Mentions]
+ *     [Tasks] [Public] [Archive] [Pinned] [Refresh]
+ *   - Filter-chip strip below results for explicit advanced filtering
  *   - Result count
  *   - Slot for <wavy-search-rail-card> digest cards
- *
- * The G-PORT-2 action-row is the headline change: the row carries
- * `data-digest-action-row` so the parity test resolves it on both
- * views with one selector, and each button carries
- * `data-digest-action="refresh|sort|filter"`. The buttons emit:
- *
- *   - refresh → wavy-search-refresh-requested (existing event)
- *   - sort    → wavy-search-sort-requested with the selected orderby
- *               token, plus wavy-search-submit when the query changes
- *   - filter  → wavy-search-filter-toggle-requested (G-PORT-2 new;
- *               toggles the existing <details> filter chip strip
- *               open / closed)
  *
  * All previously-existing events still fire (wavy-search-submit,
  * wavy-search-help-toggle, wavy-new-wave-requested,
@@ -55,13 +49,6 @@ export class WavySearchRail extends LitElement {
     savedSearchesLoading: { state: true },
     savedSearchesError: { state: true },
     savedSearchesDirty: { state: true },
-    sortOpen: { state: true },
-    /**
-     * G-PORT-2: track whether the filter chip strip is open. The
-     * panel-level Filter action button toggles this. The user-driven
-     * <details> open state still works because we drive `open` via a
-     * reactive binding, not a one-shot init.
-     */
     filtersOpen: { type: Boolean, attribute: "filters-open", reflect: true }
   };
 
@@ -78,13 +65,6 @@ export class WavySearchRail extends LitElement {
     { id: "unread", label: "Unread only", token: "is:unread" },
     { id: "attachments", label: "With attachments", token: "has:attachment" },
     { id: "from-me", label: "From me", token: "from:me" }
-  ];
-
-  static SORTS = [
-    { id: "datedesc", label: "Newest activity", token: "orderby:datedesc", default: true },
-    { id: "dateasc", label: "Oldest activity", token: "orderby:dateasc" },
-    { id: "createddesc", label: "Newest created", token: "orderby:createddesc" },
-    { id: "createdasc", label: "Oldest created", token: "orderby:createdasc" }
   ];
 
   static styles = css`
@@ -194,14 +174,15 @@ export class WavySearchRail extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
+      width: 24px;
       height: 28px;
       border: 0;
-      border-radius: 50%;
+      border-radius: 3px;
       background: transparent;
       color: var(--wavy-text-body, #1a202c);
       cursor: pointer;
       padding: 0;
+      position: relative;
     }
     .action-row button:hover,
     .action-row button:focus-visible {
@@ -213,119 +194,16 @@ export class WavySearchRail extends LitElement {
       background: rgba(0, 119, 182, 0.10);
       color: var(--wavy-signal-cyan, #0077b6);
     }
-    .sort-wrap {
-      position: relative;
-      display: inline-flex;
-    }
-    .sort-menu {
-      position: absolute;
-      z-index: 20;
-      top: calc(100% + 4px);
-      left: 0;
-      min-width: 180px;
-      padding: 6px;
-      border: 1px solid var(--wavy-border-hairline, #cbd5e1);
-      border-radius: 10px;
-      background: #ffffff;
-      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
-    }
-    .sort-option {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      min-height: 30px;
-      padding: 5px 8px;
-      border: 0;
-      border-radius: 7px;
-      background: transparent;
-      color: var(--wavy-text-body, #1a202c);
-      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
-      cursor: pointer;
-      text-align: left;
-    }
-    .sort-option:hover,
-    .sort-option:focus-visible,
-    .sort-option[aria-checked="true"] {
-      background: rgba(0, 119, 182, 0.08);
+    .action-row button[aria-current="page"] {
+      background: rgba(0, 119, 182, 0.12);
       color: var(--wavy-signal-cyan, #0077b6);
+      box-shadow: inset 0 -2px 0 var(--wavy-signal-cyan, #0077b6);
     }
-    .sort-option:focus-visible {
-      outline: 2px solid var(--wavy-signal-cyan, #0077b6);
-      outline-offset: 1px;
+    .toolbar-spacer {
+      flex: 1 1 auto;
+      min-width: 8px;
     }
 
-    .actions {
-      display: flex;
-      gap: 6px;
-      padding: 8px;
-      margin-bottom: 0;
-      border-bottom: 1px solid var(--wavy-border-hairline, #e2e8f0);
-    }
-    .new-wave {
-      flex: 1 1 auto;
-      background: var(--wavy-signal-cyan, #0077b6);
-      color: #ffffff;
-      border: 1px solid var(--wavy-signal-cyan, #0077b6);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      padding: 6px 12px;
-      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .manage-saved {
-      flex: 0 0 auto;
-      background: transparent;
-      color: var(--wavy-text-muted, #64748b);
-      border: 1px solid var(--wavy-border-hairline, #e2e8f0);
-      border-radius: var(--wavy-radius-pill, 9999px);
-      padding: 6px 10px;
-      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
-      cursor: pointer;
-    }
-    .folders-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 8px 8px 4px;
-    }
-    .folders-header h2 {
-      margin: 0;
-      font: var(--wavy-type-label, 11px / 1.35 Arial, sans-serif);
-      color: var(--wavy-text-muted, #64748b);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    ul.folders {
-      list-style: none;
-      margin: 0 0 8px;
-      padding: 0;
-    }
-    .folder {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--wavy-spacing-2, 8px);
-      background: transparent;
-      color: var(--wavy-text-body, #1a202c);
-      border: 0;
-      padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
-      border-radius: 4px;
-      cursor: pointer;
-      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
-      text-align: left;
-    }
-    .folder[aria-current="page"] {
-      background: rgba(0, 119, 182, 0.10);
-      color: var(--wavy-signal-cyan, #0077b6);
-      font-weight: 600;
-    }
-    .folder:hover,
-    .folder:focus-visible {
-      outline: none;
-      background: rgba(0, 119, 182, 0.06);
-    }
     .custom-searches {
       margin: 0 0 8px;
       padding: 0;
@@ -366,22 +244,28 @@ export class WavySearchRail extends LitElement {
       text-overflow: ellipsis;
     }
     .dot.mentions-dot {
+      position: absolute;
+      top: 2px;
+      right: 2px;
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background: #e53e3e;
     }
     .chip.tasks-chip {
+      position: absolute;
+      top: 1px;
+      right: 0;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 18px;
-      height: 16px;
-      padding: 0 6px;
+      min-width: 14px;
+      height: 12px;
+      padding: 0 4px;
       border-radius: 9999px;
       background: var(--wavy-signal-amber, #9a6700);
       color: #ffffff;
-      font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
+      font: 700 9px / 12px Arial, sans-serif;
       font-weight: 600;
     }
     p.result-count {
@@ -553,15 +437,11 @@ export class WavySearchRail extends LitElement {
     this.savedSearchesLoading = false;
     this.savedSearchesError = "";
     this.savedSearchesDirty = false;
-    this.sortOpen = false;
     this._savedSearchReturnFocus = null;
     this._savedSearchesLoaded = false;
     this._savedSearchesLoadPromise = null;
     this._savedSearchRows = [];
     this._savedSearchesHadInvalidRows = false;
-    this._documentListenersAttached = false;
-    this._boundDocumentClick = (evt) => this._onDocumentClick(evt);
-    this._boundDocumentKeydown = (evt) => this._onDocumentKeydown(evt);
   }
 
   connectedCallback() {
@@ -572,7 +452,6 @@ export class WavySearchRail extends LitElement {
   }
 
   disconnectedCallback() {
-    this._releaseDocumentListeners();
     super.disconnectedCallback();
   }
 
@@ -634,7 +513,9 @@ export class WavySearchRail extends LitElement {
     if (!this.renderRoot) {
       return;
     }
-    const target = this.renderRoot.querySelector('button.folder[aria-current="page"]');
+    const target = this.renderRoot.querySelector(
+      'button[data-folder-id][aria-current="page"]'
+    );
     if (target && typeof target.focus === "function") {
       target.focus();
     }
@@ -685,149 +566,6 @@ export class WavySearchRail extends LitElement {
       .split(/\s+/)
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
-  }
-
-  /** G-PORT-2: panel-level Filter button toggles the chip-strip details. */
-  _toggleFilterPanel() {
-    this.filtersOpen = !this.filtersOpen;
-    this._emit("wavy-search-filter-toggle-requested", {
-      open: this.filtersOpen
-    });
-  }
-
-  _toggleSortMenu() {
-    this._setSortOpen(!this.sortOpen);
-    if (this.sortOpen) {
-      this.updateComplete.then(() => {
-        const active =
-          this.renderRoot?.querySelector('.sort-option[aria-checked="true"]') ||
-          this.renderRoot?.querySelector(".sort-option");
-        if (active && typeof active.focus === "function") {
-          active.focus();
-        }
-      });
-    }
-  }
-
-  _setSortOpen(open) {
-    this.sortOpen = open;
-    if (open) {
-      this._ensureDocumentListeners();
-    } else {
-      this._releaseDocumentListeners();
-    }
-  }
-
-  _ensureDocumentListeners() {
-    if (this._documentListenersAttached) {
-      return;
-    }
-    document.addEventListener("click", this._boundDocumentClick);
-    document.addEventListener("keydown", this._boundDocumentKeydown);
-    this._documentListenersAttached = true;
-  }
-
-  _releaseDocumentListeners() {
-    if (!this._documentListenersAttached) {
-      return;
-    }
-    document.removeEventListener("click", this._boundDocumentClick);
-    document.removeEventListener("keydown", this._boundDocumentKeydown);
-    this._documentListenersAttached = false;
-  }
-
-  _onDocumentClick(evt) {
-    if (!this.sortOpen) {
-      return;
-    }
-    const path = typeof evt.composedPath === "function" ? evt.composedPath() : [];
-    if (path.includes(this)) {
-      return;
-    }
-    this._setSortOpen(false);
-  }
-
-  _onDocumentKeydown(evt) {
-    if (evt.key !== "Escape") {
-      return;
-    }
-    if (this.sortOpen) {
-      evt.preventDefault();
-      this._setSortOpen(false);
-      const sort = this.renderRoot?.querySelector('[data-digest-action="sort"]');
-      if (sort && typeof sort.focus === "function") {
-        sort.focus();
-      }
-    }
-  }
-
-  _onSortMenuKeydown(evt) {
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(evt.key)) {
-      return;
-    }
-    const options = Array.from(evt.currentTarget.querySelectorAll(".sort-option"));
-    if (options.length === 0) {
-      return;
-    }
-    const active = this.renderRoot?.activeElement || document.activeElement;
-    const current = Math.max(0, options.indexOf(active));
-    let next = -1;
-    if (evt.key === "ArrowDown") {
-      next = (current + 1) % options.length;
-    } else if (evt.key === "ArrowUp") {
-      next = (current - 1 + options.length) % options.length;
-    } else if (evt.key === "Home") {
-      next = 0;
-    } else if (evt.key === "End") {
-      next = options.length - 1;
-    }
-    if (next >= 0) {
-      evt.preventDefault();
-      options[next].focus();
-    }
-  }
-
-  _onSortMenuFocusout(evt) {
-    const next = evt.relatedTarget;
-    if (next && evt.currentTarget.contains(next)) {
-      return;
-    }
-    this._setSortOpen(false);
-  }
-
-  _explicitSortToken() {
-    const token = this._tokenize(this.query).find((part) =>
-      part.toLowerCase().startsWith("orderby:")
-    );
-    return token || "";
-  }
-
-  _applySort(sort) {
-    const explicitSort = this._explicitSortToken().toLowerCase();
-    const sortToken = sort.token.toLowerCase();
-    if ((explicitSort && explicitSort === sortToken) || (!explicitSort && sort.default)) {
-      this._setSortOpen(false);
-      this._focusSortTrigger();
-      return;
-    }
-    const composed = this._queryWithToken(
-      sort.token,
-      (token) => token.toLowerCase().startsWith("orderby:")
-    );
-    this.query = composed;
-    this._setSortOpen(false);
-    this._focusSortTrigger();
-    this._emit("wavy-search-sort-requested", { sortId: sort.id, token: sort.token, query: composed });
-    this._emit("wavy-search-submit", { query: composed });
-  }
-
-  _focusSortTrigger() {
-    this.updateComplete.then(() => {
-      const sort = this.renderRoot?.querySelector('[data-digest-action="sort"]');
-      if (sort && typeof sort.focus === "function") {
-        sort.focus();
-      }
-    });
   }
 
   _normalizeSavedSearch(item) {
@@ -960,8 +698,8 @@ export class WavySearchRail extends LitElement {
 
   _openSavedSearches() {
     this._emit("wavy-manage-saved-searches-requested");
-    this._savedSearchReturnFocus = this.renderRoot?.querySelector(".manage-saved") || null;
-    this._setSortOpen(false);
+    this._savedSearchReturnFocus =
+      this.renderRoot?.querySelector('[data-digest-action="manage-saved"]') || null;
     this.savedSearchesOpen = true;
     this._loadSavedSearches();
     this.updateComplete.then(() => {
@@ -1103,11 +841,6 @@ export class WavySearchRail extends LitElement {
   }
 
   render() {
-    const explicitSort = this._explicitSortToken().toLowerCase();
-    const defaultSort = (
-      WavySearchRail.SORTS.find((sort) => sort.default) || WavySearchRail.SORTS[0]
-    ).token.toLowerCase();
-    const effectiveSort = explicitSort || defaultSort;
     const pinnedSearches = this.savedSearches.filter((item) => item.pinned);
     return html`
       <h2
@@ -1148,6 +881,73 @@ export class WavySearchRail extends LitElement {
       <div class="action-row" role="group" aria-label=${t("searchRail.actions", "Search actions")} data-digest-action-row>
         <button
           type="button"
+          data-digest-action="new-wave"
+          data-shortcut="Shift+Cmd+O"
+          aria-keyshortcuts="Shift+Meta+O Shift+Control+O"
+          aria-label=${t("searchRail.newWave", "New Wave")}
+          title=${t("searchRail.newWave", "New Wave")}
+          @click=${() => this._emit("wavy-new-wave-requested", { source: "button" })}
+        >
+          ${SEARCH_RAIL_ICON_NEW_WAVE}
+        </button>
+        <button
+          type="button"
+          data-digest-action="manage-saved"
+          aria-haspopup="dialog"
+          aria-label=${t("searchRail.manageSaved", "Manage saved searches")}
+          title=${t("searchRail.manageSaved", "Manage saved searches")}
+          @click=${this._openSavedSearches}
+        >
+          ${SEARCH_RAIL_ICON_MANAGE_SAVED}
+        </button>
+        ${WavySearchRail.FOLDERS.map((folder) => {
+          const selected = folder.id === this.activeFolder;
+          const badgeLabel =
+            folder.id === "mentions" && this.mentionsUnread > 0
+              ? `, ${this.mentionsUnread} ${t("searchRail.unreadMentions", "unread mentions")}`
+              : folder.id === "tasks" && this.tasksPending > 0
+                ? `, ${this.tasksPending} ${t("searchRail.pendingTasks", "pending tasks")}`
+                : "";
+          const buttonLabel = `${folder.label}${badgeLabel}`;
+          const icon = {
+            inbox: SEARCH_RAIL_ICON_INBOX,
+            mentions: SEARCH_RAIL_ICON_MENTIONS,
+            tasks: SEARCH_RAIL_ICON_TASKS,
+            public: SEARCH_RAIL_ICON_PUBLIC,
+            archive: SEARCH_RAIL_ICON_ARCHIVE,
+            pinned: SEARCH_RAIL_ICON_PINNED
+          }[folder.id];
+          return html`
+            <button
+              type="button"
+              data-digest-action=${folder.id}
+              data-folder-id=${folder.id}
+              data-query=${folder.query}
+              aria-current=${selected ? "page" : "false"}
+              aria-label=${buttonLabel}
+              title=${buttonLabel}
+              @click=${() => this._onFolderClick(folder)}
+            >
+              ${icon}
+              ${folder.id === "mentions"
+                ? html`<span
+                    class="dot mentions-dot"
+                    aria-hidden="true"
+                    ?hidden=${!this.mentionsUnread || this.mentionsUnread <= 0}
+                  ></span>`
+                : null}
+              ${folder.id === "tasks"
+                ? html`<span
+                    class="chip tasks-chip"
+                    aria-hidden="true"
+                    ?hidden=${!this.tasksPending || this.tasksPending <= 0}
+                  >${this.tasksPending || 0}</span>`
+                : null}
+            </button>
+          `;
+        })}
+        <button
+          type="button"
           data-digest-action="refresh"
           aria-label=${t("searchRail.refresh", "Refresh search results")}
           title=${t("searchRail.refresh", "Refresh search results")}
@@ -1155,123 +955,8 @@ export class WavySearchRail extends LitElement {
         >
           ${SEARCH_RAIL_ICON_REFRESH}
         </button>
-        <span class="sort-wrap">
-          <button
-            type="button"
-            data-digest-action="sort"
-            aria-label=${t("searchRail.sort", "Sort waves")}
-            title=${t("searchRail.sort", "Sort waves")}
-            aria-haspopup="menu"
-            aria-controls="wavy-search-sort-menu"
-            aria-expanded=${this.sortOpen ? "true" : "false"}
-            @click=${this._toggleSortMenu}
-          >
-            ${SEARCH_RAIL_ICON_SORT}
-          </button>
-          ${this.sortOpen
-            ? html`<div
-                class="sort-menu"
-                id="wavy-search-sort-menu"
-                role="menu"
-                aria-label=${t("searchRail.sort", "Sort waves")}
-                @keydown=${this._onSortMenuKeydown}
-                @focusout=${this._onSortMenuFocusout}
-              >
-                ${WavySearchRail.SORTS.map((sort) => html`
-                  <button
-                    type="button"
-                    class="sort-option"
-                    role="menuitemradio"
-                    aria-checked=${effectiveSort === sort.token.toLowerCase() ? "true" : "false"}
-                    data-sort-token=${sort.token}
-                    aria-label=${sort.label}
-                    title=${sort.label}
-                    @click=${() => this._applySort(sort)}
-                  >
-                    <span>${sort.label}</span>
-                    ${effectiveSort === sort.token.toLowerCase() ? html`<span aria-hidden="true">✓</span>` : null}
-                  </button>
-                `)}
-              </div>`
-            : null}
-        </span>
-        <button
-          type="button"
-          data-digest-action="filter"
-          aria-label=${t("searchRail.filter", "Filter waves")}
-          title=${t("searchRail.filter", "Filter waves")}
-          aria-pressed=${this.filtersOpen ? "true" : "false"}
-          aria-expanded=${this.filtersOpen ? "true" : "false"}
-          aria-controls="wavy-search-filter-strip"
-          @click=${this._toggleFilterPanel}
-        >
-          ${SEARCH_RAIL_ICON_FILTER}
-        </button>
+        <span class="toolbar-spacer" aria-hidden="true"></span>
       </div>
-
-      <div class="actions">
-        <button
-          type="button"
-          class="new-wave"
-          data-shortcut="Shift+Cmd+O"
-          aria-keyshortcuts="Shift+Meta+O Shift+Control+O"
-          aria-label=${t("searchRail.newWave", "New Wave")}
-          title=${t("searchRail.newWave", "New Wave")}
-          @click=${() => this._emit("wavy-new-wave-requested", { source: "button" })}
-        >
-          ${t("searchRail.newWave", "New Wave")}
-        </button>
-        <button
-          type="button"
-          class="manage-saved"
-          aria-haspopup="dialog"
-          aria-label=${t("searchRail.manageSaved", "Manage saved searches")}
-          title=${t("searchRail.manageSaved", "Manage saved searches")}
-          @click=${this._openSavedSearches}
-        >
-          ${t("searchRail.manageSaved", "Manage saved searches")}
-        </button>
-      </div>
-
-      <div class="folders-header">
-        <h2 id="folders-title">${t("searchRail.savedSearches", "Saved searches")}</h2>
-      </div>
-      <ul class="folders" aria-labelledby="folders-title">
-        ${WavySearchRail.FOLDERS.map((folder) => {
-          const selected = folder.id === this.activeFolder;
-          return html`
-            <li>
-              <button
-                type="button"
-                class="folder"
-                data-folder-id=${folder.id}
-                data-query=${folder.query}
-                aria-current=${selected ? "page" : "false"}
-                aria-label=${folder.label}
-                title=${folder.label}
-                @click=${() => this._onFolderClick(folder)}
-              >
-                <span class="label">${folder.label}</span>
-                ${folder.id === "mentions"
-                  ? html`<span
-                      class="dot mentions-dot"
-                      aria-label="${this.mentionsUnread || 0} ${t("searchRail.unreadMentions", "unread mentions")}"
-                      ?hidden=${!this.mentionsUnread || this.mentionsUnread <= 0}
-                    ></span>`
-                  : null}
-                ${folder.id === "tasks"
-                  ? html`<span
-                      class="chip tasks-chip"
-                      aria-label="${this.tasksPending || 0} ${t("searchRail.pendingTasks", "pending tasks")}"
-                      ?hidden=${!this.tasksPending || this.tasksPending <= 0}
-                      >${this.tasksPending || 0}</span
-                    >`
-                  : null}
-              </button>
-            </li>
-          `;
-        })}
-      </ul>
       ${pinnedSearches.length > 0
         ? html`
             <ul class="custom-searches" aria-label=${t("searchRail.pinnedSaved", "Pinned saved searches")}>

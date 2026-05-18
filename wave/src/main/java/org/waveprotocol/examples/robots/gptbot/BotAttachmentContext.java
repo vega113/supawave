@@ -112,14 +112,26 @@ public final class BotAttachmentContext {
   private static Optional<String> decodeText(byte[] data) {
     byte[] bytes = data == null ? new byte[0] : data;
     if (bytes.length > MAX_TEXT_BYTES) {
-      return Optional.of(new String(bytes, 0, MAX_TEXT_BYTES, StandardCharsets.UTF_8)
-          + "\n[truncated after " + MAX_TEXT_BYTES + " bytes]");
+      // Back off up to 3 bytes from the cut to avoid slicing a multi-byte UTF-8 sequence.
+      // Binary data mislabeled as text will fail all attempts and return empty.
+      for (int cutAt = MAX_TEXT_BYTES; cutAt >= MAX_TEXT_BYTES - 3 && cutAt >= 0; cutAt--) {
+        try {
+          String text = StandardCharsets.UTF_8.newDecoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .onUnmappableCharacter(CodingErrorAction.REPORT)
+              .decode(java.nio.ByteBuffer.wrap(bytes, 0, cutAt)).toString();
+          return Optional.of(text + "\n[truncated after " + MAX_TEXT_BYTES + " bytes]");
+        } catch (CharacterCodingException e) {
+          // try one byte shorter
+        }
+      }
+      return Optional.empty();
     }
-    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
-        .onMalformedInput(CodingErrorAction.REPORT)
-        .onUnmappableCharacter(CodingErrorAction.REPORT);
     try {
-      return Optional.of(decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString());
+      return Optional.of(StandardCharsets.UTF_8.newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT)
+          .decode(java.nio.ByteBuffer.wrap(bytes)).toString());
     } catch (CharacterCodingException e) {
       return Optional.empty();
     }

@@ -85,6 +85,21 @@ public final class BotAttachmentContext {
         header + "\nSkipped: unsupported binary attachment.");
   }
 
+  /**
+   * Returns true if the attachment type is text-like or audio/video — i.e. might yield
+   * useful prompt context. Binary attachments that fail this check can be skipped before
+   * calling the export RPC to avoid loading large unsupported files on the server side.
+   */
+  public static boolean mightBeUsable(String mimeType, String fileName) {
+    String normalizedMime = mimeType == null ? "" : mimeType.trim().toLowerCase(Locale.ROOT);
+    if (normalizedMime.isEmpty()) {
+      normalizedMime = "application/octet-stream";
+    }
+    String normalizedFileName = fileName == null ? "" : fileName.trim();
+    return isTranscribable(normalizedMime, normalizedFileName)
+        || isTextLike(normalizedMime, normalizedFileName);
+  }
+
   private static boolean isTranscribable(String mimeType, String fileName) {
     String lowerName = fileName.toLowerCase(Locale.ROOT);
     return mimeType.startsWith("audio/")

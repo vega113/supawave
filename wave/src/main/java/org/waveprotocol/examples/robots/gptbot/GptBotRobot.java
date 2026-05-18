@@ -289,13 +289,22 @@ public final class GptBotRobot {
 
   private List<BotAttachmentContext.RawAttachment> collectAttachments(Blip blip,
       String rpcServerUrl) {
-    List<BotAttachmentContext.RawAttachment> attachments =
-        new ArrayList<BotAttachmentContext.RawAttachment>();
+    List<BotAttachmentContext.RawAttachment> attachments = new ArrayList<>();
+    int attempts = 0;
     for (Element element : blip.getElements().values()) {
+      if (attempts >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
+        break;
+      }
       AttachmentReference reference = attachmentReference(element);
       if (reference == null) {
         continue;
       }
+      // Skip clearly unsupported binary types before invoking the export RPC — the server
+      // materializes the full file into memory regardless of client-side response guards.
+      if (!BotAttachmentContext.mightBeUsable(reference.mimeType, reference.fileName)) {
+        continue;
+      }
+      attempts++;
       try {
         Optional<BotAttachmentContext.RawAttachment> exported =
             apiClient.exportAttachment(reference.attachmentId, rpcServerUrl);
@@ -306,9 +315,6 @@ public final class GptBotRobot {
       } catch (RuntimeException e) {
         LOG.warning("Unable to export attachment for GPT bot context: "
             + reference.attachmentId, e);
-      }
-      if (attachments.size() >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
-        break;
       }
     }
     return attachments;

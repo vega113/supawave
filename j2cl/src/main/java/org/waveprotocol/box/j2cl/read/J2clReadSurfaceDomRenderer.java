@@ -3894,6 +3894,7 @@ public final class J2clReadSurfaceDomRenderer {
         && left.getBlipId().equals(right.getBlipId())
         && left.getText().equals(right.getText())
         && left.getAuthorId().equals(right.getAuthorId())
+        && left.getAuthorDisplayName().equals(right.getAuthorDisplayName())
         && left.getLastModifiedTimeMillis() == right.getLastModifiedTimeMillis()
         && left.getParentBlipId().equals(right.getParentBlipId())
         && left.getThreadId().equals(right.getThreadId())
@@ -4007,8 +4008,13 @@ public final class J2clReadSurfaceDomRenderer {
     if (!anyAttachmentDiff) {
       return false;
     }
-    for (J2clReadWindowEntry entry : entries) {
+    for (int i = 0; i < entries.size(); i++) {
+      J2clReadWindowEntry entry = entries.get(i);
       if (!entry.isLoaded()) {
+        continue;
+      }
+      J2clReadWindowEntry previous = renderedWindowEntries.get(i);
+      if (previous.getAttachments().equals(entry.getAttachments())) {
         continue;
       }
       HTMLElement element = renderedBlipById(entry.getBlipId());

@@ -1405,10 +1405,10 @@ public class J2clReadSurfaceDomRendererTest {
                     Arrays.asList(pending)))));
     HTMLElement originalBlip = blip(host, "b+root");
     Assert.assertNotNull(originalBlip);
-    Assert.assertEquals(
-        "pending",
-        ((HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']"))
-            .getAttribute("data-attachment-state"));
+    HTMLElement pendingTile =
+        (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull("attachment tile should be present before resolve", pendingTile);
+    Assert.assertEquals("pending", pendingTile.getAttribute("data-attachment-state"));
 
     J2clAttachmentRenderModel resolved =
         J2clAttachmentRenderModel.fromMetadata(
@@ -1438,6 +1438,7 @@ public class J2clReadSurfaceDomRendererTest {
     Assert.assertSame(originalBlip, blip(host, "b+root"));
     HTMLElement tile =
         (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
+    Assert.assertNotNull("attachment tile should be present after resolve", tile);
     Assert.assertEquals("ready", tile.getAttribute("data-attachment-state"));
     Assert.assertNotNull(tile.querySelector("[data-j2cl-attachment-open='true']"));
     Assert.assertNotNull(tile.querySelector(".j2cl-read-attachment-preview"));

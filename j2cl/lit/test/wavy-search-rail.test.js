@@ -756,7 +756,7 @@ describe("<wavy-search-rail>", () => {
     );
     await el.updateComplete;
     expect(el.activeFolder).to.equal("");
-    const folders = el.renderRoot.querySelectorAll("button.folder");
+    const folders = el.renderRoot.querySelectorAll("button[data-folder-id]");
     folders.forEach((b) => expect(b.getAttribute("aria-current")).to.equal("false"));
   });
 
@@ -785,15 +785,16 @@ describe("<wavy-search-rail>", () => {
   it("Tasks amber chip is hidden by default and revealed when tasks-pending > 0", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
-    const chip = el.renderRoot
-      .querySelector('[data-folder-id="tasks"]')
-      .querySelector(".mentions-dot");
+    const taskBtn = el.renderRoot.querySelector('[data-folder-id="tasks"]');
+    const chip = taskBtn.querySelector(".tasks-chip");
     expect(chip).to.exist;
     expect(chip.hasAttribute("hidden")).to.be.true;
     el.tasksPending = 7;
     await el.updateComplete;
     expect(chip.hasAttribute("hidden")).to.be.false;
-    expect(chip.getAttribute("aria-label")).to.contain("7");
+    // Count is announced via the button's aria-label, chip is decorative.
+    expect(taskBtn.getAttribute("aria-label")).to.contain("7");
+    expect(chip.getAttribute("aria-hidden")).to.equal("true");
   });
 
   it("Tasks chip uses --wavy-signal-amber", async () => {

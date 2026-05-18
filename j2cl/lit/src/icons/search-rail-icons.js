@@ -1,13 +1,16 @@
 import { svg } from "lit";
 
 /*
- * G-PORT-2 (#1111) icon set for the J2CL <wavy-search-rail> action
- * row. The glyphs mirror the GWT lucide-style icons used by
- * SearchPresenter (ICON_REFRESH, ICON_MODIFY) plus a sort icon for the
- * visible "sort" affordance the GWT inventory now exposes via the
- * orderby: search tokens. All glyphs are 16x16, currentColor stroked,
- * 1.6px line, rounded caps/joins so they read at the same weight as
- * the format-toolbar icons under V-3.
+ * G-PORT-2 (#1111, updated #1253) icon set for the J2CL
+ * <wavy-search-rail> compact action toolbar. Includes: refresh,
+ * new-wave (compose), manage-saved-searches (sliders), and folder
+ * navigation icons (inbox, mentions, tasks, public, archive, pinned).
+ * Sort/filter icons are retained as exports for backward compatibility
+ * but are no longer rendered in the toolbar — sorting is handled via
+ * query tokens and filtering via the inline filter chip strip.
+ * All glyphs are 16x16, currentColor stroked, 1.6px line, rounded
+ * caps/joins so they read at the same weight as the format-toolbar
+ * icons under V-3.
  */
 export const SEARCH_RAIL_ICON_REFRESH = svg`<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
   <polyline points="14.5 3 14.5 6.5 11 6.5"></polyline>

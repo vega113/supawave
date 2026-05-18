@@ -194,6 +194,11 @@ export class WavySearchRail extends LitElement {
       background: rgba(0, 119, 182, 0.10);
       color: var(--wavy-signal-cyan, #0077b6);
     }
+    .action-row button[aria-current="page"] {
+      background: rgba(0, 119, 182, 0.12);
+      color: var(--wavy-signal-cyan, #0077b6);
+      box-shadow: inset 0 -2px 0 var(--wavy-signal-cyan, #0077b6);
+    }
     .toolbar-spacer {
       flex: 1 1 auto;
       min-width: 8px;
@@ -256,6 +261,21 @@ export class WavySearchRail extends LitElement {
       color: #ffffff;
       font: var(--wavy-type-meta, 11px / 1.4 Arial, sans-serif);
       font-weight: 600;
+    }
+    .action-row .chip.tasks-chip {
+      position: absolute;
+      top: 0;
+      right: -4px;
+      min-width: 14px;
+      height: 12px;
+      padding: 0 3px;
+      font-size: 9px;
+      line-height: 12px;
+    }
+    .action-row .dot.mentions-dot {
+      position: absolute;
+      top: 2px;
+      right: 2px;
     }
     p.result-count {
       margin: 0;
@@ -891,6 +911,13 @@ export class WavySearchRail extends LitElement {
         </button>
         ${WavySearchRail.FOLDERS.map((folder) => {
           const selected = folder.id === this.activeFolder;
+          const badgeLabel =
+            folder.id === "mentions" && this.mentionsUnread > 0
+              ? `, ${this.mentionsUnread} ${t("searchRail.unreadMentions", "unread mentions")}`
+              : folder.id === "tasks" && this.tasksPending > 0
+                ? `, ${this.tasksPending} ${t("searchRail.pendingTasks", "pending tasks")}`
+                : "";
+          const buttonLabel = `${folder.label}${badgeLabel}`;
           const icon = {
             inbox: SEARCH_RAIL_ICON_INBOX,
             mentions: SEARCH_RAIL_ICON_MENTIONS,
@@ -906,24 +933,24 @@ export class WavySearchRail extends LitElement {
               data-folder-id=${folder.id}
               data-query=${folder.query}
               aria-current=${selected ? "page" : "false"}
-              aria-label=${folder.label}
-              title=${folder.label}
+              aria-label=${buttonLabel}
+              title=${buttonLabel}
               @click=${() => this._onFolderClick(folder)}
             >
               ${icon}
               ${folder.id === "mentions"
                 ? html`<span
                     class="dot mentions-dot"
-                    aria-label="${this.mentionsUnread || 0} ${t("searchRail.unreadMentions", "unread mentions")}"
+                    aria-hidden="true"
                     ?hidden=${!this.mentionsUnread || this.mentionsUnread <= 0}
                   ></span>`
                 : null}
               ${folder.id === "tasks"
                 ? html`<span
-                    class="dot mentions-dot"
-                    aria-label="${this.tasksPending || 0} ${t("searchRail.pendingTasks", "pending tasks")}"
+                    class="chip tasks-chip"
+                    aria-hidden="true"
                     ?hidden=${!this.tasksPending || this.tasksPending <= 0}
-                  ></span>`
+                  >${this.tasksPending || 0}</span>`
                 : null}
             </button>
           `;

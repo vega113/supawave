@@ -104,7 +104,10 @@ test.describe("G-PORT-2 search panel parity", () => {
       "J2CL: <wavy-search-rail> must mount"
     ).toHaveCount(1, { timeout: 15_000 });
 
-    // The new action row must mount with refresh + sort + filter buttons.
+    // The compact action row must mount with new-wave, manage-saved, folder
+    // navigation, and refresh buttons (sort/filter were removed in #1253 when
+    // the toolbar was aligned with the GWT compact layout; sort is now a filter
+    // strip and filtering is inline).
     // The rail emits the action row twice in DOM: once pre-upgrade (in
     // light DOM, where it's intentionally hidden post-upgrade because the
     // rail does not expose a default slot per #1060) and once in the
@@ -120,12 +123,16 @@ test.describe("G-PORT-2 search panel parity", () => {
       "J2CL: refresh action button"
     ).toBeVisible();
     await expect(
-      page.locator('[data-digest-action="sort"]:visible').first(),
-      "J2CL: sort action button"
+      page.locator('[data-digest-action="new-wave"]:visible').first(),
+      "J2CL: new-wave action button"
     ).toBeVisible();
     await expect(
-      page.locator('[data-digest-action="filter"]:visible').first(),
-      "J2CL: filter action button"
+      page.locator('[data-digest-action="manage-saved"]:visible').first(),
+      "J2CL: manage-saved action button"
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-digest-action="inbox"]:visible').first(),
+      "J2CL: inbox folder button"
     ).toBeVisible();
 
     // Refresh affordance is reachable via the cross-view selector.
@@ -194,10 +201,11 @@ test.describe("G-PORT-2 search panel parity", () => {
       refreshButton(page),
       "GWT: refresh affordance reachable via title='Refresh search results'"
     ).toBeVisible({ timeout: 30_000 });
-    // data-digest-action-row/sort/filter are only emitted by the J2CL SSR
-    // path (appendWavySearchRail in HtmlRenderer). The GWT search panel
-    // creates its toolbar via SearchPanelWidget at runtime without those
-    // attributes, so sort/filter are not asserted here.
+    // data-digest-action-row and its compact buttons (new-wave, manage-saved,
+    // folder nav, refresh) are only emitted by the J2CL SSR path
+    // (appendWavySearchRail in HtmlRenderer). The GWT search panel creates its
+    // toolbar via SearchPanelWidget at runtime without those attributes, so
+    // they are not asserted here.
 
     // GWT search is also async (XHR /search). Wait until either at
     // least one digest card appears, or the wave-count info bar

@@ -4412,30 +4412,23 @@ public final class HtmlRenderer {
     sb.append("        <input type=\"search\" class=\"query\" name=\"q\" aria-label=\"Search waves\" value=\"").append(safeInitialQuery).append("\">\n");
     sb.append("        <button type=\"button\" class=\"help-trigger\" aria-label=\"Search help\" aria-haspopup=\"dialog\" aria-controls=\"wavy-search-help\">?</button>\n");
     sb.append("      </div>\n");
-    // G-PORT-2 (#1111): pre-upgrade light-DOM action row mirroring the
-    // shadow-DOM render so the buttons exist before the J2CL bundle
-    // upgrades the rail. Each button carries `data-digest-action="..."`
-    // so the parity test resolves it on both views with one selector.
+    // G-PORT-2 (#1111, updated #1253): pre-upgrade light-DOM action row
+    // mirroring the compact shadow-DOM render so the buttons exist before
+    // the J2CL bundle upgrades the rail. Each button carries
+    // `data-digest-action="..."` so the parity test resolves it on both
+    // views with one selector. Sort/filter were removed from the toolbar
+    // in #1253; they are now handled by the filter chip strip below.
     sb.append("      <div class=\"action-row\" role=\"group\" aria-label=\"Search actions\" data-digest-action-row>\n");
-    sb.append("        <button type=\"button\" data-digest-action=\"refresh\" aria-label=\"Refresh search results\" title=\"Refresh search results\">↻</button>\n");
-    sb.append("        <button type=\"button\" data-digest-action=\"sort\" aria-label=\"Sort waves\" title=\"Sort waves\" aria-haspopup=\"menu\">⇅</button>\n");
-    sb.append("        <button type=\"button\" data-digest-action=\"filter\" aria-label=\"Filter waves\" title=\"Filter waves\" aria-pressed=\"false\" aria-expanded=\"false\" aria-controls=\"wavy-search-filter-strip\">▽</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"new-wave\" data-shortcut=\"Shift+Cmd+O\" aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\" aria-label=\"New Wave\" title=\"New Wave\">+</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"manage-saved\" aria-haspopup=\"dialog\" aria-label=\"Manage saved searches\" title=\"Manage saved searches\">☰</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"inbox\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"").append("inbox".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Inbox\" title=\"Inbox\">&#9679;</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"mentions\" data-folder-id=\"mentions\" data-query=\"mentions:me\" aria-current=\"").append("mentions".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Mentions\" title=\"Mentions\">@<span class=\"dot mentions-dot\" hidden></span></button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"tasks\" data-folder-id=\"tasks\" data-query=\"tasks:me\" aria-current=\"").append("tasks".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Tasks\" title=\"Tasks\">&#9744;<span class=\"chip tasks-chip\" hidden>0</span></button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"public\" data-folder-id=\"public\" data-query=\"with:@\" aria-current=\"").append("public".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Public\" title=\"Public\">&#9670;</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"archive\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"").append("archive".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Archive\" title=\"Archive\">&#9632;</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"pinned\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"").append("pinned".equals(activeFolder) ? "page" : "false").append("\" aria-label=\"Pinned\" title=\"Pinned\">&#9733;</button>\n");
+    sb.append("        <button type=\"button\" data-digest-action=\"refresh\" aria-label=\"Refresh search results\" title=\"Refresh search results\">&#8635;</button>\n");
     sb.append("      </div>\n");
-    sb.append("      <div class=\"actions\">\n");
-    sb.append("        <button type=\"button\" class=\"new-wave\" data-shortcut=\"Shift+Cmd+O\" aria-keyshortcuts=\"Shift+Meta+O Shift+Control+O\">New Wave</button>\n");
-    sb.append("        <button type=\"button\" class=\"manage-saved\" aria-haspopup=\"dialog\">Manage saved searches</button>\n");
-    sb.append("      </div>\n");
-    sb.append("      <div class=\"folders-header\">\n");
-    sb.append("        <h2 id=\"folders-title\">Saved searches</h2>\n");
-    sb.append("      </div>\n");
-    sb.append("      <ul class=\"folders\" aria-labelledby=\"folders-title\">\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"inbox\" data-query=\"in:inbox\" aria-current=\"").append("inbox".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Inbox</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"mentions\" data-query=\"mentions:me\" aria-current=\"").append("mentions".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Mentions</span><span class=\"dot mentions-dot\" hidden></span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"tasks\" data-query=\"tasks:me\" aria-current=\"").append("tasks".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Tasks</span><span class=\"chip tasks-chip\" hidden>0</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"public\" data-query=\"with:@\" aria-current=\"").append("public".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Public</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"archive\" data-query=\"in:archive\" aria-current=\"").append("archive".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Archive</span></button></li>\n");
-    sb.append("        <li><button type=\"button\" class=\"folder\" data-folder-id=\"pinned\" data-query=\"in:pinned\" aria-current=\"").append("pinned".equals(activeFolder) ? "page" : "false").append("\"><span class=\"label\">Pinned</span></button></li>\n");
-    sb.append("      </ul>\n");
     // F-4 (#1039 / R-4.7): SSR filter chip strip. Mirrors
     // WavySearchRail.FILTERS so the strip exists pre-upgrade and the
     // J2CL upgrade is content-preserving. aria-pressed is derived from

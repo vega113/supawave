@@ -38,6 +38,10 @@ import org.waveprotocol.wave.model.version.HashedVersion;
 import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.concurrencycontrol.channel.FragmentsMetrics;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.impl.AttributesImpl;
+import org.waveprotocol.wave.model.document.operation.impl.DocInitializationBuffer;
+import org.waveprotocol.wave.model.id.IdConstants;
 
 import java.util.Arrays;
 import java.util.List;
@@ -163,6 +167,21 @@ public final class WaveClientRpcViewportHintsTest {
     assertEquals(Arrays.asList("b+root", "b+1", "b+2"),
         blipRangeIds(update.getFragments()));
     assertTrue(hasBlipFragment(update.getFragments(), "b+root"));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
+    assertFalse(hasBlipFragment(update.getFragments(), "b+2"));
+  }
+
+  @Test
+  public void viewportHintsKeepManifestRootBlipInInitialSnapshotWindow() {
+    ProtocolWaveletUpdate update =
+        openWithRpc(
+            makeWaveClientRpcWithManifestAndBlipIds("b+gen123", "b+2", "b+gen123", "b+1", "b+3"),
+            viewportHintRequest(null, "forward", 2));
+
+    assertTrue(update.hasFragments());
+    assertEquals(Arrays.asList("b+gen123", "b+1", "b+2"),
+        blipRangeIds(update.getFragments()));
+    assertTrue(hasBlipFragment(update.getFragments(), "b+gen123"));
     assertTrue(hasBlipFragment(update.getFragments(), "b+1"));
     assertFalse(hasBlipFragment(update.getFragments(), "b+2"));
   }
@@ -513,6 +532,37 @@ public final class WaveClientRpcViewportHintsTest {
       }
     };
     return WaveClientRpcImpl.create(frontend, false);
+  }
+
+  private static WaveClientRpcImpl makeWaveClientRpcWithManifestAndBlipIds(
+      String manifestRootId, String... blipIds) {
+    ClientFrontend frontend = new ClientFrontend() {
+      @Override public void submitRequest(ParticipantId u, WaveletName wn, org.waveprotocol.wave.federation.Proto.ProtocolWaveletDelta d, String c, WaveletProvider.SubmitRequestListener l) {}
+      @Override public void openRequest(ParticipantId u, WaveId waveId, org.waveprotocol.wave.model.id.IdFilter f, java.util.Collection<WaveClientRpc.WaveletVersion> k, String searchQuery, OpenListener listener) {
+        WaveletId wid = WaveletId.of(waveId.getDomain(), "conv+root");
+        WaveletName wn = WaveletName.of(waveId, wid);
+        ReadableWaveletDataStub stub = dataStub(waveId, wid);
+        stub.addDoc(IdConstants.MANIFEST_DOCUMENT_ID,
+            new ReadableBlipDataStub(IdConstants.MANIFEST_DOCUMENT_ID,
+                ParticipantId.ofUnsafe("user@example.com"), 0L, manifestDocInit(manifestRootId)));
+        for (int i = 0; i < blipIds.length; i++) {
+          stub.addDoc(blipIds[i],
+              new ReadableBlipDataStub(ParticipantId.ofUnsafe("user@example.com"), (i + 1) * 100L));
+        }
+        CommittedWaveletSnapshot snap = new CommittedWaveletSnapshot(stub, HashedVersion.unsigned(100));
+        listener.onUpdate(wn, snap, java.util.Collections.emptyList(), HashedVersion.unsigned(100), null, "ch-vh");
+      }
+    };
+    return WaveClientRpcImpl.create(frontend, false);
+  }
+
+  private static DocInitialization manifestDocInit(String rootBlipId) {
+    DocInitializationBuffer buf = new DocInitializationBuffer();
+    buf.elementStart("conversation", new AttributesImpl());
+    buf.elementStart("blip", new AttributesImpl("id", rootBlipId));
+    buf.elementEnd();
+    buf.elementEnd();
+    return buf.finishUnchecked();
   }
 
   private static ReadableWaveletData providerDataWithBlips(WaveId waveId, WaveletId wid, int count) {

@@ -32,16 +32,21 @@ import org.waveprotocol.wave.model.document.operation.DocOp;
 /** Minimal ReadableBlipData stub for tests. */
 public final class ReadableBlipDataStub implements ReadableBlipData {
   private final ParticipantId author; private final long lmt; private final String id;
-  public ReadableBlipDataStub(String id, ParticipantId a, long t) { this.id=id; this.author=a; this.lmt=t; }
-  public ReadableBlipDataStub(ParticipantId a, long t) { this("b+stub", a, t); }
+  private final DocInitialization customInit;
+  public ReadableBlipDataStub(String id, ParticipantId a, long t) { this(id, a, t, null); }
+  public ReadableBlipDataStub(String id, ParticipantId a, long t, DocInitialization init) {
+    this.id=id; this.author=a; this.lmt=t; this.customInit=init;
+  }
+  public ReadableBlipDataStub(ParticipantId a, long t) { this("b+stub", a, t, null); }
   @Override public ReadableWaveletData getWavelet() { return null; }
   @Override public ParticipantId getAuthor() { return author; }
   @Override public java.util.Set<ParticipantId> getContributors() { return java.util.Collections.emptySet(); }
   @Override public long getLastModifiedTime() { return lmt; }
   @Override public long getLastModifiedVersion() { return lmt; }
   @Override public DocumentOperationSink getContent() {
+    final DocInitialization init = customInit != null ? customInit : new DocInitializationBuffer().finish();
     return new DocumentOperationSink() {
-      @Override public DocInitialization asOperation() { return new DocInitializationBuffer().finish(); }
+      @Override public DocInitialization asOperation() { return init; }
       @Override public void consume(DocOp op) throws OperationException { }
       @Override public Document getMutableDocument() { return null; }
       @Override public void init(SilentOperationSink<? super DocOp> outputSink) { }

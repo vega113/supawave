@@ -38,7 +38,11 @@ import org.waveprotocol.box.server.rpc.ServerRpcController;
 import org.waveprotocol.box.server.waveserver.search.SearchWaveletManager;
 import org.waveprotocol.box.server.waveserver.WaveletProvider.SubmitRequestListener;
 import org.waveprotocol.wave.concurrencycontrol.channel.dto.FragmentsPayload;
+import org.waveprotocol.wave.model.document.operation.DocInitialization;
+import org.waveprotocol.wave.model.document.operation.DocInitializationCursor;
+import org.waveprotocol.wave.model.id.IdConstants;
 import org.waveprotocol.wave.model.id.SegmentId;
+import org.waveprotocol.wave.model.wave.data.ReadableBlipData;
 import org.waveprotocol.wave.model.wave.data.ReadableWaveletData;
 import org.waveprotocol.wave.model.id.IdFilter;
 import org.waveprotocol.wave.model.id.InvalidIdException;
@@ -559,17 +563,51 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
     }
     if (naturalOrder) {
       blips.sort(WaveClientRpcImpl::compareBlipIdsNaturally);
+      String rootId = readRootBlipId(snapshot.snapshot);
+      if (rootId == null) {
+        rootId = "b+root";
+      }
+      int rootIndex = blips.indexOf(rootId);
+      if (rootIndex > 0) {
+        blips.remove(rootIndex);
+        blips.add(0, rootId);
+      }
     }
     return blips;
   }
 
+  private static String readRootBlipId(ReadableWaveletData snapshot) {
+    ReadableBlipData manifestDoc = snapshot.getDocument(IdConstants.MANIFEST_DOCUMENT_ID);
+    if (manifestDoc == null) {
+      return null;
+    }
+    DocInitialization content;
+    try {
+      content = manifestDoc.getContent().asOperation();
+    } catch (Exception ignored) {
+      return null;
+    }
+    if (content == null) {
+      return null;
+    }
+    final String[] rootBlipId = {null};
+    content.apply(new DocInitializationCursor() {
+      @Override
+      public void elementStart(String type,
+          org.waveprotocol.wave.model.document.operation.Attributes attrs) {
+        if (rootBlipId[0] == null && "blip".equals(type)) {
+          rootBlipId[0] = attrs != null ? attrs.get("id") : null;
+        }
+      }
+      @Override public void elementEnd() {}
+      @Override public void characters(String chars) {}
+      @Override public void annotationBoundary(
+          org.waveprotocol.wave.model.document.operation.AnnotationBoundaryMap map) {}
+    });
+    return rootBlipId[0];
+  }
+
   private static int compareBlipIdsNaturally(String left, String right) {
-    if ("b+root".equals(left) && !"b+root".equals(right)) {
-      return -1;
-    }
-    if ("b+root".equals(right) && !"b+root".equals(left)) {
-      return 1;
-    }
     String leftPrefix = trailingNumberPrefix(left);
     String rightPrefix = trailingNumberPrefix(right);
     if (leftPrefix.equals(rightPrefix)) {

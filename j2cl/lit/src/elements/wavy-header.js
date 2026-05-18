@@ -30,7 +30,7 @@ import { t } from "../i18n/t.js";
  *
  * Events:
  * - wavy-locale-changed     — `{detail: {locale}}` on <select> change
- * - wavy-user-menu-requested — `{detail: {address}}` on user-menu click
+ * - wavy-user-menu-requested — `{detail: {address, open}}` on user-menu click
  */
 export class WavyHeader extends LitElement {
   static properties = {

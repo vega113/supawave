@@ -564,6 +564,12 @@ public class WaveClientRpcImpl implements ProtocolWaveClientRpc.Interface {
   }
 
   private static int compareBlipIdsNaturally(String left, String right) {
+    if ("b+root".equals(left) && !"b+root".equals(right)) {
+      return -1;
+    }
+    if ("b+root".equals(right) && !"b+root".equals(left)) {
+      return 1;
+    }
     String leftPrefix = trailingNumberPrefix(left);
     String rightPrefix = trailingNumberPrefix(right);
     if (leftPrefix.equals(rightPrefix)) {

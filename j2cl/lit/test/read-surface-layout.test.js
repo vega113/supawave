@@ -32,7 +32,7 @@ before(async () => {
 });
 
 describe("J2CL read-surface loading layout", () => {
-  it("reserves display-size-specific space for pending attachment metadata", async () => {
+  it("uses the compact pending attachment placeholder for all display sizes", async () => {
     const medium = await fixture(html`
       <div
         class="j2cl-read-attachment"
@@ -48,7 +48,17 @@ describe("J2CL read-surface loading layout", () => {
       ></div>
     `);
 
-    expect(getComputedStyle(medium).minHeight).to.equal("180px");
-    expect(getComputedStyle(large).minHeight).to.equal("260px");
+    expect(getComputedStyle(medium).minHeight).to.equal("72px");
+    expect(getComputedStyle(large).minHeight).to.equal("72px");
+  });
+
+  it("keeps client-created pending-upgrade blips close to a one-line card height", async () => {
+    const blip = await fixture(html`
+      <wave-blip data-j2cl-pending-upgrade>
+        <span>Pending formatted card</span>
+      </wave-blip>
+    `);
+
+    expect(getComputedStyle(blip).minHeight).to.equal("40px");
   });
 });

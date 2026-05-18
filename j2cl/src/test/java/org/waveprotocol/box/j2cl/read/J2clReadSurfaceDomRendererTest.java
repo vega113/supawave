@@ -1,6 +1,7 @@
 package org.waveprotocol.box.j2cl.read;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
+import elemental2.core.JsArray;
 import elemental2.dom.DomGlobal;
 import elemental2.dom.Element;
 import elemental2.dom.Event;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import jsinterop.base.Js;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -22,6 +24,7 @@ import org.junit.Test;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentMetadata;
 import org.waveprotocol.box.j2cl.attachment.J2clAttachmentRenderModel;
 import org.waveprotocol.box.j2cl.overlay.J2clMentionRange;
+import org.waveprotocol.box.j2cl.overlay.J2clReactionSummary;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.telemetry.RecordingTelemetrySink;
@@ -1389,6 +1392,11 @@ public class J2clReadSurfaceDomRendererTest {
     assumeBrowserDom();
     HTMLDivElement host = createHost();
     J2clReadSurfaceDomRenderer renderer = new J2clReadSurfaceDomRenderer(host);
+    ArrayList<J2clReactionSummary> rootReactions = new ArrayList<J2clReactionSummary>();
+    rootReactions.add(
+        new J2clReactionSummary("👍", Arrays.asList("alice@example.com"), true, ""));
+    renderer.setReactionBinder(
+        blipId -> "b+root".equals(blipId) ? rootReactions : Collections.emptyList());
     J2clAttachmentRenderModel pending =
         J2clAttachmentRenderModel.metadataPending(
             "example.com/att+hero", "Hero diagram", "medium");
@@ -1431,6 +1439,10 @@ public class J2clReadSurfaceDomRendererTest {
         (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+hero']");
     Assert.assertNotNull("attachment tile should be present before resolve", pendingTile);
     Assert.assertEquals("pending", pendingTile.getAttribute("data-attachment-state"));
+    HTMLElement originalReactionRow =
+        (HTMLElement) originalBlip.querySelector("reaction-row[slot='reactions']");
+    Assert.assertNotNull("reaction row should be present before resolve", originalReactionRow);
+    Assert.assertEquals(1, reactionCount(originalReactionRow));
     HTMLElement unchangedTile =
         (HTMLElement) host.querySelector("[data-attachment-id='example.com/att+stable']");
     Assert.assertNotNull("unchanged attachment tile should be present", unchangedTile);
@@ -1448,6 +1460,10 @@ public class J2clReadSurfaceDomRendererTest {
                 "/thumbnail/example.com/att+hero",
                 new J2clAttachmentMetadata.ImageMetadata(1200, 800),
                 false));
+    rootReactions.clear();
+    rootReactions.add(
+        new J2clReactionSummary(
+            "👍", Arrays.asList("alice@example.com", "bob@example.com"), true, ""));
 
     Assert.assertTrue(
         renderer.renderWindow(
@@ -1468,6 +1484,10 @@ public class J2clReadSurfaceDomRendererTest {
                     Arrays.asList(unchanged)))));
 
     Assert.assertSame(originalBlip, blip(host, "b+root"));
+    Assert.assertSame(
+        originalReactionRow, originalBlip.querySelector("reaction-row[slot='reactions']"));
+    Assert.assertEquals(1, reactionCount(originalReactionRow));
+    Assert.assertEquals(2, firstReactionCount(originalReactionRow));
     Assert.assertSame(unchangedBlip, blip(host, "b+stable"));
     Assert.assertSame(
         unchangedTile, host.querySelector("[data-attachment-id='example.com/att+stable']"));
@@ -3891,6 +3911,24 @@ public class J2clReadSurfaceDomRendererTest {
       }
     }
     return false;
+  }
+
+  private static int reactionCount(HTMLElement reactionRow) {
+    Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
+    if (reactions == null) {
+      return 0;
+    }
+    return Js.<JsArray<Object>>uncheckedCast(reactions).length;
+  }
+
+  private static int firstReactionCount(HTMLElement reactionRow) {
+    Object reactions = Js.asPropertyMap(reactionRow).get("reactions");
+    JsArray<Object> array = Js.uncheckedCast(reactions);
+    if (array == null || array.length == 0) {
+      return 0;
+    }
+    Object count = Js.asPropertyMap(array.getAt(0)).get("count");
+    return count instanceof Number ? ((Number) count).intValue() : 0;
   }
 
   @Test

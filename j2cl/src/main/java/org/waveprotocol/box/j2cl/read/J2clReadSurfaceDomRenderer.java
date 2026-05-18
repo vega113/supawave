@@ -4020,43 +4020,41 @@ public final class J2clReadSurfaceDomRenderer {
         return false;
       }
     }
-    List<J2clReadWindowEntry> changedEntries = new ArrayList<J2clReadWindowEntry>();
-    List<HTMLElement> changedElements = new ArrayList<HTMLElement>();
+    List<J2clReadWindowEntry> loadedEntries = new ArrayList<J2clReadWindowEntry>();
+    List<HTMLElement> loadedElements = new ArrayList<HTMLElement>();
+    List<Boolean> attachmentChanged = new ArrayList<Boolean>();
     for (int i = 0; i < entries.size(); i++) {
       J2clReadWindowEntry entry = entries.get(i);
       if (!entry.isLoaded()) {
         continue;
       }
       J2clReadWindowEntry previous = renderedWindowEntries.get(i);
-      if (previous.getAttachments().equals(entry.getAttachments())) {
-        continue;
-      }
       HTMLElement element = renderedBlipById(entry.getBlipId());
       if (element == null) {
         return false;
       }
-      changedEntries.add(entry);
-      changedElements.add(element);
+      loadedEntries.add(entry);
+      loadedElements.add(element);
+      attachmentChanged.add(!previous.getAttachments().equals(entry.getAttachments()));
     }
-    for (int i = 0; i < changedEntries.size(); i++) {
-      replaceAttachmentSubtree(changedElements.get(i), changedEntries.get(i).getAttachments());
-    }
-    // reactionBinder may have been updated in the same render pass (e.g. a reaction
-    // and attachment metadata arriving together). Refresh every reaction-row so chips
-    // don't stay stale when the full rebuild path was bypassed.
-    for (HTMLElement blip : renderedBlips) {
-      String blipId = blip.getAttribute("data-blip-id");
-      if (blipId == null || blipId.isEmpty()) {
-        continue;
-      }
-      Element reactionRow = blip.querySelector("reaction-row[slot='reactions']");
-      if (reactionRow != null) {
-        setProperty((HTMLElement) reactionRow, "reactions", buildReactionsArray(blipId));
+    for (int i = 0; i < loadedEntries.size(); i++) {
+      J2clReadWindowEntry entry = loadedEntries.get(i);
+      HTMLElement element = loadedElements.get(i);
+      refreshReactionRow(element, entry.getBlipId());
+      if (Boolean.TRUE.equals(attachmentChanged.get(i))) {
+        replaceAttachmentSubtree(element, entry.getAttachments());
       }
     }
     renderedWindowEntries =
         Collections.unmodifiableList(new ArrayList<J2clReadWindowEntry>(entries));
     return true;
+  }
+
+  private void refreshReactionRow(HTMLElement blipElement, String blipId) {
+    Element reactionRow = blipElement.querySelector("reaction-row[slot='reactions']");
+    if (reactionRow instanceof HTMLElement && reactionRow.parentElement == blipElement) {
+      setProperty((HTMLElement) reactionRow, "reactions", buildReactionsArray(blipId));
+    }
   }
 
   private void replaceAttachmentSubtree(

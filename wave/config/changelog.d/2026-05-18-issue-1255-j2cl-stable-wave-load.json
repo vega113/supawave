@@ -3,14 +3,14 @@
   "version": "Issue #1255",
   "date": "2026-05-18",
   "title": "J2CL wave loading now keeps blip layout stable while formatting and attachments settle.",
-  "summary": "J2CL selected-wave rendering now avoids full blip-stream rebuilds when attachment metadata resolves, hides client-created blips until their Lit wrapper has rendered, and reserves display-size-aware attachment placeholder space to reduce initial load reflow.",
+  "summary": "J2CL selected-wave rendering now avoids full blip-stream rebuilds when attachment metadata resolves, hides client-created blips until their Lit wrapper has rendered, and keeps pending placeholders compact so initial load no longer flashes raw content.",
   "sections": [
     {
       "type": "fix",
       "items": [
         "Attachment metadata refreshes update only the affected attachment tile subtree instead of clearing and rebuilding the whole read surface.",
         "Client-created wave-blip hosts hide their light-DOM body until the formatted Lit card has completed its first render.",
-        "Pending medium and large attachment placeholders reserve closer-to-final space so image metadata arrival causes less wave-size churn."
+        "Pending placeholders stay compact while attachment metadata is loading, avoiding a shrink-shift for attachments that resolve without a large preview."
       ]
     }
   ]

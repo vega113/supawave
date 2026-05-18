@@ -42,6 +42,17 @@ describe("<wavy-search-rail>", () => {
     expect(labels).to.deep.equal(["Inbox", "Mentions", "Tasks", "Public", "Archive", "Pinned"]);
   });
 
+  it("renders filter chips above result cards to match the GWT search panel controls", async () => {
+    const el = await fixture(html`<wavy-search-rail result-count="5 waves"></wavy-search-rail>`);
+    await el.updateComplete;
+    const children = Array.from(el.renderRoot.children);
+    const filterIndex = children.indexOf(el.renderRoot.querySelector("[data-j2cl-filter-strip]"));
+    const cardsIndex = children.indexOf(el.renderRoot.querySelector('slot[name="cards"]'));
+    expect(filterIndex).to.be.greaterThan(-1);
+    expect(cardsIndex).to.be.greaterThan(-1);
+    expect(filterIndex).to.be.lessThan(cardsIndex);
+  });
+
   it("Enter in the query box emits wavy-search-submit (B.1)", async () => {
     const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
     await el.updateComplete;
@@ -1118,7 +1129,7 @@ describe("<wavy-search-rail>", () => {
       expect(assigned.map((n) => n.dataset.waveId)).to.deep.equal(["w+a", "w+b"]);
     });
 
-    it("preserves compact toolbar above the cards slot and filter strip below it", async () => {
+    it("preserves compact toolbar and filter strip above the cards slot", async () => {
       const el = await fixture(html`<wavy-search-rail></wavy-search-rail>`);
       await el.updateComplete;
       const toolbar = el.renderRoot.querySelector("[data-digest-action-row]");
@@ -1127,9 +1138,10 @@ describe("<wavy-search-rail>", () => {
       expect(toolbar, "toolbar mounts").to.exist;
       expect(slot, "cards slot mounts").to.exist;
       expect(filters, "filter strip mounts").to.exist;
-      // Document order: toolbar, then cards slot, then filter strip.
+      // Document order: toolbar, then filter strip, then cards slot.
       expect(toolbar.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
-      expect(slot.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
+      expect(toolbar.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
+      expect(filters.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).to.be.greaterThan(0);
     });
   });
 });

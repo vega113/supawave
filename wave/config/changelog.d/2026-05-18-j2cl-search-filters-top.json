@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-18-j2cl-search-filters-top",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL search filters align with the GWT panel",
+  "summary": "Moves the J2CL search filter chips above the result list so the search panel controls match the GWT layout.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "J2CL search filter chips now render with the upper search controls instead of below the wave results."
+      ]
+    }
+  ]
+}

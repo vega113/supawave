@@ -42,6 +42,7 @@ public final class GptBotReplyPlanner {
   private static final int DEFAULT_MAX_HISTORY_TOKENS = 80000;
   /** Evict least-recently-added waves when the map exceeds this size to bound memory. */
   private static final int MAX_WAVE_COUNT = 500;
+  static final int MAX_ATTACHMENT_CONTEXT_ITEMS = 5;
   private static final String CLARIFYING_PROMPT =
       "The user mentioned you without asking a clear question. Ask a short clarifying question.";
 
@@ -107,6 +108,18 @@ public final class GptBotReplyPlanner {
 
   private String runCompletion(String promptText, String waveContext, String waveId,
       List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+    // Normalize prompt and build attachment context (may call transcribeAttachment) before
+    // acquiring the wave mutex so slow network calls never block other completions on the same wave.
+    String normalizedPrompt = promptText == null ? "" : promptText.strip();
+    if (normalizedPrompt.isEmpty()) {
+      normalizedPrompt = CLARIFYING_PROMPT;
+    }
+    boolean hasAttachments = attachments != null && !attachments.isEmpty();
+    int promptBudget = hasAttachments ? MAX_PROMPT_CHARS / 2 : MAX_PROMPT_CHARS;
+    if (normalizedPrompt.length() > promptBudget) {
+      normalizedPrompt = normalizedPrompt.substring(0, promptBudget);
+    }
+    String promptWithAttachments = appendAttachmentContext(normalizedPrompt, attachments);
     if (waveId != null && !waveId.isEmpty()) {
       while (true) {
         // Retired mutex entries can linger briefly until the last releaser evicts them.
@@ -117,7 +130,7 @@ public final class GptBotReplyPlanner {
         }
         waveMutex.lock();
         try {
-          return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
+          return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
         } finally {
           waveMutex.unlock();
           if (waveMutex.release()) {
@@ -126,22 +139,12 @@ public final class GptBotReplyPlanner {
         }
       }
     }
-    return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
+    return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
   }
 
-  private String doRunCompletion(String promptText, String waveContext, String waveId,
-      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
-    String normalizedPrompt = promptText == null ? "" : promptText.strip();
-    if (normalizedPrompt.isEmpty()) {
-      normalizedPrompt = CLARIFYING_PROMPT;
-    }
-
+  private String doRunCompletion(String promptWithAttachments, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
     Map<String, String> userMsg = new LinkedHashMap<>();
-    // Cap user text to half the budget so attachment context is not squeezed out.
-    String basePrompt = !attachments.isEmpty() && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
-        ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2)
-        : normalizedPrompt;
-    String promptWithAttachments = appendAttachmentContext(basePrompt, attachments);
     List<Map<String, String>> messages =
         buildMessages(promptWithAttachments, waveContext, waveId, userMsg);
 
@@ -174,11 +177,11 @@ public final class GptBotReplyPlanner {
     prompt.append("\n\nAttachment context:");
     int count = 0;
     for (BotAttachmentContext.RawAttachment raw : attachments) {
-      if (count >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
-        break;
-      }
       if (raw == null) {
         continue;
+      }
+      if (count >= MAX_ATTACHMENT_CONTEXT_ITEMS) {
+        break;
       }
       count++;
       prompt.append("\n\n").append(BotAttachmentContext.fromRaw(raw, codexClient).render());
@@ -214,7 +217,8 @@ public final class GptBotReplyPlanner {
     }
 
     userMsg.put("role", "user");
-    userMsg.put("content", sanitize(normalizedPrompt, MAX_PROMPT_CHARS));
+    // Apply secret-redaction to the combined content; size is already bounded per component.
+    userMsg.put("content", sanitize(normalizedPrompt, Integer.MAX_VALUE));
     messages.add(userMsg);
     return messages;
   }

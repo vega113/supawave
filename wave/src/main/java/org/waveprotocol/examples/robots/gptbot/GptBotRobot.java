@@ -307,7 +307,7 @@ public final class GptBotRobot {
         LOG.warning("Unable to export attachment for GPT bot context: "
             + reference.attachmentId, e);
       }
-      if (attachments.size() >= BotAttachmentContext.MAX_ATTACHMENT_CONTEXT_ITEMS) {
+      if (attachments.size() >= GptBotReplyPlanner.MAX_ATTACHMENT_CONTEXT_ITEMS) {
         break;
       }
     }

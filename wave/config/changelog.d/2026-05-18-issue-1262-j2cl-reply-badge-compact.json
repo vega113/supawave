@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-18-issue-1262-j2cl-reply-badge-compact",
+  "version": "J2CL parity",
+  "date": "2026-05-18",
+  "title": "J2CL blip reply continuation control is compact like GWT.",
+  "summary": "The J2CL same-level reply control no longer reserves a full text badge row below every blip, allowing compact blip stacks while preserving the hover/focus reply affordance.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed the J2CL below-blip continuation reply affordance to a zero-footprint GWT-style icon/bar.",
+        "Preserved the same-level reply click behavior while removing the always-reserved vertical gap between blips."
+      ]
+    }
+  ]
+}

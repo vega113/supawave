@@ -339,11 +339,17 @@ describe("<wave-blip>", () => {
       <wave-blip data-blip-id="b4" data-wave-id="w4" author-name="A"></wave-blip>
     `);
     await el.updateComplete;
+    const host = el.renderRoot.querySelector("[data-blip-continuation-host]");
     const button = el.renderRoot.querySelector("[data-blip-continuation-trigger]");
+    const rowStyle = getComputedStyle(host);
+    expect(host.getBoundingClientRect().height).to.equal(0);
+    expect(rowStyle.marginTop).to.equal("0px");
+    expect(rowStyle.marginBottom).to.equal("0px");
     expect(button).to.exist;
     expect(button.getAttribute("aria-label")).to.equal(
       "Reply on the same level as this blip"
     );
+    expect(button.querySelector(".label")).to.not.exist;
     setTimeout(() => button.click(), 0);
     const ev = await oneEvent(el, "wave-blip-continuation-requested");
     expect(ev.detail).to.deep.equal({ blipId: "b4", waveId: "w4" });

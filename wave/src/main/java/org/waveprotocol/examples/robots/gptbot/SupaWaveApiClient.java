@@ -27,6 +27,7 @@ import com.google.gson.JsonParser;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -47,6 +48,9 @@ public final class SupaWaveApiClient implements SupaWaveClient {
   private static final Log LOG = Log.get(SupaWaveApiClient.class);
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(45);
+  // Base64 expands by 4/3; add a small JSON envelope margin.
+  private static final long MAX_EXPORT_RESPONSE_BYTES =
+      (long) BotAttachmentContext.MAX_TRANSCRIPTION_BYTES * 4 / 3 + 4096;
 
   private final GptBotConfig config;
   private final HttpClient httpClient;
@@ -98,8 +102,8 @@ public final class SupaWaveApiClient implements SupaWaveClient {
     if (attachmentId != null && !attachmentId.isBlank() && config.hasApiCredentials()) {
       try {
         String endpoint = resolveRpcEndpoint(rpcServerUrl);
-        JsonArray response = postRpc(exportAttachmentRequest(attachmentId), endpoint,
-            accessTokenForEndpoint(endpoint));
+        JsonArray response = postRpcBounded(exportAttachmentRequest(attachmentId), endpoint,
+            accessTokenForEndpoint(endpoint), MAX_EXPORT_RESPONSE_BYTES);
         attachment = extractAttachmentData(attachmentId, response);
       } catch (IOException | InterruptedException | RuntimeException e) {
         logWarningAndRestoreInterrupt("Unable to export attachment through SupaWave RPC", e);
@@ -261,6 +265,33 @@ public final class SupaWaveApiClient implements SupaWaveClient {
       throw new IOException("Unexpected SupaWave RPC status: " + response.statusCode());
     }
     return JsonParser.parseString(response.body()).getAsJsonArray();
+  }
+
+  private JsonArray postRpcBounded(JsonArray body, String endpoint, String accessToken,
+      long maxBytes) throws IOException, InterruptedException {
+    HttpRequest httpRequest = HttpRequest.newBuilder()
+        .uri(URI.create(endpoint))
+        .timeout(REQUEST_TIMEOUT)
+        .header("Authorization", "Bearer " + accessToken)
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+        .build();
+
+    HttpResponse<InputStream> response = httpClient.send(httpRequest,
+        HttpResponse.BodyHandlers.ofInputStream());
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      response.body().close();
+      throw new IOException("Unexpected SupaWave RPC status: " + response.statusCode());
+    }
+    try (InputStream is = response.body()) {
+      // Read one byte beyond the limit so we can detect oversized responses without buffering them.
+      int readLimit = (int) Math.min(maxBytes + 1, Integer.MAX_VALUE);
+      byte[] buf = is.readNBytes(readLimit);
+      if (buf.length > maxBytes) {
+        throw new IOException("Export response exceeds size limit of " + maxBytes + " bytes");
+      }
+      return JsonParser.parseString(new String(buf, StandardCharsets.UTF_8)).getAsJsonArray();
+    }
   }
 
   private String contextAccessToken() throws IOException, InterruptedException {

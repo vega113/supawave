@@ -3873,6 +3873,11 @@ public final class J2clReadSurfaceDomRenderer {
       if (!expectedAssignee.equals(renderedAssignee)) {
         return false;
       }
+      String expectedDue = formatDueDate(exp.getDueTimestamp());
+      String renderedDue = safeString(ren.getAttribute("data-task-due-date"));
+      if (!expectedDue.equals(renderedDue)) {
+        return false;
+      }
     }
     return true;
   }

@@ -107,6 +107,7 @@ public final class GptBotReplyPlanner {
 
   private String runCompletion(String promptText, String waveContext, String waveId,
       List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+    String promptWithAttachments = buildPromptWithAttachments(promptText, attachments);
     if (waveId != null && !waveId.isEmpty()) {
       while (true) {
         // Retired mutex entries can linger briefly until the last releaser evicts them.
@@ -117,7 +118,7 @@ public final class GptBotReplyPlanner {
         }
         waveMutex.lock();
         try {
-          return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
+          return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
         } finally {
           waveMutex.unlock();
           if (waveMutex.release()) {
@@ -126,22 +127,26 @@ public final class GptBotReplyPlanner {
         }
       }
     }
-    return doRunCompletion(promptText, waveContext, waveId, attachments, listener);
+    return doRunCompletion(promptWithAttachments, waveContext, waveId, listener);
   }
 
-  private String doRunCompletion(String promptText, String waveContext, String waveId,
-      List<BotAttachmentContext.RawAttachment> attachments, CodexClient.StreamingListener listener) {
+  private String buildPromptWithAttachments(String promptText,
+      List<BotAttachmentContext.RawAttachment> attachments) {
     String normalizedPrompt = promptText == null ? "" : promptText.strip();
     if (normalizedPrompt.isEmpty()) {
       normalizedPrompt = CLARIFYING_PROMPT;
     }
-
-    Map<String, String> userMsg = new LinkedHashMap<>();
     // Cap user text to half the budget so attachment context is not squeezed out.
-    String basePrompt = !attachments.isEmpty() && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
+    boolean hasAttachments = attachments != null && !attachments.isEmpty();
+    String basePrompt = hasAttachments && normalizedPrompt.length() > MAX_PROMPT_CHARS / 2
         ? normalizedPrompt.substring(0, MAX_PROMPT_CHARS / 2)
         : normalizedPrompt;
-    String promptWithAttachments = appendAttachmentContext(basePrompt, attachments);
+    return appendAttachmentContext(basePrompt, attachments);
+  }
+
+  private String doRunCompletion(String promptWithAttachments, String waveContext, String waveId,
+      CodexClient.StreamingListener listener) {
+    Map<String, String> userMsg = new LinkedHashMap<>();
     List<Map<String, String>> messages =
         buildMessages(promptWithAttachments, waveContext, waveId, userMsg);
 

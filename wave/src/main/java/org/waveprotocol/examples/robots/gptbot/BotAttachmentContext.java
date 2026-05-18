@@ -57,12 +57,13 @@ public final class BotAttachmentContext {
     String mimeType = normalizedMime(raw.getMimeType());
     String fileName = fallback(raw.getFileName(), raw.getAttachmentId());
     String header = "Attachment: " + fileName + " (" + mimeType + ")";
+    byte[] data = raw.getData();
     if (isTranscribable(mimeType, fileName)) {
-      if (raw.getData().length > MAX_TRANSCRIPTION_BYTES) {
+      if (data.length > MAX_TRANSCRIPTION_BYTES) {
         return new BotAttachmentContext(raw.getAttachmentId(), fileName, mimeType,
             header + "\nSkipped: audio/video attachment is larger than 25 MB.");
       }
-      Optional<String> transcript = codexClient.transcribeAttachment(fileName, mimeType, raw.getData());
+      Optional<String> transcript = codexClient.transcribeAttachment(fileName, mimeType, data);
       if (transcript.isPresent() && !transcript.get().isBlank()) {
         return new BotAttachmentContext(raw.getAttachmentId(), fileName, mimeType,
             header + "\nTranscript:\n" + clamp(transcript.get().strip()));
@@ -71,7 +72,7 @@ public final class BotAttachmentContext {
           header + "\nSkipped: audio/video transcription failed.");
     }
     if (isTextLike(mimeType, fileName)) {
-      Optional<String> text = decodeText(raw.getData());
+      Optional<String> text = decodeText(data);
       if (text.isPresent()) {
         String fence = fenceLanguage(mimeType, fileName);
         return new BotAttachmentContext(raw.getAttachmentId(), fileName, mimeType,
@@ -181,10 +182,15 @@ public final class BotAttachmentContext {
     private final byte[] data;
 
     public RawAttachment(String attachmentId, String fileName, String mimeType, byte[] data) {
+      this(attachmentId, fileName, mimeType, data, true);
+    }
+
+    private RawAttachment(String attachmentId, String fileName, String mimeType, byte[] data,
+        boolean copyData) {
       this.attachmentId = clean(attachmentId);
       this.fileName = clean(fileName);
       this.mimeType = clean(mimeType);
-      this.data = data == null ? new byte[0] : data.clone();
+      this.data = data == null ? new byte[0] : (copyData ? data.clone() : data);
     }
 
     public String getAttachmentId() {
@@ -208,7 +214,7 @@ public final class BotAttachmentContext {
       String effectiveMimeType = this.mimeType.isEmpty()
           || "application/octet-stream".equals(this.mimeType)
           ? mimeType : this.mimeType;
-      return new RawAttachment(attachmentId, effectiveFileName, effectiveMimeType, data);
+      return new RawAttachment(attachmentId, effectiveFileName, effectiveMimeType, data, false);
     }
   }
 }

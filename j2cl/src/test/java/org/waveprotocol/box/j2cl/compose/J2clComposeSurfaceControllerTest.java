@@ -125,7 +125,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
     controller.onBlipEditSubmitted(
-        "edited root text", "b+root", originalText.length(), originalText, "");
+        "edited root text", "b+root", originalText.length(), originalText, "example.com/w+1");
 
     Assert.assertNull("Edit submit must not build a reply session.", factory.lastReplySession);
     Assert.assertEquals("b+root", factory.lastEditBlipId);
@@ -149,7 +149,7 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
-    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text", "");
+    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text", "example.com/w+1");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());
@@ -180,7 +180,7 @@ public class J2clComposeSurfaceControllerTest {
         Arrays.asList(
             new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "late.png")));
 
-    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText, "");
+    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText, "example.com/w+1");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());
@@ -205,12 +205,39 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
-    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText, "");
+    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText, "example.com/w+1");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());
     Assert.assertEquals(
         J2clComposeSurfaceController.EMPTY_EDIT_VALIDATION_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void editSubmitRejectsStaleWaveIdAfterWaveChange() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    // Submit with a waveId that no longer matches the selected wave.
+    controller.onBlipEditSubmitted(
+        "edited root text", "b+root", originalText.length(), originalText, "example.com/w+stale");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        "The wave was switched since the edit was opened. Please try again.",
         view.model.getReplyErrorText());
   }
 

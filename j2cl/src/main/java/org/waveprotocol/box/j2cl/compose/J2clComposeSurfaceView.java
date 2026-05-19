@@ -500,6 +500,11 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   }
 
   private void openInlineComposer(
+      String blipId, String mode, int bodyItemCount, String originalText) {
+    openInlineComposer(blipId, mode, bodyItemCount, originalText, "");
+  }
+
+  private void openInlineComposer(
       String blipId, String mode, int bodyItemCount, String originalText, String waveId) {
     String key = blipId == null ? "" : blipId;
     if (inlineComposers.containsKey(key)) {

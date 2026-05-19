@@ -102,6 +102,9 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(
         "compact wavy-header user menu must preserve the J2CL return target on sign out",
         html.contains("href=\"/auth/signout?r=/%3Fview%3Dj2cl-root\""));
+    assertFalse(
+        "signed-in J2CL topbar must not emit a duplicate top-level sign-out link",
+        html.contains("slot=\"actions-signed-in\" data-j2cl-root-signout=\"true\""));
     assertTrue(
         "J2CL route sync must update wavy-header return-target for the dropdown signout link",
         html.contains("document.querySelectorAll('wavy-header[return-target]').forEach(function(header){header.setAttribute('return-target', target);});"));

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-j2cl-duplicate-signout",
+  "version": "J2CL parity",
+  "date": "2026-05-19",
+  "title": "J2CL no longer shows a duplicate sign-out button in the compact topbar.",
+  "summary": "The compact J2CL topbar now relies on the user-menu sign-out action only, leaving the visible topbar controls uncluttered.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the duplicate top-level J2CL sign-out link while keeping sign-out available in the user menu."
+      ]
+    }
+  ]
+}

@@ -3594,16 +3594,9 @@ public final class HtmlRenderer {
       appendWavyHeaderActionsSlot(
           sb, address, safeAddress, resolvedReturnTarget, safeResolvedReturnTarget,
           safeResolvedBasePath, safeHtmlLang, role, true);
-      // The legacy inline Admin and Sign out links are PRESERVED until
-      // the F-0 user-menu sheet ships (A.7 only mounts the trigger;
-      // A.8–A.18 are F-0). Removing them now would orphan affordances
-      // A.15 and A.17 on the J2CL route.
       if (isAdminOrOwner) {
         sb.append("    <a slot=\"actions-signed-in\" data-j2cl-root-admin-link=\"true\" href=\"/admin\">Admin</a>\n");
       }
-      sb.append("    <a slot=\"actions-signed-in\" data-j2cl-root-signout=\"true\" href=\"/auth/signout?r=")
-          .append(safeEncodedReturnTarget)
-          .append("\">Sign out</a>\n");
       sb.append("  </shell-header>\n");
       // F-2 slice 3 (#1047): replace the Inbox-link placeholder with a
       // full wavy-search-rail SSR'd into the existing nav slot. The

@@ -2624,6 +2624,12 @@ public final class J2clComposeSurfaceController {
       render();
       return;
     }
+    if (normalizedOriginalText.contains("\n")) {
+      replyStatusText = "";
+      replyErrorText = STRUCTURAL_BLIP_EDIT_MESSAGE;
+      render();
+      return;
+    }
     if (hasPendingAttachmentUpload()) {
       replyStatusText = "";
       replyErrorText = PENDING_ATTACHMENT_REPLY_MESSAGE;

@@ -357,6 +357,27 @@ public class J2clRichContentDeltaFactoryTest {
   }
 
   @Test
+  public void blipEditRequestRejectsMultiLineOriginalText() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+edit", "chan-7", 44L, "ABCD", "b+root", 5, 9);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Edited root text").build();
+    String multiLineText = "Hello\nWorld";
+
+    assertThrows(
+        () ->
+            factory.blipEditRequest(
+                "user@example.com",
+                session,
+                "b+root",
+                document,
+                /* bodyItemCount= */ multiLineText.length(),
+                multiLineText));
+  }
+
+  @Test
   public void replyRequestAtInlineDepthLimitFallsBackToRegularSiblingReply() {
     J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
     J2clSidecarWriteSession session =

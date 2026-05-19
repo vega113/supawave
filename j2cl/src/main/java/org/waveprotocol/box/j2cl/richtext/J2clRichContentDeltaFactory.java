@@ -316,6 +316,10 @@ public final class J2clRichContentDeltaFactory {
       throw new IllegalArgumentException(
           "Blip edit currently supports text-only bodies; structural body items were detected.");
     }
+    if (existingText.contains("\n")) {
+      throw new IllegalArgumentException(
+          "Blip edit currently supports text-only bodies; structural body items were detected.");
+    }
     if (!existingText.isEmpty()) {
       appendDeleteCharacters(components, existingText);
     }

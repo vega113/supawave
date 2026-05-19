@@ -159,6 +159,32 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void editSubmitBlockedWhenOriginalTextContainsNewline() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    String multiLineText = "Hello\nWorld";
+    controller.onBlipEditSubmitted(
+        "edited root text", "b+root", multiLineText.length(), multiLineText, "");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.STRUCTURAL_BLIP_EDIT_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
   public void editSubmitWaitsForInFlightAttachmentUploadBeforeBuildingRequest() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

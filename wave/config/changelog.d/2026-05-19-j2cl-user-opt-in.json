@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-j2cl-user-opt-in",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "J2CL user opt-in preference",
+  "summary": "Users can choose whether the default Wave experience opens the J2CL beta or the classic GWT client, while explicit view links remain reversible.",
+  "sections": [
+    {
+      "type": "feature",
+      "items": [
+        "Added a Wave Client preference in Account Settings with Default, J2CL beta, and Classic GWT choices; the saved preference controls only default Wave routes and keeps ?view=j2cl-root and ?view=gwt available for direct switching."
+      ]
+    }
+  ]
+}

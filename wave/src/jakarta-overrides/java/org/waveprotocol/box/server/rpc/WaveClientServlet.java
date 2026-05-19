@@ -49,6 +49,7 @@ import org.waveprotocol.box.server.authentication.WebSession;
 import org.waveprotocol.box.server.authentication.WebSessions;
 import org.waveprotocol.box.server.persistence.AccountStore;
 import org.waveprotocol.box.server.persistence.FeatureFlagService;
+import org.waveprotocol.box.server.persistence.PersistenceException;
 import org.waveprotocol.box.server.rpc.render.J2clSelectedWaveSnapshotRenderer;
 import org.waveprotocol.box.server.rpc.render.WavePreRenderer;
 import org.waveprotocol.box.server.util.RandomBase64Generator;
@@ -178,8 +179,20 @@ public class WaveClientServlet extends HttpServlet {
       return;
     }
 
+    boolean defaultRoute = StringUtils.isEmpty(requestedView);
+    boolean explicitJ2clPreference = false;
+    boolean explicitGwtPreference = false;
+    if (defaultRoute) {
+      String waveClientPreference = resolveWaveClientPreference(id);
+      explicitJ2clPreference =
+          HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
+      explicitGwtPreference = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
+    }
+
     if (VIEW_J2CL_ROOT.equals(requestedView)
-        || (StringUtils.isEmpty(requestedView) && j2clRootBootstrapEnabled)) {
+        || (defaultRoute
+            && !explicitGwtPreference
+            && (explicitJ2clPreference || j2clRootBootstrapEnabled))) {
       // F-2 slice 6 (#1058, Part B): signed-in read-surface preview
       // route reachable at ?view=j2cl-root&q=read-surface-preview. The
       // route is server-only — no WaveletProvider lookup, no live
@@ -650,6 +663,21 @@ public class WaveClientServlet extends HttpServlet {
       returnTarget.append("&wave=").append(encodeReturnTargetComponent(wave)); // codeql[java/xss]
     }
     return returnTarget.toString();
+  }
+
+  private String resolveWaveClientPreference(ParticipantId id) {
+    if (id == null) {
+      return HumanAccountData.WAVE_CLIENT_DEFAULT;
+    }
+    try {
+      AccountData account = accountStore.getAccount(id);
+      if (account != null && account.isHuman()) {
+        return account.asHuman().getWaveClientPreference();
+      }
+    } catch (PersistenceException e) {
+      LOG.warning("Failed to read wave client preference for " + id, e);
+    }
+    return HumanAccountData.WAVE_CLIENT_DEFAULT;
   }
 
   private static String encodeReturnTargetComponent(String value) {

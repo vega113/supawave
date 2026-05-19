@@ -34,6 +34,10 @@ import java.util.List;
  * @author akaplanov@gmail.com (Andrew Kaplanov)
  */
 public interface HumanAccountData extends AccountData {
+  String WAVE_CLIENT_DEFAULT = "default";
+  String WAVE_CLIENT_J2CL_ROOT = "j2cl-root";
+  String WAVE_CLIENT_GWT = "gwt";
+
   /**
    * Gets the user's password digest. The digest can be used to authenticate the
    * user.
@@ -87,6 +91,25 @@ public interface HumanAccountData extends AccountData {
    *
    */
   void setLocale(String locale);
+
+  /**
+   * Returns the user's preferred default Wave client.
+   *
+   * <p>{@link #WAVE_CLIENT_DEFAULT} means the server-side feature flag controls
+   * the default route. Explicit values override only requests without a
+   * {@code view=} parameter; direct {@code ?view=j2cl-root} and
+   * {@code ?view=gwt} links remain reversible.
+   */
+  String getWaveClientPreference();
+
+  /** Sets the user's preferred default Wave client. */
+  void setWaveClientPreference(String preference);
+
+  /** Returns true when the user explicitly opted into the J2CL root shell. */
+  boolean isWaveClientJ2clRootPreferred();
+
+  /** Returns true when the user explicitly opted back into the classic GWT shell. */
+  boolean isWaveClientGwtPreferred();
 
   /**
    * Gets the user's stored searches.

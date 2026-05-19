@@ -90,6 +90,9 @@ public class ProtoAccountDataSerializer {
     builder.setRole(account.getRole());
     builder.setStatus(account.getStatus());
     builder.setTier(account.getTier());
+    if (!HumanAccountData.WAVE_CLIENT_DEFAULT.equals(account.getWaveClientPreference())) {
+      builder.setWaveClientPreference(account.getWaveClientPreference());
+    }
     if (account.getRegistrationTime() != 0) {
       builder.setRegistrationTime(account.getRegistrationTime());
     }
@@ -232,6 +235,9 @@ public class ProtoAccountDataSerializer {
     }
     if (data.hasTier()) {
       account.setTier(data.getTier());
+    }
+    if (data.hasWaveClientPreference()) {
+      account.setWaveClientPreference(data.getWaveClientPreference());
     }
     if (data.hasRegistrationTime()) {
       account.setRegistrationTime(data.getRegistrationTime());

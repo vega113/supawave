@@ -88,14 +88,14 @@ public final class WaveClientServletJ2clRootShellTest {
 
     String html = body.toString();
     assertTrue(
-        html.contains("href=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
-    assertTrue(
+        html,
         html.contains(
             "/auth/signin?r=/%3Fview%3Dj2cl-root%26q%3Dwith%253A%2540%26wave%3Dexample.com%252Fw%252B1"));
     assertTrue(
+        html,
         html.contains(
             "data-j2cl-root-return-target=\"/?view=j2cl-root&amp;q=with%3A%40&amp;wave=example.com%2Fw%2B1\""));
-    assertTrue(html.contains("data-j2cl-server-first-mode=\"signed-out\""));
+    assertTrue(html.contains("Sign in to open a wave"));
   }
 
   @Test
@@ -217,6 +217,49 @@ public final class WaveClientServletJ2clRootShellTest {
     servlet.doGet(request, response);
 
     verifyZeroInteractions(snapshotRenderer);
+    assertFalse(body.toString().contains("data-j2cl-root-shell"));
+  }
+
+  @Test
+  public void signedInDefaultRouteUsesJ2clWhenUserOptedIn() throws Exception {
+    WaveClientServlet servlet =
+        createServletWithWaveClientPreference(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.WAVE_CLIENT_J2CL_ROOT,
+            null);
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn(null);
+    when(request.getParameterValues("view")).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
+    assertTrue(body.toString().contains("data-j2cl-root-shell"));
+  }
+
+  @Test
+  public void signedInDefaultRouteUsesGwtWhenUserOptedOutEvenIfFlagIsOn() throws Exception {
+    WaveClientServlet servlet =
+        createServletWithWaveClientPreference(
+            ParticipantId.ofUnsafe("alice@example.com"),
+            HumanAccountData.WAVE_CLIENT_GWT,
+            new FeatureFlagStore.FeatureFlag(
+                "j2cl-root-bootstrap", "global rollout", true, Collections.emptyMap()));
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    HttpServletResponse response = mock(HttpServletResponse.class);
+    StringWriter body = new StringWriter();
+    when(request.getParameter("view")).thenReturn(null);
+    when(request.getParameterValues("view")).thenReturn(null);
+    when(request.getParameterNames()).thenReturn(Collections.emptyEnumeration());
+    when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(response.getWriter()).thenReturn(new PrintWriter(body));
+
+    servlet.doGet(request, response);
+
     assertFalse(body.toString().contains("data-j2cl-root-shell"));
   }
 
@@ -374,9 +417,9 @@ public final class WaveClientServletJ2clRootShellTest {
             "https://evil.example/steal",
             "");
 
-    assertTrue(html.contains("href=\"/?view=j2cl-root\""));
-    assertTrue(html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));
-    assertFalse(html.contains("https://evil.example/steal"));
+    assertTrue(html, html.contains("data-j2cl-root-return-target=\"/?view=j2cl-root\""));
+    assertTrue(html, html.contains("/auth/signin?r=/%3Fview%3Dj2cl-root"));
+    assertFalse(html, html.contains("https://evil.example/steal"));
   }
 
   private static WaveClientServlet createServlet(ParticipantId user) throws Exception {
@@ -584,6 +627,45 @@ public final class WaveClientServletJ2clRootShellTest {
         new VersionServlet("test", 0L),
         mock(WavePreRenderer.class),
         snapshotRenderer,
+        new FeatureFlagService(flagStore));
+  }
+
+  private static WaveClientServlet createServletWithWaveClientPreference(
+      ParticipantId user,
+      String waveClientPreference,
+      FeatureFlagStore.FeatureFlag flagOverride)
+      throws Exception {
+    Config config = ConfigFactory.parseString(
+        "core.http_frontend_addresses=[\"127.0.0.1:9898\"]\n"
+            + "core.http_websocket_public_address=\"\"\n"
+            + "core.http_websocket_presented_address=\"\"\n"
+            + "core.search_type=\"memory\"\n"
+            + "administration.analytics_account=\"\"\n");
+    SessionManager sessionManager = mock(SessionManager.class);
+    AccountStore accountStore = mock(AccountStore.class);
+    when(sessionManager.getLoggedInUser(any(WebSession.class))).thenReturn(user);
+    when(sessionManager.getLoggedInUser((WebSession) null)).thenReturn(user);
+    AccountData accountData = mock(AccountData.class);
+    HumanAccountData humanAccountData = mock(HumanAccountData.class);
+    when(accountData.isHuman()).thenReturn(true);
+    when(accountData.asHuman()).thenReturn(humanAccountData);
+    when(humanAccountData.getRole()).thenReturn(HumanAccountData.ROLE_USER);
+    when(humanAccountData.getWaveClientPreference()).thenReturn(waveClientPreference);
+    when(accountStore.getAccount(user)).thenReturn(accountData);
+    FeatureFlagStore flagStore = mock(FeatureFlagStore.class);
+    when(flagStore.getAll())
+        .thenReturn(
+            flagOverride == null
+                ? Collections.<FeatureFlagStore.FeatureFlag>emptyList()
+                : Collections.singletonList(flagOverride));
+    return new WaveClientServlet(
+        "example.com",
+        config,
+        sessionManager,
+        accountStore,
+        new VersionServlet("test", 0L),
+        mock(WavePreRenderer.class),
+        defaultSnapshotRenderer(),
         new FeatureFlagService(flagStore));
   }
 

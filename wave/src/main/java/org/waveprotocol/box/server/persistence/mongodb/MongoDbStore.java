@@ -92,6 +92,7 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
   private static final String HUMAN_PASSWORD_FIELD = "passwordDigest";
   private static final String HUMAN_SEARCHES_FIELD = "searches";
   private static final String HUMAN_SOCIAL_IDENTITIES_FIELD = "socialIdentities";
+  private static final String HUMAN_WAVE_CLIENT_PREFERENCE_FIELD = "waveClientPreference";
   private static final String SEARCH_NAME_FIELD = "name";
   private static final String SEARCH_QUERY_FIELD = "query";
   private static final String SEARCH_PINNED_FIELD = "pinned";
@@ -501,6 +502,10 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
       object.put(HUMAN_PASSWORD_FIELD, digestObj);
     }
 
+    if (!HumanAccountData.WAVE_CLIENT_DEFAULT.equals(account.getWaveClientPreference())) {
+      object.put(HUMAN_WAVE_CLIENT_PREFERENCE_FIELD, account.getWaveClientPreference());
+    }
+
     // Saved searches
     List<SearchesItem> searches = account.getSearches();
     if (searches != null && !searches.isEmpty()) {
@@ -555,6 +560,11 @@ public final class MongoDbStore implements SignerInfoStore, AttachmentStore, Acc
     }
 
     HumanAccountDataImpl account = new HumanAccountDataImpl(id, passwordDigest);
+
+    String waveClientPreference = (String) object.get(HUMAN_WAVE_CLIENT_PREFERENCE_FIELD);
+    if (waveClientPreference != null) {
+      account.setWaveClientPreference(waveClientPreference);
+    }
 
     // Saved searches
     @SuppressWarnings("unchecked")

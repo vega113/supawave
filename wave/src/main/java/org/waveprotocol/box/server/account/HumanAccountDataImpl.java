@@ -40,6 +40,7 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   private final PasswordDigest passwordDigest;
   private String email;
   private String locale;
+  private String waveClientPreference = WAVE_CLIENT_DEFAULT;
   private boolean emailConfirmed = true;
   private List<SearchesItem> searches;
   private List<SocialIdentity> socialIdentities = Collections.emptyList();
@@ -124,6 +125,30 @@ public final class HumanAccountDataImpl implements HumanAccountData {
   @Override
   public void setLocale(String locale) {
     this.locale = locale;
+  }
+
+  @Override
+  public String getWaveClientPreference() {
+    return waveClientPreference;
+  }
+
+  @Override
+  public void setWaveClientPreference(String preference) {
+    if (WAVE_CLIENT_J2CL_ROOT.equals(preference) || WAVE_CLIENT_GWT.equals(preference)) {
+      this.waveClientPreference = preference;
+    } else {
+      this.waveClientPreference = WAVE_CLIENT_DEFAULT;
+    }
+  }
+
+  @Override
+  public boolean isWaveClientJ2clRootPreferred() {
+    return WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
+  }
+
+  @Override
+  public boolean isWaveClientGwtPreferred() {
+    return WAVE_CLIENT_GWT.equals(waveClientPreference);
   }
 
   @Override
@@ -309,6 +334,8 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     result = prime * result + ((passwordDigest == null) ? 0 : passwordDigest.hashCode());
     result = prime * result + ((email == null) ? 0 : email.hashCode());
     result = prime * result + ((locale == null) ? 0 : locale.hashCode());
+    result = prime * result
+        + ((waveClientPreference == null) ? 0 : waveClientPreference.hashCode());
     result = prime * result + ((searches == null) ? 0 : searches.hashCode());
     result = prime * result + ((socialIdentities == null) ? 0 : socialIdentities.hashCode());
     return result;
@@ -332,6 +359,9 @@ public final class HumanAccountDataImpl implements HumanAccountData {
     if (locale == null) {
       if (other.locale != null) return false;
     } else if (!locale.equals(other.locale)) return false;
+    if (waveClientPreference == null) {
+      if (other.waveClientPreference != null) return false;
+    } else if (!waveClientPreference.equals(other.waveClientPreference)) return false;
     if (searches == null) {
       if (other.searches != null) return false;
     } else if (!searches.equals(other.searches)) return false;

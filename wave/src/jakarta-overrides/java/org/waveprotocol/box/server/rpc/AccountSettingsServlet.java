@@ -41,6 +41,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Servlet for the Account Settings page, allowing users to:
@@ -54,6 +56,7 @@ import java.io.IOException;
  * <ul>
  *   <li>{@code GET /account/settings} - Renders the account settings page</li>
  *   <li>{@code POST /account/settings/email} - Updates the user's email</li>
+ *   <li>{@code POST /account/settings/wave-client} - Updates the default Wave client</li>
  *   <li>{@code POST /account/settings/request-password-reset} - Sends a password reset email</li>
  * </ul>
  */
@@ -120,11 +123,72 @@ public final class AccountSettingsServlet extends HttpServlet {
 
     if ("/email".equals(pathInfo)) {
       handleUpdateEmail(req, resp, caller);
+    } else if ("/wave-client".equals(pathInfo)) {
+      handleUpdateWaveClient(req, resp, caller);
     } else if ("/request-password-reset".equals(pathInfo)) {
       handleRequestPasswordReset(req, resp, caller);
     } else {
       sendJsonError(resp, HttpServletResponse.SC_NOT_FOUND, "Unknown action");
     }
+  }
+
+  private void handleUpdateWaveClient(HttpServletRequest req, HttpServletResponse resp,
+      HumanAccountData caller) throws IOException {
+    String body = readBody(req);
+    String preference = normalizeWaveClientPreference(extractJsonField(body, "preference"));
+
+    try {
+      caller.setWaveClientPreference(preference);
+      accountStore.putAccount(caller);
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to update Wave client preference for " + caller.getId(), e);
+      sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Failed to save Wave client preference");
+      return;
+    }
+    try {
+      setJsonUtf8(resp);
+      resp.getWriter().write(waveClientResponseJson(preference, req.getContextPath()));
+    } catch (JSONException e) {
+      LOG.severe("Failed to serialize wave client preference response", e);
+      resp.getWriter().write("{\"ok\":true}");
+    }
+  }
+
+  private static String normalizeWaveClientPreference(String preference) {
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)
+        || HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      return preference;
+    }
+    return HumanAccountData.WAVE_CLIENT_DEFAULT;
+  }
+
+  private static String waveClientResponseJson(String preference, String contextPath)
+      throws JSONException {
+    String responsePreference;
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)) {
+      responsePreference = HumanAccountData.WAVE_CLIENT_J2CL_ROOT;
+    } else if (HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      responsePreference = HumanAccountData.WAVE_CLIENT_GWT;
+    } else {
+      responsePreference = HumanAccountData.WAVE_CLIENT_DEFAULT;
+    }
+    return new JSONObject()
+        .put("ok", true)
+        .put("preference", responsePreference)
+        .put("redirectTarget", waveClientRedirectTarget(responsePreference, contextPath))
+        .toString();
+  }
+
+  private static String waveClientRedirectTarget(String preference, String contextPath) {
+    String base = contextPath != null ? contextPath : "";
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)) {
+      return base + "/?view=j2cl-root";
+    }
+    if (HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      return base + "/?view=gwt";
+    }
+    return base.isEmpty() ? "/" : base + "/";
   }
 
   // =========================================================================

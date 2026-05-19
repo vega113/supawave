@@ -61,6 +61,7 @@ final class Mongo4AccountStore implements AccountStore {
   private static final String HUMAN_BIO_FIELD = "bio";
   private static final String HUMAN_PROFILE_IMAGE_FIELD = "profileImageAttachmentId";
   private static final String HUMAN_SHOW_LAST_SEEN_FIELD = "showLastSeen";
+  private static final String HUMAN_WAVE_CLIENT_PREFERENCE_FIELD = "waveClientPreference";
   private static final String HUMAN_SEARCHES_FIELD = "searches";
   private static final String HUMAN_SOCIAL_IDENTITIES_FIELD = "socialIdentities";
   private static final String SEARCH_NAME_FIELD = "name";
@@ -370,6 +371,9 @@ final class Mongo4AccountStore implements AccountStore {
     doc.append(HUMAN_ROLE_FIELD, account.getRole());
     doc.append(HUMAN_STATUS_FIELD, account.getStatus());
     doc.append(HUMAN_TIER_FIELD, account.getTier());
+    if (!HumanAccountData.WAVE_CLIENT_DEFAULT.equals(account.getWaveClientPreference())) {
+      doc.append(HUMAN_WAVE_CLIENT_PREFERENCE_FIELD, account.getWaveClientPreference());
+    }
     if (account.getRegistrationTime() != 0) {
       doc.append(HUMAN_REGISTRATION_TIME_FIELD, account.getRegistrationTime());
     }
@@ -475,6 +479,10 @@ final class Mongo4AccountStore implements AccountStore {
     String tier = doc.getString(HUMAN_TIER_FIELD);
     if (tier != null) {
       account.setTier(tier);
+    }
+    String waveClientPreference = doc.getString(HUMAN_WAVE_CLIENT_PREFERENCE_FIELD);
+    if (waveClientPreference != null) {
+      account.setWaveClientPreference(waveClientPreference);
     }
     Long registrationTime = doc.getLong(HUMAN_REGISTRATION_TIME_FIELD);
     if (registrationTime != null) {

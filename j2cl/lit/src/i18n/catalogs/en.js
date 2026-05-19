@@ -223,7 +223,6 @@ export const en = {
 
   // wavy-wave-root-reply-trigger.js
   "rootReply.label": "Click here to reply",
-  "rootReply.aria": "Reply to the wave",
 
   // shell-skip-link.js
   "skipLink.label": "Skip to main content",

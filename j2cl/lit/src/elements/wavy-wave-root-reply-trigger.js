@@ -116,7 +116,6 @@ export class WavyWaveRootReplyTrigger extends LitElement {
         class="reply-box"
         data-wave-root-reply-trigger
         data-wave-root-reply-box
-        aria-label=${t("rootReply.aria", "Reply to the wave")}
         title=${label}
         @click=${this._onClick}
       >

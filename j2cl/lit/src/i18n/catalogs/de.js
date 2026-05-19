@@ -206,7 +206,6 @@ export const de = {
   "waveNav.versionHistory": "Versionsverlauf anzeigen",
 
   "rootReply.label": "Hier antworten",
-  "rootReply.aria": "Auf die Wave antworten",
 
   "skipLink.label": "Zum Hauptinhalt springen",
 

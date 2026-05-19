@@ -29,7 +29,7 @@ describe("<wavy-wave-root-reply-trigger>", () => {
     expect(button.textContent.trim()).to.equal("Click here to reply");
     expect(button.matches("[data-wave-root-reply-box]")).to.be.true;
     expect(button.querySelector("[data-wave-root-reply-avatar]")).to.exist;
-    expect(button.getAttribute("aria-label")).to.equal("Reply to the wave");
+    expect(button.getAttribute("aria-label")).to.be.null;
     expect(button.getAttribute("title")).to.equal("Click here to reply");
     const hostStyle = getComputedStyle(el);
     const buttonStyle = getComputedStyle(button);
@@ -49,7 +49,7 @@ describe("<wavy-wave-root-reply-trigger>", () => {
     await el.updateComplete;
     expect(button.textContent.trim()).to.equal("Hier antworten");
     expect(button.getAttribute("title")).to.equal("Hier antworten");
-    expect(button.getAttribute("aria-label")).to.equal("Auf die Wave antworten");
+    expect(button.getAttribute("aria-label")).to.be.null;
   });
 
   it("emits wave-root-reply-requested with the wave id on click", async () => {

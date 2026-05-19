@@ -179,13 +179,18 @@ public class WaveClientServlet extends HttpServlet {
       return;
     }
 
-    String waveClientPreference = resolveWaveClientPreference(id);
-    boolean explicitJ2clPreference =
-        HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
-    boolean explicitGwtPreference = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
+    boolean defaultRoute = StringUtils.isEmpty(requestedView);
+    boolean explicitJ2clPreference = false;
+    boolean explicitGwtPreference = false;
+    if (defaultRoute) {
+      String waveClientPreference = resolveWaveClientPreference(id);
+      explicitJ2clPreference =
+          HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
+      explicitGwtPreference = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
+    }
 
     if (VIEW_J2CL_ROOT.equals(requestedView)
-        || (StringUtils.isEmpty(requestedView)
+        || (defaultRoute
             && !explicitGwtPreference
             && (explicitJ2clPreference || j2clRootBootstrapEnabled))) {
       // F-2 slice 6 (#1058, Part B): signed-in read-surface preview

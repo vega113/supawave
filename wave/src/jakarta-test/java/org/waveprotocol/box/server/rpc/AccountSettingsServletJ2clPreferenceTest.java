@@ -43,6 +43,9 @@ public final class AccountSettingsServletJ2clPreferenceTest {
     String html = body.toString();
     assertTrue(html.contains("id=\"waveClientJ2cl\""));
     assertTrue(html.contains("id=\"waveClientGwt\""));
+    assertTrue(html.contains("Default"));
+    assertTrue(html.contains("J2CL beta"));
+    assertTrue(html.contains("Classic GWT"));
     assertTrue(html.contains("value=\"j2cl-root\" checked"));
   }
 

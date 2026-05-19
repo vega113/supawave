@@ -10352,13 +10352,13 @@ public final class HtmlRenderer {
     sb.append("    <div class=\"section-desc\">Choose which Wave interface opens by default. Direct J2CL and classic links continue to work.</div>\n");
     sb.append("    <div class=\"choice-list\" id=\"waveClientChoices\">\n");
     appendWaveClientChoice(sb, "waveClientDefault", HumanAccountData.WAVE_CLIENT_DEFAULT,
-        "Use server default", "Follow the current rollout setting for your account.",
+        "Default", "Follow the current rollout setting for your account.",
         waveClientDefault);
     appendWaveClientChoice(sb, "waveClientJ2cl", HumanAccountData.WAVE_CLIENT_J2CL_ROOT,
-        "Use J2CL beta", "Open the new J2CL interface by default.",
+        "J2CL beta", "Open the new J2CL interface by default.",
         waveClientJ2cl);
     appendWaveClientChoice(sb, "waveClientGwt", HumanAccountData.WAVE_CLIENT_GWT,
-        "Use classic GWT", "Open the classic interface by default.",
+        "Classic GWT", "Open the classic interface by default.",
         waveClientGwt);
     sb.append("    </div>\n");
     sb.append("    <button type=\"button\" class=\"btn-primary\" id=\"saveWaveClientBtn\" style=\"margin-top:16px;\">Save Wave Client</button>\n");

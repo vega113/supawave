@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-gwt-search-http-bootstrap",
+  "version": "PR #1282",
+  "date": "2026-05-19",
+  "title": "Restore initial GWT search results when OT search is enabled",
+  "summary": "The GWT search panel now performs a direct search bootstrap while opening the OT search subscription, so initial results appear even when the live search channel has not delivered a snapshot yet.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Load initial GWT search results from the HTTP search path while keeping OT search available for live updates.",
+        "Keep repeating search polling disabled unless the OT search fallback path explicitly activates it."
+      ]
+    }
+  ]
+}

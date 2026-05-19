@@ -11,8 +11,8 @@ import { t } from "../i18n/t.js";
  *
  * Layout:
  *   - The host is fixed-position just below the compact topbar, aligned
- *     with the right edge of the viewport. Keeping it below the 40px
- *     header prevents the floating control from colliding with the
+ *     with the right edge of the viewport. Keeping it below the topbar
+ *     (--wavy-spacing-8) prevents the floating control from colliding with the
  *     right-aligned user-menu/avatar cluster while still escaping the
  *     shell-root grid.
  *
@@ -38,7 +38,7 @@ export class WavyWaveControlsToggle extends LitElement {
   static styles = css`
     :host {
       position: fixed;
-      top: calc(40px + var(--wavy-spacing-2, 8px));
+      top: calc(var(--wavy-spacing-8, 40px) + var(--wavy-spacing-2, 8px));
       right: var(--wavy-spacing-5, 24px);
       z-index: 90;
       display: inline-flex;

@@ -36,6 +36,7 @@ public final class AccountSettingsServletJ2clPreferenceTest {
     HttpServletResponse response = mock(HttpServletResponse.class);
     StringWriter body = new StringWriter();
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));
+    when(request.getContextPath()).thenReturn("/wave");
     when(response.getWriter()).thenReturn(new PrintWriter(body));
 
     servlet.doGet(request, response);
@@ -47,6 +48,8 @@ public final class AccountSettingsServletJ2clPreferenceTest {
     assertTrue(html.contains("J2CL beta"));
     assertTrue(html.contains("Classic GWT"));
     assertTrue(html.contains("value=\"j2cl-root\" checked"));
+    assertTrue(html.contains("var ctx = \"\\/wave\";"));
+    assertTrue(html.contains("fetch(ctx + '/account/settings/wave-client'"));
   }
 
   @Test
@@ -60,6 +63,7 @@ public final class AccountSettingsServletJ2clPreferenceTest {
     StringWriter body = new StringWriter();
     when(request.getSession(false)).thenReturn(mock(HttpSession.class));
     when(request.getPathInfo()).thenReturn("/wave-client");
+    when(request.getContextPath()).thenReturn("/wave");
     when(request.getHeader("Origin")).thenReturn("http://example.com");
     when(request.getReader())
         .thenReturn(new BufferedReader(new StringReader("{\"preference\":\"gwt\"}")));
@@ -69,7 +73,7 @@ public final class AccountSettingsServletJ2clPreferenceTest {
 
     verify(accountStore).putAccount(account);
     assertTrue(body.toString().contains("\"ok\":true"));
-    assertTrue(body.toString().contains("/?view=gwt"));
+    assertTrue(body.toString().contains("/wave/?view=gwt"));
     assertTrue(account.isWaveClientGwtPreferred());
   }
 

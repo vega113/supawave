@@ -10427,6 +10427,8 @@ public final class HtmlRenderer {
     sb.append("    toast.className = 'toast toast-' + type + ' show';\n");
     sb.append("    setTimeout(function() { toast.className = 'toast'; }, 4000);\n");
     sb.append("  }\n\n");
+    sb.append("  var ctx = ").append(escapeJsonString(contextPath == null ? "" : contextPath))
+        .append(";\n");
 
     // Save Wave client preference
     sb.append("  var saveWaveClientBtn = document.getElementById('saveWaveClientBtn');\n");
@@ -10436,7 +10438,7 @@ public final class HtmlRenderer {
     sb.append("      var selected = document.querySelector('input[name=\"waveClientPreference\"]:checked');\n");
     sb.append("      if (!selected) return;\n");
     sb.append("      btn.disabled = true;\n");
-    sb.append("      fetch('/account/settings/wave-client', {\n");
+    sb.append("      fetch(ctx + '/account/settings/wave-client', {\n");
     sb.append("        method: 'POST',\n");
     sb.append("        headers: { 'Content-Type': 'application/json' },\n");
     sb.append("        body: JSON.stringify({ preference: selected.value })\n");
@@ -10461,7 +10463,7 @@ public final class HtmlRenderer {
     sb.append("      var btn = this;\n");
     sb.append("      btn.disabled = true;\n");
     sb.append("      var email = document.getElementById('emailInput').value.trim();\n");
-    sb.append("      fetch('/account/settings/email', {\n");
+    sb.append("      fetch(ctx + '/account/settings/email', {\n");
     sb.append("        method: 'POST',\n");
     sb.append("        headers: { 'Content-Type': 'application/json' },\n");
     sb.append("        body: JSON.stringify({ email: email || null })\n");
@@ -10487,7 +10489,7 @@ public final class HtmlRenderer {
     sb.append("      var btn = this;\n");
     sb.append("      btn.disabled = true;\n");
     sb.append("      btn.textContent = 'Sending...';\n");
-    sb.append("      fetch('/account/settings/request-password-reset', {\n");
+    sb.append("      fetch(ctx + '/account/settings/request-password-reset', {\n");
     sb.append("        method: 'POST',\n");
     sb.append("        headers: { 'Content-Type': 'application/json' },\n");
     sb.append("        body: '{}'\n");

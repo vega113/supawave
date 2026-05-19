@@ -148,12 +148,7 @@ public final class AccountSettingsServlet extends HttpServlet {
     }
     try {
       setJsonUtf8(resp);
-      resp.getWriter().write(new JSONObject()
-          .put("ok", true)
-          .put("preference", caller.getWaveClientPreference())
-          .put("redirectTarget", waveClientRedirectTarget(
-              caller.getWaveClientPreference(), req.getContextPath()))
-          .toString());
+      resp.getWriter().write(waveClientResponseJson(preference, req.getContextPath()));
     } catch (JSONException e) {
       LOG.severe("Failed to serialize wave client preference response", e);
       resp.getWriter().write("{\"ok\":true}");
@@ -166,6 +161,23 @@ public final class AccountSettingsServlet extends HttpServlet {
       return preference;
     }
     return HumanAccountData.WAVE_CLIENT_DEFAULT;
+  }
+
+  private static String waveClientResponseJson(String preference, String contextPath)
+      throws JSONException {
+    String responsePreference;
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)) {
+      responsePreference = HumanAccountData.WAVE_CLIENT_J2CL_ROOT;
+    } else if (HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      responsePreference = HumanAccountData.WAVE_CLIENT_GWT;
+    } else {
+      responsePreference = HumanAccountData.WAVE_CLIENT_DEFAULT;
+    }
+    return new JSONObject()
+        .put("ok", true)
+        .put("preference", responsePreference)
+        .put("redirectTarget", waveClientRedirectTarget(responsePreference, contextPath))
+        .toString();
   }
 
   private static String waveClientRedirectTarget(String preference, String contextPath) {

@@ -38,8 +38,14 @@ public final class SearchBootstrapUiState {
     return otSearchEnabled && !useOtSearch && !otSearchTimedOut;
   }
 
-  public static boolean shouldBootstrapViaHttpWhenOtStarts(boolean otSearchEnabled) {
-    return !otSearchEnabled;
+  /**
+   * GWT search must issue a one-shot HTTP search request whenever it opens an
+   * OT search subscription. Keeping this as a shared policy helper gives the
+   * SBT JVM test suite coverage for the bootstrap decision even though the
+   * full GWT {@code SearchPresenter} test is excluded from that source set.
+   */
+  public static boolean shouldBootstrapViaHttpWhenOtStarts() {
+    return true;
   }
 
   public static boolean shouldUseHttpSearchForWindowRequest(

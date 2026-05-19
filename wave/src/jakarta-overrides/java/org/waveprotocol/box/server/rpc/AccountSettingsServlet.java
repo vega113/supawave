@@ -41,6 +41,8 @@ import org.waveprotocol.wave.model.wave.ParticipantId;
 import org.waveprotocol.wave.util.logging.Log;
 
 import java.io.IOException;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Servlet for the Account Settings page, allowing users to:
@@ -138,17 +140,23 @@ public final class AccountSettingsServlet extends HttpServlet {
     try {
       caller.setWaveClientPreference(preference);
       accountStore.putAccount(caller);
-      setJsonUtf8(resp);
-      String redirectTarget = req.getContextPath() + waveClientRedirectTarget(preference);
-      resp.getWriter().write("{\"ok\":true,\"preference\":\""
-          + jsonEscape(preference)
-          + "\",\"redirectTarget\":\""
-          + jsonEscape(redirectTarget)
-          + "\"}");
     } catch (PersistenceException e) {
       LOG.severe("Failed to update Wave client preference for " + caller.getId(), e);
       sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
           "Failed to save Wave client preference");
+      return;
+    }
+    try {
+      setJsonUtf8(resp);
+      resp.getWriter().write(new JSONObject()
+          .put("ok", true)
+          .put("preference", caller.getWaveClientPreference())
+          .put("redirectTarget", waveClientRedirectTarget(
+              caller.getWaveClientPreference(), req.getContextPath()))
+          .toString());
+    } catch (JSONException e) {
+      LOG.severe("Failed to serialize wave client preference response", e);
+      resp.getWriter().write("{\"ok\":true}");
     }
   }
 
@@ -160,14 +168,15 @@ public final class AccountSettingsServlet extends HttpServlet {
     return HumanAccountData.WAVE_CLIENT_DEFAULT;
   }
 
-  private static String waveClientRedirectTarget(String preference) {
+  private static String waveClientRedirectTarget(String preference, String contextPath) {
+    String base = contextPath != null ? contextPath : "";
     if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)) {
-      return "/?view=j2cl-root";
+      return base + "/?view=j2cl-root";
     }
     if (HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
-      return "/?view=gwt";
+      return base + "/?view=gwt";
     }
-    return "/";
+    return base.isEmpty() ? "/" : base + "/";
   }
 
   // =========================================================================
@@ -370,11 +379,6 @@ public final class AccountSettingsServlet extends HttpServlet {
       return null; // null value
     }
     return null;
-  }
-
-  private static String jsonEscape(String s) {
-    if (s == null) return "";
-    return s.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

@@ -311,7 +311,7 @@ public final class J2clRichContentDeltaFactory {
       throw new IllegalArgumentException("Invalid write-session base version.");
     }
     StringBuilder components = new StringBuilder();
-    String existingText = originalText == null ? "" : originalText.trim();
+    String existingText = originalText == null ? "" : originalText;
     if (bodyItemCount != existingText.length()) {
       throw new IllegalArgumentException(
           "Blip edit currently supports text-only bodies; structural body items were detected.");

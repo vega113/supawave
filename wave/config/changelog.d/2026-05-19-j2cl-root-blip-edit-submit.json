@@ -8,8 +8,8 @@
     {
       "type": "fix",
       "items": [
-        "The J2CL Edit action captures the existing blip text and document metadata, prefills the edit composer, and routes Done through a blip-edit submit path.",
-        "Edit-mode submits now target the existing blip document and no longer mutate the conversation manifest as a reply."
+        "The J2CL edit action captures the existing blip text and document metadata, prefills the edit composer, and routes Done through a blip-edit submit path.",
+        "Edit-mode submissions now target the existing blip document and no longer mutate the conversation manifest as a reply."
       ]
     }
   ]

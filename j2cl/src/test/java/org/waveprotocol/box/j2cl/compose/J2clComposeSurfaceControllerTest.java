@@ -125,7 +125,7 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
     controller.onBlipEditSubmitted(
-        "edited root text", "b+root", originalText.length(), originalText);
+        "edited root text", "b+root", originalText.length(), originalText, "");
 
     Assert.assertNull("Edit submit must not build a reply session.", factory.lastReplySession);
     Assert.assertEquals("b+root", factory.lastEditBlipId);
@@ -149,7 +149,7 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
-    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text");
+    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text", "");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());
@@ -180,7 +180,7 @@ public class J2clComposeSurfaceControllerTest {
         Arrays.asList(
             new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "late.png")));
 
-    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText);
+    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText, "");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());
@@ -205,7 +205,7 @@ public class J2clComposeSurfaceControllerTest {
 
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
-    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText);
+    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText, "");
 
     Assert.assertNull(factory.lastEditBlipId);
     Assert.assertFalse(view.model.isReplySubmitting());

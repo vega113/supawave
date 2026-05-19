@@ -157,7 +157,7 @@ public final class J2clComposeSurfaceController {
     }
 
     default void onBlipEditSubmitted(
-        String draft, String blipId, int bodyItemCount, String originalText) {
+        String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
       throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
     }
 
@@ -165,7 +165,8 @@ public final class J2clComposeSurfaceController {
         List<SubmittedComponent> components,
         String blipId,
         int bodyItemCount,
-        String originalText) {
+        String originalText,
+        String waveId) {
       throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
     }
 
@@ -988,9 +989,9 @@ public final class J2clComposeSurfaceController {
 
           @Override
           public void onBlipEditSubmitted(
-              String draft, String blipId, int bodyItemCount, String originalText) {
+              String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
             J2clComposeSurfaceController.this.onBlipEditSubmitted(
-                draft, blipId, bodyItemCount, originalText);
+                draft, blipId, bodyItemCount, originalText, waveId);
           }
 
           @Override
@@ -998,9 +999,10 @@ public final class J2clComposeSurfaceController {
               List<SubmittedComponent> components,
               String blipId,
               int bodyItemCount,
-              String originalText) {
+              String originalText,
+              String waveId) {
             J2clComposeSurfaceController.this.onBlipEditSubmittedWithComponents(
-                components, blipId, bodyItemCount, originalText);
+                components, blipId, bodyItemCount, originalText, waveId);
           }
 
           @Override
@@ -1337,18 +1339,22 @@ public final class J2clComposeSurfaceController {
   }
 
   public void onBlipEditSubmitted(
-      String draft, String blipId, int bodyItemCount, String originalText) {
+      String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
     replyDraft = normalizeDraft(draft);
     pendingSubmittedComponents = null;
-    submitBlipEdit(blipId, bodyItemCount, originalText);
+    submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
   }
 
   public void onBlipEditSubmittedWithComponents(
-      List<SubmittedComponent> components, String blipId, int bodyItemCount, String originalText) {
+      List<SubmittedComponent> components,
+      String blipId,
+      int bodyItemCount,
+      String originalText,
+      String waveId) {
     if (components == null) {
       replyDraft = normalizeDraft("");
       pendingSubmittedComponents = null;
-      submitBlipEdit(blipId, bodyItemCount, originalText);
+      submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
       return;
     }
     StringBuilder plainBuilder = new StringBuilder();
@@ -1359,7 +1365,7 @@ public final class J2clComposeSurfaceController {
     }
     replyDraft = normalizeDraft(plainBuilder.toString());
     pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
-    submitBlipEdit(blipId, bodyItemCount, originalText);
+    submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
   }
 
   private void submitWithComponents(
@@ -2575,7 +2581,8 @@ public final class J2clComposeSurfaceController {
         error -> handleReplyFailure(generation, error));
   }
 
-  private void submitBlipEdit(String blipId, int bodyItemCount, String originalText) {
+  private void submitBlipEdit(
+      String blipId, int bodyItemCount, String originalText, String waveId) {
     if (signedOut || replySubmitting) {
       render();
       return;
@@ -2586,6 +2593,14 @@ public final class J2clComposeSurfaceController {
           hasSelectedWaveContext()
               ? WAITING_FOR_WRITE_SESSION_REPLY_MESSAGE
               : "Open a wave before editing a blip.";
+      render();
+      return;
+    }
+    String sessionWaveId = writeSession.getSelectedWaveId();
+    String normalizedEditWaveId = waveId == null ? "" : waveId.trim();
+    if (!normalizedEditWaveId.isEmpty() && !normalizedEditWaveId.equals(sessionWaveId)) {
+      replyStatusText = "";
+      replyErrorText = "The wave was switched since the edit was opened. Please try again.";
       render();
       return;
     }

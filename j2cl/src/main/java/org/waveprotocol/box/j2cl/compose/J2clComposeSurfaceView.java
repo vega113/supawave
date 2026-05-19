@@ -246,7 +246,8 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
                   eventDetailString(event, "blipId"),
                   "edit",
                   eventDetailInt(event, "bodySize", 0),
-                  eventDetailString(event, "bodyText")));
+                  eventDetailString(event, "bodyText"),
+                  eventDetailString(event, "waveId")));
       DomGlobal.document.body.addEventListener(
           "wave-root-reply-requested",
           event -> openInlineComposer("", "wave-root"));
@@ -495,11 +496,11 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */
   private void openInlineComposer(String blipId, String mode) {
-    openInlineComposer(blipId, mode, 0, "");
+    openInlineComposer(blipId, mode, 0, "", "");
   }
 
   private void openInlineComposer(
-      String blipId, String mode, int bodyItemCount, String originalText) {
+      String blipId, String mode, int bodyItemCount, String originalText, String waveId) {
     String key = blipId == null ? "" : blipId;
     if (inlineComposers.containsKey(key)) {
       HTMLElement cached = inlineComposers.get(key);
@@ -512,6 +513,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           cached.setAttribute(
               "data-edit-body-item-count", String.valueOf(Math.max(0, bodyItemCount)));
           cached.setAttribute("data-edit-original-text", originalText == null ? "" : originalText);
+          cached.setAttribute("data-edit-wave-id", waveId == null ? "" : waveId);
           setProperty(cached, "draft", originalText == null ? "" : originalText);
         }
         setProperty(cached, "mode", mode);
@@ -543,6 +545,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
       composer.setAttribute(
           "data-edit-body-item-count", String.valueOf(Math.max(0, bodyItemCount)));
       composer.setAttribute("data-edit-original-text", originalText == null ? "" : originalText);
+      composer.setAttribute("data-edit-wave-id", waveId == null ? "" : waveId);
     }
     setProperty(composer, "available", true);
     setProperty(composer, "mode", mode);
@@ -577,12 +580,13 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           boolean edit = "edit".equals(currentMode);
           int editBodyItemCount = parseInt(composer.getAttribute("data-edit-body-item-count"), 0);
           String editOriginalText = composer.getAttribute("data-edit-original-text");
+          String editWaveId = composer.getAttribute("data-edit-wave-id");
           List<J2clComposeSurfaceController.SubmittedComponent> components =
               decodeSubmittedComponents(event);
           if (components.isEmpty()) {
             String draft = propertyString(composer, "draft");
             if (edit) {
-              listener.onBlipEditSubmitted(draft, key, editBodyItemCount, editOriginalText);
+              listener.onBlipEditSubmitted(draft, key, editBodyItemCount, editOriginalText, editWaveId);
             } else if (continuation) {
               listener.onContinuationSubmitted(draft, key);
             } else {
@@ -591,7 +595,7 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           } else {
             if (edit) {
               listener.onBlipEditSubmittedWithComponents(
-                  components, key, editBodyItemCount, editOriginalText);
+                  components, key, editBodyItemCount, editOriginalText, editWaveId);
             } else if (continuation) {
               listener.onContinuationSubmittedWithComponents(components, key);
             } else {

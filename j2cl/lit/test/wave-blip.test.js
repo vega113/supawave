@@ -359,6 +359,43 @@ describe("<wave-blip>", () => {
     expect(ev.detail).to.deep.equal({ blipId: "b4", waveId: "w4" });
   });
 
+  it("keeps toolbar reply inline while the hover affordance continues the blip thread", async () => {
+    const el = await fixture(html`
+      <wave-blip
+        data-blip-id="b4split"
+        data-wave-id="w4"
+        author-name="A"
+        data-blip-doc-size="11"
+      ></wave-blip>
+    `);
+    await el.updateComplete;
+    const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
+    await toolbar.updateComplete;
+    const replyBtn = toolbar.renderRoot.querySelector("[data-toolbar-action='reply']");
+    const continuationBtn = el.renderRoot.querySelector("[data-blip-continuation-trigger]");
+    expect(replyBtn).to.exist;
+    expect(continuationBtn).to.exist;
+
+    const eventTypes = [];
+    el.addEventListener("wave-blip-reply-requested", (event) => {
+      eventTypes.push(event.type);
+      expect(event.detail.blipId).to.equal("b4split");
+      expect(event.detail.parentBodyItemCount).to.equal(11);
+    });
+    el.addEventListener("wave-blip-continuation-requested", (event) => {
+      eventTypes.push(event.type);
+      expect(event.detail).to.deep.equal({ blipId: "b4split", waveId: "w4" });
+    });
+
+    replyBtn.click();
+    continuationBtn.click();
+    await el.updateComplete;
+    expect(eventTypes).to.deep.equal([
+      "wave-blip-reply-requested",
+      "wave-blip-continuation-requested"
+    ]);
+  });
+
   it("anchors the continuation trigger before reactions so the reply affordance does not cover emoji badges", async () => {
     const el = await fixture(html`
       <wave-blip data-blip-id="b4r" data-wave-id="w4" author-name="A">

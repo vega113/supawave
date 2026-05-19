@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-issue-1283-j2cl-reply-affordance-parity",
+  "version": "J2CL parity",
+  "date": "2026-05-19",
+  "title": "J2CL bottom reply control now matches GWT",
+  "summary": "The J2CL bottom reply affordance now appears as the GWT-style \"Click here to reply\" row while the per-blip toolbar reply icon remains dedicated to inline replies.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Changed the J2CL bottom-of-thread reply trigger from a compact plus button to a full-width dashed reply row.",
+        "Added regression coverage that keeps bottom continuation, per-blip continuation, and inline reply actions distinct."
+      ]
+    }
+  ]
+}

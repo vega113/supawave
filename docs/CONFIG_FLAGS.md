@@ -59,8 +59,18 @@ This page documents configuration flags and environment variables recently added
   - export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
   - export TESTCONTAINERS_RYUK_DISABLED=true
 
+## J2CL Build Flags (Maven)
+
+- j2cl.debug.overlay.enabled: boolean (default: true)
+  - Purpose: Controls whether the J2CL sidecar stamps `data-j2cl-debug-only` attributes on debug-only DOM elements, enabling the runtime debug overlay.
+  - Values: true | false
+  - Behavior: When `false`, `J2clDebugFlags.DEBUG_OVERLAY_ENABLED` is a literal `false` compile-time constant, so Closure ADVANCED_OPTIMIZATIONS dead-code-eliminates all guarded branches and debug strings from the production bundle. Error `detail` elements remain unconditionally hidden in production.
+  - Implementation: Maven resource filtering substitutes the literal value into `src/main/java-templates/…/J2clDebugFlags.java` at `generate-sources` phase, producing a true JLS §4.12.4 compile-time constant. Set to `false` in the `j2clProductionBuild` SBT profile via `-Dj2cl.debug.overlay.enabled=false`.
+  - Cleanup: No planned removal — this is a permanent build-profile gate.
+
 ## Change Log
 
 - 2025-09-02: Added experimental.native_servlet_registration and experimental.enable_programmatic_poc docs; documented Mongo driver flag and test env behavior.
 - 2025-09-03: Retired the two experimental flags and deleted POC classes/tasks.
 - 2026-03-29: Removed `experimental.jetty12_session_lookup`; Jakarta session-token lookup is now always enabled for websocket auth.
+- 2026-05-19: Added `j2cl.debug.overlay.enabled` Maven/J2CL build flag (PR #1278).

@@ -43,6 +43,8 @@ export class ShellHeader extends LitElement {
     header.gwt-topbar-panel .actions {
       flex-wrap: nowrap;
       gap: 6px;
+      margin-left: auto;
+      justify-content: flex-end;
     }
   `;
 

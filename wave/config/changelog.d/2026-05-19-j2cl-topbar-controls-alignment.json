@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-j2cl-topbar-controls-alignment",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "J2CL topbar control alignment",
+  "summary": "The J2CL root topbar now aligns its signed-in controls like the classic GWT topbar while preserving the existing control behavior.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Right-aligned the compact J2CL topbar control cluster so language, save state, network state, notifications, inbox, user menu, admin, and sign-out controls match the GWT layout."
+      ]
+    }
+  ]
+}

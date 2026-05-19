@@ -1,9 +1,10 @@
 import { LitElement, css, html } from "lit";
+import { subscribe } from "../i18n/locale.js";
 import { t } from "../i18n/t.js";
 import { subscribe } from "../i18n/locale.js";
 
 /**
- * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5) compact
+ * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5)
  * bottom-of-wave reply affordance (J.1 from the GWT inventory).
  *
  * Mounted at the bottom of the read surface. Clicking dispatches a
@@ -24,34 +25,56 @@ export class WavyWaveRootReplyTrigger extends LitElement {
 
   static styles = css`
     :host {
-      display: inline-flex;
-      padding: var(--wavy-spacing-1, 4px) 0;
+      box-sizing: border-box;
+      display: block;
+      padding: 4px 8px 8px;
     }
     :host([hidden]) {
       display: none;
     }
-    button {
+    .reply-box {
+      align-items: center;
+      box-sizing: border-box;
+      display: flex;
+      gap: 5px;
+      min-height: 38px;
+      width: 100%;
+      margin: 0;
+      overflow: hidden;
+      padding: 6px 10px;
+      border: 1.5px dashed #e2e8f0;
+      border-radius: var(--wavy-radius-md, 8px);
+      background: #f0f4f8;
+      color: #718096;
+      cursor: pointer;
+      font: var(--wavy-type-body, 13px / 1.35 Arial, sans-serif);
+      font-style: italic;
+      text-align: left;
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+    .reply-box:hover {
+      border-color: var(--wavy-signal-cyan, #00b4d8);
+      background: rgba(0, 180, 216, 0.04);
+      color: var(--wavy-signal-blue, #0077b6);
+    }
+    .reply-box:focus-visible {
+      outline: none;
+      border-color: var(--wavy-signal-cyan, #00b4d8);
+      box-shadow: var(--wavy-focus-ring, 0 0 0 2px rgba(0, 119, 182, 0.16));
+      color: var(--wavy-signal-blue, #0077b6);
+    }
+    .avatar {
+      flex: 0 0 auto;
       width: 24px;
       height: 24px;
       padding: 0;
-      border-radius: var(--wavy-radius-pill, 999px);
-      border: 1px solid var(--wavy-border-hairline, rgba(34, 211, 238, 0.24));
-      background: var(--wavy-surface-raised, rgba(255, 255, 255, 0.92));
-      color: var(--wavy-signal-cyan, #0077b6);
-      font: var(--wavy-type-label, 0.875rem / 1 sans-serif);
-      font-weight: 700;
-      cursor: pointer;
-      text-align: center;
-    }
-    button:hover {
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
-    }
-    button:focus-visible {
-      outline: none;
-      border-color: var(--wavy-signal-cyan, #22d3ee);
-      box-shadow: var(--wavy-focus-ring, 0 0 0 2px #22d3ee);
-      color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
+      border: 1.5px solid #e2e8f0;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 35%, #b7c3d0 0 22%, transparent 23%),
+        radial-gradient(circle at 50% 82%, #b7c3d0 0 36%, transparent 37%),
+        #f8fafc;
+      opacity: 0.5;
     }
   `;
 
@@ -87,15 +110,19 @@ export class WavyWaveRootReplyTrigger extends LitElement {
   }
 
   render() {
+    const label = t("rootReply.label", "Click here to reply");
     return html`
       <button
         type="button"
+        class="reply-box"
         data-wave-root-reply-trigger
-        aria-label=${t("rootReply.aria", "Reply to the wave")}
-        title=${t("rootReply.aria", "Reply to the wave")}
+        data-wave-root-reply-box
+        aria-label=${label}
+        title=${label}
         @click=${this._onClick}
       >
-        +
+        <span class="avatar" data-wave-root-reply-avatar aria-hidden="true"></span>
+        <span>${label}</span>
       </button>
     `;
   }

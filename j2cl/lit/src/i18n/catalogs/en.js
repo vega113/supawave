@@ -222,8 +222,7 @@ export const en = {
   "waveNav.versionHistory": "Show version history",
 
   // wavy-wave-root-reply-trigger.js
-  "rootReply.label": "Reply at top",
-  "rootReply.aria": "Reply to the wave",
+  "rootReply.label": "Click here to reply",
 
   // shell-skip-link.js
   "skipLink.label": "Skip to main content",

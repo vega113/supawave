@@ -205,8 +205,7 @@ export const de = {
   "waveNav.unpin": "Lösen",
   "waveNav.versionHistory": "Versionsverlauf anzeigen",
 
-  "rootReply.label": "Oben antworten",
-  "rootReply.aria": "Auf die Wave antworten",
+  "rootReply.label": "Hier antworten",
 
   "skipLink.label": "Zum Hauptinhalt springen",
 

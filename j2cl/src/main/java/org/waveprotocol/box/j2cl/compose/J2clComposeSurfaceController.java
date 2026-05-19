@@ -156,6 +156,20 @@ public final class J2clComposeSurfaceController {
       onContinuationSubmitted(builder.toString(), replyTargetBlipId);
     }
 
+    default void onBlipEditSubmitted(
+        String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
+      throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
+    }
+
+    default void onBlipEditSubmittedWithComponents(
+        List<SubmittedComponent> components,
+        String blipId,
+        int bodyItemCount,
+        String originalText,
+        String waveId) {
+      throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
+    }
+
     /**
      * GWT parity (cursor-anchored inline reply): wave-blip captured the
      * caret's wave-doc item offset inside the parent body before the
@@ -468,6 +482,18 @@ public final class J2clComposeSurfaceController {
       return createReplyRequest(address, session, draftText, document);
     }
 
+    default SidecarSubmitRequest createBlipEditRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String draftText,
+        J2clComposerDocument document,
+        int bodyItemCount,
+        String originalText) {
+      throw new UnsupportedOperationException(
+          "Blip edit is only available with the rich-content delta factory.");
+    }
+
     /**
      * F-3.S2 (#1038, R-5.4): build a stand-alone toggle request for a
      * single blip. The plain-text fallback factory throws
@@ -646,6 +672,10 @@ public final class J2clComposeSurfaceController {
       "Wait for attachment uploads to finish before replying.";
   static final String EMPTY_REPLY_VALIDATION_MESSAGE =
       "Enter text or attach a file before replying.";
+  static final String EMPTY_EDIT_VALIDATION_MESSAGE =
+      "Enter text or attach a file before saving this edit.";
+  static final String STRUCTURAL_BLIP_EDIT_MESSAGE =
+      "This blip contains inline structure that cannot be safely edited here yet.";
   static final String WAITING_FOR_WRITE_SESSION_REPLY_MESSAGE =
       "Wait for the selected wave to finish opening before sending a reply.";
   // Legacy constructors are not used by the root shell; production passes the root session seed.
@@ -955,6 +985,24 @@ public final class J2clComposeSurfaceController {
               List<SubmittedComponent> components, String replyTargetBlipId) {
             J2clComposeSurfaceController.this.onContinuationSubmittedWithComponents(
                 components, replyTargetBlipId);
+          }
+
+          @Override
+          public void onBlipEditSubmitted(
+              String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
+            J2clComposeSurfaceController.this.onBlipEditSubmitted(
+                draft, blipId, bodyItemCount, originalText, waveId);
+          }
+
+          @Override
+          public void onBlipEditSubmittedWithComponents(
+              List<SubmittedComponent> components,
+              String blipId,
+              int bodyItemCount,
+              String originalText,
+              String waveId) {
+            J2clComposeSurfaceController.this.onBlipEditSubmittedWithComponents(
+                components, blipId, bodyItemCount, originalText, waveId);
           }
 
           @Override
@@ -1288,6 +1336,36 @@ public final class J2clComposeSurfaceController {
   public void onContinuationSubmittedWithComponents(
       List<SubmittedComponent> components, String replyTargetBlipId) {
     submitWithComponents(components, replyTargetBlipId, true);
+  }
+
+  public void onBlipEditSubmitted(
+      String draft, String blipId, int bodyItemCount, String originalText, String waveId) {
+    replyDraft = normalizeDraft(draft);
+    pendingSubmittedComponents = null;
+    submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
+  }
+
+  public void onBlipEditSubmittedWithComponents(
+      List<SubmittedComponent> components,
+      String blipId,
+      int bodyItemCount,
+      String originalText,
+      String waveId) {
+    if (components == null) {
+      replyDraft = normalizeDraft("");
+      pendingSubmittedComponents = null;
+      submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
+      return;
+    }
+    StringBuilder plainBuilder = new StringBuilder();
+    for (SubmittedComponent component : components) {
+      if (component != null && component.getText() != null) {
+        plainBuilder.append(component.getText());
+      }
+    }
+    replyDraft = normalizeDraft(plainBuilder.toString());
+    pendingSubmittedComponents = new ArrayList<SubmittedComponent>(components);
+    submitBlipEdit(blipId, bodyItemCount, originalText, waveId);
   }
 
   private void submitWithComponents(
@@ -2503,6 +2581,105 @@ public final class J2clComposeSurfaceController {
         error -> handleReplyFailure(generation, error));
   }
 
+  private void submitBlipEdit(
+      String blipId, int bodyItemCount, String originalText, String waveId) {
+    if (signedOut || replySubmitting) {
+      render();
+      return;
+    }
+    if (writeSession == null || isEmpty(writeSession.getSelectedWaveId())) {
+      replyStatusText = "";
+      replyErrorText =
+          hasSelectedWaveContext()
+              ? WAITING_FOR_WRITE_SESSION_REPLY_MESSAGE
+              : "Open a wave before editing a blip.";
+      render();
+      return;
+    }
+    String sessionWaveId = writeSession.getSelectedWaveId();
+    String normalizedEditWaveId = waveId == null ? "" : waveId.trim();
+    if (!normalizedEditWaveId.isEmpty() && !normalizedEditWaveId.equals(sessionWaveId)) {
+      replyStatusText = "";
+      replyErrorText = "The wave was switched since the edit was opened. Please try again.";
+      render();
+      return;
+    }
+    String normalizedBlipId = blipId == null ? "" : blipId.trim();
+    if (normalizedBlipId.isEmpty()) {
+      replyStatusText = "";
+      replyErrorText = "Choose a blip before editing.";
+      render();
+      return;
+    }
+    if (bodyItemCount <= 0) {
+      replyStatusText = "";
+      replyErrorText = "Cannot edit this blip until its document metadata is loaded.";
+      render();
+      return;
+    }
+    String normalizedOriginalText = originalText == null ? "" : originalText;
+    if (bodyItemCount != normalizedOriginalText.length()) {
+      replyStatusText = "";
+      replyErrorText = STRUCTURAL_BLIP_EDIT_MESSAGE;
+      render();
+      return;
+    }
+    if (hasPendingAttachmentUpload()) {
+      replyStatusText = "";
+      replyErrorText = PENDING_ATTACHMENT_REPLY_MESSAGE;
+      render();
+      return;
+    }
+    if (replyDraft.trim().isEmpty() && insertedAttachments.isEmpty()) {
+      replyStatusText = "";
+      replyErrorText = EMPTY_EDIT_VALIDATION_MESSAGE;
+      render();
+      return;
+    }
+    replySubmitting = true;
+    replyStaleBasis = false;
+    replyStaleWaveId = null;
+    replyStatusText = "Bootstrapping the root-shell edit session.";
+    replyErrorText = "";
+    final String submittedDraft = replyDraft;
+    final String submittedAnnotationCommandId = annotationCommandId;
+    final int generation = ++replyGeneration;
+    final J2clSidecarWriteSession capturedSubmitSession = writeSession;
+    final int capturedBodyItemCount = Math.max(0, bodyItemCount);
+    final String capturedOriginalText = normalizedOriginalText;
+    render();
+    gateway.fetchRootSessionBootstrap(
+        bootstrap -> {
+          if (generation != replyGeneration) {
+            return;
+          }
+          notifyCurrentUserAddress(bootstrap.getAddress());
+          SidecarSubmitRequest request;
+          try {
+            request =
+                deltaFactory.createBlipEditRequest(
+                    bootstrap.getAddress(),
+                    capturedSubmitSession,
+                    normalizedBlipId,
+                    submittedDraft,
+                    buildDocument(submittedDraft, true, submittedAnnotationCommandId, true),
+                    capturedBodyItemCount,
+                    capturedOriginalText);
+          } catch (RuntimeException e) {
+            handleReplyFailure(generation, messageOrDefault(e, "Unable to build the edit request."));
+            return;
+          }
+          replyStatusText = "Submitting the edit.";
+          render();
+          gateway.submit(
+              bootstrap,
+              request,
+              response -> handleReplyResponse(generation, capturedSubmitSession, request, response),
+              error -> handleReplyFailure(generation, error));
+        },
+        error -> handleReplyFailure(generation, error));
+  }
+
   private J2clSidecarWriteSession sessionForReplyTarget(
       String replyTargetBlipId, boolean continuation) {
     if (writeSession == null) {
@@ -2959,6 +3136,18 @@ public final class J2clComposeSurfaceController {
           int parentBodyItemCount) {
         return factory.createReplyRequest(
             address, session, document, inlineAnchorItemOffset, parentBodyItemCount);
+      }
+
+      @Override
+      public SidecarSubmitRequest createBlipEditRequest(
+          String address,
+          J2clSidecarWriteSession session,
+          String blipId,
+          String draftText,
+          J2clComposerDocument document,
+          int bodyItemCount,
+          String originalText) {
+        return factory.blipEditRequest(address, session, blipId, document, bodyItemCount, originalText);
       }
 
       @Override

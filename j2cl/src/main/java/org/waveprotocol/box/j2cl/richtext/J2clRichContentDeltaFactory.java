@@ -288,6 +288,47 @@ public final class J2clRichContentDeltaFactory {
         bodyItemCount);
   }
 
+  public SidecarSubmitRequest blipEditRequest(
+      String address,
+      J2clSidecarWriteSession session,
+      String blipId,
+      J2clComposerDocument document,
+      int bodyItemCount,
+      String originalText) {
+    requirePresent(session, "Missing write session.");
+    requirePresent(document, "Missing composer document.");
+    String normalizedAddress = normalizeAddress(address);
+    extractDomain(normalizedAddress);
+    String selectedWaveId =
+        requireNonEmpty(session.getSelectedWaveId(), "Missing selected wave id.");
+    String historyHash =
+        requireNonEmpty(session.getHistoryHash(), "Missing write-session history hash.");
+    String channelId = requireNonEmpty(session.getChannelId(), "Missing write-session channel id.");
+    String documentId = requireNonEmpty(blipId, "Missing blip id.");
+    requirePositiveBodyItemCount(bodyItemCount);
+    long baseVersion = session.getBaseVersion();
+    if (baseVersion < 0) {
+      throw new IllegalArgumentException("Invalid write-session base version.");
+    }
+    StringBuilder components = new StringBuilder();
+    String existingText = originalText == null ? "" : originalText;
+    if (bodyItemCount != existingText.length()) {
+      throw new IllegalArgumentException(
+          "Blip edit currently supports text-only bodies; structural body items were detected.");
+    }
+    if (!existingText.isEmpty()) {
+      appendDeleteCharacters(components, existingText);
+    }
+    appendDocumentComponents(components, document);
+    String deltaJson =
+        buildDeltaJson(
+            baseVersion,
+            historyHash,
+            normalizedAddress,
+            buildRawDocumentOperation(documentId, components.toString()));
+    return new SidecarSubmitRequest(buildWaveletName(selectedWaveId), deltaJson, channelId);
+  }
+
   public SidecarSubmitRequest addParticipantRequest(
       String address, J2clSidecarWriteSession session, List<String> participantsToAdd) {
     WriteContext context = requireWriteContext(address, session);
@@ -1172,6 +1213,12 @@ public final class J2clRichContentDeltaFactory {
 
   private String buildDocumentOperation(String documentId, J2clComposerDocument document) {
     StringBuilder components = new StringBuilder();
+    appendDocumentComponents(components, document);
+    return buildRawDocumentOperation(documentId, components.toString());
+  }
+
+  private static void appendDocumentComponents(
+      StringBuilder components, J2clComposerDocument document) {
     for (J2clComposerDocument.Component component : document.getComponents()) {
       switch (component.type) {
         case TEXT:
@@ -1232,7 +1279,6 @@ public final class J2clRichContentDeltaFactory {
           break;
       }
     }
-    return buildRawDocumentOperation(documentId, components.toString());
   }
 
   private String buildRawDocumentOperation(String documentId, String componentsJson) {
@@ -1247,7 +1293,7 @@ public final class J2clRichContentDeltaFactory {
     return operation.toString();
   }
 
-  private void appendImageAttachment(
+  private static void appendImageAttachment(
       StringBuilder components, J2clComposerDocument.Component component) {
     components
         .append("{\"3\":{\"1\":\"image\",\"2\":[{\"1\":\"attachment\",\"2\":\"")
@@ -1295,6 +1341,11 @@ public final class J2clRichContentDeltaFactory {
 
   private static void appendCharacters(StringBuilder builder, String text) {
     builder.append("{\"2\":\"").append(escapeJson(text)).append("\"}");
+  }
+
+  private static void appendDeleteCharacters(StringBuilder builder, String text) {
+    appendComponentSeparator(builder);
+    builder.append("{\"6\":\"").append(escapeJson(text)).append("\"}");
   }
 
   private static void appendAnnotationStart(StringBuilder builder, String key, String value) {

@@ -425,7 +425,9 @@ describe("<wave-blip>", () => {
 
   it("re-emits wave-blip-edit-requested when toolbar Edit fires", async () => {
     const el = await fixture(html`
-      <wave-blip data-blip-id="b5" data-wave-id="w5" author-name="A"></wave-blip>
+      <wave-blip data-blip-id="b5" data-wave-id="w5" author-name="A" data-blip-doc-size="11">
+        Original root text
+      </wave-blip>
     `);
     await el.updateComplete;
     const toolbar = el.renderRoot.querySelector("wave-blip-toolbar");
@@ -434,6 +436,8 @@ describe("<wave-blip>", () => {
     setTimeout(() => editBtn.click(), 0);
     const ev = await oneEvent(el, "wave-blip-edit-requested");
     expect(ev.detail.blipId).to.equal("b5");
+    expect(ev.detail.bodySize).to.equal(11);
+    expect(ev.detail.bodyText).to.equal("Original root text");
   });
 
   // F-3.S4 (#1038, R-5.6 F.6): the Delete button on the per-blip

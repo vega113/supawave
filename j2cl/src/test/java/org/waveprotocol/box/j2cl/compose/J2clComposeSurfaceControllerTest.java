@@ -109,6 +109,139 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void editSubmitUsesExistingBlipInsteadOfReplySession() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted(
+        "edited root text", "b+root", originalText.length(), originalText, "example.com/w+1");
+
+    Assert.assertNull("Edit submit must not build a reply session.", factory.lastReplySession);
+    Assert.assertEquals("b+root", factory.lastEditBlipId);
+    Assert.assertEquals(originalText.length(), factory.lastEditBodyItemCount);
+    Assert.assertEquals(originalText, factory.lastEditOriginalText);
+    Assert.assertEquals("edited root text", factory.lastDraftText);
+  }
+
+  @Test
+  public void editSubmitRejectsStructuralBodyBeforeBuildingRequest() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text", "example.com/w+1");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.STRUCTURAL_BLIP_EDIT_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void editSubmitWaitsForInFlightAttachmentUploadBeforeBuildingRequest() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "late.png")));
+
+    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText, "example.com/w+1");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.PENDING_ATTACHMENT_REPLY_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void emptyEditUsesEditSpecificValidationMessage() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText, "example.com/w+1");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.EMPTY_EDIT_VALIDATION_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void editSubmitRejectsStaleWaveIdAfterWaveChange() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    // Submit with a waveId that no longer matches the selected wave.
+    controller.onBlipEditSubmitted(
+        "edited root text", "b+root", originalText.length(), originalText, "example.com/w+stale");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        "The wave was switched since the edit was opened. Please try again.",
+        view.model.getReplyErrorText());
+  }
+
+  @Test
   public void inlineReplyWithoutCapturedCaretFallsBackToParentBodyEndLikeGwt() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -4952,6 +5085,9 @@ public class J2clComposeSurfaceControllerTest {
     private J2clSidecarWriteSession lastReplySession = null;
     private int lastInlineAnchorItemOffset = Integer.MIN_VALUE;
     private int lastInlineAnchorParentBodyItemCount = Integer.MIN_VALUE;
+    private String lastEditBlipId = null;
+    private int lastEditBodyItemCount = Integer.MIN_VALUE;
+    private String lastEditOriginalText = null;
 
     @Override
     public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
@@ -4998,6 +5134,24 @@ public class J2clComposeSurfaceControllerTest {
       lastInlineAnchorItemOffset = inlineAnchorItemOffset;
       lastInlineAnchorParentBodyItemCount = parentBodyItemCount;
       return createReplyRequest(address, session, draftText, document);
+    }
+
+    @Override
+    public SidecarSubmitRequest createBlipEditRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String draftText,
+        org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document,
+        int bodyItemCount,
+        String originalText) {
+      lastEditBlipId = blipId;
+      lastDraftText = draftText;
+      lastDocumentComponentCount = componentCount(document);
+      lastEditBodyItemCount = bodyItemCount;
+      lastEditOriginalText = originalText;
+      return new SidecarSubmitRequest(
+          session.getSelectedWaveId() + "/~/conv+root", "{\"edit\":true}", session.getChannelId());
     }
 
     private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {

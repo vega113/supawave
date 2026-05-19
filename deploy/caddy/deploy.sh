@@ -467,9 +467,22 @@ sanity_check() {
     -e SANITY_SEARCH_REQUEST_TIMEOUT_SECONDS \
     "$sanity_image" sh -c '
     set -e
+    install_sanity_tools_with_retry() {
+      for attempt in 1 2 3; do
+        if apk add --no-cache curl jq >/dev/null; then
+          return 0
+        fi
+        if [ "$attempt" -lt 3 ]; then
+          echo "[sanity] apk add curl/jq failed on attempt ${attempt}/3, retrying..." >&2
+          sleep "$attempt"
+        fi
+      done
+      return 1
+    }
+
     if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
       if command -v apk >/dev/null 2>&1; then
-        if ! apk add --no-cache curl jq >/dev/null; then
+        if ! install_sanity_tools_with_retry; then
           echo "[sanity] FAIL: unable to install curl/jq via apk" >&2
           exit 1
         fi

@@ -3580,11 +3580,11 @@ public final class HtmlRenderer {
           .append("<span class=\"j2cl-brand-name\">SupaWave</span>")
           .append("</span>\n");
       sb.append("    </a>\n");
-      // F-2 slice 3 (#1047): wavy header chrome (A.1, A.2, A.5, A.6,
+      // F-2 slice 3 (#1047): wavy header chrome (A.1, A.2,
       // A.7) is mounted as a <wavy-header> custom element inside the
       // signed-in actions slot. Server-side we emit the FULL inner
-      // light DOM (brand link, locale select with seven options, bell
-      // button, mail icon, user-menu trigger). The Lit upgrade
+      // light DOM (brand link, locale select with seven options,
+      // user-menu trigger). The Lit upgrade
       // re-renders the same content into the shadow DOM and wires
       // event handlers; the server-rendered light DOM is what
       // J2clSearchRailParityTest asserts on (mirrors the F-2 S1
@@ -4228,8 +4228,7 @@ public final class HtmlRenderer {
    * server-rendered HTML directly.
    *
    * <p>Affordances: A.1 brand link, A.2 locale picker (seven
-   * options), A.5 notifications bell, A.6 inbox/mail icon,
-   * A.7 user-menu trigger (avatar + email).
+   * options), A.7 user-menu trigger (avatar + email).
    */
   private static void appendWavyHeaderActionsSlot(
       StringBuilder sb, String rawAddress, String safeAddress,
@@ -4263,7 +4262,7 @@ public final class HtmlRenderer {
         .append(escapeHtml(userRole == null ? HumanAccountData.ROLE_USER : userRole))
         .append("\" return-target=\"")
         .append(safeResolvedReturnTarget)
-        .append("\" unread-count=\"0\" data-connection-state=\"online\""
+        .append("\" data-connection-state=\"online\""
             + " data-save-state=\"saved\" base-path=\"")
         .append(safeBasePath)
         .append("\">\n");
@@ -4297,20 +4296,6 @@ public final class HtmlRenderer {
           .append(ICON_WIFI)
           .append("</span>\n");
     }
-    // A.5 notifications bell — server-renders the same SVG glyph the
-    // Lit element renders so the icon does not appear empty pre-upgrade.
-    sb.append("      <button type=\"button\" class=\"bell\" aria-label=\"Notifications\">")
-        .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
-        .append("<path d=\"M3 12h10l-1.4-1.4A2 2 0 0 1 11 9.2V7a3 3 0 0 0-6 0v2.2a2 2 0 0 1-.6 1.4L3 12z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>")
-        .append("<path d=\"M6.5 13.5a1.5 1.5 0 0 0 3 0\" stroke-linecap=\"round\"/></svg>")
-        .append("<span class=\"dot violet\" hidden aria-hidden=\"true\"></span></button>\n");
-    // A.6 inbox/mail icon — server-renders the envelope SVG.
-    sb.append("      <a class=\"mail\" href=\"")
-        .append(safeBasePath)
-        .append("?view=j2cl-root&amp;q=in%3Ainbox\" aria-label=\"Inbox\">")
-        .append("<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" aria-hidden=\"true\">")
-        .append("<rect x=\"2\" y=\"3.5\" width=\"12\" height=\"9\" rx=\"1.4\"/>")
-        .append("<path d=\"M2.5 4.5l5.5 4 5.5-4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>\n");
     sb.append("      <span class=\"user-menu-wrap\">\n");
     sb.append("        <button id=\"wavyHeaderUserMenuToggle\" type=\"button\" class=\"user-menu\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"wavyHeaderUserMenu\" aria-label=\"Open user menu\" title=\"")
         .append(escapedAddress)

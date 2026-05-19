@@ -45,8 +45,6 @@ export const de = {
   // wavy-header.js — reused from SavedStateMessages_de + WebClientMessages_de
   "header.brand": "SupaWave Startseite",
   "header.localePicker": "Sprache",
-  "header.notifications": "Benachrichtigungen",
-  "header.inbox": "Postfach", // GWT SearchWidgetMessages_de.properties: inbox
   "header.userMenu": "Benutzermenü öffnen",
   "header.saveSaving": "Änderungen werden gespeichert",
   // GWT SavedStateMessages_de.properties: unsaved

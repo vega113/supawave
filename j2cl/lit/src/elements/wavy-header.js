@@ -9,21 +9,17 @@ import { t } from "../i18n/t.js";
  * inventory):
  * - A.1 SupaWave brand link with cyan signal-dot accent
  * - A.2 Locale picker (en/de/es/fr/ru/sl/zh_TW)
- * - A.5 Notifications bell with violet unread dot (uses
- *       --wavy-signal-violet, NOT cyan)
- * - A.6 Inbox/mail icon — jumps to inbox via /?view=j2cl-root&q=in:inbox
  * - A.7 User-menu trigger: avatar chip (initials) + visible email span;
  *       click emits wavy-user-menu-requested for the F-0 menu sheet
  *       (the menu items A.8–A.18 themselves are owned by F-0 and are
  *       NOT mounted by this slice — only the trigger is)
  *
  * Public API:
- * - signedIn          — boolean (controls visibility of A.5/A.6/A.7)
+ * - signedIn          — boolean (controls visibility of A.7)
  * - locale            — current locale code (defaults to "en")
  * - address           — user's email address (data-address; reflected so
  *                       server-side templates can pass it through)
  * - userName          — display name fallback for initials (defaults to address)
- * - unreadCount       — number; A.5 dot becomes visible when > 0
  * - compact-gwt-topbar — boolean; activates GWT-parity compact mode: hides the
  *                        full email span, shortens locale labels, and reduces
  *                        icon sizing to match the 40px GWT root topbar
@@ -39,7 +35,6 @@ export class WavyHeader extends LitElement {
     address: { type: String, attribute: "data-address", reflect: true },
     userName: { type: String, attribute: "user-name" },
     userRole: { type: String, attribute: "user-role" },
-    unreadCount: { type: Number, attribute: "unread-count" },
     basePath: { type: String, attribute: "base-path" },
     returnTarget: { type: String, attribute: "return-target" },
     compactGwtTopbar: { type: Boolean, attribute: "compact-gwt-topbar", reflect: true },
@@ -128,8 +123,6 @@ export class WavyHeader extends LitElement {
       font-weight: 700;
       text-transform: uppercase;
     }
-    .bell,
-    .mail,
     .user-menu {
       background: transparent;
       color: var(--wavy-text-muted, rgba(232, 240, 255, 0.62));
@@ -141,17 +134,6 @@ export class WavyHeader extends LitElement {
       padding: var(--wavy-spacing-1, 4px) var(--wavy-spacing-2, 8px);
       border-radius: var(--wavy-radius-pill, 9999px);
       text-decoration: none;
-    }
-    :host([compact-gwt-topbar]) .bell,
-    :host([compact-gwt-topbar]) .mail {
-      width: 32px;
-      height: 32px;
-      min-width: 32px;
-      padding: 0;
-      justify-content: center;
-      color: #fff;
-      background: rgba(255, 255, 255, 0.10);
-      border-radius: 6px;
     }
     :host([compact-gwt-topbar]) .user-menu {
       width: auto;
@@ -235,42 +217,22 @@ export class WavyHeader extends LitElement {
       background: rgba(255, 255, 255, 0.18);
       transform: scale(1.05);
     }
-    :host([compact-gwt-topbar]) .bell:focus-visible,
-    :host([compact-gwt-topbar]) .mail:focus-visible,
     :host([compact-gwt-topbar]) .user-menu:focus-visible {
       outline: 2px solid rgba(255, 255, 255, 0.95);
       outline-offset: 2px;
       background: rgba(255, 255, 255, 0.18);
     }
-    :host([compact-gwt-topbar]) .bell:hover,
-    :host([compact-gwt-topbar]) .mail:hover,
     :host([compact-gwt-topbar]) .user-menu:hover {
       color: #fff;
       outline: none;
       background: rgba(255, 255, 255, 0.18);
       transform: scale(1.05);
     }
-    .bell:hover,
-    .bell:focus-visible,
-    .mail:hover,
-    .mail:focus-visible,
     .user-menu:hover,
     .user-menu:focus-visible {
       color: var(--wavy-text-body, rgba(232, 240, 255, 0.92));
       outline: none;
       background: rgba(34, 211, 238, 0.06);
-    }
-    .bell {
-      position: relative;
-    }
-    .dot.violet {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--wavy-signal-violet, #7c3aed);
     }
     .avatar {
       display: inline-flex;
@@ -414,7 +376,6 @@ export class WavyHeader extends LitElement {
     this.address = "";
     this.userName = "";
     this.userRole = "user";
-    this.unreadCount = 0;
     this.basePath = "/";
     this.returnTarget = "/";
     this.compactGwtTopbar = false;
@@ -551,7 +512,6 @@ export class WavyHeader extends LitElement {
 
   render() {
     const initials = this._initials();
-    const hasUnread = (this.unreadCount || 0) > 0;
     const base = this._normalizedBasePath();
     const compact = this.compactGwtTopbar;
     const isAdminOrOwner = this.userRole === "admin" || this.userRole === "owner";
@@ -627,26 +587,6 @@ export class WavyHeader extends LitElement {
 
       ${this.signedIn
         ? html`
-            <button
-              type="button"
-              class="bell"
-              aria-label=${t("header.notifications", "Notifications")}
-              title=${t("header.notifications", "Notifications")}
-            >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
-                <path d="M3 12h10l-1.4-1.4A2 2 0 0 1 11 9.2V7a3 3 0 0 0-6 0v2.2a2 2 0 0 1-.6 1.4L3 12z" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" stroke-linecap="round"/>
-              </svg>
-              <span class="dot violet" ?hidden=${!hasUnread} aria-hidden="true"></span>
-            </button>
-
-            <a class="mail" href=${`${base}?view=j2cl-root&q=in:inbox`} aria-label=${t("header.inbox", "Inbox")} title=${t("header.inbox", "Inbox")}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
-                <rect x="2" y="3.5" width="12" height="9" rx="1.4"/>
-                <path d="M2.5 4.5l5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </a>
-
             <span class="user-menu-wrap">
               <button
                 id="wavyHeaderUserMenuToggle"

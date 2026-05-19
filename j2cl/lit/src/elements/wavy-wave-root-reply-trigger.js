@@ -1,5 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { t } from "../i18n/t.js";
+import { subscribe } from "../i18n/locale.js";
 
 /**
  * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5) compact
@@ -58,6 +59,20 @@ export class WavyWaveRootReplyTrigger extends LitElement {
     super();
     this.waveId = "";
     this.hidden = false;
+    this._unsubscribeLocale = null;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._unsubscribeLocale = subscribe(() => this.requestUpdate());
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._unsubscribeLocale) {
+      this._unsubscribeLocale();
+      this._unsubscribeLocale = null;
+    }
   }
 
   _onClick(event) {

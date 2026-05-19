@@ -1,5 +1,6 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
 import "../src/elements/wavy-wave-root-reply-trigger.js";
+import { setLocale, _resetLocaleForTesting } from "../src/i18n/locale.js";
 
 function ensureWavyTokensLoaded() {
   if (document.querySelector('link[data-wavy-tokens-test]')) return;
@@ -38,5 +39,20 @@ describe("<wavy-wave-root-reply-trigger>", () => {
   it("collapses to display:none when hidden", async () => {
     const el = await fixture(html`<wavy-wave-root-reply-trigger hidden></wavy-wave-root-reply-trigger>`);
     expect(getComputedStyle(el).display).to.equal("none");
+  });
+
+  it("rerenders aria-label when locale changes", async () => {
+    _resetLocaleForTesting();
+    const el = await fixture(html`
+      <wavy-wave-root-reply-trigger wave-id="w1"></wavy-wave-root-reply-trigger>
+    `);
+    const button = el.renderRoot.querySelector("[data-wave-root-reply-trigger]");
+    expect(button.getAttribute("aria-label")).to.equal("Reply to the wave");
+
+    setLocale("de");
+    await el.updateComplete;
+
+    expect(button.getAttribute("aria-label")).to.not.equal("Reply to the wave");
+    _resetLocaleForTesting();
   });
 });

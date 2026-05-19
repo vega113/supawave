@@ -237,12 +237,13 @@
 }
 
 .reactions {
-  margin: 0.35em 0 0.15em 0;
+  margin: 0;
+  padding-top: 2px;
   min-height: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35em;
+  gap: 4px;
 }
 
 @external .waveReactionChip;
@@ -255,7 +256,10 @@
 .reactions .waveReactionChip,
 .reactions .waveReactionAdd {
   display: inline-flex;
+  align-items: center;
   justify-content: center;
+  min-height: 23px;
+  box-sizing: border-box;
   padding: 2px 8px;
   border: 1px solid #d6dee8;
   border-radius: 999px;

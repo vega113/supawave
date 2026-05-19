@@ -50,6 +50,19 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
     assertFalse(containsBlockedMediaQuery(css));
   }
 
+  public void testBlipReactionControlsUseCompactFooterGeometry() throws Exception {
+    String css = read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/wavepanel/view/dom/full/Blip.css");
+
+    assertTrue(containsPropertyInBlock(css, ".reactions", "margin: 0"));
+    assertTrue(containsPropertyInBlock(css, ".reactions", "padding-top: 2px"));
+    assertTrue(containsPropertyInBlock(css, ".reactions", "gap: 4px"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionChip", "min-height: 23px"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionChip", "box-sizing: border-box"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionAdd", "min-height: 23px"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionAdd", "box-sizing: border-box"));
+  }
+
   public void testTagsCssAvoidsCalcForInlineEditorWidth() throws Exception {
     String css = read(
         "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");
@@ -81,5 +94,20 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
     Pattern selectorRulePattern = Pattern.compile(
         "(?m)(^|,)\\s*" + Pattern.quote(selector) + "(?=\\s*(,|\\{))");
     return selectorRulePattern.matcher(cssWithoutComments).find();
+  }
+
+  private boolean containsPropertyInBlock(String css, String selector, String property) {
+    String cssWithoutComments = CSS_COMMENT_PATTERN.matcher(css).replaceAll("");
+    Pattern selectorPattern = Pattern.compile(
+        "(?m)(^|,)\\s*" + Pattern.quote(selector) + "(?=\\s*(,|\\{))");
+    java.util.regex.Matcher m = selectorPattern.matcher(cssWithoutComments);
+    if (!m.find()) return false;
+    int braceStart = cssWithoutComments.indexOf('{', m.end());
+    if (braceStart < 0) return false;
+    int end = cssWithoutComments.indexOf('}', braceStart);
+    if (end < 0) return false;
+    String block = cssWithoutComments.substring(braceStart + 1, end);
+    String normalizedBlock = block.replaceAll("\\s+", " ").trim();
+    return normalizedBlock.contains(property.replaceAll("\\s+", " ").trim());
   }
 }

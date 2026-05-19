@@ -793,8 +793,10 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
     status.hidden = !model.isError();
-    detail.textContent = model.getDetailText();
-    detail.hidden = !J2clDebugFlags.DEBUG_OVERLAY_ENABLED || !model.isError();
+    if (J2clDebugFlags.DEBUG_OVERLAY_ENABLED) {
+      detail.textContent = model.getDetailText();
+      detail.hidden = !model.isError();
+    }
     renderParticipantStrip(model.getParticipantIds());
     publishProfileOverlayParticipants(model.getParticipantIds());
     // GWT keeps digest/root preview text inside the root blip, not as a
@@ -1366,8 +1368,10 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
             : "sidecar-selected-status";
     status.textContent = model.getStatusText();
     status.hidden = !model.isError();
-    detail.textContent = model.getDetailText();
-    detail.hidden = !J2clDebugFlags.DEBUG_OVERLAY_ENABLED || !model.isError();
+    if (J2clDebugFlags.DEBUG_OVERLAY_ENABLED) {
+      detail.textContent = model.getDetailText();
+      detail.hidden = !model.isError();
+    }
     if (model.isError()) {
       // Error is a terminal state: clear aria-busy so AT doesn't treat the
       // region as permanently loading. clearServerFirstMarkers() isn't called

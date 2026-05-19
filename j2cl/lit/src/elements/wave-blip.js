@@ -825,7 +825,7 @@ export class WaveBlip extends LitElement {
           blipId: this.blipId,
           waveId: this.waveId,
           bodySize: this.bodySize || 0,
-          bodyText: this._currentBodyText()
+          bodyText: this._currentBodyText().trim()
         }
       })
     );

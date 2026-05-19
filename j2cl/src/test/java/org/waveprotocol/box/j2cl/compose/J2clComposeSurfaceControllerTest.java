@@ -113,6 +113,7 @@ public class J2clComposeSurfaceControllerTest {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
     CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
     J2clComposeSurfaceController controller =
         new J2clComposeSurfaceController(
             gateway,
@@ -124,13 +125,93 @@ public class J2clComposeSurfaceControllerTest {
     controller.start();
     controller.onWriteSessionChanged(writeSessionWithReplyTargets());
     controller.onBlipEditSubmitted(
-        "edited root text", "b+root", TEST_BODY_ITEM_COUNT, "original root text");
+        "edited root text", "b+root", originalText.length(), originalText);
 
     Assert.assertNull("Edit submit must not build a reply session.", factory.lastReplySession);
     Assert.assertEquals("b+root", factory.lastEditBlipId);
-    Assert.assertEquals(TEST_BODY_ITEM_COUNT, factory.lastEditBodyItemCount);
-    Assert.assertEquals("original root text", factory.lastEditOriginalText);
+    Assert.assertEquals(originalText.length(), factory.lastEditBodyItemCount);
+    Assert.assertEquals(originalText, factory.lastEditOriginalText);
     Assert.assertEquals("edited root text", factory.lastDraftText);
+  }
+
+  @Test
+  public void editSubmitRejectsStructuralBodyBeforeBuildingRequest() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted("edited root text", "b+root", 19, "original root text");
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.STRUCTURAL_BLIP_EDIT_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void editSubmitWaitsForInFlightAttachmentUploadBeforeBuildingRequest() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    FakeAttachmentTransport transport = new FakeAttachmentTransport();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            testAttachmentControllerFactory(transport),
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onAttachmentFilesSelected(
+        Arrays.asList(
+            new J2clComposeSurfaceController.AttachmentFileSelection(new Object(), "late.png")));
+
+    controller.onBlipEditSubmitted("edited root text", "b+root", originalText.length(), originalText);
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.PENDING_ATTACHMENT_REPLY_MESSAGE,
+        view.model.getReplyErrorText());
+  }
+
+  @Test
+  public void emptyEditUsesEditSpecificValidationMessage() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    String originalText = "original root text";
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted("", "b+root", originalText.length(), originalText);
+
+    Assert.assertNull(factory.lastEditBlipId);
+    Assert.assertFalse(view.model.isReplySubmitting());
+    Assert.assertEquals(
+        J2clComposeSurfaceController.EMPTY_EDIT_VALIDATION_MESSAGE,
+        view.model.getReplyErrorText());
   }
 
   @Test

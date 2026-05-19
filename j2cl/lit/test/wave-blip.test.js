@@ -437,7 +437,7 @@ describe("<wave-blip>", () => {
     const ev = await oneEvent(el, "wave-blip-edit-requested");
     expect(ev.detail.blipId).to.equal("b5");
     expect(ev.detail.bodySize).to.equal(11);
-    expect(ev.detail.bodyText.trim()).to.equal("Original root text");
+    expect(ev.detail.bodyText).to.equal("Original root text");
   });
 
   // F-3.S4 (#1038, R-5.6 F.6): the Delete button on the per-blip

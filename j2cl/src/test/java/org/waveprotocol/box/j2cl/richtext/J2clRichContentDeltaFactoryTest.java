@@ -320,7 +320,7 @@ public class J2clRichContentDeltaFactoryTest {
             session,
             "b+root",
             document,
-            /* bodyItemCount= */ 17,
+            /* bodyItemCount= */ "Original root text".length(),
             "Original root text");
     String deltaJson = request.getDeltaJson();
 
@@ -334,6 +334,26 @@ public class J2clRichContentDeltaFactoryTest {
     Assert.assertFalse("Edit must not create a new reply blip.", deltaJson.contains("b+seed"));
     Assert.assertFalse(
         "Edit must not mutate the conversation manifest.", deltaJson.contains("\"thread\""));
+  }
+
+  @Test
+  public void blipEditRequestRejectsStructuralBodyItemCount() {
+    J2clRichContentDeltaFactory factory = new J2clRichContentDeltaFactory("seed");
+    J2clSidecarWriteSession session =
+        new J2clSidecarWriteSession(
+            "example.com/w+edit", "chan-7", 44L, "ABCD", "b+root", 5, 9);
+    J2clComposerDocument document =
+        J2clComposerDocument.builder().text("Edited root text").build();
+
+    assertThrows(
+        () ->
+            factory.blipEditRequest(
+                "user@example.com",
+                session,
+                "b+root",
+                document,
+                /* bodyItemCount= */ "Original root text".length() + 1,
+                "Original root text"));
   }
 
   @Test

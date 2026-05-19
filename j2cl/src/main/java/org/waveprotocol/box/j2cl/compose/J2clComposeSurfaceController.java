@@ -158,7 +158,7 @@ public final class J2clComposeSurfaceController {
 
     default void onBlipEditSubmitted(
         String draft, String blipId, int bodyItemCount, String originalText) {
-      onReplySubmitted(draft, blipId);
+      throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
     }
 
     default void onBlipEditSubmittedWithComponents(
@@ -166,15 +166,7 @@ public final class J2clComposeSurfaceController {
         String blipId,
         int bodyItemCount,
         String originalText) {
-      StringBuilder builder = new StringBuilder();
-      if (components != null) {
-        for (SubmittedComponent component : components) {
-          if (component != null && component.getText() != null) {
-            builder.append(component.getText());
-          }
-        }
-      }
-      onBlipEditSubmitted(builder.toString(), blipId, bodyItemCount, originalText);
+      throw new UnsupportedOperationException("Blip edit submit handler is not wired.");
     }
 
     /**
@@ -679,6 +671,10 @@ public final class J2clComposeSurfaceController {
       "Wait for attachment uploads to finish before replying.";
   static final String EMPTY_REPLY_VALIDATION_MESSAGE =
       "Enter text or attach a file before replying.";
+  static final String EMPTY_EDIT_VALIDATION_MESSAGE =
+      "Enter text or attach a file before saving this edit.";
+  static final String STRUCTURAL_BLIP_EDIT_MESSAGE =
+      "This blip contains inline structure that cannot be safely edited here yet.";
   static final String WAITING_FOR_WRITE_SESSION_REPLY_MESSAGE =
       "Wait for the selected wave to finish opening before sending a reply.";
   // Legacy constructors are not used by the root shell; production passes the root session seed.
@@ -2606,9 +2602,22 @@ public final class J2clComposeSurfaceController {
       render();
       return;
     }
+    String normalizedOriginalText = originalText == null ? "" : originalText.trim();
+    if (bodyItemCount != normalizedOriginalText.length()) {
+      replyStatusText = "";
+      replyErrorText = STRUCTURAL_BLIP_EDIT_MESSAGE;
+      render();
+      return;
+    }
+    if (hasPendingAttachmentUpload()) {
+      replyStatusText = "";
+      replyErrorText = PENDING_ATTACHMENT_REPLY_MESSAGE;
+      render();
+      return;
+    }
     if (replyDraft.trim().isEmpty() && insertedAttachments.isEmpty()) {
       replyStatusText = "";
-      replyErrorText = EMPTY_REPLY_VALIDATION_MESSAGE;
+      replyErrorText = EMPTY_EDIT_VALIDATION_MESSAGE;
       render();
       return;
     }
@@ -2622,7 +2631,7 @@ public final class J2clComposeSurfaceController {
     final int generation = ++replyGeneration;
     final J2clSidecarWriteSession capturedSubmitSession = writeSession;
     final int capturedBodyItemCount = Math.max(0, bodyItemCount);
-    final String capturedOriginalText = originalText == null ? "" : originalText;
+    final String capturedOriginalText = normalizedOriginalText;
     render();
     gateway.fetchRootSessionBootstrap(
         bootstrap -> {

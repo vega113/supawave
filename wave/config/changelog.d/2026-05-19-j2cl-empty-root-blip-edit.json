@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-j2cl-empty-root-blip-edit",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "Fix J2CL editing for empty root blips with replies",
+  "summary": "J2CL can now edit an empty-looking root blip that still contains inline reply structure.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Editing an empty-looking J2CL root blip now inserts the new text while preserving existing inline reply structure.",
+        "J2CL still blocks edits for blips that mix visible text with unsupported inline structure until full structural edit support is available."
+      ]
+    }
+  ]
+}

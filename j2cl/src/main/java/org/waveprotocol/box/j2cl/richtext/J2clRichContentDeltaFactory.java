@@ -313,13 +313,19 @@ public final class J2clRichContentDeltaFactory {
     StringBuilder components = new StringBuilder();
     String existingText = originalText == null ? "" : originalText;
     if (bodyItemCount != existingText.length()) {
-      throw new IllegalArgumentException(
-          "Blip edit currently supports text-only bodies; structural body items were detected.");
+      if (!existingText.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Blip edit currently supports text-only bodies; structural body items were detected.");
+      }
+      appendDocumentComponents(components, document);
+      appendComponentSeparator(components);
+      appendRetain(components, bodyItemCount);
+    } else {
+      if (!existingText.isEmpty()) {
+        appendDeleteCharacters(components, existingText);
+      }
+      appendDocumentComponents(components, document);
     }
-    if (!existingText.isEmpty()) {
-      appendDeleteCharacters(components, existingText);
-    }
-    appendDocumentComponents(components, document);
     String deltaJson =
         buildDeltaJson(
             baseVersion,

@@ -3,6 +3,28 @@ import "../src/elements/shell-header.js";
 import "../src/elements/wavy-header.js";
 import "../src/elements/wavy-wave-controls-toggle.js";
 
+function ensureShellTokensLoaded() {
+  if (document.querySelector("link[data-shell-tokens-test]")) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/src/tokens/shell-tokens.css";
+  link.dataset.shellTokensTest = "true";
+  document.head.appendChild(link);
+}
+
+async function waitForCompactTopbarToken() {
+  for (let i = 0; i < 50; i++) {
+    const probe = document.createElement("shell-header");
+    probe.setAttribute("compact-gwt-topbar", "");
+    document.body.appendChild(probe);
+    const applied = getComputedStyle(document.body).getPropertyValue("--j2cl-compact-topbar-top").trim() !== "";
+    probe.remove();
+    if (applied) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("--j2cl-compact-topbar-top not set within 1000ms");
+}
+
 function rectsOverlap(a, b) {
   return (
     a.left < b.right &&
@@ -80,6 +102,8 @@ describe("<wavy-wave-controls-toggle>", () => {
   });
 
   it("keeps the floating toggle clear of the compact user menu", async () => {
+    ensureShellTokensLoaded();
+    await waitForCompactTopbarToken();
     const el = await fixture(html`
       <div>
         <shell-header signed-in compact-gwt-topbar style="width:100vw">

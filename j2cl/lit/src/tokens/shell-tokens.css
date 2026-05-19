@@ -135,6 +135,14 @@ shell-root:has(> shell-header[compact-gwt-topbar]) > [slot="main"] {
   padding-top: 8px;
 }
 
+/* Top offset for fixed floating controls on compact-topbar pages.
+ * Inherits through shadow DOM via CSS custom property cascade so
+ * wavy-wave-controls-toggle (and any future floating mounts) can
+ * read it without relying on :host-context() + :has(). */
+body:has(shell-header[compact-gwt-topbar]) {
+  --j2cl-compact-topbar-top: calc(var(--wavy-spacing-8, 40px) + var(--wavy-spacing-2, 8px));
+}
+
 .j2cl-shell-splitter {
   box-sizing: border-box;
   align-self: stretch;

@@ -11,10 +11,9 @@ import { t } from "../i18n/t.js";
  *
  * Layout:
  *   - The host is fixed-position in the top-right of the viewport.
- *     In compact-topbar mode (body:has(shell-header[compact-gwt-topbar])) the
- *     top offset drops to --wavy-spacing-8 (40px) + --wavy-spacing-2 (8px) so
- *     the control clears the user-menu cluster. On non-compact routes the
- *     default top of --wavy-spacing-3 (12px) is used instead.
+ *     Top position is driven by --j2cl-compact-topbar-top (set in
+ *     shell-tokens.css via body:has(shell-header[compact-gwt-topbar]));
+ *     falls back to --wavy-spacing-3 (12px) on non-compact routes.
  *
  * A11y:
  *   - The inner native &lt;button&gt; carries the role + keyboard
@@ -38,14 +37,10 @@ export class WavyWaveControlsToggle extends LitElement {
   static styles = css`
     :host {
       position: fixed;
-      top: var(--wavy-spacing-3, 12px);
+      top: var(--j2cl-compact-topbar-top, var(--wavy-spacing-3, 12px));
       right: var(--wavy-spacing-5, 24px);
       z-index: 90;
       display: inline-flex;
-    }
-    /* Push below the 40px compact topbar to avoid user-menu collision. */
-    :host-context(body:has(shell-header[compact-gwt-topbar])) {
-      top: calc(var(--wavy-spacing-8, 40px) + var(--wavy-spacing-2, 8px));
     }
     /* Shift further left on mobile to clear the nav-drawer-toggle. */
     @media (max-width: 860px) {

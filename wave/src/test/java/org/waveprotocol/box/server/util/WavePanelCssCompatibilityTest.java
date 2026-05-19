@@ -59,6 +59,8 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
     assertTrue(containsPropertyInBlock(css, ".reactions", "gap: 4px"));
     assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionChip", "min-height: 23px"));
     assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionChip", "box-sizing: border-box"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionAdd", "min-height: 23px"));
+    assertTrue(containsPropertyInBlock(css, ".reactions .waveReactionAdd", "box-sizing: border-box"));
   }
 
   public void testTagsCssAvoidsCalcForInlineEditorWidth() throws Exception {

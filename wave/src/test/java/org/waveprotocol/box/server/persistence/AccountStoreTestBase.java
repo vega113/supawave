@@ -112,6 +112,20 @@ public abstract class AccountStoreTestBase extends TestCase {
     assertTrue(retrievedAccount.asHuman().getPasswordDigest().verify("internet".toCharArray()));
   }
 
+  public final void testRoundtripHumanAccountWithWaveClientPreference() throws Exception {
+    AccountStore accountStore = newAccountStore();
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    account.setWaveClientPreference(HumanAccountData.WAVE_CLIENT_GWT);
+
+    accountStore.putAccount(account);
+
+    AccountData retrievedAccount = accountStore.getAccount(HUMAN_ID);
+    assertTrue(retrievedAccount.isHuman());
+    assertEquals(
+        HumanAccountData.WAVE_CLIENT_GWT,
+        retrievedAccount.asHuman().getWaveClientPreference());
+  }
+
   public final void testRoundtripHumanAccountWithSocialIdentityLookup() throws Exception {
     AccountStore accountStore = newAccountStore();
     HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);

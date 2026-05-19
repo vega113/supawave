@@ -51,4 +51,17 @@ public class HumanAccountDataImplTest extends TestCase {
 
     assertNull(account.getPasswordDigest());
   }
+
+  public void testWaveClientPreferenceDefaultsAndCanChange() {
+    HumanAccountData account =
+        new HumanAccountDataImpl(ParticipantId.ofUnsafe("penny@example.com"));
+
+    assertEquals(HumanAccountData.WAVE_CLIENT_DEFAULT, account.getWaveClientPreference());
+
+    account.setWaveClientPreference(HumanAccountData.WAVE_CLIENT_J2CL_ROOT);
+    assertEquals(HumanAccountData.WAVE_CLIENT_J2CL_ROOT, account.getWaveClientPreference());
+
+    account.setWaveClientPreference(HumanAccountData.WAVE_CLIENT_GWT);
+    assertEquals(HumanAccountData.WAVE_CLIENT_GWT, account.getWaveClientPreference());
+  }
 }

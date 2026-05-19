@@ -170,6 +170,19 @@ public class ProtoAccountDataSerializerTest extends TestCase {
     assertEquals("is:flagged", human.getSearches().get(1).getQuery());
   }
 
+  public final void testHumanAccountWithWaveClientPreference() {
+    HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
+    account.setWaveClientPreference(HumanAccountData.WAVE_CLIENT_J2CL_ROOT);
+
+    ProtoAccountData data = ProtoAccountDataSerializer.serialize(account);
+    AccountData deserialized = ProtoAccountDataSerializer.deserialize(data);
+
+    assertTrue(deserialized.isHuman());
+    assertEquals(
+        HumanAccountData.WAVE_CLIENT_J2CL_ROOT,
+        deserialized.asHuman().getWaveClientPreference());
+  }
+
   public final void testHumanAccountWithSocialIdentity() {
     HumanAccountDataImpl account = new HumanAccountDataImpl(HUMAN_ID);
     account.addOrReplaceSocialIdentity(

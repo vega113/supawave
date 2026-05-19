@@ -54,6 +54,7 @@ import java.io.IOException;
  * <ul>
  *   <li>{@code GET /account/settings} - Renders the account settings page</li>
  *   <li>{@code POST /account/settings/email} - Updates the user's email</li>
+ *   <li>{@code POST /account/settings/wave-client} - Updates the default Wave client</li>
  *   <li>{@code POST /account/settings/request-password-reset} - Sends a password reset email</li>
  * </ul>
  */
@@ -120,11 +121,52 @@ public final class AccountSettingsServlet extends HttpServlet {
 
     if ("/email".equals(pathInfo)) {
       handleUpdateEmail(req, resp, caller);
+    } else if ("/wave-client".equals(pathInfo)) {
+      handleUpdateWaveClient(req, resp, caller);
     } else if ("/request-password-reset".equals(pathInfo)) {
       handleRequestPasswordReset(req, resp, caller);
     } else {
       sendJsonError(resp, HttpServletResponse.SC_NOT_FOUND, "Unknown action");
     }
+  }
+
+  private void handleUpdateWaveClient(HttpServletRequest req, HttpServletResponse resp,
+      HumanAccountData caller) throws IOException {
+    String body = readBody(req);
+    String preference = normalizeWaveClientPreference(extractJsonField(body, "preference"));
+
+    try {
+      caller.setWaveClientPreference(preference);
+      accountStore.putAccount(caller);
+      setJsonUtf8(resp);
+      resp.getWriter().write("{\"ok\":true,\"preference\":\""
+          + caller.getWaveClientPreference()
+          + "\",\"redirectTarget\":\""
+          + waveClientRedirectTarget(caller.getWaveClientPreference())
+          + "\"}");
+    } catch (PersistenceException e) {
+      LOG.severe("Failed to update Wave client preference for " + caller.getId(), e);
+      sendJsonError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+          "Failed to save Wave client preference");
+    }
+  }
+
+  private static String normalizeWaveClientPreference(String preference) {
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)
+        || HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      return preference;
+    }
+    return HumanAccountData.WAVE_CLIENT_DEFAULT;
+  }
+
+  private static String waveClientRedirectTarget(String preference) {
+    if (HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(preference)) {
+      return "/?view=j2cl-root";
+    }
+    if (HumanAccountData.WAVE_CLIENT_GWT.equals(preference)) {
+      return "/?view=gwt";
+    }
+    return "/";
   }
 
   // =========================================================================

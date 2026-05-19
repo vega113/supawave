@@ -59,6 +59,7 @@ message ProtoHumanAccountData {
 	// Saved searches
 	repeated ProtoSearchesItem saved_search = 10;
 	repeated ProtoSocialIdentity social_identity = 11;
+	optional string wave_client_preference = 12 [default = "default"];
 }
 
 message ProtoSocialIdentity {

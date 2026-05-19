@@ -10289,6 +10289,18 @@ public final class HtmlRenderer {
     sb.append("  font-size: 13px; color: ").append(WAVE_TEXT_MUTED).append(";\n");
     sb.append("  margin-bottom: 16px; line-height: 1.5;\n");
     sb.append("}\n");
+    sb.append(".choice-list { display: grid; gap: 10px; }\n");
+    sb.append(".choice-option {\n");
+    sb.append("  display: flex; gap: 10px; align-items: flex-start;\n");
+    sb.append("  padding: 12px; border: 1.5px solid ").append(WAVE_BORDER).append(";\n");
+    sb.append("  border-radius: 8px; background: #fafbfc; cursor: pointer;\n");
+    sb.append("}\n");
+    sb.append(".choice-option:hover { border-color: ").append(WAVE_PRIMARY).append("; background: #fff; }\n");
+    sb.append(".choice-option input { margin-top: 3px; }\n");
+    sb.append(".choice-title { display:block; font-size:14px; font-weight:600; color:")
+        .append(WAVE_TEXT).append("; }\n");
+    sb.append(".choice-desc { display:block; font-size:12px; color:")
+        .append(WAVE_TEXT_MUTED).append("; margin-top:2px; line-height:1.4; }\n");
 
     sb.append("</style>\n");
     sb.append("<style>\n").append(renderSharedTopBarCss()).append("</style>\n");
@@ -10328,6 +10340,28 @@ public final class HtmlRenderer {
     sb.append("      <span class=\"info-value\">").append(escapeHtml(regDisplay)).append("</span>\n");
     sb.append("    </div>\n");
 
+    sb.append("  </div>\n"); // .settings-card
+
+    // ==== Wave Client Card ====
+    String waveClientPreference = account.getWaveClientPreference();
+    boolean waveClientDefault = HumanAccountData.WAVE_CLIENT_DEFAULT.equals(waveClientPreference);
+    boolean waveClientJ2cl = HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
+    boolean waveClientGwt = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
+    sb.append("  <div class=\"settings-card\">\n");
+    sb.append("    <h2>Wave Client</h2>\n");
+    sb.append("    <div class=\"section-desc\">Choose which Wave interface opens by default. Direct J2CL and classic links continue to work.</div>\n");
+    sb.append("    <div class=\"choice-list\" id=\"waveClientChoices\">\n");
+    appendWaveClientChoice(sb, "waveClientDefault", HumanAccountData.WAVE_CLIENT_DEFAULT,
+        "Use server default", "Follow the current rollout setting for your account.",
+        waveClientDefault);
+    appendWaveClientChoice(sb, "waveClientJ2cl", HumanAccountData.WAVE_CLIENT_J2CL_ROOT,
+        "Use J2CL beta", "Open the new J2CL interface by default.",
+        waveClientJ2cl);
+    appendWaveClientChoice(sb, "waveClientGwt", HumanAccountData.WAVE_CLIENT_GWT,
+        "Use classic GWT", "Open the classic interface by default.",
+        waveClientGwt);
+    sb.append("    </div>\n");
+    sb.append("    <button type=\"button\" class=\"btn-primary\" id=\"saveWaveClientBtn\" style=\"margin-top:16px;\">Save Wave Client</button>\n");
     sb.append("  </div>\n"); // .settings-card
 
     // ==== Email Card ====
@@ -10394,6 +10428,32 @@ public final class HtmlRenderer {
     sb.append("    setTimeout(function() { toast.className = 'toast'; }, 4000);\n");
     sb.append("  }\n\n");
 
+    // Save Wave client preference
+    sb.append("  var saveWaveClientBtn = document.getElementById('saveWaveClientBtn');\n");
+    sb.append("  if (saveWaveClientBtn) {\n");
+    sb.append("    saveWaveClientBtn.addEventListener('click', function() {\n");
+    sb.append("      var btn = this;\n");
+    sb.append("      var selected = document.querySelector('input[name=\"waveClientPreference\"]:checked');\n");
+    sb.append("      if (!selected) return;\n");
+    sb.append("      btn.disabled = true;\n");
+    sb.append("      fetch('/account/settings/wave-client', {\n");
+    sb.append("        method: 'POST',\n");
+    sb.append("        headers: { 'Content-Type': 'application/json' },\n");
+    sb.append("        body: JSON.stringify({ preference: selected.value })\n");
+    sb.append("      })\n");
+    sb.append("      .then(function(r) { return r.json(); })\n");
+    sb.append("      .then(function(d) {\n");
+    sb.append("        if (d.ok) {\n");
+    sb.append("          showToast('Wave client preference saved', 'success');\n");
+    sb.append("        } else {\n");
+    sb.append("          showToast(d.error || 'Failed to save Wave client preference', 'error');\n");
+    sb.append("        }\n");
+    sb.append("        btn.disabled = false;\n");
+    sb.append("      })\n");
+    sb.append("      .catch(function() { showToast('Failed to save Wave client preference', 'error'); btn.disabled = false; });\n");
+    sb.append("    });\n");
+    sb.append("  }\n\n");
+
     // Save email
     sb.append("  var saveEmailBtn = document.getElementById('saveEmailBtn');\n");
     sb.append("  if (saveEmailBtn) {\n");
@@ -10458,6 +10518,25 @@ public final class HtmlRenderer {
 
     sb.append("</body>\n</html>\n");
     return sb.toString();
+  }
+
+  private static void appendWaveClientChoice(StringBuilder sb, String id, String value,
+      String title, String description, boolean checked) {
+    sb.append("      <label class=\"choice-option\" for=\"").append(id).append("\">\n");
+    sb.append("        <input type=\"radio\" id=\"").append(id)
+        .append("\" name=\"waveClientPreference\" value=\"")
+        .append(escapeHtml(value))
+        .append("\"");
+    if (checked) {
+      sb.append(" checked");
+    }
+    sb.append(">\n");
+    sb.append("        <span><span class=\"choice-title\">")
+        .append(escapeHtml(title))
+        .append("</span><span class=\"choice-desc\">")
+        .append(escapeHtml(description))
+        .append("</span></span>\n");
+    sb.append("      </label>\n");
   }
 
   // =========================================================================

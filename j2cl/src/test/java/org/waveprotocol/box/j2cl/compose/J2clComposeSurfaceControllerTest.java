@@ -159,6 +159,31 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void editSubmitAllowsEmptyVisibleTextStructuralBody() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted(
+        "first visible text", "b+root", 2, "", "example.com/w+1");
+
+    Assert.assertEquals("b+root", factory.lastEditBlipId);
+    Assert.assertEquals(2, factory.lastEditBodyItemCount);
+    Assert.assertEquals("", factory.lastEditOriginalText);
+    Assert.assertEquals("first visible text", factory.lastDraftText);
+    Assert.assertEquals("", view.model.getReplyErrorText());
+  }
+
+  @Test
   public void editSubmitWaitsForInFlightAttachmentUploadBeforeBuildingRequest() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();

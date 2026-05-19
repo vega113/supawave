@@ -2618,7 +2618,7 @@ public final class J2clComposeSurfaceController {
       return;
     }
     String normalizedOriginalText = originalText == null ? "" : originalText;
-    if (bodyItemCount != normalizedOriginalText.length()) {
+    if (bodyItemCount != normalizedOriginalText.length() && !normalizedOriginalText.isEmpty()) {
       replyStatusText = "";
       replyErrorText = STRUCTURAL_BLIP_EDIT_MESSAGE;
       render();

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.waveprotocol.box.j2cl.common.J2clDebugFlags;
 import org.waveprotocol.box.j2cl.overlay.J2clInteractionBlipModel;
 import org.waveprotocol.box.j2cl.overlay.J2clTaskItemModel;
 import org.waveprotocol.box.j2cl.read.J2clInlineReplyAnchor;
@@ -136,7 +137,7 @@ public final class J2clSelectedWaveProjector {
               interactionEditable);
     }
 
-    String detailText = buildDetailText(update);
+    String detailText = J2clDebugFlags.DEBUG_OVERLAY_ENABLED ? buildDetailText(update) : "";
     String baseStatusText =
         reconnectCount > 0 ? "Live updates reconnected." : "Live updates connected.";
 
@@ -308,7 +309,7 @@ public final class J2clSelectedWaveProjector {
         previous.getSnippetText(),
         resolveUnreadText(digestItem, unreadCount, read, readStateKnown),
         statusText,
-        previous.getDetailText(),
+        J2clDebugFlags.DEBUG_OVERLAY_ENABLED ? previous.getDetailText() : "",
         previous.getReconnectCount(),
         previous.getParticipantIds(),
         previous.getContentEntries(),

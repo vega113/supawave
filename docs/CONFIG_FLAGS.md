@@ -59,8 +59,41 @@ This page documents configuration flags and environment variables recently added
   - export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
   - export TESTCONTAINERS_RYUK_DISABLED=true
 
+## J2CL Build Flags (compile-time, Maven)
+
+These flags control the J2CL client bundle via Maven resource filtering.  They
+are substituted into `j2cl/src/main/java-templates/…/J2clDebugFlags.java` at
+`generate-sources` time, producing a literal Java compile-time constant that
+the Closure compiler can use for dead-code elimination.
+
+- j2cl.debug.overlay.enabled: boolean (Maven property)
+  - Source: `j2cl/pom.xml` `<properties>` (default `true`); production profile
+    overrides to `false`; `build.sbt` also passes `-Dj2cl.debug.overlay.enabled=false`
+    to `mvnw` as belt-and-suspenders.
+  - Purpose: Controls whether the J2CL sidecar stamps `data-j2cl-debug-only`
+    attributes on debug-only DOM elements, enabling the runtime debug overlay.
+  - Values: true | false
+  - Behavior: When `false`, `J2clDebugFlags.DEBUG_OVERLAY_ENABLED` is a literal
+    `false` compile-time constant; Closure ADVANCED_OPTIMIZATIONS dead-code-
+    eliminates all guarded branches and debug strings from the production bundle.
+    Error `detail` elements remain unconditionally hidden in production.
+  - Implementation: Maven resource filtering substitutes the literal value into
+    `src/main/java-templates/…/J2clDebugFlags.java` at `generate-sources`
+    phase, producing a true JLS §4.12.4 compile-time constant.
+  - Dev / sandbox builds: property defaults to `true` so the runtime
+    `j2cl-debug-overlay` feature flag (server-side) continues to work.
+  - Production builds (`j2clProductionBuild`): property is `false`; the
+    generated class contains `public static final boolean DEBUG_OVERLAY_ENABLED = false;`.
+  - Interaction with runtime flag: The runtime `j2cl-debug-overlay` feature
+    flag (server-side, toggles CSS / overlay widget) is separate.  Even when
+    `DEBUG_OVERLAY_ENABLED=false` (no debug DOM markers), the server-side flag
+    has no effect in production since the tagging code is compiled out.
+  - Do not set to `false` in dev builds unless testing production bundle size.
+  - Cleanup: No planned removal — this is a permanent build-profile gate.
+
 ## Change Log
 
 - 2025-09-02: Added experimental.native_servlet_registration and experimental.enable_programmatic_poc docs; documented Mongo driver flag and test env behavior.
-- 2025-09-03: Retired the two experimental flags and deleted POC classes/tasks.
+- 2025-09-03: Retired the two experimental flags and deleted POC classes/tests.
 - 2026-03-29: Removed `experimental.jetty12_session_lookup`; Jakarta session-token lookup is now always enabled for websocket auth.
+- 2026-05-19: Added J2CL build flags section; documented j2cl.debug.overlay.enabled (PR #1278).

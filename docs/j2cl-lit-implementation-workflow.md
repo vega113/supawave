@@ -1,12 +1,28 @@
 # J2CL/Lit Implementation Workflow
 
 Status: Proposed
-Updated: 2026-04-22
+Updated: 2026-05-19
 Owner: Project Maintainers
 Review cadence: on-change
 Parent tracker: [#904](https://github.com/vega113/supawave/issues/904)
 Task issue: [#958](https://github.com/vega113/supawave/issues/958)
 Related: [#954](https://github.com/vega113/supawave/issues/954), merged PR [#956](https://github.com/vega113/supawave/pull/956)
+
+## 0. Build-time Flag Pattern
+
+The J2CL client uses Maven resource filtering to inject literal compile-time
+constants into generated Java source files.  This allows the Closure compiler
+to perform dead-code elimination (DCE) in `ADVANCED_OPTIMIZATIONS` mode.
+
+**Pattern:** place a `.java` template in
+`j2cl/src/main/java-templates/…/<Class>.java`, use `${property}` placeholders,
+configure the `generate-debug-flags` execution in `pom.xml`, and set the Maven
+property default in `<properties>` (dev: `true`) and override it in the
+`production` profile (prod: `false`).
+
+See `docs/CONFIG_FLAGS.md` → "J2CL Build Flags" for the current list of flags
+and their semantics.  The `build.sbt` `runJ2clMaven` helper mirrors production
+profile properties with `-D` flags for belt-and-suspenders safety.
 
 ## 1. Decision Summary
 

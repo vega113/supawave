@@ -25,6 +25,12 @@
     <sidecar.webappDirectory>${project.basedir}/../war/j2cl</sidecar.webappDirectory>
     <sidecar.initialScriptFilename>sidecar/j2cl-sidecar.js</sidecar.initialScriptFilename>
     <sidecar.compilationLevel>ADVANCED_OPTIMIZATIONS</sidecar.compilationLevel>
+
+    <!-- Default: debug overlay enabled for dev/sandbox builds. The production
+         profile overrides this to false so the generated J2clDebugFlags class
+         contains a literal `false`, giving the Closure compiler a true
+         compile-time constant for dead-code elimination. -->
+    <j2cl.debug.overlay.enabled>true</j2cl.debug.overlay.enabled>
   </properties>
 
   <dependencies>
@@ -91,6 +97,22 @@
         <version>${maven.resources.plugin.version}</version>
         <executions>
           <execution>
+            <id>generate-debug-flags</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/generated-sources/j2cl-flags/org/waveprotocol/box/j2cl/common</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/main/java-templates/org/waveprotocol/box/j2cl/common</directory>
+                  <filtering>true</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
             <id>copy-sidecar-host-page</id>
             <phase>prepare-package</phase>
             <goals>
@@ -104,6 +126,26 @@
                   <filtering>false</filtering>
                 </resource>
               </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>add-generated-debug-flags-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/j2cl-flags</source>
+              </sources>
             </configuration>
           </execution>
         </executions>
@@ -154,6 +196,7 @@
       <properties>
         <sidecar.webappDirectory>${project.basedir}/../war/j2cl</sidecar.webappDirectory>
         <sidecar.compilationLevel>ADVANCED_OPTIMIZATIONS</sidecar.compilationLevel>
+        <j2cl.debug.overlay.enabled>false</j2cl.debug.overlay.enabled>
       </properties>
     </profile>
   </profiles>

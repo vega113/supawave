@@ -877,11 +877,14 @@ def runJ2clWrapper(log: Logger, base: File, profile: String, goal: String): Unit
       }
     }
   }
+  val extraProps =
+    if (profile == "production") Seq("-Dj2cl.debug.overlay.enabled=false") else Seq.empty
+
   val cmd =
     if (isWindows) {
-      Seq("cmd", "/c", wrapper.getAbsolutePath, "-f", pom.getAbsolutePath, s"-P$profile", "-q", goal)
+      Seq("cmd", "/c", wrapper.getAbsolutePath, "-f", pom.getAbsolutePath, s"-P$profile", "-q") ++ extraProps ++ Seq(goal)
     } else {
-      Seq(wrapper.getAbsolutePath, "-f", pom.getAbsolutePath, s"-P$profile", "-q", goal)
+      Seq(wrapper.getAbsolutePath, "-f", pom.getAbsolutePath, s"-P$profile", "-q") ++ extraProps ++ Seq(goal)
     }
   val code = Process(cmd, base).!(ProcessLogger(s => log.info(s), e => log.error(e)))
   if (code != 0) sys.error(s"[j2cl] ${profile}:${goal} failed with exit code $code")

@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-j2cl-debug-overlay-prod-exclusion",
+  "version": "PR #1278",
+  "date": "2026-05-19",
+  "title": "Exclude J2CL debug overlay from production bundles",
+  "summary": "Production J2CL builds now emit a literal false compile-time constant for the debug-overlay flag, enabling Closure dead-code elimination of all markDebugOnly tagging and associated debug strings.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Replace runtime System.getProperty() flag with a Maven-generated literal constant so the Closure compiler can reliably DCE debug-only code paths in production",
+        "Guard detail element visibility in render() to prevent diagnostic text from reaching users in production builds where the debug overlay is disabled"
+      ]
+    }
+  ]
+}

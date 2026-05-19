@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-issue-1299-j2cl-wave-controls-overlap",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "J2CL wave controls menu spacing",
+  "summary": "The J2CL wave-controls toggle no longer overlaps the compact topbar user menu.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Moved the floating wave-controls toggle below the compact J2CL topbar so it stays clear of the user menu and avatar controls."
+      ]
+    }
+  ]
+}

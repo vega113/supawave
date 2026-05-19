@@ -62,10 +62,13 @@ describe("<wavy-header>", () => {
   it("compact GWT topbar mode uses compact action controls", async () => {
     const el = await fixture(html`<wavy-header compact-gwt-topbar signed-in></wavy-header>`);
     await el.updateComplete;
-    const bell = el.renderRoot.querySelector("button.bell");
+    const saveStatus = el.renderRoot.querySelector(".savestatus");
+    const netStatus = el.renderRoot.querySelector(".netstatus");
 
-    expect(getComputedStyle(bell).width).to.equal("32px");
-    expect(getComputedStyle(bell).height).to.equal("32px");
+    expect(getComputedStyle(saveStatus).width).to.equal("32px");
+    expect(getComputedStyle(saveStatus).height).to.equal("32px");
+    expect(getComputedStyle(netStatus).width).to.equal("32px");
+    expect(getComputedStyle(netStatus).height).to.equal("32px");
   });
 
   it("compact GWT topbar mode uses the GWT user-menu pill geometry", async () => {
@@ -91,49 +94,14 @@ describe("<wavy-header>", () => {
     expect(el.locale).to.equal("de");
   });
 
-  it("notifications bell renders only when signed-in (A.5)", async () => {
-    const elOut = await fixture(html`<wavy-header></wavy-header>`);
-    await elOut.updateComplete;
-    expect(elOut.renderRoot.querySelector(".bell")).to.be.null;
-
-    const elIn = await fixture(
-      html`<wavy-header signed-in data-address="alice@example.com"></wavy-header>`
-    );
-    await elIn.updateComplete;
-    expect(elIn.renderRoot.querySelector(".bell")).to.exist;
-  });
-
-  it("bell unread dot toggles on unread-count > 0 (A.5)", async () => {
+  it("omits topbar notifications and inbox controls", async () => {
     const el = await fixture(
       html`<wavy-header signed-in data-address="alice@example.com"></wavy-header>`
     );
     await el.updateComplete;
-    const dot = el.renderRoot.querySelector(".bell .dot.violet");
-    expect(dot).to.exist;
-    expect(dot.hasAttribute("hidden")).to.be.true;
-    el.unreadCount = 4;
-    await el.updateComplete;
-    expect(dot.hasAttribute("hidden")).to.be.false;
-  });
 
-  it("bell unread dot uses --wavy-signal-violet, NOT cyan (A.5)", () => {
-    const cssText = WavyHeader_styleText();
-    expect(cssText).to.match(/\.dot\.violet\s*\{[^}]*var\(--wavy-signal-violet/);
-  });
-
-  it("mail icon links to /?view=j2cl-root&q=in:inbox (A.6)", async () => {
-    const el = await fixture(
-      html`<wavy-header signed-in data-address="alice@example.com"></wavy-header>`
-    );
-    await el.updateComplete;
-    const mail = el.renderRoot.querySelector("a.mail");
-    expect(mail).to.exist;
-    // F-2 slice 6 (#1058): the mail icon must keep the J2CL view selector
-    // so signed-in users stay on the wavy chrome rather than being kicked
-    // back to the legacy GWT route. The source-of-truth href is
-    // `${base}?view=j2cl-root&q=in:inbox` in wavy-header.js.
-    expect(mail.getAttribute("href")).to.equal("/?view=j2cl-root&q=in:inbox");
-    expect(mail.getAttribute("aria-label")).to.equal("Inbox");
+    expect(el.renderRoot.querySelector(".bell")).to.be.null;
+    expect(el.renderRoot.querySelector(".mail")).to.be.null;
   });
 
   it("user-menu trigger renders avatar with initials AND visible email span (A.7)", async () => {

@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-j2cl-header-inbox-notifications",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "J2CL topbar removes inert notification and duplicate inbox controls",
+  "summary": "The J2CL root topbar now keeps only working status, locale, and user-menu controls while Inbox remains in the left search rail like GWT.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed the unwired J2CL notification bell and duplicate topbar Inbox shortcut; the GWT-style Inbox filter remains available in the left search rail."
+      ]
+    }
+  ]
+}

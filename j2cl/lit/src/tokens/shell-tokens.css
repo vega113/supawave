@@ -307,7 +307,7 @@ shell-header[compact-gwt-topbar] wavy-header .user-email {
 /* Mirror wavy-header compact shadow-DOM styles onto SSR light-DOM children
  * before shell.js upgrades the element.  Without these, browser-default
  * form/link controls appear on the 40px compact bar until upgrade — the
- * shadow rules (:host([compact-gwt-topbar]) .locale / .bell / …) only
+ * shadow rules (:host([compact-gwt-topbar]) .locale / .user-menu / …) only
  * fire after customElements.define() runs. */
 shell-header[compact-gwt-topbar] wavy-header .locale {
   box-sizing: border-box;
@@ -325,24 +325,6 @@ shell-header[compact-gwt-topbar] wavy-header .locale {
   text-transform: uppercase;
   cursor: pointer;
   appearance: none;
-}
-
-shell-header[compact-gwt-topbar] wavy-header .bell,
-shell-header[compact-gwt-topbar] wavy-header .mail {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.10);
-  cursor: pointer;
-  text-decoration: none;
 }
 
 shell-header[compact-gwt-topbar] wavy-header .user-menu-wrap {
@@ -367,13 +349,6 @@ shell-header[compact-gwt-topbar] wavy-header .user-menu {
   background: rgba(255, 255, 255, 0.10);
   cursor: pointer;
   text-decoration: none;
-}
-
-shell-header[compact-gwt-topbar] wavy-header .bell svg,
-shell-header[compact-gwt-topbar] wavy-header .mail svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
 }
 
 shell-header[compact-gwt-topbar] wavy-header .avatar {

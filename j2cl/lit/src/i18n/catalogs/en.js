@@ -43,8 +43,7 @@ export const en = {
   // wavy-header.js
   "header.brand": "SupaWave home",
   "header.localePicker": "Language",
-  "header.notifications": "Notifications",
-  "header.inbox": "Inbox",
+  "header.inbox": "Inbox", // used by wavy-back-to-inbox
   "header.userMenu": "Open user menu",
   "header.saveSaving": "Saving changes",
   "header.saveUnsaved": "Unsaved changes",

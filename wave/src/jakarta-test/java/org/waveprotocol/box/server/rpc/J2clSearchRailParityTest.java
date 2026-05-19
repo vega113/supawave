@@ -68,13 +68,12 @@ import org.waveprotocol.wave.model.wave.data.ObservableWaveletData;
  * NEW search rail + search-help modal + wavy header chrome that
  * slice 3 mounts inside {@code renderJ2clRootShellPage}.
  *
- * <p>Inventory affordances asserted (45 total, organised below):
+ * <p>Inventory affordances asserted (organised below):
  *
  * <ul>
- *   <li><b>A.1 / A.2 / A.5 / A.6 / A.7</b> — wavy header chrome:
+ *   <li><b>A.1 / A.2 / A.7</b> — wavy header chrome:
  *       brand link with cyan signal-dot, locale picker (seven
- *       options), notifications bell with violet unread dot,
- *       inbox/mail icon, user-menu trigger (avatar + visible email).
+ *       options), user-menu trigger (avatar + visible email).
  *   <li><b>B.1–B.12</b> — search rail: query box (default
  *       {@code in:inbox}) + waveform glyph; help-trigger; New Wave
  *       button with {@code aria-keyshortcuts}; Manage saved searches;
@@ -139,9 +138,9 @@ public final class J2clSearchRailParityTest {
     }
   }
 
-  /** A.1, A.2, A.5, A.6, A.7 — every chrome class marker present in light DOM. */
+  /** A.1, A.2, A.7 — header chrome stays focused on working topbar controls. */
   @Test
-  public void wavyHeaderInnerLightDomEmitsBrandLocaleBellMailUserMenuChrome()
+  public void wavyHeaderInnerLightDomEmitsBrandLocaleUserMenuChrome()
       throws Exception {
     String html = renderJ2clRootShell();
     assertTrue("A.1 brand link class", html.contains("class=\"brand\""));
@@ -149,18 +148,16 @@ public final class J2clSearchRailParityTest {
         "A.1 cyan signal-dot accent (uses --wavy-signal-cyan in the element CSS)",
         html.contains("class=\"brand-dot\""));
     assertTrue("A.2 locale picker class", html.contains("class=\"locale\""));
-    assertTrue("A.5 notifications bell class", html.contains("class=\"bell\""));
-    assertTrue(
-        "A.5 violet unread dot (initially hidden)",
-        html.contains("class=\"dot violet\" hidden"));
-    assertTrue("A.6 mail icon class", html.contains("class=\"mail\""));
-    assertTrue(
-        "A.6 mail icon links to inbox query with J2CL root routing",
-        html.contains("href=\"/?view=j2cl-root&amp;q=in%3Ainbox\""));
+    assertFalse(
+        "Notifications are not wired in J2CL and must not render",
+        html.contains("class=\"bell\""));
+    assertFalse(
+        "Topbar Inbox is duplicate of the left search rail",
+        html.contains("class=\"mail\""));
     assertTrue("A.7 user-menu trigger class", html.contains("class=\"user-menu\""));
     assertTrue(
         "A.7 user-menu trigger advertises menu popup semantics",
-        html.contains("aria-haspopup=\"menu\""));
+        html.contains("aria-haspopup=\"true\""));
     assertTrue("A.7 avatar chip class", html.contains("class=\"avatar\""));
     assertTrue(
         "A.7 visible user-email span (matches GWT inventory \"avatar + email\")",
@@ -168,15 +165,6 @@ public final class J2clSearchRailParityTest {
     assertTrue(
         "A.7 user-email content matches viewer address",
         html.contains(">alice@example.com</span>"));
-    // A.5 / A.6 SVG glyphs must SSR so the icons are visible
-    // pre-upgrade (matches the no-flicker contract used by the help
-    // modal's hidden attribute and the avatar initials parity).
-    assertTrue(
-        "A.5 bell button server-renders an SVG glyph (no empty pre-upgrade icon)",
-        html.contains("<button type=\"button\" class=\"bell\" aria-label=\"Notifications\"><svg"));
-    assertTrue(
-        "A.6 mail icon server-renders an SVG glyph (no empty pre-upgrade icon)",
-        html.contains("class=\"mail\" href=\"/?view=j2cl-root&amp;q=in%3Ainbox\" aria-label=\"Inbox\"><svg"));
   }
 
   // ---------- B.* search rail ----------

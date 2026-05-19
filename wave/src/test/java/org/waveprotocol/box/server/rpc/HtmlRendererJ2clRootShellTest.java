@@ -83,6 +83,12 @@ public final class HtmlRendererJ2clRootShellTest extends TestCase {
     assertTrue(
         "compact wavy-header must SSR a netstatus chip",
         html.contains("class=\"netstatus\""));
+    assertFalse(
+        "compact wavy-header must not SSR inert notifications",
+        html.contains("class=\"bell\""));
+    assertFalse(
+        "compact wavy-header must not SSR duplicate Inbox shortcut",
+        html.contains("class=\"mail\""));
     assertTrue(
         "compact wavy-header must SSR the GWT-style user menu toggle",
         html.contains("id=\"wavyHeaderUserMenuToggle\""));

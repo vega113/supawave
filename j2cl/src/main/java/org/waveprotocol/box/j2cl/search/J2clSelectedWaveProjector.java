@@ -23,7 +23,6 @@ import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragment;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveFragments;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveReadState;
 import org.waveprotocol.box.j2cl.transport.SidecarSelectedWaveUpdate;
-import org.waveprotocol.box.j2cl.common.J2clDebugFlags;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveProjector {

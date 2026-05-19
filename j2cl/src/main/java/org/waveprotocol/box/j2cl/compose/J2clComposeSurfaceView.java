@@ -714,7 +714,14 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
   private void mirrorComposerState(HTMLElement composer, J2clComposeSurfaceModel model) {
     setProperty(composer, "available", model.isReplyAvailable());
     setProperty(composer, "targetLabel", model.getReplyTargetLabel());
-    setProperty(composer, "draft", model.getReplyDraft());
+    // Edit-mode composers seed their draft from the blip body in openInlineComposer
+    // and the user's own changes flow back via draft-change → replyDraft. Overwriting
+    // with model.getReplyDraft() on each render would clear the seeded originalText
+    // before the user starts typing (replyDraft is empty or carries a stale reply).
+    String composerMode = composer.getAttribute("mode");
+    if (!"edit".equals(composerMode)) {
+      setProperty(composer, "draft", model.getReplyDraft());
+    }
     setProperty(composer, "submitting", model.isReplySubmitting());
     setProperty(composer, "staleBasis", model.isReplyStaleBasis());
     setProperty(composer, "status", model.getReplyStatusText());

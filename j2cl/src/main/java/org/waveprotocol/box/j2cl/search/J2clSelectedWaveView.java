@@ -34,6 +34,7 @@ import org.waveprotocol.box.j2cl.root.J2clServerFirstRootShellDom;
 import org.waveprotocol.box.j2cl.telemetry.J2clClientTelemetry;
 import org.waveprotocol.box.j2cl.transport.SidecarReactionEntry;
 import org.waveprotocol.box.j2cl.transport.SidecarViewportHints;
+import org.waveprotocol.box.j2cl.common.J2clDebugFlags;
 import org.waveprotocol.box.j2cl.viewport.J2clViewportGrowthDirection;
 
 public final class J2clSelectedWaveView implements J2clSelectedWaveController.View {
@@ -122,7 +123,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
       // attribute; mark the dev-string elements so sidecar.css hides them.
       // status is NOT marked debug-only here — error text must stay visible
       // even when the debug overlay is off; visibility is set in render().
-      markDebugOnly(detail);
+      if (J2clDebugFlags.DEBUG_OVERLAY_ENABLED) {
+        markDebugOnly(detail);
+      }
       removeSelectedWaveEyebrow(existingCard);
       participantSummary = queryRequired(existingCard, ".sidecar-selected-participants");
       snippet = queryRequired(existingCard, ".sidecar-selected-snippet");
@@ -185,7 +188,9 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
 
     detail = (HTMLElement) DomGlobal.document.createElement("p");
     detail.className = "sidecar-selected-detail";
-    markDebugOnly(detail);
+    if (J2clDebugFlags.DEBUG_OVERLAY_ENABLED) {
+      markDebugOnly(detail);
+    }
     detail.hidden = true;
     coldCard.appendChild(detail);
 
@@ -1614,7 +1619,7 @@ public final class J2clSelectedWaveView implements J2clSelectedWaveController.Vi
   // the j2cl-debug-overlay flag is off (default). The flag flips the
   // .j2cl-debug-overlay-on class on <body>; the rule is in sidecar.css.
   private static void markDebugOnly(HTMLElement element) {
-    if (element != null) {
+    if (J2clDebugFlags.DEBUG_OVERLAY_ENABLED && element != null) {
       element.setAttribute("data-j2cl-debug-only", "true");
     }
   }

@@ -157,10 +157,6 @@ public class WaveClientServlet extends HttpServlet {
     String requestedView = resolveRequestedView(request);
     boolean j2clRootBootstrapEnabled =
         featureFlagService.isEnabled("j2cl-root-bootstrap", id != null ? id.getAddress() : null);
-    String waveClientPreference = resolveWaveClientPreference(id);
-    boolean explicitJ2clPreference =
-        HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
-    boolean explicitGwtPreference = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
 
     String contextRoot = request.getContextPath();
     String requestUri = request.getRequestURI();
@@ -182,6 +178,11 @@ public class WaveClientServlet extends HttpServlet {
       response.getWriter().write(HtmlRenderer.renderLandingPage(domain, analyticsAccount));
       return;
     }
+
+    String waveClientPreference = resolveWaveClientPreference(id);
+    boolean explicitJ2clPreference =
+        HumanAccountData.WAVE_CLIENT_J2CL_ROOT.equals(waveClientPreference);
+    boolean explicitGwtPreference = HumanAccountData.WAVE_CLIENT_GWT.equals(waveClientPreference);
 
     if (VIEW_J2CL_ROOT.equals(requestedView)
         || (StringUtils.isEmpty(requestedView)

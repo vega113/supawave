@@ -139,10 +139,11 @@ public final class AccountSettingsServlet extends HttpServlet {
       caller.setWaveClientPreference(preference);
       accountStore.putAccount(caller);
       setJsonUtf8(resp);
+      String redirectTarget = req.getContextPath() + waveClientRedirectTarget(preference);
       resp.getWriter().write("{\"ok\":true,\"preference\":\""
-          + caller.getWaveClientPreference()
+          + jsonEscape(preference)
           + "\",\"redirectTarget\":\""
-          + waveClientRedirectTarget(caller.getWaveClientPreference())
+          + jsonEscape(redirectTarget)
           + "\"}");
     } catch (PersistenceException e) {
       LOG.severe("Failed to update Wave client preference for " + caller.getId(), e);
@@ -369,6 +370,11 @@ public final class AccountSettingsServlet extends HttpServlet {
       return null; // null value
     }
     return null;
+  }
+
+  private static String jsonEscape(String s) {
+    if (s == null) return "";
+    return s.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   private static void setJsonUtf8(HttpServletResponse resp) {

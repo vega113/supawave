@@ -54,6 +54,19 @@ describe("<reaction-row>", () => {
     );
   });
 
+  it("uses compact footer-height controls", async () => {
+    const el = await fixture(html`
+      <reaction-row blip-id="b+compact" .reactions=${reactions}></reaction-row>
+    `);
+    const row = el.renderRoot.querySelector(".row");
+    const add = el.renderRoot.querySelector("[data-reaction-add]");
+    const chip = el.renderRoot.querySelector("[data-reaction-chip]");
+
+    expect(getComputedStyle(row).minHeight).to.equal("23px");
+    expect(getComputedStyle(add).minHeight).to.equal("23px");
+    expect(getComputedStyle(chip).paddingTop).to.equal("2px");
+  });
+
   it("normalizes malformed reaction counts for visible and live text", async () => {
     const el = await fixture(html`
       <reaction-row

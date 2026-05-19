@@ -21,17 +21,27 @@ export class ReactionRow extends LitElement {
     .row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 4px;
       align-items: center;
+      min-height: 23px;
+    }
+
+    .row > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     button {
       border: 1px solid var(--wavy-signal-violet-soft, var(--shell-color-divider-subtle, #d8e3ee));
       border-radius: var(--wavy-radius-pill, 999px);
-      padding: 5px 9px;
+      min-height: 23px;
+      box-sizing: border-box;
+      padding: 2px 8px;
       background: transparent;
       color: var(--wavy-text-body, inherit);
       font: inherit;
+      line-height: 1;
       cursor: pointer;
       transition: background-color 180ms ease-out, border-color 180ms ease-out,
         box-shadow 180ms ease-out;

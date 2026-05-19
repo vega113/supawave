@@ -1012,21 +1012,21 @@ export class WaveBlip extends LitElement {
         <div class="body">
           <slot></slot>
         </div>
+        <div class="continuation-row" data-blip-continuation-host="true">
+          <button
+            type="button"
+            class="continuation-trigger"
+            data-blip-continuation-trigger="true"
+            aria-label=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
+            title=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
+            @click=${this._onContinuationClick}
+          >
+            <span class="glyph" aria-hidden="true">↩</span>
+          </button>
+        </div>
         <slot name="blip-extension" slot="blip-extension"></slot>
         <slot name="reactions" slot="reactions"></slot>
       </wavy-blip-card>
-      <div class="continuation-row" data-blip-continuation-host="true">
-        <button
-          type="button"
-          class="continuation-trigger"
-          data-blip-continuation-trigger="true"
-          aria-label=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
-          title=${t("blip.replyOnSameLevel", "Reply on the same level as this blip")}
-          @click=${this._onContinuationClick}
-        >
-          <span class="glyph" aria-hidden="true">↩</span>
-        </button>
-      </div>
     `;
   }
 }

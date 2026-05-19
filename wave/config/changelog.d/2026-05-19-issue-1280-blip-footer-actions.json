@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-issue-1280-blip-footer-actions",
+  "version": "J2CL parity",
+  "date": "2026-05-19",
+  "title": "Blip reply and reaction badges no longer overlap",
+  "summary": "The J2CL same-level reply affordance is anchored to the blip body before reactions, and J2CL/GWT reaction controls use compact footer geometry so emoji badges stay aligned with the blip footer.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Prevented the J2CL hover reply affordance from floating over emoji reaction badges.",
+        "Matched compact reaction badge spacing across J2CL and GWT blip footers."
+      ]
+    }
+  ]
+}

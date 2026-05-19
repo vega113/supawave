@@ -50,6 +50,16 @@ public final class WavePanelCssCompatibilityTest extends TestCase {
     assertFalse(containsBlockedMediaQuery(css));
   }
 
+  public void testBlipReactionControlsUseCompactFooterGeometry() throws Exception {
+    String css = read(
+        "wave/src/main/resources/org/waveprotocol/wave/client/wavepanel/view/dom/full/Blip.css");
+
+    assertTrue(css.contains(".reactions {\n  margin: 0;\n  padding-top: 2px;"));
+    assertTrue(css.contains("gap: 4px;"));
+    assertTrue(css.contains("min-height: 23px;"));
+    assertTrue(css.contains("box-sizing: border-box;"));
+  }
+
   public void testTagsCssAvoidsCalcForInlineEditorWidth() throws Exception {
     String css = read(
         "wave/src/main/java/org/waveprotocol/wave/client/wavepanel/view/dom/full/Tags.css");

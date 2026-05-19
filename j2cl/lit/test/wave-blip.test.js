@@ -1,6 +1,7 @@
 import { fixture, expect, html, oneEvent, aTimeout } from "@open-wc/testing";
 import "../src/elements/wave-blip.js";
 import "../src/elements/wave-blip-toolbar.js";
+import "../src/elements/reaction-row.js";
 import "../src/design/wavy-blip-card.js";
 
 function ensureWavyTokensLoaded() {
@@ -356,6 +357,33 @@ describe("<wave-blip>", () => {
     setTimeout(() => button.click(), 0);
     const ev = await oneEvent(el, "wave-blip-continuation-requested");
     expect(ev.detail).to.deep.equal({ blipId: "b4", waveId: "w4" });
+  });
+
+  it("anchors the continuation trigger before reactions so the reply affordance does not cover emoji badges", async () => {
+    const el = await fixture(html`
+      <wave-blip data-blip-id="b4r" data-wave-id="w4" author-name="A">
+        body
+        <reaction-row
+          slot="reactions"
+          blip-id="b4r"
+          .reactions=${[{ emoji: "👍", count: 1 }]}
+        ></reaction-row>
+      </wave-blip>
+    `);
+    await el.updateComplete;
+    const reactionRow = el.querySelector("reaction-row");
+    await reactionRow.updateComplete;
+
+    const host = el.renderRoot.querySelector("[data-blip-continuation-host]");
+    const reactionsSlot = el.renderRoot.querySelector('slot[name="reactions"]');
+    const trigger = el.renderRoot.querySelector("[data-blip-continuation-trigger]");
+    const reactionAdd = reactionRow.renderRoot.querySelector("[data-reaction-add]");
+    expect(
+      host.compareDocumentPosition(reactionsSlot) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).to.not.equal(0);
+    expect(trigger.getBoundingClientRect().bottom).to.be.at.most(
+      reactionAdd.getBoundingClientRect().top
+    );
   });
 
   it("re-emits wave-blip-edit-requested when toolbar Edit fires", async () => {

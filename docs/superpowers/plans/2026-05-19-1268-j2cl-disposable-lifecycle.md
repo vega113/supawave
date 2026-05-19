@@ -19,11 +19,16 @@ Introduce a minimal, explicit `Disposable` contract for J2CL UI controllers and 
 cd /Users/vega/devroot/worktrees/j2cl-disposable-lifecycle
 grep -r --include="*.java" "addEventListener" j2cl/src/main/java/org/waveprotocol/box/j2cl/ | wc -l   # 66
 grep -r --include="*.java" "Subscription\|closeSubscription\|unsubscribe" j2cl/src/main/java/org/waveprotocol/box/j2cl/ --line-number
-# Key concentrations:
-# - J2clSelectedWaveController (multiple closeSubscription + visibilitychange)
-# - J2clReadSurfaceDomRenderer (scroll + window listeners, many per-blip listeners)
-# - J2clSelectedWaveView, J2clComposeSurfaceView, search, root controllers
+# Key concentrations (reproduced):
+# - J2clSelectedWaveController (~18 Subscription/closeSubscription sites + visibilitychange path)
+# - J2clReadSurfaceDomRenderer (scroll + window listeners at 260-261/317-318 + many dynamic per-blip/click/focus/keydown)
+# - J2clSelectedWaveView (10+ nav card listeners at ~371+, image/profile listeners)
 ```
+
+**Visibility listener risk surfaced during review:**
+- `J2clSelectedWaveController.java:373-375`: `if (visibilitySource != null) visibilitySource.addVisibilityListener(this::onVisible);`
+- `J2clSelectedWaveController.java:1754-1763`: `defaultVisibilitySource()` returns a lambda that does a direct `DomGlobal.document.addEventListener("visibilitychange", ...)` — the listener closure is never stored or returned to the controller. No `visibilitySource` field is retained.
+This specific path will require the worker to either (a) store a removable handler at registration time or (b) extend the VisibilitySource abstraction for this slice. The plan requires the worker to address removal for this listener as part of the controller's `destroy()`.
 
 ## 3. Deliverables (scoped to first high-impact slice)
 
@@ -47,15 +52,17 @@ Implement `Disposable` (and the destroy logic) on:
 1. `J2clSelectedWaveController` — store Subscription ref + visibilitychange handler; implement closeSubscription + destroy.
 2. `J2clReadSurfaceDomRenderer` — store the scroll handler reference; remove both host and window listeners in destroy(); also per-blip listeners where feasible.
 3. `J2clSelectedWaveView` — the 10+ nav card listeners + image/profile listeners; store handler refs or use a small internal registry.
-4. Wiring call sites:
-   - `J2clRootShellController` or `J2clSidecarRouteController` (the place that swaps the selected wave surface) — call `destroy()` on the outgoing controller/view before replacing it.
+4. Wiring call sites (worker must discover and document the exact ownership/teardown points):
+   - Actual creation of `J2clSelectedWaveView` + `J2clSelectedWaveController` + renderer occurs in `J2clRootShellController` (lines ~69-71, 145-157) and is held in long-lived refs/closures. `J2clSidecarRouteController` calls `onWaveSelected` on a long-lived injected controller (no per-wave recreation at 123/167).
+   - The worker must locate the real "outgoing surface teardown" moments (sidecar hide/close, root shell stop, pagehide, or new `stop()`/hide paths) and wire `destroy()` on the *outgoing* instances before replacement or on close.
    - Similar for sidecar compose surface close.
+   - The plan requires the worker to add explicit "creation site → destroy site" mapping in the commit or a small table in the PR description.
 
 Other classes listed in the issue (ComposeSurfaceController, SearchPanelController, RootLiveSurfaceController, RootShellController) are noted for follow-up slices under the same issue or child issues; do not expand scope in this PR.
 
 ### 3.3 Lifecycle wiring rules
 - `destroy()` must be called exactly once when the surface is being torn down (before DOM removal or controller replacement).
-- Controllers that own sub-views must call destroy on their children.
+- Controllers that own sub-views must call destroy on their children (explicitly: `J2clSelectedWaveView.destroy()` must call `readSurface.destroy()` on its `private final J2clReadSurfaceDomRenderer readSurface` field (see ~135/234) before its own listener cleanup).
 - Idempotency: use a private `boolean destroyed = false;` guard.
 - Listener removal must use the **exact same function reference** that was passed to `addEventListener`. Store method references / lambdas in fields when necessary (e.g. `private final EventListener scrollHandler = this::onHostScroll;`).
 
@@ -63,6 +70,15 @@ Other classes listed in the issue (ComposeSurfaceController, SearchPanelControll
 - Brief Javadoc on the interface and on each `destroy()` implementation.
 - Update any existing "lifecycle" or "cleanup" comments near the affected classes.
 - One paragraph in `docs/j2cl-lit-implementation-workflow.md` or a new small section in the J2CL parity docs noting the new contract (optional but recommended for future workers).
+
+### 3.5 Files changed in this slice (narrow)
+- New: `j2cl/src/main/java/org/waveprotocol/box/j2cl/common/Disposable.java`
+- Modified (core): 
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java`
+  - `j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java`
+- Modified (wiring/ownership): 1–2 files in root/search (exact files to be identified during the "discover teardown sites" task in §4)
+- Optional docs: `docs/j2cl-lit-implementation-workflow.md`
 
 ## 4. Implementation Order (strict)
 1. Add the `Disposable` interface (new package under `common/` to match `J2clDebugFlags` precedent).
@@ -72,21 +88,24 @@ Other classes listed in the issue (ComposeSurfaceController, SearchPanelControll
 5. Run full J2CL production build.
 
 ## 5. Verification Commands (must pass before PR)
-From the worktree:
+From the worktree (copy-paste ready):
 ```bash
-# Primary build (the one that exercises J2CL/Closure)
-sbt j2clProductionBuild   # or the exact task used for the j2cl/ module in this repo
+# Primary J2CL production build (exercises the full Closure/ADVANCED_OPTIMIZATIONS path)
+sbt j2clProductionBuild
 
-# Quick sanity greps after changes (part of PR checklist)
-grep -n "addEventListener" j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java | wc -l
-grep -n "removeEventListener\|destroy" j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java
-# Repeat for the other modified files
-
-# Optional local server boot (narrow health check)
-# (use the normal wave server start and confirm no obvious JS console errors on wave open/close)
+# Listener accounting sanity (run for each of the three core files)
+for f in j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveController.java \
+         j2cl/src/main/java/org/waveprotocol/box/j2cl/read/J2clReadSurfaceDomRenderer.java \
+         j2cl/src/main/java/org/waveprotocol/box/j2cl/search/J2clSelectedWaveView.java; do
+  echo "=== $f ==="
+  grep -c "addEventListener" "$f" || true
+  grep -c "removeEventListener\|destroy()" "$f" || true
+done
 ```
 
-Record the exact output of the build command and the grep "listener vs destroy" counts in the issue before opening the PR.
+Record the exact `sbt j2clProductionBuild` output + the before/after listener counts in the issue #1268 before the PR is created.
+
+Cross-reference: This lane follows the identical process documented in the "Implementation lane started" comment on this issue and the successful #1274 lane (plan LGTM → edits only in this worktree → impl review LGTM → 0 unresolved review threads + dedicated monitor → PR from worktree).
 
 ## 6. Rollback / Safety
 - All changes are additive (new interface + methods) except the removal of listeners (which is the desired fix).

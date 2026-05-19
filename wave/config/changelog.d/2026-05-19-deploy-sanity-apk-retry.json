@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-19-deploy-sanity-apk-retry",
+  "version": "PR #TBD",
+  "date": "2026-05-19",
+  "title": "Retry transient Alpine package failures in deploy sanity checks",
+  "summary": "Production deploy sanity checks now retry the temporary Alpine package install used for curl and jq, so a brief package mirror outage no longer aborts an otherwise healthy blue-green deploy.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Wrapped the sanity container's apk install of curl and jq in a bounded three-attempt retry loop for both current and legacy Contabo deploy scripts."
+      ]
+    }
+  ]
+}

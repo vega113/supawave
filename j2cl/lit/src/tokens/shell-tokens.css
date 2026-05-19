@@ -202,6 +202,11 @@ shell-header {
   box-sizing: border-box;
 }
 
+shell-header:defined {
+  display: block;
+  width: 100%;
+}
+
 shell-header[compact-gwt-topbar] {
   padding: 0 12px;
   min-height: 40px;

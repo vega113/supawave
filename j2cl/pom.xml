@@ -154,6 +154,7 @@
       <properties>
         <sidecar.webappDirectory>${project.basedir}/../war/j2cl</sidecar.webappDirectory>
         <sidecar.compilationLevel>ADVANCED_OPTIMIZATIONS</sidecar.compilationLevel>
+        <j2cl.debug.overlay.enabled>false</j2cl.debug.overlay.enabled>
       </properties>
     </profile>
   </profiles>

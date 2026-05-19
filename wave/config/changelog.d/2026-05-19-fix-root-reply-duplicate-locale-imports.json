@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-fix-root-reply-duplicate-locale-imports",
+  "version": "PR #1288",
+  "date": "2026-05-19",
+  "title": "Fix root reply duplicate locale imports",
+  "summary": "Remove duplicate subscribe import and duplicate locale aria-label rerender test introduced by the #1284 merge overlap.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Removed duplicate `subscribe` import in wavy-wave-root-reply-trigger.js left from the #1284 merge.",
+        "Removed duplicate setLocale/resetLocale import and duplicate aria-label rerender test block in wavy-wave-root-reply-trigger.test.js."
+      ]
+    }
+  ]
+}

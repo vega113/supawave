@@ -1,7 +1,6 @@
 import { LitElement, css, html } from "lit";
 import { subscribe } from "../i18n/locale.js";
 import { t } from "../i18n/t.js";
-import { subscribe } from "../i18n/locale.js";
 
 /**
  * <wavy-wave-root-reply-trigger> — F-3.S1 (#1038, R-5.1 step 5)

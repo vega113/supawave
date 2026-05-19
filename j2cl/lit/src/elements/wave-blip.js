@@ -821,9 +821,27 @@ export class WaveBlip extends LitElement {
       new CustomEvent("wave-blip-edit-requested", {
         bubbles: true,
         composed: true,
-        detail: { blipId: this.blipId, waveId: this.waveId }
+        detail: {
+          blipId: this.blipId,
+          waveId: this.waveId,
+          bodySize: this.bodySize || 0,
+          bodyText: this._currentBodyText()
+        }
       })
     );
+  }
+
+  _currentBodyText() {
+    if (!this.shadowRoot) return this.textContent || "";
+    const slot = this.shadowRoot.querySelector(".body slot");
+    const roots =
+      slot && typeof slot.assignedNodes === "function"
+        ? slot.assignedNodes({ flatten: true })
+        : [];
+    if (!roots || roots.length === 0) {
+      return this.textContent || "";
+    }
+    return roots.map((node) => node.textContent || "").join("");
   }
 
   /**

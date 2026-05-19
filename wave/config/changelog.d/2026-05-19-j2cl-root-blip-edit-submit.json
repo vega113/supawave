@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-05-19-j2cl-root-blip-edit-submit",
+  "version": "Unreleased",
+  "date": "2026-05-19",
+  "title": "Fix J2CL blip edit submit routing",
+  "summary": "J2CL edit mode now submits changes to the selected blip instead of creating a new reply blip.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "The J2CL Edit action captures the existing blip text and document metadata, prefills the edit composer, and routes Done through a blip-edit submit path.",
+        "Edit-mode submits now target the existing blip document and no longer mutate the conversation manifest as a reply."
+      ]
+    }
+  ]
+}

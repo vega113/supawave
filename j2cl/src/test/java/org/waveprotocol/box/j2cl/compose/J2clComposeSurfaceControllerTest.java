@@ -109,6 +109,31 @@ public class J2clComposeSurfaceControllerTest {
   }
 
   @Test
+  public void editSubmitUsesExistingBlipInsteadOfReplySession() {
+    FakeGateway gateway = new FakeGateway();
+    FakeView view = new FakeView();
+    CapturingDeltaFactory factory = new CapturingDeltaFactory();
+    J2clComposeSurfaceController controller =
+        new J2clComposeSurfaceController(
+            gateway,
+            view,
+            factory,
+            waveId -> { },
+            waveId -> { });
+
+    controller.start();
+    controller.onWriteSessionChanged(writeSessionWithReplyTargets());
+    controller.onBlipEditSubmitted(
+        "edited root text", "b+root", TEST_BODY_ITEM_COUNT, "original root text");
+
+    Assert.assertNull("Edit submit must not build a reply session.", factory.lastReplySession);
+    Assert.assertEquals("b+root", factory.lastEditBlipId);
+    Assert.assertEquals(TEST_BODY_ITEM_COUNT, factory.lastEditBodyItemCount);
+    Assert.assertEquals("original root text", factory.lastEditOriginalText);
+    Assert.assertEquals("edited root text", factory.lastDraftText);
+  }
+
+  @Test
   public void inlineReplyWithoutCapturedCaretFallsBackToParentBodyEndLikeGwt() {
     FakeGateway gateway = new FakeGateway();
     FakeView view = new FakeView();
@@ -4952,6 +4977,9 @@ public class J2clComposeSurfaceControllerTest {
     private J2clSidecarWriteSession lastReplySession = null;
     private int lastInlineAnchorItemOffset = Integer.MIN_VALUE;
     private int lastInlineAnchorParentBodyItemCount = Integer.MIN_VALUE;
+    private String lastEditBlipId = null;
+    private int lastEditBodyItemCount = Integer.MIN_VALUE;
+    private String lastEditOriginalText = null;
 
     @Override
     public J2clComposeSurfaceController.CreateWaveRequest createWaveRequest(
@@ -4998,6 +5026,24 @@ public class J2clComposeSurfaceControllerTest {
       lastInlineAnchorItemOffset = inlineAnchorItemOffset;
       lastInlineAnchorParentBodyItemCount = parentBodyItemCount;
       return createReplyRequest(address, session, draftText, document);
+    }
+
+    @Override
+    public SidecarSubmitRequest createBlipEditRequest(
+        String address,
+        J2clSidecarWriteSession session,
+        String blipId,
+        String draftText,
+        org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document,
+        int bodyItemCount,
+        String originalText) {
+      lastEditBlipId = blipId;
+      lastDraftText = draftText;
+      lastDocumentComponentCount = componentCount(document);
+      lastEditBodyItemCount = bodyItemCount;
+      lastEditOriginalText = originalText;
+      return new SidecarSubmitRequest(
+          session.getSelectedWaveId() + "/~/conv+root", "{\"edit\":true}", session.getChannelId());
     }
 
     private static int componentCount(org.waveprotocol.box.j2cl.richtext.J2clComposerDocument document) {

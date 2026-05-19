@@ -241,7 +241,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
           event -> openInlineComposer(eventDetailString(event, "blipId"), "continuation"));
       DomGlobal.document.body.addEventListener(
           "wave-blip-edit-requested",
-          event -> openInlineComposer(eventDetailString(event, "blipId"), "edit"));
+          event ->
+              openInlineComposer(
+                  eventDetailString(event, "blipId"),
+                  "edit",
+                  eventDetailInt(event, "bodySize", 0),
+                  eventDetailString(event, "bodyText")));
       DomGlobal.document.body.addEventListener(
           "wave-root-reply-requested",
           event -> openInlineComposer("", "wave-root"));
@@ -490,6 +495,11 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
 
   /** F-3.S1 entrypoint: mount a `<wavy-composer>` inline at the originating blip. */
   private void openInlineComposer(String blipId, String mode) {
+    openInlineComposer(blipId, mode, 0, "");
+  }
+
+  private void openInlineComposer(
+      String blipId, String mode, int bodyItemCount, String originalText) {
     String key = blipId == null ? "" : blipId;
     if (inlineComposers.containsKey(key)) {
       HTMLElement cached = inlineComposers.get(key);
@@ -498,6 +508,12 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
         // the same blip must surface the new verb in the host chip and in
         // emitted event details) and re-focus.
         cached.setAttribute("mode", mode);
+        if ("edit".equals(mode)) {
+          cached.setAttribute(
+              "data-edit-body-item-count", String.valueOf(Math.max(0, bodyItemCount)));
+          cached.setAttribute("data-edit-original-text", originalText == null ? "" : originalText);
+          setProperty(cached, "draft", originalText == null ? "" : originalText);
+        }
         setProperty(cached, "mode", mode);
         cached.dispatchEvent(new Event("composer-focus-request"));
         activeInlineComposerKey = key;
@@ -523,6 +539,11 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     composer.setAttribute("data-inline-composer", "true");
     composer.setAttribute("reply-target-blip-id", key);
     composer.setAttribute("mode", mode);
+    if ("edit".equals(mode)) {
+      composer.setAttribute(
+          "data-edit-body-item-count", String.valueOf(Math.max(0, bodyItemCount)));
+      composer.setAttribute("data-edit-original-text", originalText == null ? "" : originalText);
+    }
     setProperty(composer, "available", true);
     setProperty(composer, "mode", mode);
     composer.addEventListener(
@@ -553,17 +574,25 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
             currentMode = composer.getAttribute("mode");
           }
           boolean continuation = "continuation".equals(currentMode);
+          boolean edit = "edit".equals(currentMode);
+          int editBodyItemCount = parseInt(composer.getAttribute("data-edit-body-item-count"), 0);
+          String editOriginalText = composer.getAttribute("data-edit-original-text");
           List<J2clComposeSurfaceController.SubmittedComponent> components =
               decodeSubmittedComponents(event);
           if (components.isEmpty()) {
             String draft = propertyString(composer, "draft");
-            if (continuation) {
+            if (edit) {
+              listener.onBlipEditSubmitted(draft, key, editBodyItemCount, editOriginalText);
+            } else if (continuation) {
               listener.onContinuationSubmitted(draft, key);
             } else {
               listener.onReplySubmitted(draft, key);
             }
           } else {
-            if (continuation) {
+            if (edit) {
+              listener.onBlipEditSubmittedWithComponents(
+                  components, key, editBodyItemCount, editOriginalText);
+            } else if (continuation) {
               listener.onContinuationSubmittedWithComponents(components, key);
             } else {
               listener.onReplySubmittedWithComponents(components, key);
@@ -602,6 +631,9 @@ public final class J2clComposeSurfaceView implements J2clComposeSurfaceControlle
     activeInlineComposerKey = key;
     // Project current model state onto the new composer.
     mirrorComposerStateFromReplyElement(composer);
+    if ("edit".equals(mode)) {
+      setProperty(composer, "draft", originalText == null ? "" : originalText);
+    }
     composer.dispatchEvent(new Event("composer-focus-request"));
     if (scrollAnchor != null) {
       scrollAnchor.scrollTop = scrollTopBeforeMount;

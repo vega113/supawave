@@ -1,5 +1,16 @@
 import { fixture, expect, html, oneEvent } from "@open-wc/testing";
+import "../src/elements/shell-header.js";
+import "../src/elements/wavy-header.js";
 import "../src/elements/wavy-wave-controls-toggle.js";
+
+function rectsOverlap(a, b) {
+  return (
+    a.left < b.right &&
+    a.right > b.left &&
+    a.top < b.bottom &&
+    a.bottom > b.top
+  );
+}
 
 describe("<wavy-wave-controls-toggle>", () => {
   it("defines the wavy-wave-controls-toggle custom element", () => {
@@ -66,5 +77,34 @@ describe("<wavy-wave-controls-toggle>", () => {
     const button = el.renderRoot.querySelector("button");
     expect(button.getAttribute("aria-pressed")).to.equal("false");
     expect(button.getAttribute("aria-label")).to.equal("Hide wave controls");
+  });
+
+  it("keeps the floating toggle clear of the compact user menu", async () => {
+    const el = await fixture(html`
+      <div>
+        <shell-header signed-in compact-gwt-topbar style="width:100vw">
+          <a slot="brand">SupaWave</a>
+          <wavy-header
+            slot="actions-signed-in"
+            signed-in
+            no-brand
+            compact-gwt-topbar
+            data-address="test@example.com"
+          ></wavy-header>
+        </shell-header>
+        <wavy-wave-controls-toggle></wavy-wave-controls-toggle>
+      </div>
+    `);
+    const header = el.querySelector("wavy-header");
+    const toggle = el.querySelector("wavy-wave-controls-toggle");
+    await header.updateComplete;
+    await toggle.updateComplete;
+
+    const userMenuRect = header.renderRoot
+      .querySelector(".user-menu")
+      .getBoundingClientRect();
+    const toggleRect = toggle.getBoundingClientRect();
+
+    expect(rectsOverlap(toggleRect, userMenuRect)).to.equal(false);
   });
 });

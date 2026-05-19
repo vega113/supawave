@@ -10,10 +10,11 @@ import { t } from "../i18n/t.js";
  *   - pressed: boolean — when true, controls are hidden ("compact mode").
  *
  * Layout:
- *   - The host is fixed-position in the top-right of the viewport,
- *     offset to the left of the nav-drawer-toggle on mobile (escapes
- *     the shell-root grid so it sits in the visible header band rather
- *     than below the min-height:100vh shell).
+ *   - The host is fixed-position just below the compact topbar, aligned
+ *     with the right edge of the viewport. Keeping it below the 40px
+ *     header prevents the floating control from colliding with the
+ *     right-aligned user-menu/avatar cluster while still escaping the
+ *     shell-root grid.
  *
  * A11y:
  *   - The inner native &lt;button&gt; carries the role + keyboard
@@ -37,7 +38,7 @@ export class WavyWaveControlsToggle extends LitElement {
   static styles = css`
     :host {
       position: fixed;
-      top: var(--wavy-spacing-3, 12px);
+      top: calc(40px + var(--wavy-spacing-2, 8px));
       right: var(--wavy-spacing-5, 24px);
       z-index: 90;
       display: inline-flex;

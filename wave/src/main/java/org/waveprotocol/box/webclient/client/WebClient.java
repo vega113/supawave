@@ -411,6 +411,8 @@ public class WebClient implements EntryPoint {
 
   /** Watchdog for the in-flight wave open; null when no open is pending. */
   private Timer waveLoadWatchdog;
+  /** Profiling timer for the in-flight wave open; stopped whenever the open ends. */
+  private org.waveprotocol.box.stat.Timer waveLoadTimer;
 
   @UiField(provided = true)
   final SearchPanelWidget searchPanel = new SearchPanelWidget(new SearchPanelRenderer(profiles));
@@ -925,12 +927,14 @@ public class WebClient implements EntryPoint {
     // Arm a watchdog so a stalled open does not leave the user on "Loading"
     // forever. The completion command below cancels it on success.
     cancelWaveLoadWatchdog();
+    waveLoadTimer = timer;
     ToastNotification.dismissPersistent(WAVE_LOAD_TIMEOUT_TOAST_ID);
     final WaveRef pendingRef = waveRef;
     waveLoadWatchdog = new Timer() {
       @Override
       public void run() {
         waveLoadWatchdog = null;
+        waveLoadTimer = null;
         Timing.stop(timer);
         onWaveLoadTimeout(pendingRef);
       }
@@ -973,12 +977,14 @@ public class WebClient implements EntryPoint {
     History.newItem(selectedToken, false);
   }
 
-  /** Cancels any pending wave-load watchdog timer. */
+  /** Cancels any pending wave-load watchdog and stops its associated profiling timer. */
   private void cancelWaveLoadWatchdog() {
     if (waveLoadWatchdog != null) {
       waveLoadWatchdog.cancel();
       waveLoadWatchdog = null;
     }
+    Timing.stop(waveLoadTimer);
+    waveLoadTimer = null;
   }
 
   /**

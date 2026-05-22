@@ -945,6 +945,7 @@ public class WebClient implements EntryPoint {
         // (e.g. the user retried after a timeout): it must not touch the shared
         // loading indicator or toast for the now-current open.
         if (WebClient.this.wave != loadingWave) {
+          Timing.stop(timer);
           return;
         }
         cancelWaveLoadWatchdog();
@@ -997,7 +998,6 @@ public class WebClient implements EntryPoint {
         new Runnable() {
           @Override
           public void run() {
-            ToastNotification.dismissPersistent(WAVE_LOAD_TIMEOUT_TOAST_ID);
             // Reopen by wave id so the stalled provider is torn down and a fresh
             // open is issued, rather than short-circuiting to in-wave blip
             // navigation when the original ref carried a document id.

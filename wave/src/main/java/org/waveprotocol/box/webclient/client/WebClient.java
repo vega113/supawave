@@ -396,6 +396,24 @@ public class WebClient implements EntryPoint {
   ImplPanel waveHolder;
   private final Element loading = new LoadingIndicator().getElement();
 
+  /**
+   * Maximum time to wait for a wave to finish opening before surfacing a
+   * recovery affordance. The wave-open path ({@link StagesProvider}) clears the
+   * loading indicator only when the OT channel finishes opening; if that never
+   * happens (lost open request, server never streams a snapshot, channel
+   * desync) there is otherwise no timeout and the user is stuck on "Loading"
+   * forever.
+   */
+  private static final int WAVE_LOAD_TIMEOUT_MS = 25000;
+
+  /** Stable id for the wave-load-timeout toast so it can be dismissed/replaced. */
+  private static final String WAVE_LOAD_TIMEOUT_TOAST_ID = "wave-load-timeout";
+
+  /** Watchdog for the in-flight wave open; null when no open is pending. */
+  private Timer waveLoadWatchdog;
+  /** Profiling timer for the in-flight wave open; stopped whenever the open ends. */
+  private org.waveprotocol.box.stat.Timer waveLoadTimer;
+
   @UiField(provided = true)
   final SearchPanelWidget searchPanel = new SearchPanelWidget(new SearchPanelRenderer(profiles));
 
@@ -906,9 +924,36 @@ public class WebClient implements EntryPoint {
     if (!isNewWave && SearchPresenter.consumePendingMentionFocus()) {
       wave.setPendingMentionFocus(true);
     }
+    // Arm a watchdog so a stalled open does not leave the user on "Loading"
+    // forever. The completion command below cancels it on success.
+    cancelWaveLoadWatchdog();
+    waveLoadTimer = timer;
+    ToastNotification.dismissPersistent(WAVE_LOAD_TIMEOUT_TOAST_ID);
+    final WaveRef pendingRef = waveRef;
+    waveLoadWatchdog = new Timer() {
+      @Override
+      public void run() {
+        waveLoadWatchdog = null;
+        waveLoadTimer = null;
+        Timing.stop(timer);
+        onWaveLoadTimeout(pendingRef);
+      }
+    };
+    waveLoadWatchdog.schedule(WAVE_LOAD_TIMEOUT_MS);
+
+    final StagesProvider loadingWave = wave;
     wave.load(new Command() {
       @Override
       public void execute() {
+        // Ignore a late completion from a wave that has since been replaced
+        // (e.g. the user retried after a timeout): it must not touch the shared
+        // loading indicator or toast for the now-current open.
+        if (WebClient.this.wave != loadingWave) {
+          Timing.stop(timer);
+          return;
+        }
+        cancelWaveLoadWatchdog();
+        ToastNotification.dismissPersistent(WAVE_LOAD_TIMEOUT_TOAST_ID);
         loading.removeFromParent();
         Timing.stop(timer);
       }
@@ -930,6 +975,41 @@ public class WebClient implements EntryPoint {
       }
     }
     History.newItem(selectedToken, false);
+  }
+
+  /** Cancels any pending wave-load watchdog and stops its associated profiling timer. */
+  private void cancelWaveLoadWatchdog() {
+    if (waveLoadWatchdog != null) {
+      waveLoadWatchdog.cancel();
+      waveLoadWatchdog = null;
+    }
+    Timing.stop(waveLoadTimer);
+    waveLoadTimer = null;
+  }
+
+  /**
+   * Invoked when a wave open exceeds {@link #WAVE_LOAD_TIMEOUT_MS} without the
+   * OT channel finishing. Clears the spinner and offers the user a one-tap
+   * retry instead of hanging on "Loading" indefinitely.
+   */
+  private void onWaveLoadTimeout(final WaveRef waveRef) {
+    LOG.info("Wave open timed out after " + WAVE_LOAD_TIMEOUT_MS + "ms: "
+        + waveRef.getWaveId());
+    loading.removeFromParent();
+    ToastNotification.showPersistentAction(
+        WAVE_LOAD_TIMEOUT_TOAST_ID,
+        messages.waveLoadTimeout(),
+        ToastNotification.Level.WARNING,
+        messages.waveLoadRetry(),
+        new Runnable() {
+          @Override
+          public void run() {
+            // Reopen by wave id so the stalled provider is torn down and a fresh
+            // open is issued, rather than short-circuiting to in-wave blip
+            // navigation when the original ref carried a document id.
+            openWave(WaveRef.of(waveRef.getWaveId()), false, null);
+          }
+        });
   }
 
   /**

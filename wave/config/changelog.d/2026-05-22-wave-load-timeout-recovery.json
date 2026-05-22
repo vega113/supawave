@@ -1,6 +1,6 @@
 {
   "releaseId": "2026-05-22-wave-load-timeout-recovery",
-  "version": "PR #pending",
+  "version": "PR #1303",
   "date": "2026-05-22",
   "title": "Recover from waves that get stuck on \"Loading\"",
   "summary": "Opening a wave whose realtime channel never finished connecting could leave the wave panel stuck on the \"Loading\" spinner forever with no feedback. A watchdog now surfaces a one-tap Retry instead of hanging indefinitely.",

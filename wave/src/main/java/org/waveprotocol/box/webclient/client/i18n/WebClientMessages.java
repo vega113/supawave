@@ -88,4 +88,10 @@ public interface WebClientMessages extends Messages {
 
   @DefaultMessage("Empty wave removed")
   String emptyWaveRemoved();
+
+  @DefaultMessage("This wave is taking longer than expected to load.")
+  String waveLoadTimeout();
+
+  @DefaultMessage("Retry")
+  String waveLoadRetry();
 }

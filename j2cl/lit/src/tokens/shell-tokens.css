@@ -704,7 +704,14 @@ shell-status-strip {
 
 @media (max-width: 860px) {
   shell-root {
-    grid-template-columns: 1fr;
+    /* Use minmax(0, 1fr) rather than the bare `1fr` (which resolves to
+     * minmax(auto, 1fr)). A bare `1fr` column grows to the largest
+     * min-content of its grid items, so the wide nowrap compact topbar
+     * forced the single column — and therefore the nav rail, digest
+     * cards and wave panel — to ~402px on a 375px phone, clipping the
+     * right edge of unread counts/badges. minmax(0, 1fr) lets the column
+     * shrink to the viewport so content stays inside the screen. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto 1fr auto auto;
     grid-template-areas:
       "skip"

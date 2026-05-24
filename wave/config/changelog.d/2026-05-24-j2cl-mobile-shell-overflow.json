@@ -1,0 +1,15 @@
+{
+  "releaseId": "2026-05-24-j2cl-mobile-shell-overflow",
+  "version": "PR #1305",
+  "date": "2026-05-24",
+  "title": "Fix inbox content getting cut off on the right on phones",
+  "summary": "On phone-sized screens the inbox list was wider than the viewport, so each wave's timestamp, message count and unread badge were clipped off the right edge. The layout now fits the screen.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Constrain the mobile root-shell layout to the viewport width so the inbox digest no longer overflows and clips unread counts and badges on the right edge."
+      ]
+    }
+  ]
+}

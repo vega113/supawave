@@ -12,12 +12,12 @@ on:
     types: [ published ]
   workflow_dispatch:
 
-# Cancel superseded PR runs (rapid pushes / force-pushes) but never cancel
-# in-flight push-to-main / tag / release runs, so coverage on landed commits
-# and release builds is preserved.
+# Dedupe superseded PR runs (rapid pushes / force-pushes). For push/tag/release
+# the group key is the unique run id, so non-PR runs never share a group and are
+# never cancelled -- coverage on every landed commit and release is preserved.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   sbt-build:

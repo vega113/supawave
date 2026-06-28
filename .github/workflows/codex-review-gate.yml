@@ -25,8 +25,10 @@ on:
   # Backstop requeue only: PR/review/comment events below trigger the gate
   # directly, so this cron just re-evaluates PRs whose 10-minute review window
   # has elapsed. Every 5 minutes meant 288 scheduler runs/day; every 15 minutes
-  # (96/day) still clears the 10-minute window with at most ~5 extra minutes of
-  # latency, cutting ~67% of the scheduler's standing compute.
+  # (96/day) cuts ~67% of the scheduler's standing compute. Trade-off: a PR that
+  # becomes eligible just after a tick waits up to a full ~15 min for the next
+  # tick (so ~10-min window + up to ~15 min). Acceptable for a backstop requeue;
+  # there is no hard "window + 5 min" SLA here.
   schedule:
     - cron: "*/15 * * * *"
 

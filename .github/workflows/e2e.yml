@@ -9,6 +9,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Dedupe superseded PR runs (rapid pushes / force-pushes). For push events the
+# group key is the unique run id, so main runs never share a group and are never
+# cancelled -- coverage on every landed commit is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     name: E2E WebSocket Tests
@@ -46,6 +53,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-results
+          # Debug-only output kept short; nothing downstream consumes it.
+          retention-days: 7
           path: |
             wave/target/e2e-results/
             target/universal/stage/wave_server.out

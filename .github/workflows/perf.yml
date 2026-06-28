@@ -9,6 +9,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Dedupe superseded PR runs (rapid pushes / force-pushes). For push events the
+# group key is the unique run id, so main runs never share a group and are never
+# cancelled -- coverage on every landed commit is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   perf:
     name: Gatling Performance Tests
@@ -114,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-results
-          retention-days: 30
+          retention-days: 14
           path: |
             wave/target/perf-results/
             target/universal/stage/wave_server.out

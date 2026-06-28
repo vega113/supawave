@@ -22,8 +22,13 @@ on:
       - created
       - edited
 
+  # Backstop requeue only: PR/review/comment events below trigger the gate
+  # directly, so this cron just re-evaluates PRs whose 10-minute review window
+  # has elapsed. Every 5 minutes meant 288 scheduler runs/day; every 15 minutes
+  # (96/day) still clears the 10-minute window with at most ~5 extra minutes of
+  # latency, cutting ~67% of the scheduler's standing compute.
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
 
 jobs:
   requeue-codex-review-gate:

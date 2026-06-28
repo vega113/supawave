@@ -9,6 +9,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Cancel superseded PR runs (rapid pushes / force-pushes) but never cancel
+# in-flight push-to-main runs, so coverage on landed commits is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -98,6 +104,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: parity-e2e-playwright-report
+          # Failure-only debug artifact (traces/screenshots/videos, up to ~230MB
+          # each). Kept short: it is only useful while triaging the failed run.
+          retention-days: 7
           path: |
             wave/src/e2e/j2cl-gwt-parity/playwright-report
             wave/src/e2e/j2cl-gwt-parity/test-results
@@ -108,5 +117,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: parity-e2e-server-log
+          retention-days: 7
           path: target/universal/stage/wave_server.out
           if-no-files-found: ignore

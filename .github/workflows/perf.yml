@@ -9,6 +9,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Cancel superseded PR runs (rapid pushes / force-pushes) but never cancel
+# in-flight push-to-main runs, so coverage on landed commits is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   perf:
     name: Gatling Performance Tests
@@ -114,7 +120,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-results
-          retention-days: 30
+          retention-days: 14
           path: |
             wave/target/perf-results/
             target/universal/stage/wave_server.out

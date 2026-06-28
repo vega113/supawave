@@ -9,6 +9,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Cancel superseded PR runs (rapid pushes / force-pushes) but never cancel
+# in-flight push-to-main runs, so coverage on landed commits is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   e2e:
     name: E2E WebSocket Tests
@@ -46,6 +52,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-results
+          # Debug-only output kept short; nothing downstream consumes it.
+          retention-days: 7
           path: |
             wave/target/e2e-results/
             target/universal/stage/wave_server.out

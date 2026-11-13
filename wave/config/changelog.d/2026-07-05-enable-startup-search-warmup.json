@@ -1,0 +1,16 @@
+{
+  "releaseId": "2026-07-05-enable-startup-search-warmup",
+  "version": "Unreleased",
+  "date": "2026-07-05",
+  "title": "Re-enable startup search warmup on Contabo to stop tripping the deploy sanity gate",
+  "summary": "The deploy sanity check was intermittently failing with 'search returned no waves within 120 s' because the full WaveMap scan (needed to serve the first search request after a cold start) was deferred to that request instead of running at startup. Re-enabling search.startup_wave_view_warmup for the configured owner moves that one-time cost into the readyz warmup window, which has far more headroom (480s) than the sanity gate's 120s deadline.",
+  "sections": [
+    {
+      "type": "fix",
+      "items": [
+        "Set search.startup_wave_view_warmup = true in deploy/caddy/application.conf so the owner's per-user view (and the underlying shared WaveMap) is warmed during server startup instead of lazily on the first real search request",
+        "This removes the race between the deploy sanity check's 120s search deadline and the growing cost of the full wavelet scan as production data accumulates"
+      ]
+    }
+  ]
+}
